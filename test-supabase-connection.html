@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Supabase Connection</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .status {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .warning { background: #fff3cd; color: #856404; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        button {
+            background: #33C7BE;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #2ab3aa;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Supabase Connection Test</h1>
+    
+    <div id="results"></div>
+    
+    <button onclick="testConnection()">Probar Conexión</button>
+    
+    <script type="module">
+        const SUPABASE_URL = 'https://kxdxeobrcdoccqvqkvfw.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4ZHhlb2JyY2RvY2NxdnFrdmZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyMTI2MDMsImV4cCI6MjA4NTc4ODYwM30.qG0mbzrqXgOAo5CHwRRr7fdq5h00U_1lebgz9CFsiwE';
+        
+        function addResult(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = message;
+            document.getElementById('results').appendChild(div);
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+        
+        async function testConnection() {
+            clearResults();
+            addResult('🔄 Iniciando pruebas...', 'info');
+            
+            // Test 1: Check if URL is reachable
+            addResult('<strong>Test 1:</strong> Verificando acceso al servidor Supabase...', 'info');
+            try {
+                const startTime = Date.now();
+                const response = await fetch(SUPABASE_URL + '/rest/v1/', {
+                    method: 'HEAD',
+                    signal: AbortSignal.timeout(5000)
+                });
+                const duration = Date.now() - startTime;
+                
+                if (response.ok || response.status === 401) {
+                    addResult(`✅ Servidor alcanzable (${duration}ms)`, 'success');
+                } else {
+                    addResult(`⚠️ Respuesta inesperada: ${response.status}`, 'warning');
+                }
+            } catch (error) {
+                addResult(`❌ No se puede conectar al servidor: ${error.message}`, 'error');
+                addResult(`<strong>Posibles causas:</strong><br>
+                    - Sin conexión a internet<br>
+                    - Firewall bloqueando conexión<br>
+                    - Proyecto Supabase pausado o eliminado<br>
+                    - URL incorrecta`, 'warning');
+                return;
+            }
+            
+            // Test 2: Import Supabase client library
+            addResult('<strong>Test 2:</strong> Cargando librería de Supabase...', 'info');
+            try {
+                const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+                addResult('✅ Librería cargada correctamente', 'success');
+                
+                // Test 3: Create client
+                addResult('<strong>Test 3:</strong> Creando cliente Supabase...', 'info');
+                const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                addResult('✅ Cliente creado', 'success');
+                
+                // Test 4: Test actual auth
+                addResult('<strong>Test 4:</strong> Probando autenticación (getSession)...', 'info');
+                try {
+                    const startTime = Date.now();
+                    const { data, error } = await supabase.auth.getSession();
+                    const duration = Date.now() - startTime;
+                    
+                    if (error) {
+                        addResult(`⚠️ Error en getSession (${duration}ms): ${error.message}`, 'warning');
+                    } else {
+                        addResult(`✅ getSession exitoso (${duration}ms)`, 'success');
+                        addResult(`<pre>Session: ${data.session ? 'Existe' : 'No existe (normal si no estás logueado)'}</pre>`, 'info');
+                    }
+                } catch (authError) {
+                    addResult(`❌ Error al llamar getSession: ${authError.message}`, 'error');
+                }
+                
+                // Test 5: Test sign in with fake credentials (should fail but at least respond)
+                addResult('<strong>Test 5:</strong> Probando endpoint de login...', 'info');
+                try {
+                    const startTime = Date.now();
+                    const { error } = await supabase.auth.signInWithPassword({
+                        email: 'test@test.com',
+                        password: 'wrongpassword'
+                    });
+                    const duration = Date.now() - startTime;
+                    
+                    if (error) {
+                        if (error.message.includes('Invalid login credentials')) {
+                            addResult(`✅ Endpoint de login funciona (${duration}ms) - Error esperado: credenciales inválidas`, 'success');
+                        } else {
+                            addResult(`⚠️ Respuesta de login (${duration}ms): ${error.message}`, 'warning');
+                        }
+                    } else {
+                        addResult(`⚠️ Login exitoso con credenciales de prueba (inesperado)`, 'warning');
+                    }
+                } catch (loginError) {
+                    addResult(`❌ Error al probar login: ${loginError.message}`, 'error');
+                }
+                
+                addResult('<br><strong>🎯 Diagnóstico completo</strong>', 'success');
+                
+            } catch (importError) {
+                addResult(`❌ No se puede cargar la librería: ${importError.message}`, 'error');
+            }
+        }
+        
+        // Make function available globally
+        window.testConnection = testConnection;
+        
+        // Auto-run on load
+        addResult('✅ Herramienta de diagnóstico cargada. Haz clic en el botón para probar.', 'info');
+    </script>
+</body>
+</html>
