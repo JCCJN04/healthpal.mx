@@ -1,5 +1,9 @@
-import { useState } from 'react';
-import { AlertTriangle, Trash2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { AlertTriangle, Trash2, CheckCircle, XCircle } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
+import { getMyProfile, updateMyProfile } from '../lib/queries/profile';
+import { getMySettings, updateMySettings } from '../lib/queries/settings';
 import DashboardLayout from '../components/DashboardLayout';
 import ProfileCard from '../components/ProfileCard';
 import PersonalInfoCard from '../components/PersonalInfoCard';
@@ -9,67 +13,185 @@ import PreferencesCard from '../components/PreferencesCard';
 type TabType = 'general' | 'medical' | 'documents';
 
 export default function Configuracion() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('general');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  
+  // Loading states
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+  
+  // Profile data
+  const [profile, setProfile] = useState<any>(null);
+  const [settings, setSettings] = useState<any>(null);
+  
+  // Error states
+  const [profileError, setProfileError] = useState<string | null>(null);
+  
+  // Toast state
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  // Mock user data
-  const [userData] = useState({
-    name: 'Daniel Vazquez',
-    gender: 'Male',
-    age: 21,
-    location: 'Monterrey, Nuevo León, México',
-    avatarUrl: undefined as string | undefined,
-  });
+  // Fetch profile data
+  useEffect(() => {
+    async function loadProfile() {
+      try {
+        setIsLoadingProfile(true);
+        const profileData = await getMyProfile();
+        setProfile(profileData);
+      } catch (error: any) {
+        console.error('Error loading profile:', error);
+        setProfileError(error.message || 'Error al cargar perfil');
+      } finally {
+        setIsLoadingProfile(false);
+      }
+    }
 
-  const [personalInfo, setPersonalInfo] = useState({
-    fullName: 'Danial Vazquez',
-    birthDate: '2005-06-30',
-    email: 'Danielvv2005@gmail.com',
-    phone: '+52 81 2192 1877',
-    bio: 'Estudiante de Licenciatura',
-  });
+    if (user) {
+      loadProfile();
+    }
+  }, [user]);
 
-  const [preferences, setPreferences] = useState({
-    emailNotifications: true,
-    whatsappNotifications: false,
-    appointmentReminders: true,
-    appointmentChanges: true,
-  });
+  // Fetch settings
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        setIsLoadingSettings(true);
+        const settingsData = await getMySettings();
+        setSettings(settingsData);
+      } catch (error: any) {
+        console.error('Error loading settings:', error);
+        // Settings will stay null if there's an error
+      } finally {
+        setIsLoadingSettings(false);
+      }
+    }
 
+    if (user) {
+      loadSettings();
+    }
+  }, [user]);
+
+  // Handlers
   const handleEditProfile = () => {
-    console.log('Edit profile clicked');
-    // Scroll to personal info card
     document.getElementById('personal-info')?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const handleChangePhoto = (file: File) => {
-    console.log('Photo changed:', file.name);
-    // In production, upload to server and update avatarUrl
+  const handleChangePhoto = async (file: File) => {
+    // TODO: Implement avatar upload to Supabase Storage
+    console.log('Photo upload not yet implemented:', file.name);
+    setToast({ message: 'Subida de foto: próximamente', type: 'error' });
   };
 
-  const handleSavePersonalInfo = (data: typeof personalInfo) => {
-    setPersonalInfo(data);
-    console.log('Personal info saved:', data);
-    // In production, send to API
+  const handleSavePersonalInfo = async (data: { fullName: string; birthDate: string; email: string; phone: string; bio: string }) => {
+    try {
+      setProfileError(null);
+      
+      // Update profile in Supabase
+      const updated = await updateMyProfile({
+        full_name: data.fullName,
+        birthdate: data.birthDate,
+        email: data.email,
+        phone: data.phone,
+      });
+      
+      setProfile(updated);
+      setToast({ message: '¡Perfil actualizado exitosamente!', type: 'success' });
+    } catch (error: any) {
+      console.error('Error updating profile:', error);
+      const errorMessage = error.message || 'Error al actualizar perfil';
+      setProfileError(errorMessage);
+      setToast({ message: errorMessage, type: 'error' });
+      throw error; // Re-throw so component can handle it
+    }
   };
 
-  const handleUpdatePassword = (currentPassword: string, newPassword: string) => {
-    console.log('Password update requested');
-    console.log('Current:', currentPassword.length, 'chars');
-    console.log('New:', newPassword.length, 'chars');
-    // In production, send to API
+  const handleUpdatePassword = async (newPassword: string) => {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) throw error;
+
+      setToast({ message: '¡Contraseña actualizada exitosamente!', type: 'success' });
+    } catch (error: any) {
+      console.error('Error updating password:', error);
+      const errorMessage = error.message || 'Error al actualizar contraseña';
+      setToast({ message: errorMessage, type: 'error' });
+      throw error;
+    }
   };
 
-  const handleSavePreferences = (newPreferences: typeof preferences) => {
-    setPreferences(newPreferences);
-    // In production, send to API
+  const handleSavePreferences = async (newPreferences: { emailNotifications: boolean; whatsappNotifications: boolean; appointmentReminders: boolean }) => {
+    try {
+      const updated = await updateMySettings({
+        email_notifications: newPreferences.emailNotifications,
+        appointment_reminders: newPreferences.appointmentReminders,
+        whatsapp_notifications: newPreferences.whatsappNotifications,
+      });
+      
+      setSettings(updated);
+      // Don't show toast for preferences - they update optimistically
+    } catch (error: any) {
+      console.error('Error updating preferences:', error);
+      throw error;
+    }
   };
 
   const handleDeleteAccount = () => {
-    console.log('Account deletion requested');
+    // TODO: Implement account deletion
+    console.log('Account deletion not yet implemented');
     setShowDeleteModal(false);
-    // In production, show confirmation and delete account
+    setToast({ message: 'Eliminación de cuenta: próximamente', type: 'error' });
   };
+
+  // Calculate age from birthdate
+  const calculateAge = (birthdate: string | null): number => {
+    if (!birthdate) return 0;
+    const today = new Date();
+    const birth = new Date(birthdate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  // Format sex enum for display
+  const formatGender = (sex: string | null): string => {
+    if (!sex) return 'No especificado';
+    const map: Record<string, string> = {
+      male: 'Male',
+      female: 'Female',
+      other: 'Other',
+      unspecified: 'No especificado',
+    };
+    return map[sex] || sex;
+  };
+
+  // Prepare display data
+  const userData = profile ? {
+    name: profile.full_name || 'Usuario',
+    gender: formatGender(profile.sex),
+    age: calculateAge(profile.birthdate),
+    location: 'Monterrey, Nuevo León, México', // TODO: Add location to profile
+    avatarUrl: profile.avatar_url || undefined,
+  } : null;
+
+  const personalInfo = profile ? {
+    fullName: profile.full_name || '',
+    birthDate: profile.birthdate || '',
+    email: profile.email || '',
+    phone: profile.phone || '',
+    bio: '', // patients don't have bio in base profile
+  } : null;
+
+  const preferences = settings ? {
+    emailNotifications: settings.email_notifications,
+    whatsappNotifications: settings.whatsapp_notifications,
+    appointmentReminders: settings.appointment_reminders,
+  } : null;
 
   const tabs: { id: TabType; label: string }[] = [
     { id: 'general', label: 'General' },
@@ -118,35 +240,44 @@ export default function Configuracion() {
           {activeTab === 'general' && (
             <div className="space-y-6">
               {/* Profile Summary Card */}
-              <ProfileCard
-                name={userData.name}
-                gender={userData.gender}
-                age={userData.age}
-                location={userData.location}
-                avatarUrl={userData.avatarUrl}
-                onEditProfile={handleEditProfile}
-                onChangePhoto={handleChangePhoto}
-              />
+              {userData && (
+                <ProfileCard
+                  name={userData.name}
+                  gender={userData.gender}
+                  age={userData.age}
+                  location={userData.location}
+                  avatarUrl={userData.avatarUrl}
+                  onEditProfile={handleEditProfile}
+                  onChangePhoto={handleChangePhoto}
+                />
+              )}
 
               {/* Personal Information Card */}
               <div id="personal-info">
-                <PersonalInfoCard
-                  initialData={personalInfo}
-                  onSave={handleSavePersonalInfo}
-                />
+                {personalInfo && (
+                  <PersonalInfoCard
+                    initialData={personalInfo}
+                    onSave={handleSavePersonalInfo}
+                    isLoading={isLoadingProfile}
+                    saveError={profileError}
+                  />
+                )}
               </div>
 
               {/* Security Card */}
               <SecurityCard
-                lastPasswordChange="2025-11-15"
+                lastPasswordChange={undefined} // TODO: Track password changes
                 onUpdatePassword={handleUpdatePassword}
               />
 
               {/* Preferences Card */}
-              <PreferencesCard
-                initialPreferences={preferences}
-                onSave={handleSavePreferences}
-              />
+              {preferences && (
+                <PreferencesCard
+                  initialPreferences={preferences}
+                  onSave={handleSavePreferences}
+                  isLoading={isLoadingSettings}
+                />
+              )}
 
               {/* Danger Zone */}
               <div className="bg-red-50 border-2 border-red-100 rounded-xl p-6">
@@ -240,6 +371,34 @@ export default function Configuracion() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notifications */}
+      {toast && (
+        <div className="fixed bottom-4 right-4 z-50 animate-in slide-in-from-right duration-300">
+          <div className={`flex items-center gap-3 p-4 rounded-lg border shadow-lg min-w-[300px] ${
+            toast.type === 'success' 
+              ? 'bg-green-50 border-green-200' 
+              : 'bg-red-50 border-red-200'
+          }`}>
+            {toast.type === 'success' ? (
+              <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+            ) : (
+              <XCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+            )}
+            <p className={`flex-1 text-sm font-medium ${
+              toast.type === 'success' ? 'text-green-800' : 'text-red-800'
+            }`}>
+              {toast.message}
+            </p>
+            <button
+              onClick={() => setToast(null)}
+              className="flex-shrink-0 text-gray-500 hover:text-gray-700"
+            >
+              ×
+            </button>
           </div>
         </div>
       )}

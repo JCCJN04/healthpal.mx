@@ -275,6 +275,32 @@ export interface Database {
           created_at?: string
         }
       }
+      user_settings: {
+        Row: {
+          user_id: string
+          email_notifications: boolean
+          appointment_reminders: boolean
+          whatsapp_notifications: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          email_notifications?: boolean
+          appointment_reminders?: boolean
+          whatsapp_notifications?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          email_notifications?: boolean
+          appointment_reminders?: boolean
+          whatsapp_notifications?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -314,3 +340,4 @@ export type PatientProfile = Database['public']['Tables']['patient_profiles']['R
 export type Appointment = Database['public']['Tables']['appointments']['Row']
 export type Document = Database['public']['Tables']['documents']['Row']
 export type Notification = Database['public']['Tables']['notifications']['Row']
+export type UserSettings = Database['public']['Tables']['user_settings']['Row']

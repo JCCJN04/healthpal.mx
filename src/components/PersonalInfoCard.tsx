@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Edit2, Save, X, Mail, Phone, Calendar, User } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Edit2, Save, X, Mail, Phone, Calendar, User, Loader2 } from 'lucide-react';
 
 interface PersonalInfo {
   fullName: string;
@@ -11,13 +11,21 @@ interface PersonalInfo {
 
 interface PersonalInfoCardProps {
   initialData: PersonalInfo;
-  onSave: (data: PersonalInfo) => void;
+  onSave: (data: PersonalInfo) => Promise<void>;
+  isLoading?: boolean;
+  saveError?: string | null;
 }
 
-const PersonalInfoCard = ({ initialData, onSave }: PersonalInfoCardProps) => {
+const PersonalInfoCard = ({ initialData, onSave, isLoading = false, saveError = null }: PersonalInfoCardProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState(initialData);
   const [errors, setErrors] = useState<Partial<Record<keyof PersonalInfo, string>>>({});
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Update form data when initialData changes
+  useEffect(() => {
+    setFormData(initialData);
+  }, [initialData]);
 
   const calculateAge = (birthDate: string): number => {
     const today = new Date();
@@ -65,11 +73,18 @@ const PersonalInfoCard = ({ initialData, onSave }: PersonalInfoCardProps) => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (validateForm()) {
-      onSave(formData);
-      setIsEditing(false);
-      console.log('Perfil actualizado:', formData);
+      setIsSaving(true);
+      try {
+        await onSave(formData);
+        setIsEditing(false);
+      } catch (error) {
+        console.error('Error saving profile:', error);
+        // Error is handled by parent component
+      } finally {
+        setIsSaving(false);
+      }
     }
   };
 
@@ -105,157 +120,185 @@ const PersonalInfoCard = ({ initialData, onSave }: PersonalInfoCardProps) => {
         )}
       </div>
 
-      {/* Content */}
       <div className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Full Name */}
-          <div>
-            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
-              Nombre completo
-            </label>
-            {isEditing ? (
-              <div>
-                <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus-within:border-[#33C7BE] focus-within:bg-white transition-colors">
-                  <User className="w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    value={formData.fullName}
-                    onChange={(e) => handleChange('fullName', e.target.value)}
-                    className="flex-1 bg-transparent outline-none text-gray-900"
-                    placeholder="Nombre completo"
-                  />
+        {/* Show error message if save failed */}
+        {saveError && (
+          <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+            {saveError}
+          </div>
+        )}
+
+        {/* Show loading skeleton */}
+        {isLoading ? (
+          <div className="space-y-4 animate-pulse">
+            <div className="h-16 bg-gray-200 rounded-lg"></div>
+            <div className="h-16 bg-gray-200 rounded-lg"></div>
+            <div className="h-16 bg-gray-200 rounded-lg"></div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Full Name */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                Nombre completo
+              </label>
+              {isEditing ? (
+                <div>
+                  <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus-within:border-[#33C7BE] focus-within:bg-white transition-colors">
+                    <User className="w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      value={formData.fullName}
+                      onChange={(e) => handleChange('fullName', e.target.value)}
+                      className="flex-1 bg-transparent outline-none text-gray-900"
+                      placeholder="Nombre completo"
+                    />
+                  </div>
+                  {errors.fullName && (
+                    <p className="text-xs text-red-600 mt-1">{errors.fullName}</p>
+                  )}
                 </div>
-                {errors.fullName && (
-                  <p className="text-xs text-red-600 mt-1">{errors.fullName}</p>
-                )}
-              </div>
-            ) : (
-              <p className="text-base font-semibold text-gray-900">{formData.fullName}</p>
-            )}
-          </div>
+              ) : (
+                <p className="text-base font-semibold text-gray-900">{formData.fullName}</p>
+              )}
+            </div>
 
-          {/* Birth Date */}
-          <div>
-            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
-              Fecha de nacimiento
-            </label>
-            {isEditing ? (
-              <div>
-                <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus-within:border-[#33C7BE] focus-within:bg-white transition-colors">
-                  <Calendar className="w-4 h-4 text-gray-400" />
-                  <input
-                    type="date"
-                    value={formData.birthDate}
-                    onChange={(e) => handleChange('birthDate', e.target.value)}
-                    className="flex-1 bg-transparent outline-none text-gray-900"
-                  />
+            {/* Birth Date */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                Fecha de nacimiento
+              </label>
+              {isEditing ? (
+                <div>
+                  <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus-within:border-[#33C7BE] focus-within:bg-white transition-colors">
+                    <Calendar className="w-4 h-4 text-gray-400" />
+                    <input
+                      type="date"
+                      value={formData.birthDate}
+                      onChange={(e) => handleChange('birthDate', e.target.value)}
+                      className="flex-1 bg-transparent outline-none text-gray-900"
+                    />
+                  </div>
+                  {errors.birthDate && (
+                    <p className="text-xs text-red-600 mt-1">{errors.birthDate}</p>
+                  )}
                 </div>
-                {errors.birthDate && (
-                  <p className="text-xs text-red-600 mt-1">{errors.birthDate}</p>
-                )}
-              </div>
-            ) : (
-              <p className="text-base font-semibold text-gray-900">
-                {formatDate(formData.birthDate)}
-              </p>
-            )}
-          </div>
+              ) : (
+                <p className="text-base font-semibold text-gray-900">
+                  {formatDate(formData.birthDate)}
+                </p>
+              )}
+            </div>
 
-          {/* Age (derived, always read-only) */}
-          <div>
-            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
-              Edad
-            </label>
-            <p className="text-base font-semibold text-gray-900">{age} años</p>
-          </div>
+            {/* Age (derived, always read-only) */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                Edad
+              </label>
+              <p className="text-base font-semibold text-gray-900">{age} años</p>
+            </div>
 
-          {/* Email */}
-          <div>
-            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
-              Correo electrónico
-            </label>
-            {isEditing ? (
-              <div>
-                <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus-within:border-[#33C7BE] focus-within:bg-white transition-colors">
-                  <Mail className="w-4 h-4 text-gray-400" />
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => handleChange('email', e.target.value)}
-                    className="flex-1 bg-transparent outline-none text-gray-900"
-                    placeholder="correo@ejemplo.com"
-                  />
+            {/* Email */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                Correo electrónico
+              </label>
+              {isEditing ? (
+                <div>
+                  <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus-within:border-[#33C7BE] focus-within:bg-white transition-colors">
+                    <Mail className="w-4 h-4 text-gray-400" />
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => handleChange('email', e.target.value)}
+                      className="flex-1 bg-transparent outline-none text-gray-900"
+                      placeholder="correo@ejemplo.com"
+                    />
+                  </div>
+                  {errors.email && (
+                    <p className="text-xs text-red-600 mt-1">{errors.email}</p>
+                  )}
                 </div>
-                {errors.email && (
-                  <p className="text-xs text-red-600 mt-1">{errors.email}</p>
-                )}
-              </div>
-            ) : (
-              <p className="text-base font-semibold text-gray-900">{formData.email}</p>
-            )}
-          </div>
+              ) : (
+                <p className="text-base font-semibold text-gray-900">{formData.email}</p>
+              )}
+            </div>
 
-          {/* Phone */}
-          <div>
-            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
-              Número telefónico
-            </label>
-            {isEditing ? (
-              <div>
-                <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus-within:border-[#33C7BE] focus-within:bg-white transition-colors">
-                  <Phone className="w-4 h-4 text-gray-400" />
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => handleChange('phone', e.target.value)}
-                    className="flex-1 bg-transparent outline-none text-gray-900"
-                    placeholder="+52 81 2192 1877"
-                  />
+            {/* Phone */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                Número telefónico
+              </label>
+              {isEditing ? (
+                <div>
+                  <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus-within:border-[#33C7BE] focus-within:bg-white transition-colors">
+                    <Phone className="w-4 h-4 text-gray-400" />
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => handleChange('phone', e.target.value)}
+                      className="flex-1 bg-transparent outline-none text-gray-900"
+                      placeholder="+52 81 2192 1877"
+                    />
+                  </div>
+                  {errors.phone && (
+                    <p className="text-xs text-red-600 mt-1">{errors.phone}</p>
+                  )}
                 </div>
-                {errors.phone && (
-                  <p className="text-xs text-red-600 mt-1">{errors.phone}</p>
-                )}
-              </div>
-            ) : (
-              <p className="text-base font-semibold text-gray-900">{formData.phone}</p>
-            )}
-          </div>
+              ) : (
+                <p className="text-base font-semibold text-gray-900">{formData.phone}</p>
+              )}
+            </div>
 
-          {/* Bio */}
-          <div className="md:col-span-2">
-            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
-              Bio / Descripción
-            </label>
-            {isEditing ? (
-              <textarea
-                value={formData.bio}
-                onChange={(e) => handleChange('bio', e.target.value)}
-                rows={3}
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-[#33C7BE] focus:bg-white transition-colors text-gray-900 resize-none"
-                placeholder="Cuéntanos un poco sobre ti..."
-              />
-            ) : (
-              <p className="text-base text-gray-700">{formData.bio || 'No especificado'}</p>
-            )}
+            {/* Bio */}
+            <div className="md:col-span-2">
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                Bio / Descripción
+              </label>
+              {isEditing ? (
+                <textarea
+                  value={formData.bio}
+                  onChange={(e) => handleChange('bio', e.target.value)}
+                  disabled={isSaving}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:border-[#33C7BE] focus:bg-white transition-colors outline-none resize-none min-h-[100px] text-gray-900"
+                  placeholder="Cuéntanos un poco sobre ti..."
+                />
+              ) : (
+                <p className="text-base text-gray-700 leading-relaxed">
+                  {formData.bio || "No hay descripción disponible."}
+                </p>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Action Buttons (only shown when editing) */}
+        {/* Edit Actions */}
         {isEditing && (
-          <div className="flex items-center justify-end gap-3 mt-6 pt-6 border-t border-gray-100">
+          <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end gap-3">
             <button
               onClick={handleCancel}
-              className="px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+              disabled={isSaving}
+              className="px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <X className="w-4 h-4" />
               <span>Cancelar</span>
             </button>
             <button
               onClick={handleSave}
-              className="px-5 py-2.5 bg-[#33C7BE] text-white text-sm font-semibold rounded-lg hover:bg-teal-600 transition-colors flex items-center gap-2 shadow-sm"
+              disabled={isSaving}
+              className="px-5 py-2.5 bg-[#33C7BE] text-white text-sm font-semibold rounded-lg hover:bg-teal-600 transition-colors flex items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Save className="w-4 h-4" />
-              <span>Guardar cambios</span>
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Guardando...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  <span>Guardar cambios</span>
+                </>
+              )}
             </button>
           </div>
         )}

@@ -1,30 +1,66 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
   Download,
   Share2,
-  Heart,
   MoreVertical,
   FolderOpen,
   Edit,
-  Trash2
+  Trash2,
+  Loader2
 } from 'lucide-react'
 import DashboardLayout from '../components/DashboardLayout'
 import { DocumentViewer } from '../components/DocumentViewer'
 import { NotesPanel } from '../components/NotesPanel'
 import { ShareModal } from '../components/ShareModal'
-import { getDocumentById } from '../mock/documentDetail'
+import { getDocumentById, getDocumentDownloadUrl, deleteDocument } from '../lib/queries/documents'
+import { showToast } from '../components/Toast'
+import { useAuth } from '../context/AuthContext'
+
 
 export default function DocumentDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
   const [shareModalOpen, setShareModalOpen] = useState(false)
-  const [isFavorite, setIsFavorite] = useState(false)
+  const [document, setDocument] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [fileUrl, setFileUrl] = useState<string | null>(null)
 
-  // Get document data
-  const document = id ? getDocumentById(id) : undefined
+  useEffect(() => {
+    if (id) {
+      loadDocumentData(id)
+    }
+  }, [id])
+
+  const loadDocumentData = async (docId: string) => {
+    setLoading(true)
+    try {
+      const doc = await getDocumentById(docId)
+      if (doc) {
+        setDocument(doc)
+        const url = await getDocumentDownloadUrl(doc.file_path)
+        setFileUrl(url)
+      }
+    } catch (err) {
+      console.error('Error loading document:', err)
+      showToast('Error al cargar el documento', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      </DashboardLayout>
+    )
+  }
 
   if (!document) {
     return (
@@ -49,33 +85,49 @@ export default function DocumentDetail() {
     )
   }
 
-  // Initialize favorite state from document
-  if (document.isFavorite !== isFavorite) {
-    setIsFavorite(document.isFavorite)
-  }
 
   const handleBack = () => {
     navigate(-1)
   }
 
-  const handleDownload = () => {
-    console.log('Descargar documento:', document.title)
-    // TODO: Implement actual download
+  const handleDownload = async () => {
+    if (!document) return
+    console.log('Descargando documento:', document.id)
+    const url = await getDocumentDownloadUrl(document.file_path)
+    if (url) {
+      window.open(url, '_blank')
+    } else {
+      showToast('No se pudo generar el enlace de descarga', 'error')
+    }
   }
 
   const handleShare = () => {
     setShareModalOpen(true)
   }
 
-  const handleToggleFavorite = () => {
-    setIsFavorite(!isFavorite)
-    console.log('Toggle favorite:', document.id, !isFavorite)
-  }
-
-  const handleMenuAction = (action: string) => {
-    console.log(`${action} documento:`, document.id)
+  const handleMenuAction = async (action: string) => {
+    if (!document) return
+    console.log(`Acción menu: ${action} para`, document.id)
     setMenuOpen(false)
-    // TODO: Implement actions
+
+    if (action === 'Eliminar') {
+      if (!user || !document) return
+      if (!confirm('¿Estás seguro de que deseas eliminar este documento permanentemente?')) return
+
+      const result = await deleteDocument(document.id, user.id)
+      if (result.success) {
+        showToast('Documento eliminado correctamente', 'success')
+        navigate('/dashboard/documentos')
+      } else {
+        showToast(result.error || 'Error al eliminar', 'error')
+      }
+    } else if (action === 'Renombrar') {
+      const newTitle = prompt('Ingresa el nuevo título del documento:', document.title)
+      if (newTitle && newTitle !== document.title) {
+        // We need an updateDocument function in documents.ts if we want this to work properly
+        showToast('Próximamente: Actualización de metadatos', 'info')
+      }
+    }
   }
 
   const handleAddNote = (content: string) => {
@@ -85,15 +137,40 @@ export default function DocumentDetail() {
 
   const getCategoryColor = (category: string) => {
     switch (category) {
-      case 'Recetas':
+      case 'prescription':
         return 'bg-purple-100 text-purple-700'
-      case 'Radiografías':
+      case 'radiology':
         return 'bg-blue-100 text-blue-700'
-      case 'Estudios':
+      case 'lab':
         return 'bg-green-100 text-green-700'
       default:
         return 'bg-gray-100 text-gray-700'
     }
+  }
+
+  const getCategoryLabel = (category: string) => {
+    const labels: Record<string, string> = {
+      radiology: 'Radiología',
+      prescription: 'Recetas',
+      history: 'Historial',
+      lab: 'Laboratorio',
+      insurance: 'Seguros',
+      other: 'Otros',
+    }
+    return labels[category] || category
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('es-MX', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    })
+  }
+
+  const getFileType = (mimeType: string | null): 'pdf' | 'image' => {
+    if (mimeType?.includes('pdf')) return 'pdf'
+    return 'image'
   }
 
   return (
@@ -127,19 +204,6 @@ export default function DocumentDetail() {
                 title="Compartir"
               >
                 <Share2 className="w-5 h-5 text-gray-600 group-hover:text-[#33C7BE]" />
-              </button>
-              <button
-                onClick={handleToggleFavorite}
-                className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors"
-                title={isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}
-              >
-                <Heart
-                  className={`w-5 h-5 transition-colors ${
-                    isFavorite
-                      ? 'fill-red-500 text-red-500'
-                      : 'text-gray-600 hover:text-red-500'
-                  }`}
-                />
               </button>
 
               {/* More Menu */}
@@ -198,59 +262,49 @@ export default function DocumentDetail() {
             <div className="flex flex-wrap items-center gap-3">
               {/* Category Chip */}
               <span
-                className={`px-3 py-1.5 rounded-full text-sm font-semibold ${getCategoryColor(
+                className={`px-3 py-1.5 rounded-full text-sm font-semibold uppercase tracking-wider ${getCategoryColor(
                   document.category
                 )}`}
               >
-                {document.category}
+                {getCategoryLabel(document.category)}
               </span>
 
               {/* Date */}
               <span className="text-sm text-gray-600 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-                {document.date}
+                {formatDate(document.created_at)}
               </span>
 
-              {/* Owner */}
-              <div className="flex items-center gap-2">
+              {/* File Info */}
+              <span className="text-sm text-gray-600 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#33C7BE] to-[#2bb5ad] flex items-center justify-center text-white text-xs font-semibold">
-                    {document.ownerInitial}
-                  </div>
-                  <span className="text-sm text-gray-700 font-medium">
-                    {document.ownerName}
-                  </span>
-                </div>
-              </div>
-
-              {/* Tags */}
-              {document.tags.map((tag, index) => (
-                <span
-                  key={index}
-                  className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-md text-xs font-medium"
-                >
-                  {tag}
-                </span>
-              ))}
+                {document.mime_type?.split('/')[1].toUpperCase()}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Main Content: 2 Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left: Document Viewer (70%) */}
-          <div className="lg:col-span-2">
-            <DocumentViewer
-              fileUrl={document.fileUrl}
-              fileType={document.fileType}
-              title={document.title}
-            />
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Left: Document Viewer (75%) */}
+          <div className="lg:col-span-3">
+            {fileUrl ? (
+              <DocumentViewer
+                fileUrl={fileUrl}
+                fileType={getFileType(document.mime_type)}
+                title={document.title}
+              />
+            ) : (
+              <div className="bg-white rounded-xl shadow-sm p-12 text-center border-2 border-dashed border-gray-100 min-h-[600px] flex flex-col items-center justify-center">
+                <Loader2 className="w-12 h-12 text-primary mx-auto mb-4 animate-spin" />
+                <p className="text-gray-900 font-bold text-lg">Cargando documento...</p>
+                <p className="text-gray-500">Generando enlace seguro...</p>
+              </div>
+            )}
           </div>
 
-          {/* Right: Notes Panel (30%) */}
+          {/* Right: Notes Panel (25%) */}
           <div className="lg:col-span-1">
-            <NotesPanel notes={document.notes} onAddNote={handleAddNote} />
+            <NotesPanel notes={document.notes || []} onAddNote={handleAddNote} />
           </div>
         </div>
       </div>

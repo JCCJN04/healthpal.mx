@@ -1,16 +1,22 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Upload, Search, Filter, FileText, Calendar, FolderOpen, Loader2, Plus } from 'lucide-react'
 import DashboardLayout from '../components/DashboardLayout'
 import ViewToggle from '../components/ViewToggle'
 import DocumentsTable from '../components/DocumentsTable'
 import { DocumentGrid } from '../components/DocumentGrid'
 import { useAuth } from '../context/AuthContext'
-import { getUserDocuments, uploadDocument, deleteDocument } from '../lib/queries/documents'
+import { getUserDocuments, uploadDocument, deleteDocument, getFolders, createFolder, deleteFolder, updateFolder } from '../lib/queries/documents'
 import { showToast } from '../components/Toast'
 import type { Database } from '../types/database'
 
 type Document = Database['public']['Tables']['documents']['Row']
 type DocCategory = Database['public']['Enums']['doc_category']
+type Folder = {
+  id: string
+  name: string
+  color: string
+  created_at: string
+}
 
 const CATEGORIES = [
   { value: 'all', label: 'Todos' },
@@ -22,26 +28,23 @@ const CATEGORIES = [
   { value: 'other', label: 'Otros' },
 ]
 
-const CATEGORY_LABELS: Record<DocCategory, string> = {
-  radiology: 'Radiología',
-  prescription: 'Recetas',
-  history: 'Historial',
-  lab: 'Laboratorio',
-  insurance: 'Seguros',
-  other: 'Otros',
-}
-
 export default function Documentos() {
   const { user } = useAuth()
   const [view, setView] = useState<'list' | 'grid'>('grid')
   const [documents, setDocuments] = useState<Document[]>([])
+  const [folders, setFolders] = useState<Folder[]>([])
   const [filteredDocuments, setFilteredDocuments] = useState<Document[]>([])
+  const [filteredFolders, setFilteredFolders] = useState<Folder[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
+  const [folderModalOpen, setFolderModalOpen] = useState(false)
+  const [newFolderName, setNewFolderName] = useState('')
   const [uploading, setUploading] = useState(false)
-  
+  const [currentFolder, setCurrentFolder] = useState<{ id: string | null; name: string }>({ id: null, name: 'Mis Documentos' })
+  const [navHistory, setNavHistory] = useState<{ id: string | null; name: string }[]>([])
+
   const [uploadForm, setUploadForm] = useState<{
     file: File | null
     title: string
@@ -55,38 +58,48 @@ export default function Documentos() {
   })
 
   useEffect(() => {
-    loadDocuments()
-  }, [user])
+    loadContent()
+  }, [user, currentFolder.id])
 
   useEffect(() => {
-    filterDocuments()
-  }, [documents, searchQuery, selectedCategory])
+    filterContent()
+  }, [documents, folders, searchQuery, selectedCategory])
 
-  const loadDocuments = async () => {
+  const loadContent = async () => {
     if (!user) return
     setLoading(true)
-    const docs = await getUserDocuments(user.id)
+    const [docs, flds] = await Promise.all([
+      getUserDocuments(user.id, currentFolder.id),
+      getFolders(user.id, currentFolder.id)
+    ])
     setDocuments(docs)
+    setFolders(flds)
     setLoading(false)
   }
 
-  const filterDocuments = () => {
-    let filtered = [...documents]
+  const filterContent = () => {
+    let filtDocs = [...documents]
+    let filtFlds = [...folders]
 
     // Filter by search
     if (searchQuery) {
-      filtered = filtered.filter(doc => 
-        doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        doc.notes?.toLowerCase().includes(searchQuery.toLowerCase())
+      const search = searchQuery.toLowerCase()
+      filtDocs = filtDocs.filter(doc =>
+        doc.title.toLowerCase().includes(search) ||
+        doc.notes?.toLowerCase().includes(search)
       )
+      filtFlds = filtFlds.filter(f => f.name.toLowerCase().includes(search))
     }
 
     // Filter by category
     if (selectedCategory !== 'all') {
-      filtered = filtered.filter(doc => doc.category === selectedCategory)
+      filtDocs = filtDocs.filter(doc => doc.category === selectedCategory)
+      // Hide all folders when filtering by category unless they match search (folders don't have categories)
+      if (!searchQuery) filtFlds = []
     }
 
-    setFilteredDocuments(filtered)
+    setFilteredDocuments(filtDocs)
+    setFilteredFolders(filtFlds)
   }
 
   const handleUpload = async (e: React.FormEvent) => {
@@ -98,6 +111,7 @@ export default function Documentos() {
       title: uploadForm.title || uploadForm.file.name,
       category: uploadForm.category,
       notes: uploadForm.notes,
+      folderId: currentFolder.id
     })
 
     if (result.success) {
@@ -109,7 +123,7 @@ export default function Documentos() {
         category: 'other',
         notes: '',
       })
-      loadDocuments()
+      loadContent()
     } else {
       showToast(result.error || 'Error al subir el documento', 'error')
     }
@@ -117,14 +131,80 @@ export default function Documentos() {
   }
 
   const handleDelete = async (documentId: string) => {
+    if (!user || !user.id) return
     if (!confirm('¿Estás seguro de eliminar este documento?')) return
 
-    const result = await deleteDocument(documentId)
+    // Save original state for recovery
+    const originalDocs = [...documents]
+
+    // Optimistic Update: Remove from local state immediately
+    setDocuments(prev => prev.filter(doc => doc.id !== documentId))
+
+    const result = await deleteDocument(documentId, user.id)
     if (result.success) {
-      showToast('Documento eliminado', 'success')
-      loadDocuments()
+      showToast('Documento eliminado correctamente', 'success')
+      loadContent()
     } else {
+      setDocuments(originalDocs)
       showToast(result.error || 'Error al eliminar', 'error')
+    }
+  }
+
+  const handleCreateFolder = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user || !newFolderName) return
+
+    const result = await createFolder(newFolderName, user.id, currentFolder.id)
+    if (result.success) {
+      showToast('Carpeta creada', 'success')
+      setFolderModalOpen(false)
+      setNewFolderName('')
+      loadContent()
+    } else {
+      showToast(result.error || 'Error al crear carpeta', 'error')
+    }
+  }
+
+  const handleDeleteFolder = async (folderId: string) => {
+    if (!user || !user.id) return
+    if (!confirm('¿Estás seguro de eliminar esta carpeta? Todos los documentos dentro permanecerán en la base de datos pero sin carpeta.')) return
+
+    const result = await deleteFolder(folderId, user.id)
+    if (result.success) {
+      showToast('Carpeta eliminada', 'success')
+      loadContent()
+    } else {
+      showToast(result.error || 'Error al eliminar carpeta', 'error')
+    }
+  }
+
+  const handleRenameFolder = async (folderId: string, currentName: string) => {
+    if (!user || !user.id) return
+    const newName = prompt('Ingresa el nuevo nombre de la carpeta:', currentName)
+    if (!newName || newName === currentName) return
+
+    const result = await updateFolder(folderId, user.id, { name: newName })
+    if (result.success) {
+      showToast('Carpeta renombrada', 'success')
+      loadContent()
+    } else {
+      showToast(result.error || 'Error al renombrar carpeta', 'error')
+    }
+  }
+
+  const handleFolderClick = (id: string, name: string) => {
+    setNavHistory(prev => [...prev, currentFolder])
+    setCurrentFolder({ id, name })
+  }
+
+  const handleBackNavigation = (index: number) => {
+    if (index === -1) {
+      setCurrentFolder({ id: null, name: 'Mis Documentos' })
+      setNavHistory([])
+    } else {
+      const target = navHistory[index]
+      setCurrentFolder(target)
+      setNavHistory(navHistory.slice(0, index))
     }
   }
 
@@ -149,16 +229,54 @@ export default function Documentos() {
               Tus Documentos
             </h1>
             <p className="text-sm md:text-base text-gray-600">
-              Administra y organiza tus documentos médicos
+              {currentFolder.id ? `Carpeta: ${currentFolder.name}` : 'Administra y organiza tus documentos médicos'}
             </p>
           </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setFolderModalOpen(true)}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm"
+            >
+              <Plus size={18} />
+              <span>Nueva Carpeta</span>
+            </button>
+            <button
+              onClick={() => setUploadModalOpen(true)}
+              className="flex items-center justify-center gap-2 px-4 md:px-6 py-2.5 md:py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-medium text-sm md:text-base"
+            >
+              <Plus size={20} />
+              <span>Subir Documento</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Breadcrumbs */}
+        <div className="flex items-center gap-2 text-sm text-gray-500 overflow-x-auto py-1 no-scrollbar">
           <button
-            onClick={() => setUploadModalOpen(true)}
-            className="flex items-center justify-center gap-2 px-4 md:px-6 py-2.5 md:py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-medium text-sm md:text-base"
+            onClick={() => handleBackNavigation(-1)}
+            className={`hover:text-primary transition-colors whitespace-nowrap ${!currentFolder.id ? 'font-bold text-gray-900' : ''}`}
           >
-            <Plus size={20} />
-            <span>Subir Documento</span>
+            Mis Documentos
           </button>
+          {navHistory.map((folder, index) => (
+            index > 0 && (
+              <React.Fragment key={folder.id}>
+                <span className="text-gray-300">/</span>
+                <button
+                  onClick={() => handleBackNavigation(index)}
+                  className="hover:text-primary transition-colors whitespace-nowrap"
+                >
+                  {folder.name}
+                </button>
+              </React.Fragment>
+            )
+          ))}
+          {currentFolder.id && (
+            <>
+              <span className="text-gray-300">/</span>
+              <span className="font-bold text-gray-900 whitespace-nowrap">{currentFolder.name}</span>
+            </>
+          )}
         </div>
 
         {/* Stats */}
@@ -252,7 +370,7 @@ export default function Documentos() {
               {documents.length === 0 ? 'No hay documentos' : 'No se encontraron resultados'}
             </h3>
             <p className="text-sm md:text-base text-gray-600 mb-6">
-              {documents.length === 0 
+              {documents.length === 0
                 ? 'Comienza subiendo tu primer documento médico'
                 : 'Intenta ajustar los filtros de búsqueda'
               }
@@ -270,9 +388,13 @@ export default function Documentos() {
         ) : view === 'list' ? (
           <DocumentsTable documents={filteredDocuments} onDelete={handleDelete} />
         ) : (
-          <DocumentGrid 
-            documents={filteredDocuments} 
-            onDelete={handleDelete}
+          <DocumentGrid
+            documents={filteredDocuments}
+            folders={filteredFolders}
+            onDeleteDocument={handleDelete}
+            onDeleteFolder={handleDeleteFolder}
+            onFolderClick={handleFolderClick}
+            onRenameFolder={handleRenameFolder}
           />
         )}
       </div>
@@ -397,6 +519,42 @@ export default function Documentos() {
                     ) : (
                       <span>Subir Documento</span>
                     )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* New Folder Modal */}
+      {folderModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg w-full max-w-sm">
+            <div className="p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Nueva Carpeta</h2>
+              <form onSubmit={handleCreateFolder} className="space-y-4">
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="Nombre de la carpeta"
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  required
+                />
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setFolderModalOpen(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-medium shadow-sm"
+                  >
+                    Crear
                   </button>
                 </div>
               </form>

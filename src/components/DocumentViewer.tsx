@@ -90,41 +90,61 @@ export const DocumentViewer = ({ fileUrl, fileType = 'pdf', title }: DocumentVie
       </div>
 
       {/* Viewer Area */}
-      <div className="bg-gray-100 p-8 min-h-[600px] flex items-center justify-center">
+      <div className="bg-gray-100 p-4 md:p-8 min-h-[600px] flex items-center justify-center relative group/viewer">
         {fileUrl ? (
-          <div 
-            className="bg-white shadow-lg w-full max-w-3xl mx-auto"
-            style={{ 
+          <div
+            className="bg-white shadow-lg w-full max-w-4xl mx-auto relative"
+            style={{
               transform: `scale(${zoom / 100}) rotate(${rotation}deg)`,
               transition: 'transform 0.3s ease'
             }}
           >
             {fileType === 'pdf' ? (
-              <iframe
-                src={fileUrl}
-                title={title || 'Document viewer'}
-                className="w-full h-[700px] border-0"
-              />
+              <div className="relative w-full h-[700px]">
+                <iframe
+                  src={`${fileUrl}#toolbar=0`}
+                  title={title || 'Document viewer'}
+                  className="w-full h-full border-0 rounded-sm"
+                />
+                {/* Fallback overlay if iframe is blank or blocked */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50/10 pointer-events-none opacity-0 group-hover/viewer:opacity-100 transition-opacity">
+                  <a
+                    href={fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="pointer-events-auto bg-primary text-white px-6 py-2 rounded-lg shadow-lg font-bold hover:bg-primary/90 transition-all flex items-center gap-2"
+                  >
+                    <Maximize2 size={18} />
+                    ABRIR EN PANTALLA COMPLETA
+                  </a>
+                </div>
+              </div>
             ) : (
-              <img 
-                src={fileUrl} 
-                alt={title || 'Document'} 
-                className="w-full h-auto"
+              <img
+                src={fileUrl}
+                alt={title || 'Document'}
+                className="w-full h-auto rounded-sm"
               />
             )}
           </div>
         ) : (
           // Placeholder when no file
-          <div className="text-center">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-gray-200 rounded-full mb-4">
-              <FileText className="w-10 h-10 text-gray-400" />
+          <div className="text-center p-12 bg-white rounded-2xl shadow-sm border border-gray-100 max-w-sm">
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-primary/10 rounded-full mb-6 text-primary">
+              <FileText className="w-10 h-10" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
               Vista previa no disponible
             </h3>
-            <p className="text-sm text-gray-500">
-              El documento no puede ser visualizado en este momento
+            <p className="text-sm text-gray-500 mb-8">
+              El documento es privado o el enlace ha caducado. Intenta recargar la página.
             </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="w-full bg-primary text-white py-3 rounded-xl font-bold hover:bg-primary/90 transition-colors shadow-md"
+            >
+              Recargar Página
+            </button>
           </div>
         )}
       </div>
