@@ -164,10 +164,10 @@ export async function getUpcomingAppointments(userId: string): Promise<Appointme
         .from('doctor_profiles')
         .select('doctor_id, specialty, clinic_name')
         .in('doctor_id', doctorIds)
-      
+
       performance.mark('doctor-profiles-fetch-end')
       performance.measure('doctor-profiles-fetch', 'doctor-profiles-fetch-start', 'doctor-profiles-fetch-end')
-      
+
       // Create a map for O(1) lookup
       if (doctorProfiles) {
         doctorProfilesMap = doctorProfiles.reduce((acc, profile) => {
@@ -263,7 +263,7 @@ export async function getPastAppointments(userId: string): Promise<AppointmentWi
         .from('doctor_profiles')
         .select('doctor_id, specialty, clinic_name')
         .in('doctor_id', doctorIds)
-      
+
       if (doctorProfiles) {
         doctorProfilesMap = doctorProfiles.reduce((acc, profile) => {
           acc[profile.doctor_id] = profile
@@ -406,5 +406,36 @@ export async function createAppointment(
   } catch (err) {
     console.error('Error in createAppointment:', err)
     return { success: false, error: 'Error inesperado al crear la cita' }
+  }
+}
+
+/**
+ * Get distinct dates within a month that have appointments
+ */
+export async function getAppointmentDaysInMonth(
+  userId: string,
+  startDate: Date,
+  endDate: Date
+): Promise<string[]> {
+  try {
+    const { data, error } = await supabase
+      .from('appointments')
+      .select('start_at')
+      .or(`doctor_id.eq.${userId},patient_id.eq.${userId}`)
+      .gte('start_at', startDate.toISOString())
+      .lte('start_at', endDate.toISOString())
+      .not('status', 'eq', 'cancelled')
+
+    if (error) {
+      console.error('Error fetching appointment days:', error)
+      return []
+    }
+
+    // Extract unique YYYY-MM-DD dates
+    const dates = data.map(apt => apt.start_at.split('T')[0])
+    return [...new Set(dates)]
+  } catch (err) {
+    console.error('Error in getAppointmentDaysInMonth:', err)
+    return []
   }
 }

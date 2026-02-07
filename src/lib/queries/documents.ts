@@ -3,17 +3,35 @@ import { supabase } from '../supabase'
 import type { Database } from '../../types/database'
 
 type Document = Database['public']['Tables']['documents']['Row']
+type Folder = {
+  id: string
+  owner_id: string
+  parent_id: string | null
+  name: string
+  color: string
+  is_favorite: boolean
+  created_at: string
+  updated_at: string
+}
 
 /**
  * Get documents for current user
  */
-export async function getUserDocuments(userId: string): Promise<Document[]> {
+export async function getUserDocuments(userId: string, folderId: string | null = null): Promise<Document[]> {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('documents')
       .select('*')
       .eq('owner_id', userId)
-      .order('created_at', { ascending: false })
+
+    if (folderId) {
+      query = query.eq('folder_id', folderId)
+    } else {
+      // In the root level, only show documents that don't belong to any folder
+      query = query.is('folder_id', null)
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false })
 
     if (error) {
       console.error('Error fetching documents:', error)
@@ -60,6 +78,7 @@ export async function uploadDocument(
     title: string
     category: Database['public']['Enums']['doc_category']
     notes?: string
+    folderId?: string | null
   }
 ): Promise<{ success: boolean; documentId?: string; error?: string }> {
   try {
@@ -93,6 +112,7 @@ export async function uploadDocument(
         mime_type: file.type,
         file_size: file.size,
         notes: metadata.notes || null,
+        folder_id: metadata.folderId || null,
       })
 
     if (dbError) {
@@ -113,13 +133,21 @@ export async function uploadDocument(
  * Delete document
  */
 export async function deleteDocument(
-  documentId: string
+  documentId: string,
+  userId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // Get document to find file path
+    console.log('Intentando eliminar documento:', documentId, 'para el usuario:', userId)
+
+    // Get document to find file path and verify ownership
     const document = await getDocumentById(documentId)
     if (!document) {
       return { success: false, error: 'Documento no encontrado' }
+    }
+
+    if (document.owner_id !== userId) {
+      console.error('Violación de propiedad detectada:', { docOwner: document.owner_id, currentUser: userId })
+      return { success: false, error: 'No tienes permiso para eliminar este documento' }
     }
 
     // Delete from storage
@@ -131,21 +159,142 @@ export async function deleteDocument(
       console.error('Error deleting file from storage:', storageError)
     }
 
-    // Delete from database
-    const { error: dbError } = await supabase
+    // Delete from database with explicit owner check
+    const { error: dbError, count } = await supabase
       .from('documents')
-      .delete()
+      .delete({ count: 'exact' })
       .eq('id', documentId)
+      .eq('owner_id', userId)
 
     if (dbError) {
       console.error('Error deleting document record:', dbError)
       return { success: false, error: dbError.message }
     }
 
+    if (count === 0) {
+      console.warn('No se eliminó ninguna fila. Verifique permisos RLS en Supabase para el usuario:', userId)
+      return { success: false, error: 'La base de datos rechazó la eliminación (posible problema de RLS)' }
+    }
+
     return { success: true }
   } catch (err) {
     console.error('Error in deleteDocument:', err)
     return { success: false, error: 'Error inesperado al eliminar el documento' }
+  }
+}
+
+/**
+ * Get folders for current user
+ */
+export async function getFolders(userId: string, parentId: string | null = null): Promise<Folder[]> {
+  try {
+    let query = supabase
+      .from('folders')
+      .select('*')
+      .eq('owner_id', userId)
+
+    if (parentId) {
+      query = query.eq('parent_id', parentId)
+    } else {
+      query = query.is('parent_id', null)
+    }
+
+    const { data, error } = await query.order('name', { ascending: true })
+
+    if (error) {
+      console.error('Error fetching folders:', error)
+      return []
+    }
+
+    return data || []
+  } catch (err) {
+    console.error('Error in getFolders:', err)
+    return []
+  }
+}
+
+/**
+ * Create a new folder
+ */
+export async function createFolder(
+  name: string,
+  userId: string,
+  parentId: string | null = null
+): Promise<{ success: boolean; folderId?: string; error?: string }> {
+  try {
+    const { data, error } = await supabase
+      .from('folders')
+      .insert({
+        name,
+        owner_id: userId,
+        parent_id: parentId,
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error creating folder:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, folderId: data.id }
+  } catch (err) {
+    console.error('Error in createFolder:', err)
+    return { success: false, error: 'Error al crear la carpeta' }
+  }
+}
+
+/**
+ * Delete a folder
+ */
+export async function deleteFolder(folderId: string, userId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error, count } = await supabase
+      .from('folders')
+      .delete({ count: 'exact' })
+      .eq('id', folderId)
+      .eq('owner_id', userId)
+
+    if (error) {
+      console.error('Error deleting folder:', error)
+      return { success: false, error: error.message }
+    }
+
+    if (count === 0) {
+      return { success: false, error: 'No se pudo eliminar la carpeta' }
+    }
+
+    return { success: true }
+  } catch (err) {
+    console.error('Error in deleteFolder:', err)
+    return { success: false, error: 'Error al eliminar la carpeta' }
+  }
+}
+
+/**
+ * Update a folder (rename)
+ */
+export async function updateFolder(
+  folderId: string,
+  userId: string,
+  data: { name?: string; color?: string }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabase
+      .from('folders')
+      .update(data)
+      .eq('id', folderId)
+      .eq('owner_id', userId)
+
+    if (error) {
+      console.error('Error updating folder:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true }
+  } catch (err) {
+    console.error('Error in updateFolder:', err)
+    return { success: false, error: 'Error al actualizar la carpeta' }
   }
 }
 

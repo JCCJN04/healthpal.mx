@@ -28,7 +28,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<AuthError | null>(null)
-  
+
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null)
   const jwtRefreshTimerRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -36,7 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data, error: profileError } = await supabase
         .from('profiles')
-        .select('id, role, full_name, email, onboarding_completed, onboarding_step')
+        .select('id, role, full_name, email, phone, sex, birthdate, avatar_url, onboarding_completed, onboarding_step')
         .eq('id', userId)
         .single()
 
@@ -101,7 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user) return
 
     const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'mousemove']
-    
+
     const handleActivity = () => {
       resetInactivityTimer()
     }
@@ -166,7 +166,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.error('Error cargando perfil:', err)
           })
         }
-        
+
         // Set loading false immediately, don't wait for profile
         if (mounted) {
           setLoading(false)
@@ -185,7 +185,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         if (!mounted) return
-        
+
         setSession(currentSession)
         setUser(currentSession?.user ?? null)
 

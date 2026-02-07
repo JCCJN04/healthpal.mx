@@ -1,17 +1,19 @@
 import { useState } from 'react';
-import { Shield, Key, Lock, AlertCircle, CheckCircle } from 'lucide-react';
+import { Shield, Key, Lock, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 
 interface SecurityCardProps {
   lastPasswordChange?: string;
-  onUpdatePassword: (currentPassword: string, newPassword: string) => void;
+  onUpdatePassword: (newPassword: string) => Promise<void>;
 }
 
 const SecurityCard = ({ lastPasswordChange, onUpdatePassword }: SecurityCardProps) => {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [updateSuccess, setUpdateSuccess] = useState(false);
 
   const formatLastChange = (dateString?: string): string => {
     if (!dateString) return 'Nunca actualizada';
@@ -33,16 +35,10 @@ const SecurityCard = ({ lastPasswordChange, onUpdatePassword }: SecurityCardProp
   const validatePassword = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!currentPassword) {
-      newErrors.currentPassword = 'Ingresa tu contraseña actual';
-    }
-
     if (!newPassword) {
       newErrors.newPassword = 'Ingresa una nueva contraseña';
     } else if (newPassword.length < 8) {
       newErrors.newPassword = 'La contraseña debe tener al menos 8 caracteres';
-    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(newPassword)) {
-      newErrors.newPassword = 'Debe incluir mayúsculas, minúsculas y números';
     }
 
     if (!confirmPassword) {
@@ -55,36 +51,48 @@ const SecurityCard = ({ lastPasswordChange, onUpdatePassword }: SecurityCardProp
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (validatePassword()) {
-      onUpdatePassword(currentPassword, newPassword);
-      setShowPasswordModal(false);
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      setErrors({});
+      setIsUpdating(true);
+      setUpdateError(null);
+      try {
+        await onUpdatePassword(newPassword);
+        setUpdateSuccess(true);
+        setTimeout(() => {
+          setShowPasswordModal(false);
+          setNewPassword('');
+          setConfirmPassword('');
+          setErrors({});
+          setUpdateSuccess(false);
+        }, 2000);
+      } catch (error: any) {
+        setUpdateError(error.message || 'Error al actualizar contraseña');
+      } finally {
+        setIsUpdating(false);
+      }
     }
   };
 
   const handleCancel = () => {
     setShowPasswordModal(false);
-    setCurrentPassword('');
     setNewPassword('');
     setConfirmPassword('');
     setErrors({});
+    setUpdateError(null);
+    setUpdateSuccess(false);
   };
 
   const getPasswordStrength = (password: string): { strength: string; color: string } => {
     if (password.length === 0) return { strength: '', color: '' };
     if (password.length < 8) return { strength: 'Débil', color: 'text-red-600' };
-    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
-      return { strength: 'Media', color: 'text-yellow-600' };
-    }
-    if (password.length >= 12 && /(?=.*[!@#$%^&*])/.test(password)) {
+    if (password.length >= 12 && /(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])/.test(password)) {
       return { strength: 'Muy fuerte', color: 'text-green-600' };
     }
-    return { strength: 'Fuerte', color: 'text-teal-600' };
+    if (/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
+      return { strength: 'Fuerte', color: 'text-teal-600' };
+    }
+    return { strength: 'Media', color: 'text-yellow-600' };
   };
 
   const passwordStrength = getPasswordStrength(newPassword);
@@ -162,34 +170,21 @@ const SecurityCard = ({ lastPasswordChange, onUpdatePassword }: SecurityCardProp
 
             {/* Modal Content */}
             <form onSubmit={handleSubmit} className="p-6 space-y-5">
-              {/* Current Password */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Contraseña actual
-                </label>
-                <input
-                  type="password"
-                  value={currentPassword}
-                  onChange={(e) => {
-                    setCurrentPassword(e.target.value);
-                    if (errors.currentPassword) {
-                      setErrors((prev) => ({ ...prev, currentPassword: '' }));
-                    }
-                  }}
-                  className={`w-full px-4 py-3 border rounded-lg outline-none transition-colors ${
-                    errors.currentPassword
-                      ? 'border-red-300 focus:border-red-500'
-                      : 'border-gray-200 focus:border-[#33C7BE]'
-                  }`}
-                  placeholder="••••••••"
-                />
-                {errors.currentPassword && (
-                  <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" />
-                    {errors.currentPassword}
-                  </p>
-                )}
-              </div>
+              {/* Success Message */}
+              {updateSuccess && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2 text-sm text-green-700">
+                  <CheckCircle className="w-4 h-4" />
+                  <span>¡Contraseña actualizada exitosamente!</span>
+                </div>
+              )}
+
+              {/* Error Message */}
+              {updateError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-sm text-red-700">
+                  <AlertCircle className="w-4 h-4" />
+                  <span>{updateError}</span>
+                </div>
+              )}
 
               {/* New Password */}
               <div>
@@ -204,23 +199,25 @@ const SecurityCard = ({ lastPasswordChange, onUpdatePassword }: SecurityCardProp
                     if (errors.newPassword) {
                       setErrors((prev) => ({ ...prev, newPassword: '' }));
                     }
+                    setUpdateError(null);
                   }}
-                  className={`w-full px-4 py-3 border rounded-lg outline-none transition-colors ${
+                  disabled={isUpdating || updateSuccess}
+                  className={`w-full px-4 py-3 border rounded-lg outline-none transition-colors disabled:bg-gray-50 disabled:cursor-not-allowed ${
                     errors.newPassword
                       ? 'border-red-300 focus:border-red-500'
                       : 'border-gray-200 focus:border-[#33C7BE]'
                   }`}
-                  placeholder="••••••••"
+                  placeholder="Mínimo 8 caracteres"
                 />
-                {passwordStrength.strength && (
-                  <p className={`text-xs mt-1 font-medium ${passwordStrength.color}`}>
-                    Seguridad: {passwordStrength.strength}
-                  </p>
-                )}
                 {errors.newPassword && (
                   <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
                     <AlertCircle className="w-3 h-3" />
                     {errors.newPassword}
+                  </p>
+                )}
+                {passwordStrength.strength && !errors.newPassword && (
+                  <p className={`text-xs mt-1 font-medium ${passwordStrength.color}`}>
+                    Seguridad: {passwordStrength.strength}
                   </p>
                 )}
               </div>
@@ -238,55 +235,58 @@ const SecurityCard = ({ lastPasswordChange, onUpdatePassword }: SecurityCardProp
                     if (errors.confirmPassword) {
                       setErrors((prev) => ({ ...prev, confirmPassword: '' }));
                     }
+                    setUpdateError(null);
                   }}
-                  className={`w-full px-4 py-3 border rounded-lg outline-none transition-colors ${
+                  disabled={isUpdating || updateSuccess}
+                  className={`w-full px-4 py-3 border rounded-lg outline-none transition-colors disabled:bg-gray-50 disabled:cursor-not-allowed ${
                     errors.confirmPassword
                       ? 'border-red-300 focus:border-red-500'
                       : 'border-gray-200 focus:border-[#33C7BE]'
                   }`}
-                  placeholder="••••••••"
+                  placeholder="Repite tu nueva contraseña"
                 />
-                {confirmPassword && newPassword === confirmPassword && (
-                  <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
-                    <CheckCircle className="w-3 h-3" />
-                    Las contraseñas coinciden
-                  </p>
-                )}
                 {errors.confirmPassword && (
                   <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
                     <AlertCircle className="w-3 h-3" />
                     {errors.confirmPassword}
                   </p>
                 )}
+                {confirmPassword && newPassword === confirmPassword && !errors.confirmPassword && (
+                  <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3" />
+                    Las contraseñas coinciden
+                  </p>
+                )}
               </div>
 
-              {/* Password Requirements */}
-              <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
-                <p className="text-xs font-semibold text-blue-900 mb-2">
-                  Requisitos de contraseña:
-                </p>
-                <ul className="text-xs text-blue-800 space-y-1">
-                  <li>• Mínimo 8 caracteres</li>
-                  <li>• Al menos una letra mayúscula</li>
-                  <li>• Al menos una letra minúscula</li>
-                  <li>• Al menos un número</li>
-                </ul>
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center justify-end gap-3 pt-4">
+              {/* Modal Actions */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
                 <button
                   type="button"
                   onClick={handleCancel}
-                  className="px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                  disabled={isUpdating || updateSuccess}
+                  className="px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-[#33C7BE] text-white text-sm font-semibold rounded-lg hover:bg-teal-600 transition-colors shadow-sm"
+                  disabled={isUpdating || updateSuccess}
+                  className="px-5 py-2.5 bg-[#33C7BE] text-white text-sm font-semibold rounded-lg hover:bg-teal-600 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
-                  Actualizar contraseña
+                  {isUpdating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Actualizando...</span>
+                    </>
+                  ) : updateSuccess ? (
+                    <>
+                      <CheckCircle className="w-4 h-4" />
+                      <span>Actualizada</span>
+                    </>
+                  ) : (
+                    <span>Actualizar contraseña</span>
+                  )}
                 </button>
               </div>
             </form>
