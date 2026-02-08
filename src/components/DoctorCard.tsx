@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, MessageCircle, Eye, MoreVertical, Star, Briefcase } from 'lucide-react';
 import { DoctorWithProfile } from '../lib/queries/doctors';
+import { showToast } from './Toast';
 
 interface DoctorCardProps {
   doctor: DoctorWithProfile;
@@ -22,9 +23,25 @@ const DoctorCard: React.FC<DoctorCardProps> = ({ doctor }) => {
     navigate(`/dashboard/consultas/nueva?doctor=${doctor.id}`);
   };
 
-  const handleSendMessage = () => {
-    console.log('Send message to:', doctor.full_name);
-    navigate(`/dashboard/mensajes?doctor=${doctor.id}`);
+  const handleSendMessage = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('[DoctorCard] handleSendMessage initiated for:', doctor.full_name, 'ID:', doctor.id);
+
+    if (!doctor.id) {
+      console.error('[DoctorCard] Missing doctor.id!', doctor);
+      showToast('Error: No se pudo identificar al doctor', 'error');
+      return;
+    }
+
+    try {
+      navigate(`/dashboard/mensajes?with=${doctor.id}`);
+      console.log('[DoctorCard] navigate() called successfully');
+      showToast('Abriendo chat...', 'success');
+    } catch (err) {
+      console.error('[DoctorCard] Navigation error:', err);
+    }
+
     setShowMenu(false);
   };
 
@@ -56,7 +73,7 @@ const DoctorCard: React.FC<DoctorCardProps> = ({ doctor }) => {
             </div>
           )}
         </div>
-        
+
         {/* Decorative Elements */}
         <div className="absolute top-4 right-4 w-20 h-20 bg-white/20 rounded-full blur-2xl"></div>
         <div className="absolute bottom-4 left-4 w-16 h-16 bg-white/20 rounded-full blur-xl"></div>
@@ -121,7 +138,7 @@ const DoctorCard: React.FC<DoctorCardProps> = ({ doctor }) => {
             <Eye className="w-4 h-4" />
             <span className="hidden sm:inline">Perfil</span>
           </button>
-          
+
           <button
             onClick={handleSendMessage}
             className="flex-1 px-3 py-2 bg-gray-50 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-100 transition-colors flex items-center justify-center gap-1.5"

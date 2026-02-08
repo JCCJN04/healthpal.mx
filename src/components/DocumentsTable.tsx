@@ -1,13 +1,14 @@
-import { 
-  FileArchive, 
-  FileSpreadsheet, 
-  Presentation, 
+import {
+  FileArchive,
+  FileSpreadsheet,
+  Presentation,
   FileImage,
   File as FileIcon,
   MoreVertical,
   Download,
   Trash2,
-  Eye
+  Eye,
+  Folder as FolderIcon
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
@@ -16,16 +17,25 @@ import type { Database } from '../types/database'
 
 type Document = Database['public']['Tables']['documents']['Row']
 
+type Folder = {
+  id: string
+  name: string
+  color: string
+  created_at: string
+}
+
 interface DocumentsTableProps {
   documents: Document[]
+  folders?: Folder[]
   onDelete: (documentId: string) => void
+  onFolderClick?: (id: string, name: string) => void
 }
 
 const getFileIcon = (mimeType: string | null) => {
   const iconProps = { size: 20, className: 'text-gray-600' }
-  
+
   if (!mimeType) return <FileIcon {...iconProps} />
-  
+
   if (mimeType.includes('zip')) {
     return <FileArchive {...iconProps} className="text-purple-600" />
   } else if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) {
@@ -102,10 +112,10 @@ const DocumentRow = ({ doc, onDelete }: { doc: Document; onDelete: (id: string) 
         >
           <MoreVertical size={18} />
         </button>
-        
+
         {menuOpen && (
           <>
-            <div 
+            <div
               className="fixed inset-0 z-10"
               onClick={() => setMenuOpen(false)}
             />
@@ -142,7 +152,37 @@ const DocumentRow = ({ doc, onDelete }: { doc: Document; onDelete: (id: string) 
   )
 }
 
-export default function DocumentsTable({ documents, onDelete }: DocumentsTableProps) {
+const FolderRow = ({ folder, onClick }: { folder: Folder; onClick: (id: string, name: string) => void }) => {
+  return (
+    <tr
+      onClick={() => onClick(folder.id, folder.name)}
+      className="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer group"
+    >
+      <td className="py-3 md:py-4 px-3 md:px-6">
+        <div className="flex items-center gap-2 md:gap-3">
+          <div className="flex-shrink-0 text-[#33C7BE]">
+            <FolderIcon size={20} fill="currentColor" className="opacity-20 text-[#33C7BE]" />
+            <FolderIcon size={20} className="absolute -mt-5" />
+          </div>
+          <span className="text-xs md:text-sm text-gray-900 font-medium group-hover:text-[#33C7BE] transition-colors text-left truncate">
+            {folder.name}
+          </span>
+        </div>
+      </td>
+      <td className="py-3 md:py-4 px-3 md:px-6 text-center hidden md:table-cell">
+        <span className="text-sm text-gray-600">{formatDate(folder.created_at)}</span>
+      </td>
+      <td className="py-3 md:py-4 px-3 md:px-6 text-center hidden lg:table-cell">
+        <span className="text-xs md:text-sm text-gray-600">-</span>
+      </td>
+      <td className="py-3 md:py-4 px-3 md:px-6 text-right">
+        {/* Placeholder for alignment, folders usually have their own management actions but valid here too */}
+      </td>
+    </tr>
+  )
+}
+
+export default function DocumentsTable({ documents, folders = [], onDelete, onFolderClick }: DocumentsTableProps) {
   return (
     <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
       <div className="overflow-x-auto">
@@ -164,6 +204,13 @@ export default function DocumentsTable({ documents, onDelete }: DocumentsTablePr
             </tr>
           </thead>
           <tbody>
+            {folders.map((folder) => (
+              <FolderRow
+                key={folder.id}
+                folder={folder}
+                onClick={onFolderClick || (() => { })}
+              />
+            ))}
             {documents.map((doc) => (
               <DocumentRow key={doc.id} doc={doc} onDelete={onDelete} />
             ))}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Camera, MapPin, Edit2 } from 'lucide-react';
+import { Camera, MapPin } from 'lucide-react';
 
 interface ProfileCardProps {
   name: string;
@@ -7,7 +7,6 @@ interface ProfileCardProps {
   age: number;
   location: string;
   avatarUrl?: string;
-  onEditProfile: () => void;
   onChangePhoto: (file: File) => void;
 }
 
@@ -17,7 +16,6 @@ const ProfileCard = ({
   age,
   location,
   avatarUrl,
-  onEditProfile,
   onChangePhoto,
 }: ProfileCardProps) => {
   const [imagePreview, setImagePreview] = useState(avatarUrl);
@@ -44,7 +42,7 @@ const ProfileCard = ({
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-      <div className="flex flex-col lg:flex-row items-center lg:items-start gap-6">
+      <div className="flex flex-col lg:flex-row items-center gap-6">
         {/* Avatar Section */}
         <div className="flex flex-col items-center gap-3">
           <div className="relative">
@@ -86,7 +84,7 @@ const ProfileCard = ({
         {/* Profile Info Section */}
         <div className="flex-1 text-center lg:text-left">
           <h2 className="text-2xl font-bold text-gray-900 mb-1">{name}</h2>
-          <div className="flex flex-col lg:flex-row items-center gap-2 lg:gap-4 text-sm text-gray-600 mb-3">
+          <div className="flex flex-col lg:flex-row items-center gap-2 lg:gap-4 text-sm text-gray-600">
             <span className="capitalize">
               {gender} • {age} años
             </span>
@@ -100,19 +98,7 @@ const ProfileCard = ({
               </>
             )}
           </div>
-          <p className="text-sm text-gray-500 max-w-2xl">
-            Estudiante de Licenciatura
-          </p>
         </div>
-
-        {/* Edit Button */}
-        <button
-          onClick={onEditProfile}
-          className="px-5 py-2.5 border-2 border-gray-200 text-gray-700 font-semibold rounded-lg hover:border-[#33C7BE] hover:text-[#33C7BE] transition-colors flex items-center gap-2"
-        >
-          <Edit2 className="w-4 h-4" />
-          <span>Editar perfil</span>
-        </button>
       </div>
     </div>
   );

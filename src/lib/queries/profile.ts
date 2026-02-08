@@ -12,7 +12,7 @@ type PatientProfileInsert = Database['public']['Tables']['patient_profiles']['In
  */
 export async function getMyProfile(): Promise<Profile> {
   const { data: { user } } = await supabase.auth.getUser()
-  
+
   if (!user) {
     throw new Error('Not authenticated')
   }
@@ -70,7 +70,7 @@ export async function getPatientProfile(patientId: string) {
  */
 export async function updateMyProfile(updates: ProfileUpdate) {
   const { data: { user } } = await supabase.auth.getUser()
-  
+
   if (!user) {
     throw new Error('Not authenticated')
   }
@@ -143,7 +143,7 @@ export async function upsertPatientProfile(
  */
 export async function completeOnboarding() {
   const { data: { user } } = await supabase.auth.getUser()
-  
+
   if (!user) {
     throw new Error('Not authenticated')
   }
@@ -167,22 +167,25 @@ export async function completeOnboarding() {
 }
 
 /**
- * Save onboarding progress
+ * Upload avatar to Supabase Storage
  */
-export async function saveOnboardingStep(step: string) {
-  const { data: { user } } = await supabase.auth.getUser()
-  
-  if (!user) {
-    throw new Error('Not authenticated')
+export async function uploadAvatar(userId: string, file: File) {
+  const fileExt = file.name.split('.').pop()
+  const fileName = `${userId}/${Date.now()}.${fileExt}`
+  const filePath = fileName
+
+  const { error: uploadError } = await supabase.storage
+    .from('avatars')
+    .upload(filePath, file)
+
+  if (uploadError) {
+    console.error('Error uploading avatar:', uploadError)
+    throw uploadError
   }
 
-  const { error } = await supabase
-    .from('profiles')
-    .update({ onboarding_step: step } as any)
-    .eq('id', user.id)
+  const { data } = supabase.storage
+    .from('avatars')
+    .getPublicUrl(filePath)
 
-  if (error) {
-    console.error('Error saving onboarding step:', error)
-    throw error
-  }
+  return data.publicUrl
 }

@@ -28,8 +28,12 @@ const PersonalInfoCard = ({ initialData, onSave, isLoading = false, saveError = 
   }, [initialData]);
 
   const calculateAge = (birthDate: string): number => {
+    if (!birthDate) return 0;
     const today = new Date();
-    const birth = new Date(birthDate);
+    // Parse "YYYY-MM-DD" manually to avoid UTC conversion
+    const [year, month, day] = birthDate.split('-').map(Number);
+    const birth = new Date(year, month - 1, day); // Local time constructor
+
     let age = today.getFullYear() - birth.getFullYear();
     const monthDiff = today.getMonth() - birth.getMonth();
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
@@ -39,10 +43,8 @@ const PersonalInfoCard = ({ initialData, onSave, isLoading = false, saveError = 
   };
 
   const formatDate = (dateString: string): string => {
-    const date = new Date(dateString);
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const year = date.getFullYear();
+    if (!dateString) return '';
+    const [year, month, day] = dateString.split('-');
     return `${day}/${month}/${year}`;
   };
 

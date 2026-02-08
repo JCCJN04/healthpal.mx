@@ -1,286 +1,176 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Plus } from 'lucide-react';
+import {
+  format,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  addDays,
+  subDays,
+  addWeeks,
+  subWeeks,
+  addMonths,
+  subMonths,
+  startOfDay,
+  endOfDay
+} from 'date-fns';
+import { es } from 'date-fns/locale';
 import DashboardLayout from '../components/DashboardLayout';
 import { WeekCalendar } from '../components/WeekCalendar';
 import { DayView } from '../components/DayView';
 import { MonthView } from '../components/MonthView';
-import { getAppointmentsByWeek, mockAppointments } from '../mock/appointments';
-import type { CalendarEvent } from '../mock/calendarEvents';
+import { CalendarHeader } from '../components/calendar/CalendarHeader';
+import { AppointmentDetailsPanel } from '../components/calendar/AppointmentDetailsPanel';
+import { useAuth } from '../context/AuthContext';
+import {
+  listAppointmentsInRange,
+  getMyRole,
+  AppointmentWithProfiles
+} from '../lib/queries/calendar';
 
 type ViewType = 'day' | 'week' | 'month';
 
 export default function Calendario() {
   const navigate = useNavigate();
-  const [currentWeekStart, setCurrentWeekStart] = useState(() => {
-    // Start on Monday of current week
-    const today = new Date();
-    const dayOfWeek = today.getDay();
-    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // If Sunday, go back 6 days, otherwise go to Monday
-    const monday = new Date(today);
-    monday.setDate(today.getDate() + diff);
-    monday.setHours(0, 0, 0, 0);
-    return monday;
-  });
-  
-  const [currentDayDate, setCurrentDayDate] = useState(new Date());
-  const [currentMonthDate, setCurrentMonthDate] = useState(new Date());
-  const [selectedView, setSelectedView] = useState<ViewType>('week');
-  
-  // Get appointments for the current week
-  const weekAppointments = getAppointmentsByWeek(currentWeekStart);
+  const { user } = useAuth();
 
-  // Convert appointments to calendar events
-  const calendarEvents: CalendarEvent[] = weekAppointments
-    .filter(apt => apt.startTime && apt.endTime)
-    .map(apt => ({
-      id: apt.id,
-      title: apt.title,
-      date: apt.date,
-      startTime: apt.startTime!,
-      endTime: apt.endTime!,
-      doctor: apt.doctor,
-      specialty: apt.specialty || '',
-      location: apt.location || '',
-      type: apt.status === 'confirmed' ? 'occupied' : 'available',
-      color: apt.status === 'confirmed' ? 'teal' as const : 'red' as const,
-    }));
+  // State
+  const [view, setView] = useState<ViewType>('week');
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [appointments, setAppointments] = useState<AppointmentWithProfiles[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [role, setRole] = useState<'patient' | 'doctor' | null>(null);
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
 
-  const handlePreviousWeek = () => {
-    const newStart = new Date(currentWeekStart);
-    newStart.setDate(currentWeekStart.getDate() - 7);
-    setCurrentWeekStart(newStart);
-  };
+  const selectedAppointment = useMemo(() =>
+    appointments.find(a => a.id === selectedAppointmentId) || null,
+    [appointments, selectedAppointmentId]
+  );
 
-  const handleNextWeek = () => {
-    const newStart = new Date(currentWeekStart);
-    newStart.setDate(currentWeekStart.getDate() + 7);
-    setCurrentWeekStart(newStart);
-  };
-
-  const handlePreviousDay = () => {
-    const newDate = new Date(currentDayDate);
-    newDate.setDate(currentDayDate.getDate() - 1);
-    setCurrentDayDate(newDate);
-  };
-
-  const handleNextDay = () => {
-    const newDate = new Date(currentDayDate);
-    newDate.setDate(currentDayDate.getDate() + 1);
-    setCurrentDayDate(newDate);
-  };
-
-  const handlePreviousMonth = () => {
-    const newDate = new Date(currentMonthDate);
-    newDate.setMonth(currentMonthDate.getMonth() - 1);
-    setCurrentMonthDate(newDate);
-  };
-
-  const handleNextMonth = () => {
-    const newDate = new Date(currentMonthDate);
-    newDate.setMonth(currentMonthDate.getMonth() + 1);
-    setCurrentMonthDate(newDate);
-  };
-
-  const handleToday = () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    if (selectedView === 'day') {
-      setCurrentDayDate(today);
-    } else if (selectedView === 'month') {
-      setCurrentMonthDate(today);
-    } else {
-      const dayOfWeek = today.getDay();
-      const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-      const monday = new Date(today);
-      monday.setDate(today.getDate() + diff);
-      monday.setHours(0, 0, 0, 0);
-      setCurrentWeekStart(monday);
+  // 1. Initial Load & Role Check
+  useEffect(() => {
+    if (user) {
+      getMyRole(user.id).then(r => setRole(r as any));
     }
-  };
+  }, [user]);
 
-  const handleTimeSlotClick = (date: Date, time: string) => {
-    console.log('Time slot clicked:', date, time);
-    // Navigate to schedule appointment with pre-selected date/time
-    navigate('/dashboard/consultas/nueva');
-  };
+  // 2. Fetch Appointments when range or role changes
+  useEffect(() => {
+    if (!user || !role) return;
+    fetchData();
+  }, [user, role, currentDate, view]);
 
-  const handleEventClick = (event: CalendarEvent) => {
-    console.log('Event clicked:', event);
-    // Navigate to consultation detail if needed
-    // navigate(`/dashboard/consultas/${event.id}`);
-  };
+  const fetchData = async () => {
+    setLoading(true);
+    let start: Date, end: Date;
 
-  const handleAppointmentClick = (appointment: typeof mockAppointments[0]) => {
-    navigate(`/dashboard/consultas/${appointment.id}`);
-  };
-
-  const handleMonthDateClick = (date: Date) => {
-    setCurrentDayDate(date);
-    setSelectedView('day');
-  };
-
-  const handleScheduleNew = () => {
-    navigate('/dashboard/consultas/nueva');
-  };
-
-  // Format current date range for display
-  const getDateRangeText = () => {
-    if (selectedView === 'day') {
-      const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-                          'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-      const month = monthNames[currentDayDate.getMonth()];
-      const day = currentDayDate.getDate();
-      const year = currentDayDate.getFullYear();
-      return `${day} de ${month} ${year}`;
-    } else if (selectedView === 'month') {
-      const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-                          'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-      return `${monthNames[currentMonthDate.getMonth()]} ${currentMonthDate.getFullYear()}`;
+    if (view === 'day') {
+      start = startOfDay(currentDate);
+      end = endOfDay(currentDate);
+    } else if (view === 'week') {
+      start = startOfWeek(currentDate, { weekStartsOn: 1 });
+      end = endOfWeek(currentDate, { weekStartsOn: 1 });
     } else {
-      const weekEnd = new Date(currentWeekStart);
-      weekEnd.setDate(currentWeekStart.getDate() + 4); // Friday
-      
-      const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-                          'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-      
-      const startMonth = monthNames[currentWeekStart.getMonth()];
-      const endMonth = monthNames[weekEnd.getMonth()];
-      const year = currentWeekStart.getFullYear();
-      
-      if (startMonth === endMonth) {
-        return `${startMonth} ${year}`;
-      }
-      return `${startMonth} - ${endMonth} ${year}`;
+      start = startOfMonth(currentDate);
+      end = endOfMonth(currentDate);
     }
+
+    const data = await listAppointmentsInRange({
+      userId: user!.id,
+      role: role as any,
+      from: start.toISOString(),
+      to: end.toISOString()
+    });
+
+    setAppointments(data);
+    setLoading(false);
+  };
+
+  // Handlers
+  const handlePrev = () => {
+    if (view === 'day') setCurrentDate(subDays(currentDate, 1));
+    else if (view === 'week') setCurrentDate(subWeeks(currentDate, 1));
+    else setCurrentDate(subMonths(currentDate, 1));
+  };
+
+  const handleNext = () => {
+    if (view === 'day') setCurrentDate(addDays(currentDate, 1));
+    else if (view === 'week') setCurrentDate(addWeeks(currentDate, 1));
+    else setCurrentDate(addMonths(currentDate, 1));
+  };
+
+  const handleToday = () => setCurrentDate(new Date());
+
+  const getLabel = () => {
+    if (view === 'day') return format(currentDate, "d 'de' MMMM yyyy", { locale: es });
+    if (view === 'month') return format(currentDate, 'MMMM yyyy', { locale: es });
+
+    const start = startOfWeek(currentDate, { weekStartsOn: 1 });
+    const end = endOfWeek(currentDate, { weekStartsOn: 1 });
+
+    if (start.getMonth() === end.getMonth()) {
+      return format(start, 'MMMM yyyy', { locale: es });
+    }
+    return `${format(start, 'MMM', { locale: es })} - ${format(end, 'MMM yyyy', { locale: es })}`;
   };
 
   return (
-    <DashboardLayout>
-      <div className="p-6 space-y-6">
-        {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Tu Calendario</h1>
-            <p className="text-sm text-gray-600 mt-1">
-              Gestiona y visualiza tus citas médicas
-            </p>
-          </div>
-          
-          <button
-            onClick={handleScheduleNew}
-            className="px-6 py-3 bg-[#33C7BE] text-white font-semibold rounded-lg hover:bg-teal-600 transition-colors flex items-center gap-2 shadow-sm"
-          >
-            <Plus className="w-5 h-5" />
-            <span>Agendar cita</span>
-          </button>
-        </div>
+    <DashboardLayout title="Calendario">
+      <div className="p-4 lg:p-8 flex flex-col h-[calc(100vh-64px)] overflow-hidden">
 
-        {/* Controls Bar */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            {/* Navigation */}
-            <div className="flex items-center gap-3">
-              <button
-              onClick={selectedView === 'day' ? handlePreviousDay : selectedView === 'month' ? handlePreviousMonth : handlePreviousWeek}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              aria-label="Anterior"
-            >
-              <ChevronLeft className="w-5 h-5 text-gray-600" />
-            </button>
-            
-            <button
-              onClick={handleToday}
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              Hoy
-            </button>
-            
-            <button
-              onClick={selectedView === 'day' ? handleNextDay : selectedView === 'month' ? handleNextMonth : handleNextWeek}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              aria-label="Siguiente"
-            >
-              <ChevronRight className="w-5 h-5 text-gray-600" />
-            </button>
-            
-            <div className="hidden lg:block w-px h-6 bg-gray-200 mx-2"></div>
-            
-            <div className="flex items-center gap-2 text-gray-700">
-              <CalendarIcon className="w-5 h-5" />
-              <span className="font-semibold">{getDateRangeText()}</span>
-            </div>
-          </div>
-            
-            {/* View Selector */}
-            <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
-              <button
-                onClick={() => setSelectedView('day')}
-                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                  selectedView === 'day'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Día
-              </button>
-              <button
-                onClick={() => setSelectedView('week')}
-                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                  selectedView === 'week'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Semana
-              </button>
-              <button
-                onClick={() => setSelectedView('month')}
-                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                  selectedView === 'month'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Mes
-              </button>
-            </div>
-          </div>
-        </div>
+        <CalendarHeader
+          view={view}
+          onViewChange={setView}
+          label={getLabel()}
+          onPrev={handlePrev}
+          onNext={handleNext}
+          onToday={handleToday}
+          onSchedule={() => navigate('/dashboard/consultas/nueva')}
+          isLoading={loading}
+        />
 
-        {/* Main Content: Calendar Grid + Agenda Panel */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6">
-          {/* Calendar Grid */}
-          <div>
-            {selectedView === 'week' && (
+        <div className="flex-1 overflow-hidden">
+          {/* Main Grid Area - Full Width */}
+          <div className="h-full overflow-y-auto bg-white rounded-3xl border border-gray-100 shadow-sm scrollbar-hide">
+            {view === 'week' && (
               <WeekCalendar
-                weekStart={currentWeekStart}
-                onTimeSlotClick={handleTimeSlotClick}
-                onEventClick={handleEventClick}
-                events={calendarEvents}
+                weekStart={startOfWeek(currentDate, { weekStartsOn: 1 })}
+                onTimeSlotClick={(d) => navigate(`/dashboard/consultas/nueva?date=${d.toISOString()}`)}
+                onEventClick={(e: any) => setSelectedAppointmentId(e.id)}
+                events={appointments as any}
               />
             )}
-            
-            {selectedView === 'day' && (
+
+            {view === 'day' && (
               <DayView
-                date={currentDayDate}
-                appointments={mockAppointments}
-                onTimeSlotClick={handleTimeSlotClick}
-                onEventClick={handleAppointmentClick}
+                date={currentDate}
+                appointments={appointments as any}
+                onTimeSlotClick={(d) => navigate(`/dashboard/consultas/nueva?date=${d.toISOString()}`)}
+                onEventClick={(a: any) => setSelectedAppointmentId(a.id)}
               />
             )}
-            
-            {selectedView === 'month' && (
+
+            {view === 'month' && (
               <MonthView
-                currentDate={currentMonthDate}
-                appointments={mockAppointments}
-                onDateClick={handleMonthDateClick}
-                onPrevMonth={handlePreviousMonth}
-                onNextMonth={handleNextMonth}
+                currentDate={currentDate}
+                appointments={appointments as any}
+                onDateClick={(d) => {
+                  setCurrentDate(d);
+                  setView('day');
+                }}
+                onPrevMonth={handlePrev}
+                onNextMonth={handleNext}
               />
             )}
           </div>
+
+          {/* Appointment Details Modal Overlay */}
+          <AppointmentDetailsPanel
+            appointment={selectedAppointment}
+            onClose={() => setSelectedAppointmentId(null)}
+            onViewDetail={(id) => navigate(`/dashboard/consultas/${id}`)}
+          />
         </div>
       </div>
     </DashboardLayout>

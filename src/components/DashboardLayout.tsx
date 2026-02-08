@@ -1,9 +1,10 @@
-import { ReactNode, useState } from 'react'
+import { useState } from 'react'
 import Sidebar from './Sidebar'
 import Header from './Header'
 
 interface DashboardLayoutProps {
-  children: ReactNode
+  children: React.ReactNode;
+  title?: string;
 }
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
@@ -20,7 +21,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {sidebarOpen && (
         <>
           {/* Backdrop */}
-          <div 
+          <div
             className="fixed inset-0 bg-black/50 z-40 lg:hidden"
             onClick={() => setSidebarOpen(false)}
           />

@@ -1,10 +1,10 @@
 import { ReactNode } from 'react'
-import { 
-  Home, 
-  FileText, 
-  Calendar, 
-  MessageSquare, 
-  Users, 
+import {
+  Home,
+  FileText,
+  Calendar,
+  MessageSquare,
+  Users,
   CalendarDays,
   Settings,
   X
@@ -51,17 +51,16 @@ export default function Sidebar({ onClose }: SidebarProps) {
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path
-          
+
           return (
             <Link
               key={item.path}
               to={item.path}
               onClick={onClose}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                isActive
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive
                   ? 'bg-primary text-white'
                   : 'text-gray-700 hover:bg-primary/10'
-              }`}
+                }`}
             >
               <span className={isActive ? 'text-white' : 'text-gray-600'}>
                 {item.icon}

@@ -91,7 +91,7 @@ export default function DoctorDetail() {
   };
 
   const handleSendMessage = () => {
-    navigate(`/dashboard/mensajes?doctorId=${doctor.id}`);
+    navigate(`/dashboard/mensajes?with=${doctor.id}`);
   };
 
   // Mock reviews (TODO: get from database later)
@@ -251,31 +251,28 @@ export default function DoctorDetail() {
             <div className="flex">
               <button
                 onClick={() => setActiveTab('info')}
-                className={`flex-1 px-6 py-4 text-sm font-semibold transition-colors ${
-                  activeTab === 'info'
+                className={`flex-1 px-6 py-4 text-sm font-semibold transition-colors ${activeTab === 'info'
                     ? 'text-[#33C7BE] border-b-2 border-[#33C7BE]'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
+                  }`}
               >
                 Información
               </button>
               <button
                 onClick={() => setActiveTab('reviews')}
-                className={`flex-1 px-6 py-4 text-sm font-semibold transition-colors ${
-                  activeTab === 'reviews'
+                className={`flex-1 px-6 py-4 text-sm font-semibold transition-colors ${activeTab === 'reviews'
                     ? 'text-[#33C7BE] border-b-2 border-[#33C7BE]'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
+                  }`}
               >
                 Reseñas
               </button>
               <button
                 onClick={() => setActiveTab('schedule')}
-                className={`flex-1 px-6 py-4 text-sm font-semibold transition-colors ${
-                  activeTab === 'schedule'
+                className={`flex-1 px-6 py-4 text-sm font-semibold transition-colors ${activeTab === 'schedule'
                     ? 'text-[#33C7BE] border-b-2 border-[#33C7BE]'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
+                  }`}
               >
                 Horarios
               </button>
@@ -384,7 +381,7 @@ export default function DoctorDetail() {
                 ))}
                 <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 mt-4">
                   <p className="text-sm text-blue-900">
-                    <strong>Nota:</strong> Los horarios pueden variar por días festivos. 
+                    <strong>Nota:</strong> Los horarios pueden variar por días festivos.
                     Confirma tu cita con anticipación para asegurar disponibilidad.
                   </p>
                 </div>

@@ -2,32 +2,40 @@ import { useState, useEffect } from 'react';
 import { AlertTriangle, Trash2, CheckCircle, XCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { getMyProfile, updateMyProfile } from '../lib/queries/profile';
+import { getMyProfile, updateMyProfile, uploadAvatar } from '../lib/queries/profile';
 import { getMySettings, updateMySettings } from '../lib/queries/settings';
 import DashboardLayout from '../components/DashboardLayout';
 import ProfileCard from '../components/ProfileCard';
 import PersonalInfoCard from '../components/PersonalInfoCard';
 import SecurityCard from '../components/SecurityCard';
 import PreferencesCard from '../components/PreferencesCard';
+import PatientProfileInfoCard from '../components/settings/PatientProfileInfoCard';
+import PatientProfileWizard from '../components/settings/PatientProfileWizard';
+import { getPatientProfile, upsertPatientProfile } from '../lib/queries/patientProfile';
+import { PatientProfile } from '../types/database';
 
 type TabType = 'general' | 'medical' | 'documents';
 
 export default function Configuracion() {
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('general');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  
+
   // Loading states
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
-  
+
   // Profile data
   const [profile, setProfile] = useState<any>(null);
   const [settings, setSettings] = useState<any>(null);
-  
+  const [patientProfile, setPatientProfile] = useState<PatientProfile | null>(null);
+
   // Error states
   const [profileError, setProfileError] = useState<string | null>(null);
-  
+
+  // Wizard state
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
+
   // Toast state
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
@@ -48,8 +56,20 @@ export default function Configuracion() {
 
     if (user) {
       loadProfile();
+      loadPatientProfile();
     }
   }, [user]);
+
+  // Fetch patient profile
+  async function loadPatientProfile() {
+    try {
+      if (!user) return;
+      const data = await getPatientProfile(user.id);
+      setPatientProfile(data);
+    } catch (error) {
+      console.error('Error loading patient profile:', error);
+    }
+  }
 
   // Fetch settings
   useEffect(() => {
@@ -72,20 +92,31 @@ export default function Configuracion() {
   }, [user]);
 
   // Handlers
-  const handleEditProfile = () => {
-    document.getElementById('personal-info')?.scrollIntoView({ behavior: 'smooth' });
-  };
 
   const handleChangePhoto = async (file: File) => {
-    // TODO: Implement avatar upload to Supabase Storage
-    console.log('Photo upload not yet implemented:', file.name);
-    setToast({ message: 'Subida de foto: próximamente', type: 'error' });
+    try {
+      if (!user) return;
+
+      const publicUrl = await uploadAvatar(user.id, file);
+
+      // Update profile with new avatar URL
+      const updated = await updateMyProfile({
+        avatar_url: publicUrl
+      });
+
+      setProfile(updated);
+      await refreshProfile(); // Update global context
+      setToast({ message: '¡Foto de perfil actualizada!', type: 'success' });
+    } catch (error: any) {
+      console.error('Error uploading photo:', error);
+      setToast({ message: 'Error al subir la foto', type: 'error' });
+    }
   };
 
   const handleSavePersonalInfo = async (data: { fullName: string; birthDate: string; email: string; phone: string; bio: string }) => {
     try {
       setProfileError(null);
-      
+
       // Update profile in Supabase
       const updated = await updateMyProfile({
         full_name: data.fullName,
@@ -93,7 +124,7 @@ export default function Configuracion() {
         email: data.email,
         phone: data.phone,
       });
-      
+
       setProfile(updated);
       setToast({ message: '¡Perfil actualizado exitosamente!', type: 'success' });
     } catch (error: any) {
@@ -129,7 +160,7 @@ export default function Configuracion() {
         appointment_reminders: newPreferences.appointmentReminders,
         whatsapp_notifications: newPreferences.whatsappNotifications,
       });
-      
+
       setSettings(updated);
       // Don't show toast for preferences - they update optimistically
     } catch (error: any) {
@@ -145,11 +176,28 @@ export default function Configuracion() {
     setToast({ message: 'Eliminación de cuenta: próximamente', type: 'error' });
   };
 
+  const handleSavePatientProfile = async (data: any) => {
+    try {
+      if (!user) return;
+
+      const updated = await upsertPatientProfile(user.id, data);
+      setPatientProfile(updated);
+      setToast({ message: '¡Información médica actualizada!', type: 'success' });
+    } catch (error: any) {
+      console.error('Error saving patient profile:', error);
+      const msg = error.message || 'Error al guardar información médica';
+      setToast({ message: `Error: ${msg}`, type: 'error' });
+      throw error;
+    }
+  };
+
   // Calculate age from birthdate
   const calculateAge = (birthdate: string | null): number => {
     if (!birthdate) return 0;
     const today = new Date();
-    const birth = new Date(birthdate);
+    const [year, month, day] = birthdate.split('-').map(Number);
+    const birth = new Date(year, month - 1, day);
+
     let age = today.getFullYear() - birth.getFullYear();
     const monthDiff = today.getMonth() - birth.getMonth();
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
@@ -219,13 +267,12 @@ export default function Configuracion() {
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   disabled={tab.id !== 'general'}
-                  className={`flex-1 px-6 py-3 text-sm font-semibold rounded-lg transition-all ${
-                    activeTab === tab.id
-                      ? 'bg-[#33C7BE] text-white shadow-sm'
-                      : tab.id === 'general'
+                  className={`flex-1 px-6 py-3 text-sm font-semibold rounded-lg transition-all ${activeTab === tab.id
+                    ? 'bg-[#33C7BE] text-white shadow-sm'
+                    : tab.id === 'general'
                       ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                       : 'text-gray-400 cursor-not-allowed'
-                  }`}
+                    }`}
                 >
                   {tab.label}
                   {tab.id !== 'general' && (
@@ -247,8 +294,16 @@ export default function Configuracion() {
                   age={userData.age}
                   location={userData.location}
                   avatarUrl={userData.avatarUrl}
-                  onEditProfile={handleEditProfile}
                   onChangePhoto={handleChangePhoto}
+                />
+              )}
+
+              {/* Patient Profile Data */}
+              {user?.user_metadata?.role !== 'doctor' && (
+                <PatientProfileInfoCard
+                  data={patientProfile}
+                  onEdit={() => setIsWizardOpen(true)}
+                  isLoading={isLoadingProfile}
                 />
               )}
 
@@ -378,19 +433,17 @@ export default function Configuracion() {
       {/* Toast Notifications */}
       {toast && (
         <div className="fixed bottom-4 right-4 z-50 animate-in slide-in-from-right duration-300">
-          <div className={`flex items-center gap-3 p-4 rounded-lg border shadow-lg min-w-[300px] ${
-            toast.type === 'success' 
-              ? 'bg-green-50 border-green-200' 
-              : 'bg-red-50 border-red-200'
-          }`}>
+          <div className={`flex items-center gap-3 p-4 rounded-lg border shadow-lg min-w-[300px] ${toast.type === 'success'
+            ? 'bg-green-50 border-green-200'
+            : 'bg-red-50 border-red-200'
+            }`}>
             {toast.type === 'success' ? (
               <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
             ) : (
               <XCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
             )}
-            <p className={`flex-1 text-sm font-medium ${
-              toast.type === 'success' ? 'text-green-800' : 'text-red-800'
-            }`}>
+            <p className={`flex-1 text-sm font-medium ${toast.type === 'success' ? 'text-green-800' : 'text-red-800'
+              }`}>
               {toast.message}
             </p>
             <button
@@ -402,6 +455,14 @@ export default function Configuracion() {
           </div>
         </div>
       )}
+
+      {/* Patient Profile Wizard */}
+      <PatientProfileWizard
+        initialData={patientProfile}
+        isOpen={isWizardOpen}
+        onClose={() => setIsWizardOpen(false)}
+        onSave={handleSavePatientProfile}
+      />
     </DashboardLayout>
   );
 }

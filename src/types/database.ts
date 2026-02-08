@@ -114,6 +114,13 @@ export interface Database {
           blood_type: string | null
           allergies: string | null
           chronic_conditions: string | null
+          current_medications: string | null
+          height_cm: number | null
+          weight_kg: number | null
+          insurance_provider: string | null
+          insurance_policy_number: string | null
+          preferred_language: string | null
+          notes_for_doctor: string | null
           created_at: string
           updated_at: string
         }
@@ -125,6 +132,13 @@ export interface Database {
           blood_type?: string | null
           allergies?: string | null
           chronic_conditions?: string | null
+          current_medications?: string | null
+          height_cm?: number | null
+          weight_kg?: number | null
+          insurance_provider?: string | null
+          insurance_policy_number?: string | null
+          preferred_language?: string | null
+          notes_for_doctor?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -136,6 +150,13 @@ export interface Database {
           blood_type?: string | null
           allergies?: string | null
           chronic_conditions?: string | null
+          current_medications?: string | null
+          height_cm?: number | null
+          weight_kg?: number | null
+          insurance_provider?: string | null
+          insurance_policy_number?: string | null
+          preferred_language?: string | null
+          notes_for_doctor?: string | null
           created_at?: string
           updated_at?: string
         }

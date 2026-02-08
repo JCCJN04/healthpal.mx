@@ -299,7 +299,68 @@ export async function updateFolder(
 }
 
 /**
+ * Update a document (rename, move, notes)
+ */
+export async function updateDocument(
+  documentId: string,
+  userId: string,
+  data: { title?: string; notes?: string; folder_id?: string | null }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabase
+      .from('documents')
+      .update(data)
+      .eq('id', documentId)
+      .eq('owner_id', userId)
+
+    if (error) {
+      console.error('Error updating document:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true }
+  } catch (err) {
+    console.error('Error in updateDocument:', err)
+    return { success: false, error: 'Error al actualizar el documento' }
+  }
+}
+
+/**
  * Get download URL for document
+ */
+/**
+ * Download document file directly (forces download)
+ */
+export async function downloadDocumentFile(filePath: string, fileName: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { data, error } = await supabase.storage
+      .from('documents')
+      .download(filePath)
+
+    if (error) {
+      console.error('Error downloading file:', error)
+      return { success: false, error: error.message }
+    }
+
+    // Create blob URL and force download
+    const url = URL.createObjectURL(data)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    return { success: true }
+  } catch (err) {
+    console.error('Error in downloadDocumentFile:', err)
+    return { success: false, error: 'Error al descargar el archivo' }
+  }
+}
+
+/**
+ * Get download URL for document (for preview/viewing)
  */
 export async function getDocumentDownloadUrl(filePath: string): Promise<string | null> {
   try {

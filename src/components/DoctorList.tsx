@@ -21,7 +21,7 @@ const DoctorList: React.FC<DoctorListProps> = ({ doctors }) => {
 
   const handleSendMessage = (doctor: DoctorWithProfile) => {
     console.log('Send message to:', doctor.full_name);
-    navigate('/dashboard/mensajes');
+    navigate(`/dashboard/mensajes?with=${doctor.id}`);
     setOpenMenuId(null);
   };
 

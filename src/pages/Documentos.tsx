@@ -363,7 +363,7 @@ export default function Documentos() {
           <div className="flex items-center justify-center py-12 md:py-16">
             <Loader2 size={32} className="animate-spin text-primary" />
           </div>
-        ) : filteredDocuments.length === 0 ? (
+        ) : filteredDocuments.length === 0 && filteredFolders.length === 0 ? (
           <div className="bg-white rounded-lg p-8 md:p-12 text-center border border-gray-200">
             <FileText size={48} className="mx-auto text-gray-300 mb-4" />
             <h3 className="text-lg md:text-xl font-semibold text-gray-900 mb-2">
@@ -386,7 +386,12 @@ export default function Documentos() {
             )}
           </div>
         ) : view === 'list' ? (
-          <DocumentsTable documents={filteredDocuments} onDelete={handleDelete} />
+          <DocumentsTable
+            documents={filteredDocuments}
+            folders={filteredFolders}
+            onDelete={handleDelete}
+            onFolderClick={handleFolderClick}
+          />
         ) : (
           <DocumentGrid
             documents={filteredDocuments}

@@ -5,8 +5,6 @@ import {
   Calendar,
   Clock,
   MapPin,
-  User,
-  FileText,
   MessageSquare,
   Video,
   Phone,
@@ -87,12 +85,12 @@ export default function ConsultaDetail() {
   }, [id]);
 
   const loadAppointment = async () => {
-    if (!id) return;
+    if (!id || !user) return;
 
     setLoading(true);
     setError(null);
 
-    const data = await getAppointmentById(id);
+    const data = await getAppointmentById(id, user.id);
 
     if (!data) {
       setError('No se pudo cargar la información de la cita');
@@ -125,7 +123,7 @@ export default function ConsultaDetail() {
 
   const handleSendMessage = () => {
     if (!appointment?.doctor) return;
-    navigate(`/dashboard/mensajes?doctorId=${appointment.doctor.id}`);
+    navigate(`/dashboard/mensajes?with=${appointment.doctor.id}`);
   };
 
   const handleReschedule = () => {

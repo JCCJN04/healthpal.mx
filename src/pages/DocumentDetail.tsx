@@ -14,7 +14,8 @@ import DashboardLayout from '../components/DashboardLayout'
 import { DocumentViewer } from '../components/DocumentViewer'
 import { NotesPanel } from '../components/NotesPanel'
 import { ShareModal } from '../components/ShareModal'
-import { getDocumentById, getDocumentDownloadUrl, deleteDocument } from '../lib/queries/documents'
+import { RenameDocumentModal, MoveDocumentModal } from '../components/documents/DocumentModals'
+import { getDocumentById, getDocumentDownloadUrl, deleteDocument, updateDocument, downloadDocumentFile } from '../lib/queries/documents'
 import { showToast } from '../components/Toast'
 import { useAuth } from '../context/AuthContext'
 
@@ -22,9 +23,11 @@ import { useAuth } from '../context/AuthContext'
 export default function DocumentDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
   const [shareModalOpen, setShareModalOpen] = useState(false)
+  const [renameModalOpen, setRenameModalOpen] = useState(false)
+  const [moveModalOpen, setMoveModalOpen] = useState(false)
   const [document, setDocument] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [fileUrl, setFileUrl] = useState<string | null>(null)
@@ -93,11 +96,12 @@ export default function DocumentDetail() {
   const handleDownload = async () => {
     if (!document) return
     console.log('Descargando documento:', document.id)
-    const url = await getDocumentDownloadUrl(document.file_path)
-    if (url) {
-      window.open(url, '_blank')
-    } else {
-      showToast('No se pudo generar el enlace de descarga', 'error')
+
+    // Use the new blob download method to force download
+    const result = await downloadDocumentFile(document.file_path, document.title)
+
+    if (!result.success) {
+      showToast(result.error || 'No se pudo descargar el documento', 'error')
     }
   }
 
@@ -122,17 +126,81 @@ export default function DocumentDetail() {
         showToast(result.error || 'Error al eliminar', 'error')
       }
     } else if (action === 'Renombrar') {
-      const newTitle = prompt('Ingresa el nuevo título del documento:', document.title)
-      if (newTitle && newTitle !== document.title) {
-        // We need an updateDocument function in documents.ts if we want this to work properly
-        showToast('Próximamente: Actualización de metadatos', 'info')
-      }
+      setRenameModalOpen(true)
+    } else if (action === 'Mover a carpeta') {
+      setMoveModalOpen(true)
     }
   }
 
-  const handleAddNote = (content: string) => {
-    console.log('Nueva nota:', content)
-    // TODO: Add note to document
+  // Define Note interface locally to match mock/Component expectation
+  interface Note {
+    id: string
+    author: string
+    authorInitial: string
+    timeAgo: string
+    content: string
+    timestamp: string // Changed from createdAt
+  }
+
+  // Parse notes from string (JSON or plain text)
+  const parseNotes = (notesData: string | null): Note[] => {
+    if (!notesData) return []
+    try {
+      const parsed = JSON.parse(notesData)
+      if (Array.isArray(parsed)) {
+        return parsed.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      }
+      return [] // If valid JSON but not array, fallback
+    } catch (e) {
+      // Not JSON, treat as legacy plain text note if not empty
+      if (notesData.trim()) {
+        return [{
+          id: 'legacy',
+          author: 'Sistema',
+          authorInitial: 'S',
+          timeAgo: 'Nota antigua',
+          content: notesData,
+          timestamp: new Date().toISOString()
+        }]
+      }
+      return []
+    }
+  }
+
+  const handleAddNote = async (content: string) => {
+    if (!user || !document) return
+    console.log('Guardando nota:', content)
+
+    // Create new note object
+    const newNote: Note = {
+      id: crypto.randomUUID(),
+      author: profile?.full_name || user.email || 'Usuario',
+      authorInitial: (profile?.full_name || user.email || 'U').charAt(0).toUpperCase(),
+      timeAgo: 'Justo ahora',
+      content: content,
+      timestamp: new Date().toISOString()
+    }
+
+    // Get current notes
+    const currentNotes = parseNotes(document.notes)
+
+    // Update locally
+    const updatedNotes = [newNote, ...currentNotes]
+    const notesString = JSON.stringify(updatedNotes)
+
+    // Optimistic update
+    const previousNotesString = document.notes
+    setDocument({ ...document, notes: notesString })
+
+    const result = await updateDocument(document.id, user.id, { notes: notesString })
+
+    if (result.success) {
+      showToast('Nota guardada', 'success')
+    } else {
+      // Revert if failed
+      setDocument({ ...document, notes: previousNotesString })
+      showToast(result.error || 'Error al guardar la nota', 'error')
+    }
   }
 
   const getCategoryColor = (category: string) => {
@@ -304,7 +372,7 @@ export default function DocumentDetail() {
 
           {/* Right: Notes Panel (25%) */}
           <div className="lg:col-span-1">
-            <NotesPanel notes={document.notes || []} onAddNote={handleAddNote} />
+            <NotesPanel notes={parseNotes(document.notes)} onAddNote={handleAddNote} />
           </div>
         </div>
       </div>
@@ -315,6 +383,30 @@ export default function DocumentDetail() {
         onClose={() => setShareModalOpen(false)}
         documentTitle={document.title}
       />
+
+      {/* Rename Modal */}
+      {user && (
+        <RenameDocumentModal
+          isOpen={renameModalOpen}
+          onClose={() => setRenameModalOpen(false)}
+          currentTitle={document.title}
+          documentId={document.id}
+          userId={user.id}
+          onSuccess={(newTitle) => setDocument({ ...document, title: newTitle })}
+        />
+      )}
+
+      {/* Move Modal */}
+      {user && (
+        <MoveDocumentModal
+          isOpen={moveModalOpen}
+          onClose={() => setMoveModalOpen(false)}
+          currentFolderId={document.folder_id}
+          documentId={document.id}
+          userId={user.id}
+          onSuccess={(newFolderId) => setDocument({ ...document, folder_id: newFolderId })}
+        />
+      )}
     </DashboardLayout>
   )
 }
