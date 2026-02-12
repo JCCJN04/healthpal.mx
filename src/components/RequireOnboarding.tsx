@@ -48,7 +48,7 @@ export default function RequireOnboarding({ children }: RequireOnboardingProps) 
         return
       }
 
-      // Determine redirect based on current progress
+      // Determine redirect based strictly on saved onboarding_step
       let targetRoute = '/onboarding/role'
 
       if (profile.onboarding_step === 'basic') {
@@ -63,8 +63,6 @@ export default function RequireOnboarding({ children }: RequireOnboardingProps) 
         }
       } else if (profile.onboarding_step === 'done') {
         targetRoute = '/onboarding/done'
-      } else if (profile.role) {
-        targetRoute = '/onboarding/basic'
       }
 
       setRedirectTo(targetRoute)

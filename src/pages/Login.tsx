@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react'
+import { useState, useEffect, FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Button from '../components/Button'
 import Input from '../components/Input'
@@ -19,7 +19,9 @@ export default function Login() {
   const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({})
   const [loading, setLoading] = useState(false)
 
-  console.log('✓ Login renderizado')
+  useEffect(() => {
+    console.log('✓ Login renderizado')
+  }, [])
 
   const handleTabChange = (index: number) => {
     setRole(index === 0 ? 'doctor' : 'patient')

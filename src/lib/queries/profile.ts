@@ -6,6 +6,7 @@ type Profile = Database['public']['Tables']['profiles']['Row']
 type ProfileUpdate = Database['public']['Tables']['profiles']['Update']
 type DoctorProfileInsert = Database['public']['Tables']['doctor_profiles']['Insert']
 type PatientProfileInsert = Database['public']['Tables']['patient_profiles']['Insert']
+type OnboardingStep = 'role' | 'basic' | 'contact' | 'details' | 'done'
 
 /**
  * Get current user's profile with extended info
@@ -22,6 +23,28 @@ export async function getMyProfile(): Promise<Profile> {
     .select('*')
     .eq('id', user.id)
     .single()
+
+  if (error?.code === 'PGRST116') {
+    // Profile missing: create a baseline record so onboarding can proceed without 406s
+    const { data: newProfile, error: insertError } = await supabase
+      .from('profiles')
+      .insert({
+        id: user.id,
+        email: user.email,
+        role: (user.user_metadata as any)?.role || 'patient',
+        onboarding_completed: false,
+        onboarding_step: 'role',
+      } as any)
+      .select('*')
+      .single()
+
+    if (insertError) {
+      console.error('Error creating profile:', insertError)
+      throw insertError
+    }
+
+    return newProfile as Profile
+  }
 
   if (error) {
     console.error('Error fetching profile:', error)
@@ -84,6 +107,31 @@ export async function updateMyProfile(updates: ProfileUpdate) {
 
   if (error) {
     console.error('Error updating profile:', error)
+    throw error
+  }
+
+  return data
+}
+
+/**
+ * Persist the current onboarding step for the logged in user
+ */
+export async function saveOnboardingStep(step: OnboardingStep) {
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    throw new Error('Not authenticated')
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ onboarding_step: step } as any)
+    .eq('id', user.id)
+    .select('id, onboarding_step, onboarding_completed')
+    .single()
+
+  if (error) {
+    console.error('Error saving onboarding step:', error)
     throw error
   }
 

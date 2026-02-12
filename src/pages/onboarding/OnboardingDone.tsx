@@ -4,6 +4,7 @@ import OnboardingLayout from './OnboardingLayout'
 import Stepper from '../../components/Stepper'
 import Button from '../../components/Button'
 import { completeOnboarding } from '../../lib/queries/profile'
+import { useAuth } from '../../context/AuthContext'
 import { showToast } from '../../components/Toast'
 import { CheckCircle } from 'lucide-react'
 
@@ -12,12 +13,14 @@ const STEPS = ['Rol', 'Información', 'Contacto', 'Detalles', 'Listo']
 export default function OnboardingDone() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
+  const { refreshProfile } = useAuth()
 
   const handleComplete = async () => {
     setLoading(true)
 
     try {
       await completeOnboarding()
+      await refreshProfile()
       showToast('¡Perfil completado exitosamente!', 'success')
       
       // Wait briefly for Supabase to process

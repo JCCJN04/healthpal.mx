@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react'
 import { User, Session, AuthError } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
+import { getMyProfile } from '../lib/queries/profile'
 import type { Database } from '../types/database'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
@@ -32,20 +33,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null)
   const jwtRefreshTimerRef = useRef<NodeJS.Timeout | null>(null)
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async () => {
     try {
-      const { data, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, role, full_name, email, phone, sex, birthdate, avatar_url, onboarding_completed, onboarding_step')
-        .eq('id', userId)
-        .single()
-
-      if (profileError) {
-        console.error('Error fetching profile:', profileError)
-        return null
-      }
-
-      return data
+      return await getMyProfile()
     } catch (err) {
       console.error('Error in fetchProfile:', err)
       return null
@@ -54,7 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshProfile = async () => {
     if (user) {
-      const profileData = await fetchProfile(user.id)
+      const profileData = await fetchProfile()
       setProfile(profileData)
     }
   }
@@ -158,7 +148,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Solo buscar perfil si hay usuario (en background, no bloqueante)
         if (currentSession?.user) {
           // Fetch profile in background without blocking
-          fetchProfile(currentSession.user.id).then(profileData => {
+          fetchProfile().then(profileData => {
             if (mounted) {
               setProfile(profileData)
             }
@@ -191,7 +181,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (currentSession?.user) {
           // Fetch profile in background
-          fetchProfile(currentSession.user.id).then(profileData => {
+          fetchProfile().then(profileData => {
             if (mounted) {
               setProfile(profileData)
             }
