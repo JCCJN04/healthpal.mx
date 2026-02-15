@@ -3,6 +3,25 @@ import { supabase } from '../supabase'
 import type { Database } from '../../types/database'
 
 type Notification = Database['public']['Tables']['notifications']['Row']
+type NotificationInsert = Database['public']['Tables']['notifications']['Insert']
+
+export async function createNotification(payload: NotificationInsert): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabase
+      .from('notifications')
+      .insert(payload)
+
+    if (error) {
+      console.error('Error creating notification:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true }
+  } catch (err) {
+    console.error('Error in createNotification:', err)
+    return { success: false, error: 'Error inesperado' }
+  }
+}
 
 /**
  * Get unread notifications for user

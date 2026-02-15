@@ -1,7 +1,8 @@
 import React from 'react'
-import { Calendar, FileText, MessageSquare, AlertCircle, ChevronRight } from 'lucide-react'
+import { Calendar, FileText, MessageSquare, AlertCircle, ChevronRight, Users } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Skeleton } from '../Skeleton'
+import type { UserRole } from '../../types/database'
 
 interface SummaryData {
     nextAppointment: {
@@ -11,6 +12,7 @@ interface SummaryData {
     } | null;
     documentCount: number;
     unreadMessages: number;
+    activePatients?: number;
     alerts: {
         type: 'profile' | 'appointment' | 'document';
         message: string;
@@ -22,13 +24,15 @@ interface DashboardSummaryProps {
     avatarUrl?: string | null;
     loading: boolean;
     data: SummaryData;
+    role?: UserRole;
 }
 
 export const DashboardSummary: React.FC<DashboardSummaryProps> = ({
     userName,
     avatarUrl,
     loading,
-    data
+    data,
+    role
 }) => {
     const navigate = useNavigate()
 
@@ -140,33 +144,53 @@ export const DashboardSummary: React.FC<DashboardSummaryProps> = ({
                     </button>
                 </div>
 
-                {/* Alerts Card */}
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between">
-                    <div>
-                        <div className="flex items-center gap-2 text-gray-500 mb-2">
-                            <AlertCircle size={18} className="text-primary" />
-                            <span className="text-xs font-semibold uppercase tracking-wider">Estado de Cuenta</span>
+                {/* Alerts / Patients Card */}
+                {role === 'doctor' ? (
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between">
+                        <div>
+                            <div className="flex items-center gap-2 text-gray-500 mb-2">
+                                <Users size={18} className="text-primary" />
+                                <span className="text-xs font-semibold uppercase tracking-wider">Pacientes Activos</span>
+                            </div>
+                            <p className="text-2xl font-bold text-gray-900 mt-1">{data.activePatients ?? 0}</p>
+                            <p className="text-xs text-gray-500">Con citas o seguimiento</p>
                         </div>
-                        <div className="mt-1 space-y-2">
-                            {data.alerts.length > 0 ? (
-                                data.alerts.slice(0, 1).map((alert, i) => (
-                                    <p key={i} className="text-sm font-medium text-amber-600 line-clamp-2">
-                                        {alert.message}
-                                    </p>
-                                ))
-                            ) : (
-                                <p className="text-sm text-green-600 font-medium">✓ Perfil al día</p>
-                            )}
-                        </div>
+                        <button
+                            onClick={() => navigate('/dashboard/consultas')}
+                            className="mt-4 flex items-center justify-between text-primary text-xs font-bold group"
+                        >
+                            VER CONSULTAS
+                            <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                        </button>
                     </div>
-                    <button
-                        onClick={() => navigate('/dashboard/configuracion')}
-                        className="mt-4 flex items-center justify-between text-primary text-xs font-bold group"
-                    >
-                        COMPLETAR PERFIL
-                        <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
-                    </button>
-                </div>
+                ) : (
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between">
+                        <div>
+                            <div className="flex items-center gap-2 text-gray-500 mb-2">
+                                <AlertCircle size={18} className="text-primary" />
+                                <span className="text-xs font-semibold uppercase tracking-wider">Estado de Cuenta</span>
+                            </div>
+                            <div className="mt-1 space-y-2">
+                                {data.alerts.length > 0 ? (
+                                    data.alerts.slice(0, 1).map((alert, i) => (
+                                        <p key={i} className="text-sm font-medium text-amber-600 line-clamp-2">
+                                            {alert.message}
+                                        </p>
+                                    ))
+                                ) : (
+                                    <p className="text-sm text-green-600 font-medium">✓ Perfil al día</p>
+                                )}
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => navigate('/dashboard/configuracion')}
+                            className="mt-4 flex items-center justify-between text-primary text-xs font-bold group"
+                        >
+                            COMPLETAR PERFIL
+                            <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     )

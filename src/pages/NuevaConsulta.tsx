@@ -22,21 +22,29 @@ import { listDoctors, searchDoctors, DoctorWithProfile } from '../lib/queries/do
 import { createAppointment, getDoctorAppointments } from '../lib/queries/appointments'
 import { showToast } from '../components/Toast'
 import type { Database } from '../types/database'
+import { searchPatients, listDoctorPatients, type PatientProfileLite } from '../lib/queries/patients'
 
 type VisitMode = Database['public']['Enums']['visit_mode']
 
 export default function NuevaConsulta() {
     const navigate = useNavigate()
     const [searchParams] = useSearchParams()
-    const { user } = useAuth()
+    const { user, profile } = useAuth()
+    const isDoctor = profile?.role === 'doctor'
 
     const [step, setStep] = useState(1)
     const [loading, setLoading] = useState(false)
+    const [searching, setSearching] = useState(false)
 
     // Wizards Data
     const [doctors, setDoctors] = useState<DoctorWithProfile[]>([])
     const [selectedDoctor, setSelectedDoctor] = useState<DoctorWithProfile | null>(null)
     const [searchQuery, setSearchQuery] = useState('')
+
+    const [patients, setPatients] = useState<PatientProfileLite[]>([])
+    const [doctorPatients, setDoctorPatients] = useState<PatientProfileLite[]>([])
+    const [selectedPatient, setSelectedPatient] = useState<PatientProfileLite | null>(null)
+    const [patientSearchQuery, setPatientSearchQuery] = useState('')
 
     const [formData, setFormData] = useState({
         date: new Date().toISOString().split('T')[0],
@@ -57,16 +65,21 @@ export default function NuevaConsulta() {
 
     // Pre-load doctor if ID in URL
     useEffect(() => {
+        if (isDoctor) {
+            loadDoctorPatients()
+            return
+        }
+
         const doctorId = searchParams.get('doctor')
         if (doctorId && step === 1) {
             loadInitialDoctor(doctorId)
         } else {
             loadDoctorsList()
         }
-    }, [searchParams])
+    }, [searchParams, isDoctor])
 
     const loadInitialDoctor = async (id: string) => {
-        setLoading(true)
+        setSearching(true)
         const docs = await listDoctors()
         const found = docs.find(d => d.id === id)
         if (found) {
@@ -74,26 +87,53 @@ export default function NuevaConsulta() {
             setStep(2)
         }
         setDoctors(docs)
-        setLoading(false)
+        setSearching(false)
     }
 
     const loadDoctorsList = async () => {
-        setLoading(true)
+        setSearching(true)
         const docs = searchQuery ? await searchDoctors(searchQuery) : await listDoctors()
         setDoctors(docs)
-        setLoading(false)
+        setSearching(false)
     }
+
+    const loadPatientsList = async () => {
+        setSearching(true)
+        // If doctor, filter existing roster locally; otherwise search global patients
+        if (isDoctor) {
+            const filtered = doctorPatients.filter(p => {
+                const term = patientSearchQuery.toLowerCase()
+                return (p.full_name || '').toLowerCase().includes(term) || (p.email || '').toLowerCase().includes(term)
+            })
+            setPatients(filtered)
+        } else {
+            const results = patientSearchQuery ? await searchPatients(patientSearchQuery) : []
+            setPatients(results)
+        }
+        setSearching(false)
+    }
+
+    const loadDoctorPatients = async () => {
+        if (!user?.id) return
+        setSearching(true)
+        const roster = await listDoctorPatients(user.id)
+        setDoctorPatients(roster)
+        setPatients(roster)
+        setSearching(false)
+    }
+
+    const doctorIdForSchedule = isDoctor ? user?.id : selectedDoctor?.id
 
     // Load schedule when date or doctor changes
     useEffect(() => {
-        if (selectedDoctor && formData.date) {
-            loadDoctorSchedule()
+        if (doctorIdForSchedule && formData.date) {
+            loadDoctorSchedule(doctorIdForSchedule)
         }
-    }, [selectedDoctor, formData.date])
+    }, [doctorIdForSchedule, formData.date])
 
-    const loadDoctorSchedule = async () => {
+    const loadDoctorSchedule = async (doctorId: string) => {
         setLoadingSlots(true)
-        const apts = await getDoctorAppointments(selectedDoctor!.id, formData.date)
+        const apts = await getDoctorAppointments(doctorId, formData.date)
         const occupied = apts.map(a => {
             const date = new Date(a.start_at)
             return `${String(date.getHours()).padStart(2, '0')}:00`
@@ -109,8 +149,26 @@ export default function NuevaConsulta() {
         loadDoctorsList()
     }
 
+    const handlePatientSearch = (e: React.FormEvent) => {
+        e.preventDefault()
+        loadPatientsList()
+    }
+
     const handleFinish = async () => {
-        if (!user || !selectedDoctor) return
+        if (!user) return
+        if (!formData.time || !formData.date || !formData.reason) {
+            showToast('Completa la fecha, hora y motivo', 'warning')
+            return
+        }
+
+        const doctorId = isDoctor ? user.id : selectedDoctor?.id
+        const patientId = isDoctor ? selectedPatient?.id : user.id
+
+        if (!doctorId || !patientId) {
+            showToast('Selecciona el doctor y el paciente antes de continuar', 'warning')
+            return
+        }
+
         setLoading(true)
 
         // Construct temporal dates
@@ -118,14 +176,14 @@ export default function NuevaConsulta() {
         const endAt = new Date(startAt.getTime() + 60 * 60 * 1000) // Default 1 hour
 
         const result = await createAppointment({
-            doctor_id: selectedDoctor.id,
-            patient_id: user.id,
+            doctor_id: doctorId,
+            patient_id: patientId,
             start_at: startAt.toISOString(),
             end_at: endAt.toISOString(),
             mode: formData.mode,
             reason: formData.reason,
             symptoms: formData.symptoms,
-            status: 'requested',
+            status: isDoctor ? 'confirmed' : 'requested',
             created_by: user.id
         })
 
@@ -146,8 +204,8 @@ export default function NuevaConsulta() {
                     <div className={`h-full bg-[#33C7BE] transition-all duration-500 ${step === 1 ? 'w-1/3' : step === 2 ? 'w-2/3' : 'w-full'}`} />
                 </div>
 
-                {/* Step 1: Choose Doctor */}
-                {step === 1 && (
+                {/* Step 1: Choose Doctor (patients) */}
+                {step === 1 && !isDoctor && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
                         <div className="text-center">
                             <h1 className="text-3xl font-black text-gray-900 tracking-tight">Selecciona a tu Doctor</h1>
@@ -165,7 +223,7 @@ export default function NuevaConsulta() {
                             />
                         </form>
 
-                        {loading ? (
+                        {searching ? (
                             <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-[#33C7BE]" /></div>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -195,8 +253,56 @@ export default function NuevaConsulta() {
                     </div>
                 )}
 
+                {/* Step 1: Choose Patient (doctors) */}
+                {step === 1 && isDoctor && (
+                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                        <div className="text-center">
+                            <h1 className="text-3xl font-black text-gray-900 tracking-tight">Selecciona al paciente</h1>
+                            <p className="text-gray-500 font-medium mt-1">Pacientes con los que ya tienes historial o chat.</p>
+                        </div>
+
+                        <form onSubmit={handlePatientSearch} className="relative group">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-[#33C7BE] transition-colors" />
+                            <input
+                                type="text"
+                                placeholder="Filtrar por nombre o email..."
+                                value={patientSearchQuery}
+                                onChange={(e) => setPatientSearchQuery(e.target.value)}
+                                className="w-full pl-12 pr-4 py-4 bg-white border-2 border-transparent shadow-sm rounded-2xl focus:border-[#33C7BE] focus:ring-0 transition-all font-medium text-gray-700"
+                            />
+                        </form>
+
+                        {searching ? (
+                            <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-[#33C7BE]" /></div>
+                        ) : patients.length === 0 ? (
+                            <div className="bg-gray-50/70 border border-dashed border-gray-200 rounded-2xl p-6 text-center text-gray-400 font-medium">
+                                No hay pacientes vinculados aún. Genera una cita o conversación para listarlos aquí.
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {patients.map(patient => (
+                                    <div
+                                        key={patient.id}
+                                        onClick={() => { setSelectedPatient(patient); setStep(2); setFormData(prev => ({ ...prev, time: '' })); setOccupiedSlots([]); }}
+                                        className="bg-white p-5 rounded-2xl border-2 border-transparent hover:border-[#33C7BE] shadow-sm hover:shadow-md transition-all cursor-pointer flex items-center gap-4 group"
+                                    >
+                                        <div className="w-16 h-16 rounded-2xl bg-teal-50 flex items-center justify-center text-[#33C7BE] font-bold text-xl">
+                                            {patient.full_name?.charAt(0) || 'P'}
+                                        </div>
+                                        <div className="flex-1">
+                                            <h3 className="font-bold text-gray-900 group-hover:text-[#33C7BE] transition-colors">{patient.full_name || 'Paciente'}</h3>
+                                            <p className="text-gray-500 text-sm font-medium">{patient.email}</p>
+                                        </div>
+                                        <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-[#33C7BE] transition-colors" />
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 {/* Step 2: Date, Time & Details */}
-                {step === 2 && selectedDoctor && (
+                {step === 2 && ((isDoctor && selectedPatient) || (!isDoctor && selectedDoctor)) && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                         <button onClick={() => setStep(1)} className="flex items-center gap-2 text-gray-500 hover:text-gray-900 font-bold transition-colors mb-4">
                             <ArrowLeft className="w-5 h-5" /> Regresar
@@ -204,11 +310,14 @@ export default function NuevaConsulta() {
 
                         <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4 mb-8">
                             <div className="w-14 h-14 rounded-2xl bg-[#33C7BE] text-white flex items-center justify-center font-black text-xl">
-                                {selectedDoctor.full_name?.charAt(0)}
+                                {isDoctor ? selectedPatient?.full_name?.charAt(0) : selectedDoctor?.full_name?.charAt(0)}
                             </div>
                             <div>
-                                <p className="text-xs font-black text-[#33C7BE] uppercase tracking-widest">Confirmando doctor</p>
-                                <h2 className="text-xl font-black text-gray-900">Dr. {selectedDoctor.full_name}</h2>
+                                <p className="text-xs font-black text-[#33C7BE] uppercase tracking-widest">{isDoctor ? 'Paciente seleccionado' : 'Confirmando doctor'}</p>
+                                <h2 className="text-xl font-black text-gray-900">{isDoctor ? selectedPatient?.full_name : `Dr. ${selectedDoctor?.full_name}`}</h2>
+                                {isDoctor && (
+                                    <p className="text-xs text-gray-500 font-semibold mt-1">Tú serás el médico asignado</p>
+                                )}
                             </div>
                         </div>
 
@@ -228,14 +337,16 @@ export default function NuevaConsulta() {
                                 </div>
 
                                 <div className="grid grid-cols-7 gap-1 text-center">
-                                    {['D', 'L', 'M', 'M', 'J', 'V', 'S'].map(d => <div key={d} className="text-[10px] font-black text-gray-300 py-2">{d}</div>)}
+                                    {['D', 'L', 'M', 'M', 'J', 'V', 'S'].map((d, idx) => <div key={`${d}-${idx}`} className="text-[10px] font-black text-gray-300 py-2">{d}</div>)}
                                     {Array.from({ length: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay() }).map((_, i) => <div key={`p-${i}`} />)}
                                     {Array.from({ length: new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate() }).map((_, i) => {
                                         const day = i + 1
                                         const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-                                        const isToday = dateStr === new Date().toISOString().split('T')[0]
+                                        const todayStr = new Date().toISOString().split('T')[0]
+                                        const isToday = dateStr === todayStr
                                         const isSelected = formData.date === dateStr
                                         const isPast = new Date(dateStr) < new Date(new Date().setHours(0, 0, 0, 0))
+                                        const isBeforeToday = new Date(dateStr) < new Date(todayStr)
 
                                         return (
                                             <button
@@ -264,12 +375,16 @@ export default function NuevaConsulta() {
                                             {businessHours.map(time => {
                                                 const isOccupied = occupiedSlots.includes(time)
                                                 const isSelected = formData.time === time
+                                                const selectedDate = new Date(formData.date)
+                                                const slotDateTime = new Date(`${formData.date}T${time}:00`)
+                                                const isPastSlot = slotDateTime.getTime() <= Date.now()
+                                                const disableSlot = isOccupied || isPastSlot
                                                 return (
                                                     <button
                                                         key={time}
-                                                        disabled={isOccupied}
+                                                        disabled={disableSlot}
                                                         onClick={() => setFormData({ ...formData, time })}
-                                                        className={`py-3 rounded-2xl border-2 font-bold text-xs transition-all ${isSelected ? 'border-[#33C7BE] bg-teal-50 text-[#33C7BE] scale-105' : isOccupied ? 'border-gray-50 bg-gray-50 text-gray-300 cursor-not-allowed' : 'border-gray-100 text-gray-600 hover:border-teal-200'}`}
+                                                        className={`py-3 rounded-2xl border-2 font-bold text-xs transition-all ${isSelected ? 'border-[#33C7BE] bg-teal-50 text-[#33C7BE] scale-105' : disableSlot ? 'border-gray-50 bg-gray-50 text-gray-300 cursor-not-allowed' : 'border-gray-100 text-gray-600 hover:border-teal-200'}`}
                                                     >
                                                         {time}
                                                     </button>
@@ -334,7 +449,7 @@ export default function NuevaConsulta() {
                 )}
 
                 {/* Step 3: Confirmation */}
-                {step === 3 && selectedDoctor && (
+                {step === 3 && ((isDoctor && selectedPatient) || (!isDoctor && selectedDoctor)) && (
                     <div className="space-y-6 animate-in zoom-in-95 duration-300">
                         <div className="bg-[#33C7BE]/10 p-8 rounded-[2rem] border-2 border-[#33C7BE]/20 text-center space-y-4">
                             <div className="w-20 h-20 bg-[#33C7BE] text-white rounded-full flex items-center justify-center mx-auto shadow-xl ring-4 ring-white">
@@ -351,12 +466,22 @@ export default function NuevaConsulta() {
                                 <div className="flex items-center gap-4">
                                     <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-[#33C7BE]"><User className="w-6 h-6" /></div>
                                     <div>
-                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Médico</p>
-                                        <p className="font-bold text-gray-900">Dr. {selectedDoctor.full_name}</p>
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{isDoctor ? 'Paciente' : 'Médico'}</p>
+                                        <p className="font-bold text-gray-900">{isDoctor ? selectedPatient?.full_name : `Dr. ${selectedDoctor?.full_name}`}</p>
                                     </div>
                                 </div>
                                 <button onClick={() => setStep(1)} className="text-[#33C7BE] font-black text-xs uppercase tracking-widest hover:underline">Cambiar</button>
                             </div>
+
+                            {isDoctor && (
+                                <div className="flex items-center gap-4 pb-6 border-b border-gray-100">
+                                    <div className="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center text-[#33C7BE]"><User className="w-6 h-6" /></div>
+                                    <div>
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Doctor</p>
+                                        <p className="font-bold text-gray-900">{profile?.full_name || 'Tú'}</p>
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="grid grid-cols-2 gap-8 pb-6 border-b border-gray-100">
                                 <div>

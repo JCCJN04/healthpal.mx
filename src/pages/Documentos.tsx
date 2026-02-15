@@ -5,7 +5,7 @@ import ViewToggle from '../components/ViewToggle'
 import DocumentsTable from '../components/DocumentsTable'
 import { DocumentGrid } from '../components/DocumentGrid'
 import { useAuth } from '../context/AuthContext'
-import { getUserDocuments, uploadDocument, deleteDocument, getFolders, createFolder, deleteFolder, updateFolder } from '../lib/queries/documents'
+import { getUserDocuments, getDocumentsSharedWithMe, uploadDocument, deleteDocument, getFolders, createFolder, deleteFolder, updateFolder, updateDocument } from '../lib/queries/documents'
 import { showToast } from '../components/Toast'
 import type { Database } from '../types/database'
 
@@ -44,6 +44,9 @@ export default function Documentos() {
   const [uploading, setUploading] = useState(false)
   const [currentFolder, setCurrentFolder] = useState<{ id: string | null; name: string }>({ id: null, name: 'Mis Documentos' })
   const [navHistory, setNavHistory] = useState<{ id: string | null; name: string }[]>([])
+  const [sharedDocs, setSharedDocs] = useState<Array<{ doc: Document; senderId: string }>>([])
+  const [sharedFolders, setSharedFolders] = useState<Folder[]>([])
+  const [movingDocId, setMovingDocId] = useState<string | null>(null)
 
   const [uploadForm, setUploadForm] = useState<{
     file: File | null
@@ -68,12 +71,70 @@ export default function Documentos() {
   const loadContent = async () => {
     if (!user) return
     setLoading(true)
-    const [docs, flds] = await Promise.all([
-      getUserDocuments(user.id, currentFolder.id),
-      getFolders(user.id, currentFolder.id)
+
+    const isSharedFolder = currentFolder.id?.startsWith('shared-')
+
+    const [ownDocs, shared] = await Promise.all([
+      // When viewing a synthetic shared folder, skip folder filter (null) to avoid UUID errors
+      getUserDocuments(user.id, isSharedFolder ? null : currentFolder.id),
+      getDocumentsSharedWithMe(user.id)
     ])
-    setDocuments(docs)
-    setFolders(flds)
+
+    // Drop imported copies (owner = me, uploaded_by != me) to avoid duplicates
+    const cleanedOwn = ownDocs.filter(doc => !(doc.owner_id === user.id && doc.uploaded_by !== user.id))
+
+    const sharedEntries = (shared as any[]) // document payload comes from join
+      .map((s) => ({
+        doc: (s as any).document as Document,
+        senderId: (s as any).sender?.id || 'shared',
+        senderName: (s as any).sender?.full_name || (s as any).sender?.email || 'Compartido'
+      }))
+      .filter(entry => !!entry.doc)
+
+    // Build synthetic shared folders by sender, short name = patient name/email only
+    const sharedFolderMap = new Map<string, string>()
+    sharedEntries.forEach(entry => {
+      sharedFolderMap.set(entry.senderId, entry.senderName)
+    })
+    const syntheticSharedFolders: Folder[] = Array.from(sharedFolderMap.entries()).map(([senderId, name]) => ({
+      id: `shared-${senderId}`,
+      name,
+      color: '#33C7BE',
+      created_at: new Date().toISOString(),
+    }))
+
+    // Remove legacy imported shared folders from DB to avoid clutter
+    const ownFoldersInitial = await getFolders(user.id, isSharedFolder ? null : currentFolder.id)
+    const legacyShared = ownFoldersInitial.filter(f => f.name.toLowerCase().startsWith('compartido de '))
+    if (legacyShared.length) {
+      await Promise.all(legacyShared.map(f => deleteFolder(f.id, user.id)))
+      // If current folder was deleted, reset to root
+      if (legacyShared.some(f => f.id === currentFolder.id)) {
+        setCurrentFolder({ id: null, name: 'Mis Documentos' })
+        setNavHistory([])
+      }
+    }
+    const ownFolders = legacyShared.length ? await getFolders(user.id, currentFolder.id) : ownFoldersInitial
+    const filteredOwnFolders = ownFolders.filter(f => !f.name.toLowerCase().startsWith('compartido de '))
+
+    const targetSenderId = isSharedFolder ? currentFolder.id.replace('shared-', '') : null
+
+    const docsForView = isSharedFolder
+      ? sharedEntries.filter(e => e.senderId === targetSenderId).map(e => e.doc)
+      : cleanedOwn
+
+    // Dedup folders by id and hide synthetic shared folders when inside any folder
+    const finalFolders = isSharedFolder
+      ? filteredOwnFolders
+      : currentFolder.id
+        ? filteredOwnFolders
+        : [...filteredOwnFolders, ...syntheticSharedFolders]
+    const dedupFolders = finalFolders.filter((f, idx, arr) => arr.findIndex(x => x.id === f.id) === idx)
+
+    setSharedDocs(sharedEntries.map(e => ({ doc: e.doc, senderId: e.senderId })))
+    setSharedFolders(syntheticSharedFolders)
+    setDocuments(docsForView)
+    setFolders(dedupFolders)
     setLoading(false)
   }
 
@@ -192,6 +253,32 @@ export default function Documentos() {
     }
   }
 
+  const handleMoveDocument = async (docId: string, targetFolderId: string | null) => {
+    if (!user) return
+    const doc = [...documents, ...sharedDocs.map(s => s.doc)].find(d => d.id === docId)
+    if (!doc) {
+      showToast('No encontramos el documento a mover', 'error')
+      return
+    }
+    if (doc.owner_id !== user.id) {
+      showToast('Solo puedes mover tus documentos', 'error')
+      return
+    }
+
+    try {
+      setMovingDocId(docId)
+      const result = await updateDocument(docId, user.id, { folder_id: targetFolderId })
+      if (result.success) {
+        showToast('Documento movido', 'success')
+        await loadContent()
+      } else {
+        showToast(result.error || 'No se pudo mover el documento', 'error')
+      }
+    } finally {
+      setMovingDocId(null)
+    }
+  }
+
   const handleFolderClick = (id: string, name: string) => {
     setNavHistory(prev => [...prev, currentFolder])
     setCurrentFolder({ id, name })
@@ -248,35 +335,6 @@ export default function Documentos() {
               <span>Subir Documento</span>
             </button>
           </div>
-        </div>
-
-        {/* Breadcrumbs */}
-        <div className="flex items-center gap-2 text-sm text-gray-500 overflow-x-auto py-1 no-scrollbar">
-          <button
-            onClick={() => handleBackNavigation(-1)}
-            className={`hover:text-primary transition-colors whitespace-nowrap ${!currentFolder.id ? 'font-bold text-gray-900' : ''}`}
-          >
-            Mis Documentos
-          </button>
-          {navHistory.map((folder, index) => (
-            index > 0 && (
-              <React.Fragment key={folder.id}>
-                <span className="text-gray-300">/</span>
-                <button
-                  onClick={() => handleBackNavigation(index)}
-                  className="hover:text-primary transition-colors whitespace-nowrap"
-                >
-                  {folder.name}
-                </button>
-              </React.Fragment>
-            )
-          ))}
-          {currentFolder.id && (
-            <>
-              <span className="text-gray-300">/</span>
-              <span className="font-bold text-gray-900 whitespace-nowrap">{currentFolder.name}</span>
-            </>
-          )}
         </div>
 
         {/* Stats */}
@@ -358,6 +416,52 @@ export default function Documentos() {
           </div>
         </div>
 
+        {/* Breadcrumbs */}
+        <div className="flex items-center gap-2 text-sm text-gray-500 overflow-x-auto py-1 no-scrollbar">
+          <button
+            onClick={() => handleBackNavigation(-1)}
+            onDragOver={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+            }}
+            onDrop={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              const payload = e.dataTransfer.getData('application/healthpal-doc') || e.dataTransfer.getData('text/plain')
+              try {
+                const parsed = JSON.parse(payload)
+                if (parsed?.docId) {
+                  handleMoveDocument(parsed.docId, null)
+                }
+              } catch {
+                if (payload) handleMoveDocument(payload, null)
+              }
+            }}
+            className={`hover:text-primary transition-colors whitespace-nowrap ${!currentFolder.id ? 'font-bold text-gray-900' : ''}`}
+          >
+            Mis Documentos
+          </button>
+          {navHistory.map((folder, index) => (
+            index > 0 && (
+              <React.Fragment key={folder.id}>
+                <span className="text-gray-300">/</span>
+                <button
+                  onClick={() => handleBackNavigation(index)}
+                  className="hover:text-primary transition-colors whitespace-nowrap"
+                >
+                  {folder.name}
+                </button>
+              </React.Fragment>
+            )
+          ))}
+          {currentFolder.id && (
+            <>
+              <span className="text-gray-300">/</span>
+              <span className="font-bold text-gray-900 whitespace-nowrap">{currentFolder.name}</span>
+            </>
+          )}
+        </div>
+
         {/* Documents List/Grid */}
         {loading ? (
           <div className="flex items-center justify-center py-12 md:py-16">
@@ -391,6 +495,8 @@ export default function Documentos() {
             folders={filteredFolders}
             onDelete={handleDelete}
             onFolderClick={handleFolderClick}
+            onMoveDocument={handleMoveDocument}
+            movingDocId={movingDocId}
           />
         ) : (
           <DocumentGrid
@@ -400,6 +506,8 @@ export default function Documentos() {
             onDeleteFolder={handleDeleteFolder}
             onFolderClick={handleFolderClick}
             onRenameFolder={handleRenameFolder}
+            onMoveDocument={handleMoveDocument}
+            movingDocId={movingDocId}
           />
         )}
       </div>

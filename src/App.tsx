@@ -19,11 +19,14 @@ const DocumentDetail = lazy(() => import('./pages/DocumentDetail'))
 const Consultas = lazy(() => import('./pages/Consultas'))
 const ConsultaDetail = lazy(() => import('./pages/ConsultaDetail'))
 const NuevaConsulta = lazy(() => import('./pages/NuevaConsulta'))
+const ConsultasHistorial = lazy(() => import('./pages/ConsultasHistorial'))
 const Mensajes = lazy(() => import('./pages/Mensajes'))
 const Doctores = lazy(() => import('./pages/Doctores'))
 const DoctorDetail = lazy(() => import('./pages/DoctorDetail'))
 const Calendario = lazy(() => import('./pages/Calendario'))
 const Configuracion = lazy(() => import('./pages/Configuracion'))
+const Pacientes = lazy(() => import('./pages/Pacientes'))
+const Busqueda = lazy(() => import('./pages/Busqueda'))
 
 // Lazy load onboarding pages
 const OnboardingRole = lazy(() => import('./pages/onboarding/OnboardingRole'))
@@ -71,11 +74,14 @@ function App() {
         <Route path="/dashboard/documentos" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><Documentos /></Suspense></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/documentos/:id" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><DocumentDetail /></Suspense></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/consultas" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><Consultas /></Suspense></RequireOnboarding></RequireAuth>} />
+        <Route path="/dashboard/consultas/historial" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><ConsultasHistorial /></Suspense></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/consultas/:id" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><ConsultaDetail /></Suspense></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/consultas/nueva" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><NuevaConsulta /></Suspense></RequireOnboarding></RequireAuth>} />
+        <Route path="/dashboard/buscar" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><Busqueda /></Suspense></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/mensajes" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><Mensajes /></Suspense></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/doctores" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><Doctores /></Suspense></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/doctores/:id" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><DoctorDetail /></Suspense></RequireOnboarding></RequireAuth>} />
+        <Route path="/dashboard/pacientes" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><Pacientes /></Suspense></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/calendario" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><Calendario /></Suspense></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/configuracion" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><Configuracion /></Suspense></RequireOnboarding></RequireAuth>} />
       </Routes>

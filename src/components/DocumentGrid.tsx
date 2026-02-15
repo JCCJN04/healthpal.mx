@@ -17,6 +17,8 @@ interface DocumentGridProps {
   onDeleteFolder: (folderId: string) => void
   onFolderClick: (folderId: string, folderName: string) => void
   onRenameFolder: (folderId: string, currentName: string) => void
+  onMoveDocument?: (docId: string, folderId: string | null) => void
+  movingDocId?: string | null
 }
 
 export const DocumentGrid = ({
@@ -25,7 +27,9 @@ export const DocumentGrid = ({
   onDeleteDocument,
   onDeleteFolder,
   onFolderClick,
-  onRenameFolder
+  onRenameFolder,
+  onMoveDocument,
+  movingDocId
 }: DocumentGridProps) => {
   if (documents.length === 0 && folders.length === 0) {
     return (
@@ -49,6 +53,7 @@ export const DocumentGrid = ({
                 onClick={onFolderClick}
                 onDelete={onDeleteFolder}
                 onRename={onRenameFolder}
+                onDropDocument={onMoveDocument && !folder.id.startsWith('shared-') ? (docId) => onMoveDocument(docId, folder.id) : undefined}
               />
             ))}
           </div>
@@ -65,6 +70,12 @@ export const DocumentGrid = ({
                 key={document.id}
                 document={document}
                 onDelete={onDeleteDocument}
+                onDragStart={onMoveDocument ? (docId, e) => {
+                  const payload = JSON.stringify({ docId })
+                  e.dataTransfer.setData('application/healthpal-doc', payload)
+                  e.dataTransfer.setData('text/plain', payload)
+                } : undefined}
+                isMoving={movingDocId === document.id}
               />
             ))}
           </div>

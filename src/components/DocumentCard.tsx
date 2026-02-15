@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MoreVertical, FileText, Activity, Pill, Download, Trash2, Eye, Microscope, ShieldCheck, FolderOpen } from 'lucide-react'
+import { MoreVertical, FileText, Activity, Pill, Download, Trash2, Eye, Microscope, ShieldCheck, FolderOpen, Loader2 } from 'lucide-react'
 import { getDocumentDownloadUrl } from '../lib/queries/documents'
 import type { Database } from '../types/database'
 
@@ -10,6 +10,8 @@ type DocCategory = Database['public']['Enums']['doc_category']
 interface DocumentCardProps {
   document: Document
   onDelete: (documentId: string) => void
+  onDragStart?: (documentId: string, e: React.DragEvent) => void
+  isMoving?: boolean
 }
 
 const getIcon = (category: DocCategory) => {
@@ -54,7 +56,7 @@ const formatFileSize = (bytes: number | null) => {
   return `${mb.toFixed(1)} MB`
 }
 
-export const DocumentCard = ({ document, onDelete }: DocumentCardProps) => {
+export const DocumentCard = ({ document, onDelete, onDragStart, isMoving }: DocumentCardProps) => {
   const [menuOpen, setMenuOpen] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const navigate = useNavigate()
@@ -97,7 +99,14 @@ export const DocumentCard = ({ document, onDelete }: DocumentCardProps) => {
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-[#33C7BE]/20 group overflow-hidden flex flex-col h-full">
+    <div
+      className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-[#33C7BE]/20 group overflow-hidden flex flex-col h-full"
+      draggable={!!onDragStart}
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = 'move'
+        onDragStart?.(document.id, e)
+      }}
+    >
       {/* Header with preview or category color */}
       <div className="h-40 bg-gray-100 relative overflow-hidden flex items-center justify-center shrink-0">
         {previewUrl && (document.mime_type?.includes('image') || document.mime_type?.includes('pdf')) ? (
@@ -137,6 +146,12 @@ export const DocumentCard = ({ document, onDelete }: DocumentCardProps) => {
           </span>
         </div>
 
+        {isMoving && (
+          <div className="absolute inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center z-20">
+            <Loader2 className="w-5 h-5 text-[#33C7BE] animate-spin" />
+          </div>
+        )}
+
         {/* Quick View Overlay (Mobile & Desktop Hover) */}
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer" onClick={handleAbrir}>
           <div className="bg-white/90 backdrop-blur-md p-3 rounded-full text-[#33C7BE] shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
@@ -151,9 +166,14 @@ export const DocumentCard = ({ document, onDelete }: DocumentCardProps) => {
           <h3 className="text-sm font-bold text-gray-900 mb-1 leading-snug line-clamp-2 hover:text-[#33C7BE] transition-colors cursor-pointer" onClick={handleAbrir} title={document.title}>
             {document.title}
           </h3>
-          <p className="text-[10px] text-gray-500 font-medium">
-            {formatDate(document.created_at)}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-[10px] text-gray-500 font-medium">
+              {formatDate(document.created_at)}
+            </p>
+            {document.uploaded_by && document.uploaded_by !== document.owner_id && (
+              <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-widest bg-orange-100 text-orange-700 rounded-full">Compartido</span>
+            )}
+          </div>
         </div>
 
         {/* Actions row */}

@@ -75,7 +75,7 @@ export default function RequireOnboarding({ children }: RequireOnboardingProps) 
   }
 
   // Show loading state
-  if (authLoading || checking) {
+  if (authLoading || checking || (user && !profile)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   format,
   startOfWeek,
@@ -33,6 +33,7 @@ type ViewType = 'day' | 'week' | 'month';
 
 export default function Calendario() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
 
   // State
@@ -54,6 +55,22 @@ export default function Calendario() {
       getMyRole(user.id).then(r => setRole(r as any));
     }
   }, [user]);
+
+  // Seed date/view from query params
+  useEffect(() => {
+    const dateParam = searchParams.get('date');
+    const viewParam = searchParams.get('view');
+
+    if (dateParam) {
+      const parsed = new Date(dateParam);
+      if (!isNaN(parsed.getTime())) {
+        setCurrentDate(parsed);
+        if (viewParam === 'day' || viewParam === 'week' || viewParam === 'month') {
+          setView(viewParam as ViewType);
+        }
+      }
+    }
+  }, [searchParams]);
 
   // 2. Fetch Appointments when range or role changes
   useEffect(() => {

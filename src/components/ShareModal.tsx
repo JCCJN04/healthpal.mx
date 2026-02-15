@@ -5,34 +5,35 @@ interface ShareModalProps {
   isOpen: boolean
   onClose: () => void
   documentTitle: string
+  onShare: (payload: { email: string; message?: string }) => Promise<{ success: boolean; error?: string }>
 }
 
-export const ShareModal = ({ isOpen, onClose, documentTitle }: ShareModalProps) => {
+export const ShareModal = ({ isOpen, onClose, documentTitle, onShare }: ShareModalProps) => {
   const [email, setEmail] = useState('')
-  const [selectedDoctor, setSelectedDoctor] = useState('')
   const [message, setMessage] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const doctors = [
-    { id: '1', name: 'Dr. Alfonso Méndez', specialty: 'Medicina General' },
-    { id: '2', name: 'Dr. Patricia López', specialty: 'Radiología' },
-    { id: '3', name: 'Dr. Roberto Cardona', specialty: 'Cardiología' },
-    { id: '4', name: 'Dra. María Sánchez', specialty: 'Laboratorio' }
-  ]
-
-  const handleShare = () => {
-    const shareData = {
-      document: documentTitle,
-      email,
-      doctor: selectedDoctor,
-      message
+  const handleShare = async () => {
+    if (!email) {
+      setError('Ingresa un correo para compartir')
+      return
     }
-    console.log('Compartir documento:', shareData)
-    
-    // Reset form
-    setEmail('')
-    setSelectedDoctor('')
-    setMessage('')
-    onClose()
+
+    setSubmitting(true)
+    setError(null)
+
+    const result = await onShare({ email, message })
+
+    if (result.success) {
+      setEmail('')
+      setMessage('')
+      setSubmitting(false)
+      onClose()
+    } else {
+      setSubmitting(false)
+      setError(result.error || 'No se pudo compartir el documento')
+    }
   }
 
   if (!isOpen) return null
@@ -91,36 +92,6 @@ export const ShareModal = ({ isOpen, onClose, documentTitle }: ShareModalProps) 
               />
             </div>
 
-            {/* Or Divider */}
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-white text-gray-500 font-medium">o</span>
-              </div>
-            </div>
-
-            {/* Doctor Select */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                <UserPlus className="w-4 h-4 inline mr-1" />
-                Seleccionar doctor
-              </label>
-              <select
-                value={selectedDoctor}
-                onChange={(e) => setSelectedDoctor(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#33C7BE] focus:border-transparent text-sm bg-white"
-              >
-                <option value="">Selecciona un doctor...</option>
-                {doctors.map((doctor) => (
-                  <option key={doctor.id} value={doctor.id}>
-                    {doctor.name} - {doctor.specialty}
-                  </option>
-                ))}
-              </select>
-            </div>
-
             {/* Message */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -136,6 +107,10 @@ export const ShareModal = ({ isOpen, onClose, documentTitle }: ShareModalProps) 
             </div>
           </div>
 
+          {error && (
+            <div className="px-6 pb-2 text-sm text-red-600">{error}</div>
+          )}
+
           {/* Footer */}
           <div className="bg-gray-50 px-6 py-4 flex gap-3">
             <button
@@ -146,10 +121,10 @@ export const ShareModal = ({ isOpen, onClose, documentTitle }: ShareModalProps) 
             </button>
             <button
               onClick={handleShare}
-              disabled={!email && !selectedDoctor}
+              disabled={!email || submitting}
               className="flex-1 bg-[#33C7BE] text-white px-4 py-2.5 rounded-lg font-semibold text-sm hover:bg-[#2bb5ad] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
             >
-              Compartir
+              {submitting ? 'Compartiendo...' : 'Compartir'}
             </button>
           </div>
         </div>

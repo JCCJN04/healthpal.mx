@@ -15,7 +15,7 @@ import { DocumentViewer } from '../components/DocumentViewer'
 import { NotesPanel } from '../components/NotesPanel'
 import { ShareModal } from '../components/ShareModal'
 import { RenameDocumentModal, MoveDocumentModal } from '../components/documents/DocumentModals'
-import { getDocumentById, getDocumentDownloadUrl, deleteDocument, updateDocument, downloadDocumentFile } from '../lib/queries/documents'
+import { getDocumentById, getDocumentDownloadUrl, deleteDocument, updateDocument, downloadDocumentFile, shareDocumentWithUser } from '../lib/queries/documents'
 import { showToast } from '../components/Toast'
 import { useAuth } from '../context/AuthContext'
 
@@ -107,6 +107,26 @@ export default function DocumentDetail() {
 
   const handleShare = () => {
     setShareModalOpen(true)
+  }
+
+  const handleShareSubmit = async ({ email }: { email: string; message?: string }) => {
+    if (!user || !document) return { success: false, error: 'No hay usuario autenticado' }
+
+    console.log('[share] handleShareSubmit', { documentId: document.id, email, sharedBy: user.id })
+    const result = await shareDocumentWithUser(
+      document.id,
+      user.id,
+      { email },
+      { document, senderProfile: { full_name: profile?.full_name, email: user.email } }
+    )
+
+    if (result.success) {
+      showToast('Documento compartido', 'success')
+      return { success: true }
+    }
+
+    showToast(result.error || 'No se pudo compartir el documento', 'error')
+    return { success: false, error: result.error }
   }
 
   const handleMenuAction = async (action: string) => {
@@ -382,6 +402,7 @@ export default function DocumentDetail() {
         isOpen={shareModalOpen}
         onClose={() => setShareModalOpen(false)}
         documentTitle={document.title}
+        onShare={handleShareSubmit}
       />
 
       {/* Rename Modal */}

@@ -15,8 +15,9 @@ import {
 } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
 import { useAuth } from '../context/AuthContext';
-import { getAppointmentById, updateAppointmentStatus, AppointmentWithDetails } from '../lib/queries/appointments';
+import { getAppointmentById, updateAppointmentStatus, updateAppointment, AppointmentWithDetails } from '../lib/queries/appointments';
 import { showToast } from '../components/Toast';
+import { createNotification } from '../lib/queries/notifications';
 import type { Database } from '../types/database';
 
 type AppointmentStatus = Database['public']['Enums']['appointment_status'];
@@ -79,6 +80,11 @@ export default function ConsultaDetail() {
   const [error, setError] = useState<string | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [canceling, setCanceling] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState(false);
+  const [rescheduling, setRescheduling] = useState(false);
+  const [newDate, setNewDate] = useState<string | null>(null);
+  const [newTime, setNewTime] = useState<string | null>(null);
+  const [newMode, setNewMode] = useState<VisitMode | null>(null);
 
   useEffect(() => {
     loadAppointment();
@@ -99,6 +105,11 @@ export default function ConsultaDetail() {
     }
 
     setAppointment(data);
+    // seed reschedule form defaults
+    const start = new Date(data.start_at)
+    setNewDate(start.toISOString().split('T')[0])
+    setNewTime(start.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false }))
+    setNewMode(data.mode)
     setLoading(false);
   };
 
@@ -128,8 +139,57 @@ export default function ConsultaDetail() {
 
   const handleReschedule = () => {
     if (!appointment) return;
-    navigate(`/dashboard/consultas/nueva?reschedule=${appointment.id}&doctor=${appointment.doctor_id}`);
+    setRescheduling((prev) => !prev);
   };
+
+  const handleSaveReschedule = async () => {
+    if (!appointment || !newDate || !newTime) return;
+
+    const startAt = new Date(`${newDate}T${newTime}:00`)
+    const endAt = new Date(startAt.getTime() + 60 * 60 * 1000)
+
+    // Block past datetime selections
+    if (startAt.getTime() <= Date.now()) {
+      showToast('No puedes reprogramar una cita a una fecha u hora pasada', 'warning')
+      return
+    }
+
+    setProcessingStatus(true)
+
+    const isDoctor = user?.id === appointment.doctor_id
+    const nextStatus: AppointmentStatus | undefined = isDoctor ? 'confirmed' : 'requested'
+
+    const result = await updateAppointment(appointment.id, {
+      start_at: startAt.toISOString(),
+      end_at: endAt.toISOString(),
+      mode: newMode || appointment.mode,
+      status: nextStatus
+    })
+
+    if (result.success) {
+      // Notify counterpart
+      const targetUser = isDoctor ? appointment.patient_id : appointment.doctor_id
+      if (targetUser) {
+        await createNotification({
+          user_id: targetUser,
+          type: 'appointment_rescheduled',
+          title: 'Cita reprogramada',
+          body: `La cita fue movida a ${startAt.toLocaleDateString('es-MX')} ${startAt.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`,
+          entity_table: 'appointments',
+          entity_id: appointment.id,
+          is_read: false
+        })
+      }
+
+      showToast('Cita reprogramada', 'success')
+      setRescheduling(false)
+      await loadAppointment()
+    } else {
+      showToast(result.error || 'No se pudo reprogramar', 'error')
+    }
+
+    setProcessingStatus(false)
+  }
 
   if (loading) {
     return (
@@ -174,6 +234,23 @@ export default function ConsultaDetail() {
   const endDate = new Date(appointment.end_at);
   const isUpcoming = startDate > new Date();
   const isPatient = user?.id === appointment.patient_id;
+  const isDoctor = user?.id === appointment.doctor_id;
+
+  const updateStatus = async (next: AppointmentStatus) => {
+    if (!appointment || processingStatus) return;
+    setProcessingStatus(true);
+    const result = await updateAppointmentStatus(appointment.id, next);
+    if (result.success) {
+      showToast(
+        next === 'confirmed' ? 'Cita aceptada' : next === 'rejected' ? 'Cita rechazada' : 'Estado actualizado',
+        'success'
+      );
+      await loadAppointment();
+    } else {
+      showToast(result.error || 'No se pudo actualizar la cita', 'error');
+    }
+    setProcessingStatus(false);
+  };
 
   return (
     <DashboardLayout>
@@ -329,7 +406,84 @@ export default function ConsultaDetail() {
 
             {/* Actions */}
             {isUpcoming && (appointment.status === 'confirmed' || appointment.status === 'requested') && (
-              <div className="border-t border-gray-100 pt-6">
+              <div className="border-t border-gray-100 pt-6 space-y-4">
+                {appointment.status === 'requested' && isDoctor && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      onClick={() => updateStatus('confirmed')}
+                      disabled={processingStatus}
+                      className="flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-semibold disabled:opacity-60"
+                    >
+                      {processingStatus ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
+                      <span>Aceptar cita</span>
+                    </button>
+                    <button
+                      onClick={() => updateStatus('rejected')}
+                      disabled={processingStatus}
+                      className="flex items-center justify-center gap-2 px-4 py-3 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition-colors font-semibold disabled:opacity-60"
+                    >
+                      {processingStatus ? <Loader2 className="w-5 h-5 animate-spin" /> : <XCircle className="w-5 h-5" />}
+                      <span>Rechazar</span>
+                    </button>
+                  </div>
+                )}
+
+                {rescheduling && (
+                  <div className="rounded-lg border border-gray-100 p-4 space-y-4 bg-gray-50/50">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-gray-600">Fecha</label>
+                        <input
+                          type="date"
+                          value={newDate || ''}
+                          onChange={(e) => setNewDate(e.target.value)}
+                          className="w-full px-3 py-2 border rounded-lg text-sm"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-gray-600">Hora</label>
+                        <input
+                          type="time"
+                          value={newTime || ''}
+                          onChange={(e) => setNewTime(e.target.value)}
+                          className="w-full px-3 py-2 border rounded-lg text-sm"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-gray-600">Modalidad</label>
+                        <select
+                          value={newMode || appointment.mode}
+                          onChange={(e) => setNewMode(e.target.value as VisitMode)}
+                          className="w-full px-3 py-2 border rounded-lg text-sm"
+                        >
+                          <option value="in_person">Presencial</option>
+                          <option value="video">Video</option>
+                          <option value="phone">Teléfono</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <button
+                        onClick={handleSaveReschedule}
+                        disabled={processingStatus || !newDate || !newTime}
+                        className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 bg-primary text-white rounded-lg hover:bg-teal-600 transition-colors font-semibold disabled:opacity-60"
+                      >
+                        {processingStatus ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
+                        <span>Guardar cambios</span>
+                      </button>
+                      <button
+                        onClick={() => setRescheduling(false)}
+                        disabled={processingStatus}
+                        className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold disabled:opacity-60"
+                      >
+                        <XCircle className="w-5 h-5" />
+                        <span>Cancelar</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <button
                     onClick={handleSendMessage}
@@ -347,13 +501,15 @@ export default function ConsultaDetail() {
                     <span>Reprogramar</span>
                   </button>
 
-                  <button
-                    onClick={() => setShowCancelModal(true)}
-                    className="flex items-center justify-center gap-2 px-4 py-3 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition-colors font-medium"
-                  >
-                    <XCircle className="w-5 h-5" />
-                    <span>Cancelar cita</span>
-                  </button>
+                  {isPatient && (
+                    <button
+                      onClick={() => setShowCancelModal(true)}
+                      className="flex items-center justify-center gap-2 px-4 py-3 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition-colors font-medium"
+                    >
+                      <XCircle className="w-5 h-5" />
+                      <span>Cancelar cita</span>
+                    </button>
+                  )}
                 </div>
               </div>
             )}

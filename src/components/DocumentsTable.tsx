@@ -29,6 +29,8 @@ interface DocumentsTableProps {
   folders?: Folder[]
   onDelete: (documentId: string) => void
   onFolderClick?: (id: string, name: string) => void
+  onMoveDocument?: (docId: string, folderId: string | null) => void
+  movingDocId?: string | null
 }
 
 const getFileIcon = (mimeType: string | null) => {
@@ -67,7 +69,7 @@ const formatDate = (dateString: string) => {
   })
 }
 
-const DocumentRow = ({ doc, onDelete }: { doc: Document; onDelete: (id: string) => void }) => {
+const DocumentRow = ({ doc, onDelete, onMoveDocument, movingDocId }: { doc: Document; onDelete: (id: string) => void; onMoveDocument?: (id: string, folderId: string | null) => void; movingDocId?: string | null }) => {
   const [menuOpen, setMenuOpen] = useState(false)
   const navigate = useNavigate()
 
@@ -85,7 +87,17 @@ const DocumentRow = ({ doc, onDelete }: { doc: Document; onDelete: (id: string) 
   }
 
   return (
-    <tr className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+    <tr
+      className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+      draggable={!!onMoveDocument}
+      onDragStart={(e) => {
+        if (!onMoveDocument) return
+        const payload = JSON.stringify({ docId: doc.id })
+        e.dataTransfer.setData('application/healthpal-doc', payload)
+        e.dataTransfer.setData('text/plain', payload)
+        e.dataTransfer.effectAllowed = 'move'
+      }}
+    >
       <td className="py-3 md:py-4 px-3 md:px-6">
         <div className="flex items-center gap-2 md:gap-3">
           <div className="flex-shrink-0">
@@ -152,11 +164,43 @@ const DocumentRow = ({ doc, onDelete }: { doc: Document; onDelete: (id: string) 
   )
 }
 
-const FolderRow = ({ folder, onClick }: { folder: Folder; onClick: (id: string, name: string) => void }) => {
+const FolderRow = ({ folder, onClick, onMoveDocument }: { folder: Folder; onClick: (id: string, name: string) => void; onMoveDocument?: (id: string, folderId: string | null) => void }) => {
+  const [isDragOver, setIsDragOver] = useState(false)
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragOver(false)
+    if (!onMoveDocument) return
+    if (folder.id.startsWith('shared-')) return
+    const payload = e.dataTransfer.getData('application/healthpal-doc') || e.dataTransfer.getData('text/plain')
+    try {
+      const parsed = JSON.parse(payload)
+      if (parsed?.docId) {
+        onMoveDocument(parsed.docId, folder.id)
+      }
+    } catch {
+      if (payload) {
+        onMoveDocument(payload, folder.id)
+      }
+    }
+  }
+
   return (
     <tr
       onClick={() => onClick(folder.id, folder.name)}
-      className="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer group"
+      onDragOver={(e) => {
+        if (!onMoveDocument) return
+        e.preventDefault()
+        e.stopPropagation()
+        setIsDragOver(true)
+      }}
+      onDragLeave={(e) => {
+        e.stopPropagation()
+        setIsDragOver(false)
+      }}
+      onDrop={handleDrop}
+      className={`border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer group ${isDragOver ? 'bg-teal-50' : ''}`}
     >
       <td className="py-3 md:py-4 px-3 md:px-6">
         <div className="flex items-center gap-2 md:gap-3">
@@ -164,7 +208,7 @@ const FolderRow = ({ folder, onClick }: { folder: Folder; onClick: (id: string, 
             <FolderIcon size={20} fill="currentColor" className="opacity-20 text-[#33C7BE]" />
             <FolderIcon size={20} className="absolute -mt-5" />
           </div>
-          <span className="text-xs md:text-sm text-gray-900 font-medium group-hover:text-[#33C7BE] transition-colors text-left truncate">
+          <span className="text-xs md:text-sm text-gray-900 font-medium group-hover:text-[#33C7BE] transition-colors text-left truncate max-w-[200px] md:max-w-[260px] inline-block align-middle">
             {folder.name}
           </span>
         </div>
@@ -182,7 +226,7 @@ const FolderRow = ({ folder, onClick }: { folder: Folder; onClick: (id: string, 
   )
 }
 
-export default function DocumentsTable({ documents, folders = [], onDelete, onFolderClick }: DocumentsTableProps) {
+export default function DocumentsTable({ documents, folders = [], onDelete, onFolderClick, onMoveDocument, movingDocId }: DocumentsTableProps) {
   return (
     <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
       <div className="overflow-x-auto">
@@ -209,10 +253,11 @@ export default function DocumentsTable({ documents, folders = [], onDelete, onFo
                 key={folder.id}
                 folder={folder}
                 onClick={onFolderClick || (() => { })}
+                onMoveDocument={onMoveDocument}
               />
             ))}
             {documents.map((doc) => (
-              <DocumentRow key={doc.id} doc={doc} onDelete={onDelete} />
+              <DocumentRow key={doc.id} doc={doc} onDelete={onDelete} onMoveDocument={onMoveDocument} movingDocId={movingDocId} />
             ))}
           </tbody>
         </table>

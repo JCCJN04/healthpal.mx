@@ -280,15 +280,20 @@ export async function getPastAppointments(userId: string) {
 /**
  * Get days with appointments in a month
  */
-export async function getAppointmentDaysInMonth(userId: string, start: Date, end: Date): Promise<string[]> {
+export async function getAppointmentDaysInMonth(userId: string, start: Date, end: Date, role: 'patient' | 'doctor' = 'patient'): Promise<string[]> {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('appointments')
       .select('start_at')
-      .eq('patient_id', userId)
       .gte('start_at', start.toISOString())
       .lte('start_at', end.toISOString())
       .in('status', ['requested', 'confirmed'])
+
+    query = role === 'doctor'
+      ? query.eq('doctor_id', userId)
+      : query.eq('patient_id', userId)
+
+    const { data, error } = await query
 
     if (error) {
       console.error('Error fetching appointment days:', error)
@@ -300,6 +305,39 @@ export async function getAppointmentDaysInMonth(userId: string, start: Date, end
     return [...new Set(days)]
   } catch (err) {
     console.error('Error in getAppointmentDaysInMonth:', err)
+    return []
+  }
+}
+
+/**
+ * Get a lightweight snapshot of patients for a doctor (distinct patients + last interaction)
+ */
+export async function getDoctorPatientsSnapshot(doctorId: string): Promise<{ patient_id: string, last_interaction: string }[]> {
+  try {
+    const { data, error } = await supabase
+      .from('appointments')
+      .select('patient_id,start_at')
+      .eq('doctor_id', doctorId)
+      .not('patient_id', 'is', null)
+      .order('start_at', { ascending: false })
+      .limit(200)
+
+    if (error) {
+      console.error('Error fetching doctor patients snapshot:', error)
+      return []
+    }
+
+    const map = new Map<string, string>()
+    ;(data || []).forEach((row) => {
+      if (!row.patient_id) return
+      if (!map.has(row.patient_id)) {
+        map.set(row.patient_id, row.start_at)
+      }
+    })
+
+    return Array.from(map.entries()).map(([patient_id, last_interaction]) => ({ patient_id, last_interaction }))
+  } catch (err) {
+    console.error('Error in getDoctorPatientsSnapshot:', err)
     return []
   }
 }
@@ -327,6 +365,70 @@ export async function getDoctorAppointments(doctorId: string, date: string): Pro
     return data || []
   } catch (err) {
     console.error('Error in getDoctorAppointments:', err)
+    return []
+  }
+}
+
+/**
+ * Global search across appointments limited to the current user's visibility
+ */
+export async function searchAppointments(
+  term: string,
+  userId: string,
+  role: 'doctor' | 'patient' | undefined,
+  limit = 50
+): Promise<AppointmentWithDetails[]> {
+  if (!term.trim() || !userId) return []
+
+  try {
+    let query = supabase
+      .from('appointments')
+      .select(`
+        *,
+        doctor:doctor_id (
+          id,
+          full_name,
+          avatar_url
+        ),
+        patient:patient_id (
+          id,
+          full_name,
+          avatar_url
+        )
+      `)
+      .order('start_at', { ascending: false })
+      .limit(limit)
+
+    if (role === 'doctor') {
+      query = query.eq('doctor_id', userId)
+    } else if (role === 'patient') {
+      query = query.eq('patient_id', userId)
+    } else {
+      query = query.or(`doctor_id.eq.${userId},patient_id.eq.${userId}`)
+    }
+
+    const { data, error } = await query
+
+    if (error) {
+      console.error('Error searching appointments:', error)
+      return []
+    }
+
+    const enriched = await enrichWithDoctorProfiles(data || [])
+    const termLower = term.trim().toLowerCase()
+
+    // Client-side refinement to match counterpart names and statuses
+    return enriched.filter((apt) => {
+      const reasonMatch = apt.reason?.toLowerCase().includes(termLower)
+      const symptomMatch = apt.symptoms?.toLowerCase().includes(termLower)
+      const doctorMatch = apt.doctor?.full_name?.toLowerCase().includes(termLower)
+      const patientMatch = apt.patient?.full_name?.toLowerCase().includes(termLower)
+      const statusMatch = apt.status?.toLowerCase().includes(termLower)
+
+      return Boolean(reasonMatch || symptomMatch || doctorMatch || patientMatch || statusMatch)
+    })
+  } catch (err) {
+    console.error('Error in searchAppointments:', err)
     return []
   }
 }

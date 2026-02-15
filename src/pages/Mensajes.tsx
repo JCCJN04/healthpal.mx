@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { MessageSquare, AlertCircle, Loader2 } from 'lucide-react'
+import { MessageSquare, AlertCircle, Loader2, Eye, EyeOff, User } from 'lucide-react'
 import DashboardLayout from '../components/DashboardLayout'
 import ConversationList from '../components/chat/ConversationList'
 import ChatWindow from '../components/chat/ChatWindow'
@@ -30,6 +30,8 @@ export default function Mensajes() {
   const [error, setError] = useState<string | null>(null)
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [showInbox, setShowInbox] = useState(true)
+  const [showProfile, setShowProfile] = useState(true)
 
   const activeConversation = conversations.find(c => c.id === activeId) || null
 
@@ -198,6 +200,9 @@ export default function Mensajes() {
     return name.includes(searchQuery.toLowerCase())
   })
 
+  // Leave breathing room for floating restore buttons when panels are hidden
+  const hasHiddenPanel = !showInbox
+
   if (authLoading) {
     return (
       <DashboardLayout>
@@ -210,7 +215,17 @@ export default function Mensajes() {
 
   return (
     <DashboardLayout title="Mensajes">
-      <div className="flex h-[calc(100vh-64px)] overflow-hidden bg-gray-50/50 relative">
+      <div className={`flex h-[calc(100vh-64px)] overflow-hidden bg-gray-50/50 relative ${hasHiddenPanel ? 'pt-12' : ''}`}>
+        {/* Quick toggles when panels are hidden */}
+        {!showInbox && (
+          <button
+            onClick={() => setShowInbox(true)}
+            className="absolute top-3 left-3 z-20 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 bg-white shadow-sm hover:border-gray-300 inline-flex items-center gap-2"
+          >
+            <Eye className="w-4 h-4" />
+            <span>Mostrar chats</span>
+          </button>
+        )}
         {/* Loading Overlay for conversation creation */}
         {creatingChat && (
           <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center text-center p-6">
@@ -230,10 +245,20 @@ export default function Mensajes() {
         )}
 
         {/* Inbox Area */}
-        <div className={`${activeId ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-80 lg:w-96 flex-shrink-0 bg-white border-r border-gray-100`}>
-          <div className="p-6 border-b border-gray-100">
-            <h1 className="text-2xl font-black text-gray-900 tracking-tight">Mensajes</h1>
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Inbox de salud</p>
+        {showInbox && (
+          <div className={`${activeId ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-80 lg:w-96 flex-shrink-0 bg-white border-r border-gray-100`}>
+          <div className="p-6 border-b border-gray-100 flex items-center justify-between gap-3">
+            <div>
+              <h1 className="text-2xl font-black text-gray-900 tracking-tight">Mensajes</h1>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Inbox de salud</p>
+            </div>
+            <button
+              onClick={() => setShowInbox(false)}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 bg-white shadow-sm hover:border-gray-300 inline-flex items-center gap-2"
+            >
+              <EyeOff className="w-4 h-4" />
+              <span className="hidden sm:inline">Ocultar chats</span>
+            </button>
           </div>
 
           <ConversationList
@@ -244,7 +269,8 @@ export default function Mensajes() {
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
           />
-        </div>
+          </div>
+        )}
 
         {/* Chat Area */}
         <div className={`${activeId ? 'flex' : 'hidden md:flex'} flex-1 flex-col min-w-0`}>
@@ -256,6 +282,7 @@ export default function Mensajes() {
               loading={loadingMessages}
               onSendMessage={handleSendMessage}
               onBack={() => setActiveId(null)}
+              onToggleProfile={() => setShowProfile(prev => !prev)}
             />
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-gray-50/20">
@@ -271,7 +298,7 @@ export default function Mensajes() {
         </div>
 
         {/* Info Area */}
-        <DoctorContextPanel conversation={activeConversation} />
+        {showProfile && <DoctorContextPanel conversation={activeConversation} />}
       </div>
     </DashboardLayout>
   )

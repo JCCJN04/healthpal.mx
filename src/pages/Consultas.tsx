@@ -39,7 +39,8 @@ const modeConfig: Record<VisitMode, { label: string; icon: any; color: string }>
 
 export default function Consultas() {
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
+  const isDoctor = profile?.role === 'doctor'
   const [pastAppointments, setPastAppointments] = useState<AppointmentWithDetails[]>([])
   const [upcomingAppointments, setUpcomingAppointments] = useState<AppointmentWithDetails[]>([])
   const [loading, setLoading] = useState(true)
@@ -51,14 +52,14 @@ export default function Consultas() {
 
   useEffect(() => {
     loadAppointments()
-  }, [user])
+  }, [user, profile])
 
   const loadAppointments = async () => {
     if (!user) return
     setLoading(true)
     const [upcoming, past] = await Promise.all([
-      listUpcomingAppointments({ userId: user.id }),
-      listPastAppointments({ userId: user.id })
+      listUpcomingAppointments({ userId: user.id, role: profile?.role || undefined }),
+      listPastAppointments({ userId: user.id, role: profile?.role || undefined })
     ])
     setUpcomingAppointments(upcoming || [])
     setPastAppointments(past || [])
@@ -83,6 +84,7 @@ export default function Consultas() {
     const status = statusConfig[apt.status]
     const mode = modeConfig[apt.mode]
     const startDate = new Date(apt.start_at)
+    const counterpartName = isDoctor ? (apt.patient?.full_name || 'Paciente') : (apt.doctor?.full_name || 'Especialista')
 
     return (
       <div
@@ -99,7 +101,7 @@ export default function Consultas() {
                 {apt.reason || 'Consulta Médica'}
               </h3>
               <p className="text-gray-600 text-sm flex items-center gap-1 mt-1">
-                Con <span className="font-semibold">{apt.doctor?.full_name || 'Especialista'}</span>
+                {isDoctor ? 'Paciente' : 'Con'} <span className="font-semibold">{counterpartName}</span>
               </p>
               <div className="flex flex-wrap items-center gap-3 mt-2">
                 <span className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
@@ -146,7 +148,7 @@ export default function Consultas() {
             className="px-6 py-3 bg-[#33C7BE] text-white font-bold rounded-xl hover:bg-[#2bb5ad] hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-teal-100 flex items-center justify-center gap-2"
           >
             <Calendar className="w-5 h-5" />
-            Agendar Nueva
+            {isDoctor ? 'Agendar con paciente' : 'Agendar Nueva'}
           </button>
         </div>
 
@@ -215,7 +217,7 @@ export default function Consultas() {
               )}
             </section>
 
-            {/* History */}
+            {/* History (preview) */}
             <section className="space-y-4">
               <div className="flex items-center gap-2 px-1">
                 <h2 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Historial de Consultas</h2>
@@ -227,10 +229,18 @@ export default function Consultas() {
                   <p className="text-gray-400 font-medium">No hay historial disponible.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-4 opacity-80 hover:opacity-100 transition-opacity">
-                  {filterList(pastAppointments).map(apt => (
-                    <AppointmentItem key={apt.id} apt={apt} />
-                  ))}
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 gap-4 opacity-80 hover:opacity-100 transition-opacity">
+                    {filterList(pastAppointments).slice(0, 3).map(apt => (
+                      <AppointmentItem key={apt.id} apt={apt} />
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => navigate('/dashboard/consultas/historial')}
+                    className="w-full text-center text-primary font-bold text-sm hover:underline py-2 bg-gray-50 rounded-lg"
+                  >
+                    Ver más
+                  </button>
                 </div>
               )}
             </section>

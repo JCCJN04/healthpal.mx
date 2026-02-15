@@ -11,10 +11,29 @@ interface FolderCardProps {
     onClick: (folderId: string, folderName: string) => void
     onDelete: (folderId: string) => void
     onRename: (folderId: string, currentName: string) => void
+    onDropDocument?: (docId: string, folderId: string) => void
 }
 
-export const FolderCard = ({ folder, onClick, onDelete, onRename }: FolderCardProps) => {
+export const FolderCard = ({ folder, onClick, onDelete, onRename, onDropDocument }: FolderCardProps) => {
     const [menuOpen, setMenuOpen] = useState(false)
+    const [isDragOver, setIsDragOver] = useState(false)
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+        setIsDragOver(false)
+        const payload = e.dataTransfer.getData('application/healthpal-doc') || e.dataTransfer.getData('text/plain')
+        try {
+            const parsed = JSON.parse(payload)
+            if (parsed?.docId) {
+                onDropDocument?.(parsed.docId, folder.id)
+            }
+        } catch {
+            if (payload) {
+                onDropDocument?.(payload, folder.id)
+            }
+        }
+    }
 
     const handleMenuClick = (e: React.MouseEvent, action: () => void) => {
         e.stopPropagation()
@@ -25,7 +44,18 @@ export const FolderCard = ({ folder, onClick, onDelete, onRename }: FolderCardPr
     return (
         <div
             onClick={() => onClick(folder.id, folder.name)}
-            className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 border border-transparent hover:border-[#33C7BE]/20 group cursor-pointer p-4"
+            onDragOver={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                if (!onDropDocument) return
+                setIsDragOver(true)
+            }}
+            onDragLeave={(e) => {
+                e.stopPropagation()
+                setIsDragOver(false)
+            }}
+            onDrop={handleDrop}
+            className={`bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 border ${isDragOver ? 'border-[#33C7BE] ring-2 ring-[#33C7BE]/30' : 'border-transparent hover:border-[#33C7BE]/20'} group cursor-pointer p-4`}
         >
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -36,7 +66,7 @@ export const FolderCard = ({ folder, onClick, onDelete, onRename }: FolderCardPr
                         <Folder size={24} fill="currentColor" fillOpacity={0.3} />
                     </div>
                     <div className="min-w-0">
-                        <h3 className="font-bold text-gray-900 truncate pr-2">
+                        <h3 className="font-bold text-gray-900 truncate pr-2 max-w-[160px] sm:max-w-[220px]">
                             {folder.name}
                         </h3>
                         <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">
