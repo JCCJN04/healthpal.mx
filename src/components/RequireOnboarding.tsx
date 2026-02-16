@@ -29,26 +29,29 @@ export default function RequireOnboarding({ children }: RequireOnboardingProps) 
       return
     }
 
-    // If profile hasn't loaded yet, wait (but don't block)
+    // If profile hasn't loaded yet, stay in checking state
     if (!profile && authLoading) {
       return
     }
-    
-    // If no profile after auth loaded, still allow (profile will load async)
+
+    // If no profile yet, but auth is done, wait a bit longer for it to load async
     if (!profile) {
-      setChecking(false)
+      // Don't set checking false yet, profile might be loading
       return
     }
 
     try {
-      // If onboarding is complete, allow access
+      // If onboarding is marked as complete, we are good
       if (profile.onboarding_completed) {
         setOnboardingComplete(true)
         setChecking(false)
         return
       }
 
-      // Determine redirect based strictly on saved onboarding_step
+      // If we have a profile but onboarding is NOT completed, 
+      // check if it's a "baseline" profile that hasn't even chosen a role yet
+      // If it's a doctor or patient but hasn't finished the flow, then it needs onboarding
+
       let targetRoute = '/onboarding/role'
 
       if (profile.onboarding_step === 'basic') {

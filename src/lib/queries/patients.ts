@@ -79,3 +79,60 @@ export async function searchPatients(term: string): Promise<PatientProfileLite[]
 export async function linkPatientConversation(doctorId: string, patientId: string): Promise<string | null> {
   return getOrCreateConversation(doctorId, patientId)
 }
+
+// Obtiene el perfil completo de un paciente para la página de detalle
+export async function getPatientFullProfile(patientId: string) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select(`
+      *,
+      patient_profiles (*)
+    `)
+    .eq('id', patientId)
+    .single()
+
+  if (error) {
+    console.error('Error fetching full patient profile:', error)
+    return null
+  }
+
+  return data
+}
+
+// Obtiene las notas clínicas de un paciente para un doctor específico
+export async function getPatientNotes(patientId: string, doctorId: string) {
+  const { data, error } = await supabase
+    .from('patient_notes')
+    .select('*')
+    .eq('patient_id', patientId)
+    .eq('doctor_id', doctorId)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('Error fetching patient notes:', error)
+    return []
+  }
+
+  return data
+}
+
+// Agrega una nueva nota clínica
+export async function addPatientNote(patientId: string, doctorId: string, title: string, body: string) {
+  const { data, error } = await supabase
+    .from('patient_notes')
+    .insert({
+      patient_id: patientId,
+      doctor_id: doctorId,
+      title,
+      body
+    })
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Error adding patient note:', error)
+    throw error
+  }
+
+  return data
+}

@@ -2,6 +2,9 @@
 import { useEffect, useRef } from 'react'
 import { Search, User } from 'lucide-react'
 import { ConversationWithDetails } from '../../lib/queries/chat'
+import { useBatchUserStatus } from '../../hooks/usePresence'
+import { format, isToday, isYesterday } from 'date-fns'
+import { es } from 'date-fns/locale'
 
 interface ConversationListProps {
     conversations: ConversationWithDetails[]
@@ -20,6 +23,17 @@ export default function ConversationList({
     searchQuery,
     onSearchChange
 }: ConversationListProps) {
+    const userIds = conversations.map(c => c.other_participant?.id).filter(Boolean) as string[]
+    const statuses = useBatchUserStatus(userIds)
+
+    // Helper to format last message time nicely
+    const formatTime = (dateString: string) => {
+        const date = new Date(dateString)
+        if (isToday(date)) return format(date, 'p', { locale: es })
+        if (isYesterday(date)) return 'Ayer'
+        return format(date, 'dd/MM/yy', { locale: es })
+    }
+
     if (loading && conversations.length === 0) {
         return (
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -62,43 +76,53 @@ export default function ConversationList({
                         <p className="text-sm font-medium text-gray-500">No hay conversaciones</p>
                     </div>
                 ) : (
-                    conversations.map(conv => (
-                        <button
-                            key={conv.id}
-                            onClick={() => onSelect(conv.id)}
-                            className={`w-full p-4 flex gap-4 hover:bg-gray-50 transition-colors border-l-4 ${selectedId === conv.id ? 'bg-teal-50 border-[#33C7BE]' : 'border-transparent'}`}
-                        >
-                            <div className="relative flex-shrink-0">
-                                <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-[#33C7BE] font-bold overflow-hidden border border-gray-100">
-                                    {conv.other_participant?.avatar_url ? (
-                                        <img src={conv.other_participant.avatar_url} alt="" className="w-full h-full object-cover" />
-                                    ) : (
-                                        conv.other_participant?.full_name?.charAt(0) || '?'
+                    conversations.map(conv => {
+                        const status = statuses[conv.other_participant?.id || '']
+                        const isOnline = status?.isOnline || false
+
+                        return (
+                            <button
+                                key={conv.id}
+                                onClick={() => onSelect(conv.id)}
+                                className={`w-full p-4 flex gap-4 hover:bg-gray-50 transition-colors border-l-4 ${selectedId === conv.id ? 'bg-teal-50 border-[#33C7BE]' : 'border-transparent'}`}
+                            >
+                                <div className="relative flex-shrink-0">
+                                    <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-[#33C7BE] font-bold overflow-hidden border border-gray-100">
+                                        {conv.other_participant?.avatar_url ? (
+                                            <img src={conv.other_participant.avatar_url} alt="" className="w-full h-full object-cover" />
+                                        ) : (
+                                            conv.other_participant?.full_name?.charAt(0) || '?'
+                                        )}
+                                    </div>
+                                    {isOnline && (
+                                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full shadow-sm" />
                                     )}
                                 </div>
-                                {conv.unread_count > 0 && (
-                                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-[#33C7BE] text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white">
-                                        {conv.unread_count}
+                                <div className="flex-1 min-w-0 text-left">
+                                    <div className="flex justify-between items-start mb-0.5">
+                                        <h3 className={`text-sm font-bold truncate ${selectedId === conv.id ? 'text-[#33C7BE]' : 'text-gray-900'}`}>
+                                            {conv.other_participant?.full_name || 'Usuario'}
+                                        </h3>
+                                        <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap ml-2">
+                                            {formatTime(conv.last_message_at)}
+                                        </span>
                                     </div>
-                                )}
-                            </div>
-                            <div className="flex-1 min-w-0 text-left">
-                                <div className="flex justify-between items-start mb-0.5">
-                                    <h3 className={`text-sm font-bold truncate ${selectedId === conv.id ? 'text-[#33C7BE]' : 'text-gray-900'}`}>
-                                        {conv.other_participant?.full_name || 'Usuario'}
-                                    </h3>
-                                    <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap ml-2">
-                                        {new Date(conv.last_message_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
+                                    <div className="flex items-center justify-between gap-2">
+                                        <p className={`text-xs truncate ${conv.unread_count > 0 ? 'text-gray-900 font-bold' : 'text-gray-500 font-medium'}`}>
+                                            {conv.last_message_text || 'Inicia una conversación'}
+                                        </p>
+                                        {conv.unread_count > 0 && (
+                                            <span className="flex-shrink-0 min-w-[18px] h-[18px] px-1 bg-[#33C7BE] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                                                {conv.unread_count > 99 ? '99+' : conv.unread_count}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
-                                <p className="text-xs text-gray-500 truncate font-medium">
-                                    {conv.last_message_text || 'Inicia una conversación'}
-                                </p>
-                            </div>
-                        </button>
-                    ))
+                            </button>
+                        )
+                    })
                 )}
             </div>
-        </div>
+        </div >
     )
 }

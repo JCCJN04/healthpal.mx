@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Plus, User, Search, MessageSquare } from 'lucide-react'
 import DashboardLayout from '../components/DashboardLayout'
 import { useAuth } from '../context/AuthContext'
@@ -14,6 +15,7 @@ interface PatientItem {
 }
 
 export default function Pacientes() {
+  const navigate = useNavigate()
   const { user, profile } = useAuth()
   const [patients, setPatients] = useState<PatientItem[]>([])
   const [searchTerm, setSearchTerm] = useState('')
@@ -150,7 +152,7 @@ export default function Pacientes() {
         </div>
 
         {/* Pacientes agregados */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-4 border-b border-gray-100 flex items-center justify-between">
             <p className="text-sm font-semibold text-gray-800">Pacientes vinculados</p>
             {loading && patients.length === 0 && <span className="text-xs text-gray-500">Cargando…</span>}
@@ -160,14 +162,19 @@ export default function Pacientes() {
           ) : (
             <div className="divide-y divide-gray-100">
               {patients.map((p) => (
-                <div key={p.id} className="flex items-start justify-between gap-3 p-4">
+                <div
+                  key={p.id}
+                  onClick={() => navigate(`/dashboard/pacientes/${p.id}`)}
+                  className="flex items-start justify-between gap-3 p-4 hover:bg-gray-50 transition-all cursor-pointer group"
+                >
                   <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold group-hover:scale-110 transition-transform">
                       <User size={18} />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-gray-900">{p.name}</p>
+                      <p className="text-sm font-semibold text-gray-900 group-hover:text-primary transition-colors">{p.name}</p>
                       {p.email && <p className="text-xs text-gray-500">{p.email}</p>}
+                      <p className="text-[10px] text-primary font-bold mt-1 opacity-0 group-hover:opacity-100 transition-opacity">Ver expediente →</p>
                     </div>
                   </div>
                   {p.conversationId ? (

@@ -58,7 +58,10 @@ export default function DoctorContextPanel({ conversation }: DoctorContextPanelP
                     </button>
                 )}
                 <button
-                    onClick={() => navigate(`/dashboard/doctores/${profile?.id}`)}
+                    onClick={() => {
+                        const route = isDoctor ? 'doctores' : 'pacientes'
+                        navigate(`/dashboard/${route}/${profile?.id}`)
+                    }}
                     className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all group"
                 >
                     <div className="flex items-center gap-3">

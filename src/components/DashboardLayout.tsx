@@ -33,9 +33,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       )}
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <Header onMenuClick={() => setSidebarOpen(true)} />
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        {/* Header - Sticky */}
+        <div className="sticky top-0 z-20 flex-shrink-0">
+          <Header onMenuClick={() => setSidebarOpen(true)} />
+        </div>
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto">

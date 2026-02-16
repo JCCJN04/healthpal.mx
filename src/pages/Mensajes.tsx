@@ -16,9 +16,11 @@ import {
   markConversationRead
 } from '../lib/queries/chat'
 import { supabase } from '../lib/supabase'
+import { usePresence } from '../hooks/usePresence'
 
 export default function Mensajes() {
   const { user, loading: authLoading } = useAuth()
+  usePresence(user?.id)
   const [searchParams, setSearchParams] = useSearchParams()
   const isStartingConv = useRef(false)
 
@@ -114,9 +116,13 @@ export default function Mensajes() {
 
   // 3. Load Messages when activeId changes
   useEffect(() => {
-    if (activeId) {
+    if (activeId && user) {
       loadMessages()
-      markConversationRead(activeId, user!.id)
+      markConversationRead(activeId, user.id)
+      // Clear unread badge locally
+      setConversations(prev => prev.map(c =>
+        c.id === activeId ? { ...c, unread_count: 0 } : c
+      ))
     } else {
       setMessages([])
     }
@@ -130,31 +136,61 @@ export default function Mensajes() {
     setLoadingMessages(false)
   }
 
-  // 4. Realtime Subscription
+  // 4. Realtime Subscription for ALL conversations
   useEffect(() => {
-    if (!activeId) return
+    if (!user) return
+
+    console.log('[Mensajes] Subscribing to message changes for user:', user.id)
 
     const channel = supabase
-      .channel(`chat:${activeId}`)
+      .channel('chat_updates')
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'messages',
-          filter: `conversation_id=eq.${activeId}`
+          table: 'messages'
+          // We can't easily filter by "conversations I am in" in a single RLS filter here without a complex setup,
+          // so we receive and filter in the handler, or rely on RLS already filtering what we can see.
         },
-        (payload) => {
+        async (payload) => {
           const newMsg = payload.new
-          setMessages(prev => {
-            // Avoid duplicates
-            if (prev.find(m => m.id === newMsg.id)) return prev
-            return [...prev, newMsg]
-          })
-          // If it's a message from someone else, mark as read
-          if (newMsg.sender_id !== user?.id) {
-            markConversationRead(activeId, user!.id)
+          console.log('[Mensajes] Realtime message received:', newMsg)
+
+          // 1. If it belongs to active conversation, add to messages state
+          if (activeId === newMsg.conversation_id) {
+            setMessages(prev => {
+              if (prev.find(m => m.id === newMsg.id)) return prev
+              return [...prev, newMsg]
+            })
+            // Mark as read if from someone else
+            if (newMsg.sender_id !== user.id) {
+              markConversationRead(activeId, user.id)
+            }
           }
+
+          // 2. Update conversation list (sorting and preview)
+          setConversations(prev => {
+            const index = prev.findIndex(c => c.id === newMsg.conversation_id)
+            if (index === -1) {
+              // Not in current list? Maybe a new chat. Refresh the whole list.
+              loadConversations(activeId || undefined)
+              return prev
+            }
+
+            const updatedConv = {
+              ...prev[index],
+              last_message_text: newMsg.body,
+              last_message_at: newMsg.created_at,
+              unread_count: (newMsg.conversation_id !== activeId && newMsg.sender_id !== user.id)
+                ? (prev[index].unread_count + 1)
+                : prev[index].unread_count
+            }
+
+            const newList = [...prev]
+            newList.splice(index, 1) // Remove from old position
+            return [updatedConv, ...newList] // Put at top
+          })
         }
       )
       .subscribe()
@@ -185,12 +221,15 @@ export default function Mensajes() {
       // REPLACE temp message with the actual one from DB to prevent duplication with Realtime event
       setMessages(prev => prev.map(m => m.id === tempMsg.id ? res.data : m))
 
-      // Refresh conversation in list to show latest text
-      setConversations(prev => prev.map(c =>
-        c.id === activeId
-          ? { ...c, last_message_text: body, last_message_at: res.data.created_at }
-          : c
-      ))
+      // Refresh and Move to top
+      setConversations(prev => {
+        const index = prev.findIndex(c => c.id === activeId)
+        if (index === -1) return prev
+        const updated = { ...prev[index], last_message_text: body, last_message_at: res.data.created_at }
+        const newList = [...prev]
+        newList.splice(index, 1)
+        return [updated, ...newList]
+      })
     }
   }
 
@@ -247,28 +286,28 @@ export default function Mensajes() {
         {/* Inbox Area */}
         {showInbox && (
           <div className={`${activeId ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-80 lg:w-96 flex-shrink-0 bg-white border-r border-gray-100`}>
-          <div className="p-6 border-b border-gray-100 flex items-center justify-between gap-3">
-            <div>
-              <h1 className="text-2xl font-black text-gray-900 tracking-tight">Mensajes</h1>
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Inbox de salud</p>
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between gap-3">
+              <div>
+                <h1 className="text-2xl font-black text-gray-900 tracking-tight">Mensajes</h1>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Inbox de salud</p>
+              </div>
+              <button
+                onClick={() => setShowInbox(false)}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 bg-white shadow-sm hover:border-gray-300 inline-flex items-center gap-2"
+              >
+                <EyeOff className="w-4 h-4" />
+                <span className="hidden sm:inline">Ocultar chats</span>
+              </button>
             </div>
-            <button
-              onClick={() => setShowInbox(false)}
-              className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 bg-white shadow-sm hover:border-gray-300 inline-flex items-center gap-2"
-            >
-              <EyeOff className="w-4 h-4" />
-              <span className="hidden sm:inline">Ocultar chats</span>
-            </button>
-          </div>
 
-          <ConversationList
-            conversations={filteredConversations}
-            selectedId={activeId}
-            onSelect={setActiveId}
-            loading={loading}
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-          />
+            <ConversationList
+              conversations={filteredConversations}
+              selectedId={activeId}
+              onSelect={setActiveId}
+              loading={loading}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+            />
           </div>
         )}
 

@@ -25,7 +25,21 @@ export async function getMyProfile(): Promise<Profile> {
     .single()
 
   if (error?.code === 'PGRST116') {
-    // Profile missing: create a baseline record so onboarding can proceed without 406s
+    // If not found, wait 500ms and try again once (handles database trigger lag)
+    await new Promise(resolve => setTimeout(resolve, 500))
+    const { data: secondTry, error: secondError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single()
+
+    if (secondTry) return secondTry as Profile
+
+    if (secondError && secondError.code !== 'PGRST116') {
+      throw secondError
+    }
+
+    // Profile still missing: create a baseline record
     const { data: newProfile, error: insertError } = await supabase
       .from('profiles')
       .insert({

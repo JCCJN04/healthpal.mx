@@ -41,7 +41,7 @@ export default function DoctorDetail() {
     const data = await getDoctorById(id);
 
     if (!data) {
-      setError('No se pudo cargar la información del doctor');
+      setError('No se encontró el médico o no tienes permisos para ver su perfil completo.');
       setLoading(false);
       return;
     }
@@ -252,8 +252,8 @@ export default function DoctorDetail() {
               <button
                 onClick={() => setActiveTab('info')}
                 className={`flex-1 px-6 py-4 text-sm font-semibold transition-colors ${activeTab === 'info'
-                    ? 'text-[#33C7BE] border-b-2 border-[#33C7BE]'
-                    : 'text-gray-600 hover:text-gray-900'
+                  ? 'text-[#33C7BE] border-b-2 border-[#33C7BE]'
+                  : 'text-gray-600 hover:text-gray-900'
                   }`}
               >
                 Información
@@ -261,8 +261,8 @@ export default function DoctorDetail() {
               <button
                 onClick={() => setActiveTab('reviews')}
                 className={`flex-1 px-6 py-4 text-sm font-semibold transition-colors ${activeTab === 'reviews'
-                    ? 'text-[#33C7BE] border-b-2 border-[#33C7BE]'
-                    : 'text-gray-600 hover:text-gray-900'
+                  ? 'text-[#33C7BE] border-b-2 border-[#33C7BE]'
+                  : 'text-gray-600 hover:text-gray-900'
                   }`}
               >
                 Reseñas
@@ -270,8 +270,8 @@ export default function DoctorDetail() {
               <button
                 onClick={() => setActiveTab('schedule')}
                 className={`flex-1 px-6 py-4 text-sm font-semibold transition-colors ${activeTab === 'schedule'
-                    ? 'text-[#33C7BE] border-b-2 border-[#33C7BE]'
-                    : 'text-gray-600 hover:text-gray-900'
+                  ? 'text-[#33C7BE] border-b-2 border-[#33C7BE]'
+                  : 'text-gray-600 hover:text-gray-900'
                   }`}
               >
                 Horarios

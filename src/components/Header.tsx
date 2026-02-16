@@ -33,7 +33,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
   }
 
   return (
-    <header className="h-14 md:h-16 bg-white border-b border-gray-200 px-4 md:px-6 lg:px-8 flex items-center justify-between">
+    <header className="h-14 md:h-16 bg-white/80 backdrop-blur-md border-b border-gray-200/80 px-4 md:px-6 lg:px-8 flex items-center justify-between">
       {/* Left: Menu + Logo */}
       <div className="flex items-center gap-3 md:gap-4">
         {/* Hamburger menu - Mobile only */}

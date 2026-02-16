@@ -55,8 +55,8 @@ export const WeekCalendar = ({ weekStart, onTimeSlotClick, onEventClick, events 
                 {format(day, 'EEE', { locale: es })}
               </div>
               <div className={`text-2xl font-black tabular-nums flex items-center justify-center w-12 h-12 mx-auto rounded-2xl transition-all relative ${isToday(day)
-                  ? 'bg-[#33C7BE] text-white shadow-2xl shadow-teal-500/40 scale-110 z-10'
-                  : 'text-gray-900 border border-transparent hover:border-gray-100 hover:bg-gray-50'
+                ? 'bg-[#33C7BE] text-white shadow-2xl shadow-teal-500/40 scale-110 z-10'
+                : 'text-gray-900 border border-transparent hover:border-gray-100 hover:bg-gray-50'
                 }`}>
                 {format(day, 'd')}
               </div>

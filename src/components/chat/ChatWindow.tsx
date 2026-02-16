@@ -3,6 +3,9 @@ import { useEffect, useRef } from 'react'
 import { User, Phone, Video, MoreVertical, Loader2, ArrowLeft } from 'lucide-react'
 import { ConversationWithDetails } from '../../lib/queries/chat'
 import ChatInput from './ChatInput'
+import { useUserStatus } from '../../hooks/usePresence'
+import { format, isToday, isYesterday } from 'date-fns'
+import { es } from 'date-fns/locale'
 
 interface ChatWindowProps {
     conversation: ConversationWithDetails | null
@@ -24,6 +27,18 @@ export default function ChatWindow({
     onToggleProfile
 }: ChatWindowProps) {
     const scrollRef = useRef<HTMLDivElement>(null)
+    const { isOnline, lastSeen } = useUserStatus(conversation?.other_participant?.id || null)
+
+    // Helper to format last seen
+    const formatLastSeen = (dateString: string | null) => {
+        if (!dateString) return '—'
+        const date = new Date(dateString)
+        const timeStr = format(date, 'p', { locale: es })
+
+        if (isToday(date)) return `Hoy a las ${timeStr}`
+        if (isYesterday(date)) return `Ayer a las ${timeStr}`
+        return `${format(date, 'MMM d', { locale: es })} a las ${timeStr}`
+    }
 
     // Scroll to bottom on new messages
     useEffect(() => {
@@ -66,8 +81,16 @@ export default function ChatWindow({
                             {conversation.other_participant?.full_name || 'Usuario'}
                         </h3>
                         <div className="flex items-center gap-1.5">
-                            <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-                            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">En línea</span>
+                            {isOnline ? (
+                                <>
+                                    <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                                    <span className="text-[10px] text-green-500 font-bold uppercase tracking-widest">En línea</span>
+                                </>
+                            ) : (
+                                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+                                    Últ. vez: {formatLastSeen(lastSeen)}
+                                </span>
+                            )}
                         </div>
                     </div>
                 </div>

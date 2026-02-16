@@ -26,6 +26,7 @@ const DoctorDetail = lazy(() => import('./pages/DoctorDetail'))
 const Calendario = lazy(() => import('./pages/Calendario'))
 const Configuracion = lazy(() => import('./pages/Configuracion'))
 const Pacientes = lazy(() => import('./pages/Pacientes'))
+const PatientDetail = lazy(() => import('./pages/PatientDetail'))
 const Busqueda = lazy(() => import('./pages/Busqueda'))
 
 // Lazy load onboarding pages
@@ -82,6 +83,7 @@ function App() {
         <Route path="/dashboard/doctores" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><Doctores /></Suspense></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/doctores/:id" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><DoctorDetail /></Suspense></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/pacientes" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><Pacientes /></Suspense></RequireOnboarding></RequireAuth>} />
+        <Route path="/dashboard/pacientes/:id" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><PatientDetail /></Suspense></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/calendario" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><Calendario /></Suspense></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/configuracion" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><Configuracion /></Suspense></RequireOnboarding></RequireAuth>} />
       </Routes>
