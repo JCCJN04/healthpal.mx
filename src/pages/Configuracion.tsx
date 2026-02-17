@@ -17,7 +17,8 @@ import { PatientProfile } from '../types/database';
 type TabType = 'general' | 'medical' | 'documents';
 
 export default function Configuracion() {
-  const { user, refreshProfile } = useAuth();
+  const { user, profile: authProfile, refreshProfile } = useAuth();
+  const isPatient = authProfile?.role === 'patient';
   const [activeTab, setActiveTab] = useState<TabType>('general');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
@@ -56,7 +57,9 @@ export default function Configuracion() {
 
     if (user) {
       loadProfile();
-      loadPatientProfile();
+      if (isPatient) {
+        loadPatientProfile();
+      }
     }
   }, [user]);
 
@@ -241,11 +244,15 @@ export default function Configuracion() {
     appointmentReminders: settings.appointment_reminders,
   } : null;
 
-  const tabs: { id: TabType; label: string }[] = [
-    { id: 'general', label: 'General' },
-    { id: 'medical', label: 'Registro médico' },
-    { id: 'documents', label: 'Documentos del paciente' },
-  ];
+  const tabs: { id: TabType; label: string }[] = isPatient
+    ? [
+        { id: 'general', label: 'General' },
+        { id: 'medical', label: 'Registro médico' },
+        { id: 'documents', label: 'Documentos del paciente' },
+      ]
+    : [
+        { id: 'general', label: 'General' },
+      ];
 
   return (
     <DashboardLayout>
@@ -298,8 +305,8 @@ export default function Configuracion() {
                 />
               )}
 
-              {/* Patient Profile Data */}
-              {user?.user_metadata?.role !== 'doctor' && (
+              {/* Patient Profile Data — only shown to patients */}
+              {isPatient && (
                 <PatientProfileInfoCard
                   data={patientProfile}
                   onEdit={() => setIsWizardOpen(true)}

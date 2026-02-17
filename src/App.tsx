@@ -3,6 +3,7 @@ import { Suspense, lazy } from 'react'
 import { AuthProvider } from './context/AuthContext'
 import RequireAuth from './components/RequireAuth'
 import RequireOnboarding from './components/RequireOnboarding'
+import RequireRole from './components/RequireRole'
 import OnlyOnboarding from './components/OnlyOnboarding'
 import { ToastContainer } from './components/Toast'
 
@@ -80,10 +81,12 @@ function App() {
         <Route path="/dashboard/consultas/nueva" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><NuevaConsulta /></Suspense></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/buscar" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><Busqueda /></Suspense></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/mensajes" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><Mensajes /></Suspense></RequireOnboarding></RequireAuth>} />
-        <Route path="/dashboard/doctores" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><Doctores /></Suspense></RequireOnboarding></RequireAuth>} />
-        <Route path="/dashboard/doctores/:id" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><DoctorDetail /></Suspense></RequireOnboarding></RequireAuth>} />
-        <Route path="/dashboard/pacientes" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><Pacientes /></Suspense></RequireOnboarding></RequireAuth>} />
-        <Route path="/dashboard/pacientes/:id" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><PatientDetail /></Suspense></RequireOnboarding></RequireAuth>} />
+        {/* Patient-only routes */}
+        <Route path="/dashboard/doctores" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['patient']}><Suspense fallback={<PageLoader />}><Doctores /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
+        <Route path="/dashboard/doctores/:id" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['patient']}><Suspense fallback={<PageLoader />}><DoctorDetail /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
+        {/* Doctor-only routes */}
+        <Route path="/dashboard/pacientes" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['doctor']}><Suspense fallback={<PageLoader />}><Pacientes /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
+        <Route path="/dashboard/pacientes/:id" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['doctor']}><Suspense fallback={<PageLoader />}><PatientDetail /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/calendario" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><Calendario /></Suspense></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/configuracion" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><Configuracion /></Suspense></RequireOnboarding></RequireAuth>} />
       </Routes>
