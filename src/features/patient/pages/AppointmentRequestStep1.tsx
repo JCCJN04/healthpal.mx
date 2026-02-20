@@ -45,8 +45,6 @@ const AppointmentRequestStep1: React.FC = () => {
     // Save to sessionStorage for next step
     sessionStorage.setItem('appointmentRequestData', JSON.stringify(formData));
     
-    console.log('Form data:', formData);
-    
     // Navigate to step 2
     navigate('/dashboard/consultas/nueva/revision');
   };

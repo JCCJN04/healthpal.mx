@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/app/providers/AuthContext'
+import { logger } from '@/shared/lib/logger'
 
 interface RequireOnboardingProps {
   children: React.ReactNode
@@ -71,7 +72,7 @@ export default function RequireOnboarding({ children }: RequireOnboardingProps) 
       setRedirectTo(targetRoute)
       setChecking(false)
     } catch (error) {
-      console.error('Error checking onboarding:', error)
+      logger.error('RequireOnboarding:checkOnboarding', error)
       setRedirectTo('/onboarding/role')
       setChecking(false)
     }

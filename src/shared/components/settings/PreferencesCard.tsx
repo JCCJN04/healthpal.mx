@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Bell, Mail, MessageSquare, Calendar, Loader2 } from 'lucide-react';
+import { logger } from '@/shared/lib/logger';
 
 interface Preferences {
   emailNotifications: boolean;
@@ -41,7 +42,7 @@ const PreferencesCard = ({ initialPreferences, onSave, isLoading = false }: Pref
         [key]: newValue,
       });
     } catch (error) {
-      console.error('Error updating preferences:', error);
+      logger.error('PreferencesCard.toggle', error);
       // Revert on error
       setPreferences(oldPreferences);
     } finally {

@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { supabase } from '@/shared/lib/supabase'
+import { logger } from '@/shared/lib/logger'
 import type { Database } from '@/shared/types/database'
 
 type Appointment = Database['public']['Tables']['appointments']['Row']
@@ -47,7 +48,7 @@ export async function getAppointmentById(id: string, userId: string): Promise<Ap
       .single()
 
     if (error) {
-      console.error('Error fetching appointment:', error)
+      logger.error('getAppointmentById', error)
       return null
     }
 
@@ -75,7 +76,7 @@ export async function getAppointmentById(id: string, userId: string): Promise<Ap
 
     return data as AppointmentWithDetails
   } catch (err) {
-    console.error('Error in getAppointmentById:', err)
+    logger.error('getAppointmentById', err)
     return null
   }
 }
@@ -117,13 +118,13 @@ export async function listUpcomingAppointments({ userId, role }: { userId: strin
     const { data, error } = await query
 
     if (error) {
-      console.error('Error fetching upcoming appointments:', error)
+      logger.error('listUpcomingAppointments', error)
       return []
     }
 
     return await enrichWithDoctorProfiles(data || [])
   } catch (err) {
-    console.error('Error in listUpcomingAppointments:', err)
+    logger.error('listUpcomingAppointments', err)
     return []
   }
 }
@@ -166,13 +167,13 @@ export async function listPastAppointments({ userId, role }: { userId: string, r
     const { data, error } = await query
 
     if (error) {
-      console.error('Error fetching past appointments:', error)
+      logger.error('listPastAppointments', error)
       return []
     }
 
     return await enrichWithDoctorProfiles(data || [])
   } catch (err) {
-    console.error('Error in listPastAppointments:', err)
+    logger.error('listPastAppointments', err)
     return []
   }
 }
@@ -217,13 +218,13 @@ export async function createAppointment(payload: AppointmentInsert): Promise<{ s
       .single()
 
     if (error) {
-      console.error('Error creating appointment:', error)
+      logger.error('createAppointment', error)
       return { success: false, error: error.message }
     }
 
     return { success: true, data }
   } catch (err) {
-    console.error('Error in createAppointment:', err)
+    logger.error('createAppointment', err)
     return { success: false, error: 'Error inesperado al crear la cita' }
   }
 }
@@ -239,13 +240,13 @@ export async function updateAppointment(id: string, patch: AppointmentUpdate): P
       .eq('id', id)
 
     if (error) {
-      console.error('Error updating appointment:', error)
+      logger.error('updateAppointment', error)
       return { success: false, error: error.message }
     }
 
     return { success: true }
   } catch (err) {
-    console.error('Error in updateAppointment:', err)
+    logger.error('updateAppointment', err)
     return { success: false, error: 'Error inesperado al actualizar la cita' }
   }
 }
@@ -296,7 +297,7 @@ export async function getAppointmentDaysInMonth(userId: string, start: Date, end
     const { data, error } = await query
 
     if (error) {
-      console.error('Error fetching appointment days:', error)
+      logger.error('getAppointmentDaysInMonth', error)
       return []
     }
 
@@ -304,7 +305,7 @@ export async function getAppointmentDaysInMonth(userId: string, start: Date, end
     const days = data.map(apt => new Date(apt.start_at).toISOString().split('T')[0])
     return [...new Set(days)]
   } catch (err) {
-    console.error('Error in getAppointmentDaysInMonth:', err)
+    logger.error('getAppointmentDaysInMonth', err)
     return []
   }
 }
@@ -323,7 +324,7 @@ export async function getDoctorPatientsSnapshot(doctorId: string): Promise<{ pat
       .limit(200)
 
     if (error) {
-      console.error('Error fetching doctor patients snapshot:', error)
+      logger.error('getDoctorPatientsSnapshot', error)
       return []
     }
 
@@ -337,7 +338,7 @@ export async function getDoctorPatientsSnapshot(doctorId: string): Promise<{ pat
 
     return Array.from(map.entries()).map(([patient_id, last_interaction]) => ({ patient_id, last_interaction }))
   } catch (err) {
-    console.error('Error in getDoctorPatientsSnapshot:', err)
+    logger.error('getDoctorPatientsSnapshot', err)
     return []
   }
 }
@@ -358,13 +359,13 @@ export async function getDoctorAppointments(doctorId: string, date: string): Pro
       .in('status', ['requested', 'confirmed'])
 
     if (error) {
-      console.error('Error fetching doctor appointments:', error)
+      logger.error('getDoctorAppointments', error)
       return []
     }
 
     return data || []
   } catch (err) {
-    console.error('Error in getDoctorAppointments:', err)
+    logger.error('getDoctorAppointments', err)
     return []
   }
 }
@@ -410,7 +411,7 @@ export async function searchAppointments(
     const { data, error } = await query
 
     if (error) {
-      console.error('Error searching appointments:', error)
+      logger.error('searchAppointments', error)
       return []
     }
 
@@ -428,7 +429,7 @@ export async function searchAppointments(
       return Boolean(reasonMatch || symptomMatch || doctorMatch || patientMatch || statusMatch)
     })
   } catch (err) {
-    console.error('Error in searchAppointments:', err)
+    logger.error('searchAppointments', err)
     return []
   }
 }

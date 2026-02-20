@@ -13,7 +13,6 @@ export const NotesPanel = ({ notes, onAddNote }: NotesPanelProps) => {
 
   const handleSaveNote = () => {
     if (newNote.trim()) {
-      console.log('Guardar nota:', newNote)
       if (onAddNote) {
         onAddNote(newNote)
       }

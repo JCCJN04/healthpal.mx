@@ -26,6 +26,7 @@ import { listUpcomingAppointments } from '@/shared/lib/queries/appointments'
 import { getUserDocuments } from '@/shared/lib/queries/documents'
 import { useAuth } from '@/app/providers/AuthContext'
 import { showToast } from '@/shared/components/ui/Toast'
+import { logger } from '@/shared/lib/logger'
 
 type TabType = 'summary' | 'notes' | 'activity'
 
@@ -63,10 +64,10 @@ export default function PatientDetail() {
 
             // 2. Non-critical or secondary data: load in parallel but catch errors individually
             const [medProfileData, notesData, appointmentsData, documentsData] = await Promise.all([
-                getPatientProfile(id!).catch(e => { console.warn('PDetail: medProfile fail', e); return null }),
-                getPatientNotes(id!, user!.id).catch(e => { console.warn('PDetail: notes fail', e); return [] }),
-                listUpcomingAppointments({ userId: id!, role: 'patient' }).catch(e => { console.warn('PDetail: appts fail', e); return [] }),
-                getUserDocuments(id!).catch(e => { console.warn('PDetail: docs fail', e); return [] })
+                getPatientProfile(id!).catch(e => { logger.error('PatientDetail.medProfile', e); return null }),
+                getPatientNotes(id!, user!.id).catch(e => { logger.error('PatientDetail.notes', e); return [] }),
+                listUpcomingAppointments({ userId: id!, role: 'patient' }).catch(e => { logger.error('PatientDetail.appts', e); return [] }),
+                getUserDocuments(id!).catch(e => { logger.error('PatientDetail.docs', e); return [] })
             ])
 
             setMedProfile(medProfileData)
@@ -74,7 +75,7 @@ export default function PatientDetail() {
             setAppointments((appointmentsData || []).slice(0, 5))
             setDocuments((documentsData || []).slice(0, 5))
         } catch (err) {
-            console.error('Error loading patient data:', err)
+            logger.error('PatientDetail.load', err)
             showToast('Error crítico al cargar el expediente', 'error')
         } finally {
             setLoading(false)

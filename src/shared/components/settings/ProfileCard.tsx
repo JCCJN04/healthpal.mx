@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Camera, MapPin } from 'lucide-react';
+import { validateFile } from '@/shared/lib/errors';
 
 interface ProfileCardProps {
   name: string;
@@ -8,6 +9,7 @@ interface ProfileCardProps {
   location: string;
   avatarUrl?: string;
   onChangePhoto: (file: File) => void;
+  onValidationError?: (message: string) => void;
 }
 
 const ProfileCard = ({
@@ -17,6 +19,7 @@ const ProfileCard = ({
   location,
   avatarUrl,
   onChangePhoto,
+  onValidationError,
 }: ProfileCardProps) => {
   const [imagePreview, setImagePreview] = useState(avatarUrl);
 
@@ -31,6 +34,13 @@ const ProfileCard = ({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Validate avatar file type and size (max 2MB, images only)
+      const validationError = validateFile(file, 'avatar');
+      if (validationError) {
+        onValidationError?.(validationError);
+        e.target.value = '';
+        return;
+      }
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result as string);

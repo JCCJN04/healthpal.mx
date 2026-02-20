@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { supabase } from '@/shared/lib/supabase'
 import type { Database } from '@/shared/types/database'
+import { logger } from '@/shared/lib/logger'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
 type DoctorProfile = Database['public']['Tables']['doctor_profiles']['Row']
@@ -22,7 +23,7 @@ export async function getDoctorById(doctorId: string): Promise<DoctorWithProfile
       .single()
 
     if (profileError) {
-      console.error('Error fetching doctor profile:', profileError)
+      logger.error('doctors:fetchProfile', profileError)
       return null
     }
 
@@ -33,7 +34,7 @@ export async function getDoctorById(doctorId: string): Promise<DoctorWithProfile
       .single()
 
     if (doctorError && doctorError.code !== 'PGRST116') {
-      console.error('Error fetching doctor_profile:', doctorError)
+      logger.error('doctors:fetchDoctorProfile', doctorError)
     }
 
     return {
@@ -41,7 +42,7 @@ export async function getDoctorById(doctorId: string): Promise<DoctorWithProfile
       doctor_profile: doctorProfile || null,
     }
   } catch (err) {
-    console.error('Error in getDoctorById:', err)
+    logger.error('doctors:getDoctorById', err)
     return null
   }
 }
@@ -58,7 +59,7 @@ export async function listDoctors(limit: number = 50): Promise<DoctorWithProfile
       .limit(limit)
 
     if (profilesError) {
-      console.error('Error fetching doctors:', profilesError)
+      logger.error('doctors:listDoctors:fetch', profilesError)
       return []
     }
 
@@ -78,7 +79,7 @@ export async function listDoctors(limit: number = 50): Promise<DoctorWithProfile
       doctor_profile: doctorProfileMap.get(profile.id) || null,
     }))
   } catch (err) {
-    console.error('Error in listDoctors:', err)
+    logger.error('doctors:listDoctors', err)
     return []
   }
 }
@@ -96,7 +97,7 @@ export async function searchDoctors(query: string): Promise<DoctorWithProfile[]>
       .limit(20)
 
     if (profilesError) {
-      console.error('Error searching doctors:', profilesError)
+      logger.error('doctors:searchDoctors:fetch', profilesError)
       return []
     }
 
@@ -116,7 +117,7 @@ export async function searchDoctors(query: string): Promise<DoctorWithProfile[]>
       doctor_profile: doctorProfileMap.get(profile.id) || null,
     }))
   } catch (err) {
-    console.error('Error in searchDoctors:', err)
+    logger.error('doctors:searchDoctors', err)
     return []
   }
 }
@@ -133,7 +134,7 @@ export async function getPatientDoctors(patientId: string): Promise<DoctorWithPr
       .eq('status', 'active')
 
     if (careLinksError) {
-      console.error('Error fetching care links:', careLinksError)
+      logger.error('doctors:fetchCareLinks', careLinksError)
       return []
     }
 
@@ -150,7 +151,7 @@ export async function getPatientDoctors(patientId: string): Promise<DoctorWithPr
       .eq('role', 'doctor')
 
     if (profilesError) {
-      console.error('Error fetching doctor profiles:', profilesError)
+      logger.error('doctors:fetchDoctorProfiles', profilesError)
       return []
     }
 
@@ -168,7 +169,7 @@ export async function getPatientDoctors(patientId: string): Promise<DoctorWithPr
       doctor_profile: doctorProfileMap.get(profile.id) || null,
     }))
   } catch (err) {
-    console.error('Error in getPatientDoctors:', err)
+    logger.error('doctors:getPatientDoctors', err)
     return []
   }
 }

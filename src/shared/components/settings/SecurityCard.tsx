@@ -67,7 +67,7 @@ const SecurityCard = ({ lastPasswordChange, onUpdatePassword }: SecurityCardProp
           setUpdateSuccess(false);
         }, 2000);
       } catch (error: any) {
-        setUpdateError(error.message || 'Error al actualizar contraseña');
+        setUpdateError('Error al actualizar la contraseña. Intenta nuevamente.');
       } finally {
         setIsUpdating(false);
       }

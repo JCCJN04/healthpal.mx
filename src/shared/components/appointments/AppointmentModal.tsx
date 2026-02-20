@@ -42,13 +42,6 @@ export const AppointmentModal = ({
       return
     }
 
-    console.log('Nueva cita:', {
-      doctor: selectedDoctor,
-      date: selectedDate ? formatDate(selectedDate) : '',
-      time: selectedTime,
-      type: appointmentType
-    })
-
     setSelectedDoctor('')
     setAppointmentType('presencial')
     onClose()

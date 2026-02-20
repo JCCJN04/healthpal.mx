@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { X, Folder, Edit2, Loader2, Save } from 'lucide-react'
 import { getFolders, updateDocument } from '@/shared/lib/queries/documents'
 import { showToast } from '@/shared/components/ui/Toast'
+import { logger } from '@/shared/lib/logger'
 
 /**
  * Modal to rename a document
@@ -48,7 +49,7 @@ export function RenameDocumentModal({
                 showToast(result.error || 'Error al renombrar', 'error')
             }
         } catch (error) {
-            console.error('Error renaming:', error)
+            logger.error('RenameDocumentModal', error)
             showToast('Error inesperado', 'error')
         } finally {
             setLoading(false)
@@ -157,7 +158,7 @@ export function MoveDocumentModal({
             const data = await getFolders(userId)
             setFolders(data)
         } catch (error) {
-            console.error('Error loading folders:', error)
+            logger.error('MoveDocumentModal.loadFolders', error)
             showToast('Error al cargar carpetas', 'error')
         } finally {
             setFetchingFolders(false)
@@ -180,7 +181,7 @@ export function MoveDocumentModal({
                 showToast(result.error || 'Error al mover', 'error')
             }
         } catch (error) {
-            console.error('Error moving:', error)
+            logger.error('MoveDocumentModal.move', error)
             showToast('Error inesperado', 'error')
         } finally {
             setLoading(false)

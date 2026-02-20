@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/shared/lib/supabase'
 import { updateUserStatus, getUserStatuses } from '@/shared/lib/queries/chat'
+import { logger } from '@/shared/lib/logger'
 
 /**
  * Hook to track current user presence and status
@@ -74,7 +75,7 @@ export function useUserStatus(targetUserId: string | null) {
                 }
                 setLoading(false)
             } catch (err) {
-                console.error('Error fetching initial status:', err)
+                logger.error('usePresence:fetchInitialStatus', err)
                 if (mounted) setLoading(false)
             }
         }
@@ -148,7 +149,7 @@ export function useBatchUserStatus(userIds: string[]) {
                 })
                 setStatuses(newStatuses)
             } catch (err) {
-                console.error('Error fetching batch statuses:', err)
+                logger.error('usePresence:fetchBatchStatuses', err)
             }
         }
         fetchStatuses()

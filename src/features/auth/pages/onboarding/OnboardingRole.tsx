@@ -5,6 +5,7 @@ import Stepper from '@/shared/components/ui/Stepper'
 import Button from '@/shared/components/ui/Button'
 import { updateMyProfile, saveOnboardingStep } from '@/shared/lib/queries/profile'
 import { showToast } from '@/shared/components/ui/Toast'
+import { logger } from '@/shared/lib/logger'
 import { User2, Stethoscope } from 'lucide-react'
 
 const STEPS = ['Rol', 'Información', 'Contacto', 'Detalles', 'Listo']
@@ -23,13 +24,9 @@ export default function OnboardingRole() {
     }
 
     setLoading(true)
-    console.log('🚀 Guardando rol:', selectedRole)
-
     try {
-      console.log('📝 Actualizando perfil con rol...')
       await updateMyProfile({ role: selectedRole })
       
-      console.log('📝 Guardando paso de onboarding...')
       await saveOnboardingStep('basic')
       
       showToast('Rol guardado exitosamente', 'success')
@@ -39,7 +36,7 @@ export default function OnboardingRole() {
       
       navigate('/onboarding/basic')
     } catch (error: any) {
-      console.error('❌ Error guardando rol:', error)
+      logger.error('OnboardingRole.submit', error)
       const errorMessage = error?.message || error?.toString() || 'Error al guardar rol'
       showToast(errorMessage, 'error')
     } finally {

@@ -1,5 +1,6 @@
 import { supabase } from '@/shared/lib/supabase'
 import type { Database } from '@/shared/types/database'
+import { logger } from '@/shared/lib/logger'
 
 export type PatientProfileLite = {
   id: string
@@ -21,7 +22,7 @@ export async function listDoctorPatients(doctorId: string): Promise<PatientProfi
     .limit(200)
 
   if (apptError) {
-    console.error('Error fetching doctor patients from appointments:', apptError)
+    logger.error('listDoctorPatients.appointments', apptError)
   }
 
   const idsFromAppointments = Array.from(
@@ -57,7 +58,7 @@ export async function listDoctorPatients(doctorId: string): Promise<PatientProfi
       }
     }
   } catch (err) {
-    console.error('Error fetching doctor patients from chat:', err)
+    logger.error('listDoctorPatients.chat', err)
   }
 
   const ids = Array.from(new Set([...idsFromAppointments, ...idsFromChat]))
@@ -69,7 +70,7 @@ export async function listDoctorPatients(doctorId: string): Promise<PatientProfi
     .in('id', ids)
 
   if (error) {
-    console.error('Error fetching doctor patients profiles:', error)
+    logger.error('listDoctorPatients.profiles', error)
     return []
   }
 
@@ -89,7 +90,7 @@ export async function searchPatients(term: string): Promise<PatientProfileLite[]
     .limit(10)
 
   if (error) {
-    console.error('Error searching patients:', error)
+    logger.error('searchPatients', error)
     return []
   }
 
@@ -119,7 +120,7 @@ export async function linkPatientConversation(doctorId: string, patientId: strin
     if (startError) throw startError
     return newId
   } catch (err) {
-    console.error('Error in linkPatientConversation:', err)
+    logger.error('linkPatientConversation', err)
     return null
   }
 }
@@ -136,7 +137,7 @@ export async function getPatientFullProfile(patientId: string) {
     .single()
 
   if (error) {
-    console.error('Error fetching full patient profile:', error)
+    logger.error('getPatientFullProfile', error)
     return null
   }
 
@@ -153,7 +154,7 @@ export async function getPatientNotes(patientId: string, doctorId: string) {
     .order('created_at', { ascending: false })
 
   if (error) {
-    console.error('Error fetching patient notes:', error)
+    logger.error('getPatientNotes', error)
     return []
   }
 
@@ -174,7 +175,7 @@ export async function addPatientNote(patientId: string, doctorId: string, title:
     .single()
 
   if (error) {
-    console.error('Error adding patient note:', error)
+    logger.error('addPatientNote', error)
     throw error
   }
 

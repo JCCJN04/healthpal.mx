@@ -75,25 +75,22 @@ export const DocumentCard = ({ document, onDelete, onDragStart, isMoving }: Docu
 
   const handleAbrir = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    console.log('Navegando a documento:', document.id);
     navigate(`/dashboard/documentos/${document.id}`)
   }
 
   const handleDownload = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log('Iniciando descarga:', document.id);
     const url = await getDocumentDownloadUrl(document.file_path)
     if (url) {
       window.open(url, '_blank')
     } else {
-      console.error('Error: No se pudo obtener la URL de descarga');
+      // URL unavailable
     }
     setMenuOpen(false)
   }
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log('Borrando documento:', document.id);
     onDelete(document.id)
     setMenuOpen(false)
   }

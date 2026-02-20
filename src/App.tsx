@@ -49,7 +49,6 @@ const PageLoader = () => (
 )
 
 function App() {
-  console.log('✓ App rendering')
 
   return (
     <AuthProvider>

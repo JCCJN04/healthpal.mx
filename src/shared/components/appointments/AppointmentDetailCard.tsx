@@ -23,23 +23,19 @@ export const AppointmentDetailCard = ({ appointment }: AppointmentDetailCardProp
   }
 
   const handleSendMessage = () => {
-    console.log('Enviar mensaje para cita:', appointment.id)
     navigate('/dashboard/mensajes')
   }
 
   const handleMoreDetails = () => {
-    console.log('Ver más detalles de cita:', appointment.id)
     // Could navigate to /dashboard/consultas/:id
   }
 
   const handleAttending = () => {
     setAttendanceStatus('attending')
-    console.log('Confirmado asistencia a cita:', appointment.id)
   }
 
   const handleNotAttending = () => {
     setAttendanceStatus('not-attending')
-    console.log('Cancelado asistencia a cita:', appointment.id)
   }
 
   // Parse date to format: "10 de Enero del 2026"

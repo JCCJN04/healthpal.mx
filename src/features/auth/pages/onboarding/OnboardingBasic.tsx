@@ -6,6 +6,7 @@ import { InputField, SelectField } from '@/shared/components/ui/FormField'
 import Button from '@/shared/components/ui/Button'
 import { getMyProfile, updateMyProfile, saveOnboardingStep } from '@/shared/lib/queries/profile'
 import { showToast } from '@/shared/components/ui/Toast'
+import { logger } from '@/shared/lib/logger'
 
 const STEPS = ['Rol', 'Información', 'Contacto', 'Detalles', 'Listo']
 
@@ -32,7 +33,7 @@ export default function OnboardingBasic() {
         birthdate: profile.birthdate || '',
       })
     } catch (error) {
-      console.error('Error loading profile:', error)
+      logger.error('Error loading profile:', error)
     }
   }
 
@@ -82,7 +83,7 @@ export default function OnboardingBasic() {
       
       navigate('/onboarding/contact')
     } catch (error: any) {
-      console.error('Error saving basic info:', error)
+      logger.error('Error saving basic info:', error)
       showToast(error.message || 'Error al guardar información', 'error')
     } finally {
       setLoading(false)

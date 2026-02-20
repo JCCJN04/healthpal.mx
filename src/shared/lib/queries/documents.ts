@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { supabase } from '@/shared/lib/supabase'
+import { logger } from '@/shared/lib/logger'
 import type { Database } from '@/shared/types/database'
 
 type Document = Database['public']['Tables']['documents']['Row']
@@ -37,7 +38,7 @@ export async function getUserDocuments(userId: string, folderId: string | null =
     const { data, error } = await query.order('created_at', { ascending: false })
 
     if (error) {
-      console.error('Error fetching documents:', error)
+      logger.error('getUserDocuments', error)
       return []
     }
 
@@ -53,7 +54,7 @@ export async function getUserDocuments(userId: string, folderId: string | null =
 
     return Array.from(map.values())
   } catch (err) {
-    console.error('Error in getUserDocuments:', err)
+    logger.error('getUserDocuments', err)
     return []
   }
 }
@@ -70,13 +71,13 @@ export async function getDocumentById(documentId: string): Promise<Document | nu
       .maybeSingle()
 
     if (error) {
-      console.error('Error fetching document:', error)
+      logger.error('getDocumentById', error)
       return null
     }
 
     return data
   } catch (err) {
-    console.error('Error in getDocumentById:', err)
+    logger.error('getDocumentById', err)
     return null
   }
 }
@@ -101,13 +102,13 @@ export async function getDocumentsSharedWithMe(userId: string) {
       .order('created_at', { ascending: false })
 
     if (error) {
-      console.error('Error fetching documents shared with user:', error)
+      logger.error('getDocumentsSharedWithMe', error)
       return []
     }
 
     return data || []
   } catch (err) {
-    console.error('Error in getDocumentsSharedWithMe:', err)
+    logger.error('getDocumentsSharedWithMe', err)
     return []
   }
 }
@@ -138,7 +139,7 @@ export async function uploadDocument(
       .upload(filePath, file)
 
     if (uploadError) {
-      console.error('Error uploading file:', uploadError)
+      logger.error('uploadDocument.storage', uploadError)
       return { success: false, error: uploadError.message }
     }
 
@@ -160,7 +161,7 @@ export async function uploadDocument(
       })
 
     if (dbError) {
-      console.error('Error creating document record:', dbError)
+      logger.error('uploadDocument.db', dbError)
       // Clean up uploaded file
       await supabase.storage.from('documents').remove([filePath])
       return { success: false, error: dbError.message }
@@ -168,7 +169,7 @@ export async function uploadDocument(
 
     return { success: true, documentId }
   } catch (err) {
-    console.error('Error in uploadDocument:', err)
+    logger.error('uploadDocument', err)
     return { success: false, error: 'Error inesperado al subir el documento' }
   }
 }
@@ -181,7 +182,7 @@ export async function deleteDocument(
   userId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    console.log('Intentando eliminar documento:', documentId, 'para el usuario:', userId)
+    logger.debug('deleteDocument initiated')
 
     // Get document to find file path and verify ownership
     const document = await getDocumentById(documentId)
@@ -190,7 +191,7 @@ export async function deleteDocument(
     }
 
     if (document.owner_id !== userId) {
-      console.error('Violación de propiedad detectada:', { docOwner: document.owner_id, currentUser: userId })
+      logger.warn('Document ownership violation detected')
       return { success: false, error: 'No tienes permiso para eliminar este documento' }
     }
 
@@ -200,7 +201,7 @@ export async function deleteDocument(
       .remove([document.file_path])
 
     if (storageError) {
-      console.error('Error deleting file from storage:', storageError)
+      logger.error('deleteDocument.storage', storageError)
     }
 
     // Delete from database with explicit owner check
@@ -211,18 +212,18 @@ export async function deleteDocument(
       .eq('owner_id', userId)
 
     if (dbError) {
-      console.error('Error deleting document record:', dbError)
+      logger.error('deleteDocument.db', dbError)
       return { success: false, error: dbError.message }
     }
 
     if (count === 0) {
-      console.warn('No se eliminó ninguna fila. Verifique permisos RLS en Supabase para el usuario:', userId)
-      return { success: false, error: 'La base de datos rechazó la eliminación (posible problema de RLS)' }
+      logger.warn('deleteDocument: RLS rejected deletion')
+      return { success: false, error: 'No se pudo eliminar el documento' }
     }
 
     return { success: true }
   } catch (err) {
-    console.error('Error in deleteDocument:', err)
+    logger.error('deleteDocument', err)
     return { success: false, error: 'Error inesperado al eliminar el documento' }
   }
 }
@@ -246,13 +247,13 @@ export async function getFolders(userId: string, parentId: string | null = null)
     const { data, error } = await query.order('name', { ascending: true })
 
     if (error) {
-      console.error('Error fetching folders:', error)
+      logger.error('getFolders', error)
       return []
     }
 
     return data || []
   } catch (err) {
-    console.error('Error in getFolders:', err)
+    logger.error('getFolders', err)
     return []
   }
 }
@@ -277,13 +278,13 @@ export async function createFolder(
       .single()
 
     if (error) {
-      console.error('Error creating folder:', error)
+      logger.error('createFolder', error)
       return { success: false, error: error.message }
     }
 
     return { success: true, folderId: data.id }
   } catch (err) {
-    console.error('Error in createFolder:', err)
+    logger.error('createFolder', err)
     return { success: false, error: 'Error al crear la carpeta' }
   }
 }
@@ -300,7 +301,7 @@ export async function deleteFolder(folderId: string, userId: string): Promise<{ 
       .eq('owner_id', userId)
 
     if (error) {
-      console.error('Error deleting folder:', error)
+      logger.error('deleteFolder', error)
       return { success: false, error: error.message }
     }
 
@@ -310,7 +311,7 @@ export async function deleteFolder(folderId: string, userId: string): Promise<{ 
 
     return { success: true }
   } catch (err) {
-    console.error('Error in deleteFolder:', err)
+    logger.error('deleteFolder', err)
     return { success: false, error: 'Error al eliminar la carpeta' }
   }
 }
@@ -331,13 +332,13 @@ export async function updateFolder(
       .eq('owner_id', userId)
 
     if (error) {
-      console.error('Error updating folder:', error)
+      logger.error('updateFolder', error)
       return { success: false, error: error.message }
     }
 
     return { success: true }
   } catch (err) {
-    console.error('Error in updateFolder:', err)
+    logger.error('updateFolder', err)
     return { success: false, error: 'Error al actualizar la carpeta' }
   }
 }
@@ -358,13 +359,13 @@ export async function updateDocument(
       .eq('owner_id', userId)
 
     if (error) {
-      console.error('Error updating document:', error)
+      logger.error('updateDocument', error)
       return { success: false, error: error.message }
     }
 
     return { success: true }
   } catch (err) {
-    console.error('Error in updateDocument:', err)
+    logger.error('updateDocument', err)
     return { success: false, error: 'Error al actualizar el documento' }
   }
 }
@@ -399,13 +400,13 @@ export async function ensureSharedFolderForSender(
       .single()
 
     if (error) {
-      console.warn('Error creating shared folder (continuing without folder):', error)
+      logger.warn('ensureSharedFolderForSender: folder creation failed')
       return null
     }
 
     return data.id
   } catch (err) {
-    console.error('Error in ensureSharedFolderForSender:', err)
+    logger.error('ensureSharedFolderForSender', err)
     return null
   }
 }
@@ -421,12 +422,12 @@ export async function importSharedDocument(
     const sharedDoc = share.document
 
     if (!sharedDoc) {
-      console.warn('[share] importSharedDocument: missing document payload, skipping')
+      logger.warn('importSharedDocument: missing document payload')
       return { success: false, error: 'Documento compartido no disponible' }
     }
 
     if (!sharedDoc.file_path) {
-      console.warn('[share] importSharedDocument: document has no file_path, skipping', { documentId: sharedDoc.id })
+      logger.warn('importSharedDocument: document has no file_path')
       return { success: false, error: 'Documento sin archivo asociado' }
     }
 
@@ -457,7 +458,7 @@ export async function importSharedDocument(
       copied = true
       finalPath = targetPath
     } else {
-      console.warn('[share] storage copy failed, attempting download/upload', copyResult.error)
+      logger.warn('importSharedDocument: storage copy failed, trying fallback')
       const download = await supabase.storage.from('documents').download(sharedDoc.file_path)
       if (!download.error && download.data) {
         const upload = await supabase.storage.from('documents').upload(targetPath, download.data)
@@ -465,15 +466,15 @@ export async function importSharedDocument(
           copied = true
           finalPath = targetPath
         } else {
-          console.error('[share] upload after download failed', upload.error)
+          logger.error('importSharedDocument.uploadFallback', upload.error)
         }
       } else {
-        console.error('[share] download failed', download.error)
+        logger.error('importSharedDocument.download', download.error)
       }
     }
 
     if (!copied) {
-      console.warn('[share] proceeding without copy; using original path (may rely on storage read policy)', { path: sharedDoc.file_path })
+      logger.warn('importSharedDocument: proceeding without storage copy')
       finalPath = sharedDoc.file_path
     }
 
@@ -494,13 +495,13 @@ export async function importSharedDocument(
       })
 
     if (error) {
-      console.error('Error importing shared document:', error)
+      logger.error('importSharedDocument', error)
       return { success: false, error: error.message }
     }
 
     return { success: true, created: true, documentId: newId }
   } catch (err) {
-    console.error('Error in importSharedDocument:', err)
+    logger.error('importSharedDocument', err)
     return { success: false, error: 'No se pudo importar el documento compartido' }
   }
 }
@@ -518,7 +519,7 @@ export async function syncSharedDocumentsIntoLibrary(userId: string) {
  */
 export async function findProfileByEmail(email: string): Promise<Profile | null> {
   try {
-    console.log('[share] findProfileByEmail start', { email })
+    logger.debug('findProfileByEmail initiated')
     const { data, error } = await supabase
       .from('profiles')
       .select('id, full_name, email, role')
@@ -526,14 +527,14 @@ export async function findProfileByEmail(email: string): Promise<Profile | null>
       .maybeSingle()
 
     if (error) {
-      console.error('Error searching profile by email:', error)
+      logger.error('findProfileByEmail', error)
       return null
     }
 
-    console.log('[share] findProfileByEmail result', data)
+    logger.debug('findProfileByEmail complete')
     return data
   } catch (err) {
-    console.error('Error in findProfileByEmail:', err)
+    logger.error('findProfileByEmail', err)
     return null
   }
 }
@@ -548,7 +549,7 @@ export async function shareDocumentWithUser(
   opts?: { document?: Document; senderProfile?: { full_name?: string | null; email?: string | null } }
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    console.log('[share] shareDocumentWithUser start', { documentId, sharedById, target })
+    logger.debug('shareDocumentWithUser initiated')
     let targetUserId = target.userId || null
 
     if (!targetUserId && target.email) {
@@ -572,12 +573,12 @@ export async function shareDocumentWithUser(
       .maybeSingle()
 
     if (existingError && existingError.code !== 'PGRST116') {
-      console.error('Error checking existing share:', existingError)
+      logger.error('shareDocumentWithUser.check', existingError)
       return { success: false, error: existingError.message }
     }
 
     if (existing) {
-      console.log('[share] already shared, skip insert', existing)
+      logger.debug('shareDocumentWithUser: already shared')
       return { success: true }
     }
 
@@ -586,7 +587,7 @@ export async function shareDocumentWithUser(
       .insert({ document_id: documentId, shared_by: sharedById, shared_with: targetUserId })
 
     if (error) {
-      console.error('Error sharing document:', error)
+      logger.error('shareDocumentWithUser', error)
       return { success: false, error: error.message }
     }
 
@@ -597,10 +598,10 @@ export async function shareDocumentWithUser(
       email: opts?.senderProfile?.email,
     }
 
-    console.log('[share] shareDocumentWithUser success (no immediate import in share-only mode)', { documentId, sharedById, targetUserId })
+    logger.debug('shareDocumentWithUser: success')
     return { success: true }
   } catch (err) {
-    console.error('Error in shareDocumentWithUser:', err)
+    logger.error('shareDocumentWithUser', err)
     return { success: false, error: 'No se pudo compartir el documento' }
   }
 }
@@ -622,7 +623,7 @@ export async function revokeDocumentShare(
       .eq('shared_with', sharedWithId)
 
     if (error) {
-      console.error('Error revoking share:', error)
+      logger.error('revokeDocumentShare', error)
       return { success: false, error: error.message }
     }
 
@@ -632,7 +633,7 @@ export async function revokeDocumentShare(
 
     return { success: true }
   } catch (err) {
-    console.error('Error in revokeDocumentShare:', err)
+    logger.error('revokeDocumentShare', err)
     return { success: false, error: 'No se pudo revocar el acceso' }
   }
 }
@@ -649,13 +650,13 @@ export async function listDocumentShares(documentId: string) {
       .order('created_at', { ascending: false })
 
     if (error) {
-      console.error('Error listing shares:', error)
+      logger.error('listDocumentShares', error)
       return []
     }
 
     return data || []
   } catch (err) {
-    console.error('Error in listDocumentShares:', err)
+    logger.error('listDocumentShares', err)
     return []
   }
 }
@@ -693,7 +694,7 @@ export async function searchDocuments(term: string, userId: string, limit = 30):
 
     return filtered.slice(0, limit)
   } catch (err) {
-    console.error('Error in searchDocuments:', err)
+    logger.error('searchDocuments', err)
     return []
   }
 }
@@ -711,7 +712,7 @@ export async function downloadDocumentFile(filePath: string, fileName: string): 
       .download(filePath)
 
     if (error) {
-      console.error('Error downloading file:', error)
+      logger.error('downloadDocumentFile', error)
       return { success: false, error: error.message }
     }
 
@@ -727,7 +728,7 @@ export async function downloadDocumentFile(filePath: string, fileName: string): 
 
     return { success: true }
   } catch (err) {
-    console.error('Error in downloadDocumentFile:', err)
+    logger.error('downloadDocumentFile', err)
     return { success: false, error: 'Error al descargar el archivo' }
   }
 }
@@ -742,13 +743,13 @@ export async function getDocumentDownloadUrl(filePath: string): Promise<string |
       .createSignedUrl(filePath, 3600) // 1 hour expiry
 
     if (error) {
-      console.error('Error creating signed URL:', error)
+      logger.error('getDocumentDownloadUrl', error)
       return null
     }
 
     return data.signedUrl
   } catch (err) {
-    console.error('Error in getDocumentDownloadUrl:', err)
+    logger.error('getDocumentDownloadUrl', err)
     return null
   }
 }

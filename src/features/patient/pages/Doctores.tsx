@@ -41,7 +41,6 @@ const Doctores: React.FC = () => {
   };
 
   const handleAddDoctor = () => {
-    console.log('Add doctor clicked');
     // TODO: Navigate to search/add doctor page
   };
 

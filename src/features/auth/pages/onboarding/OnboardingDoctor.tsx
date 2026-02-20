@@ -6,6 +6,7 @@ import { InputField, SelectField, TextareaField } from '@/shared/components/ui/F
 import Button from '@/shared/components/ui/Button'
 import { getMyProfile, getDoctorProfile, upsertDoctorProfile, saveOnboardingStep } from '@/shared/lib/queries/profile'
 import { showToast } from '@/shared/components/ui/Toast'
+import { logger } from '@/shared/lib/logger'
 
 const STEPS = ['Rol', 'Información', 'Contacto', 'Detalles', 'Listo']
 
@@ -58,7 +59,7 @@ export default function OnboardingDoctor() {
         })
       }
     } catch (error) {
-      console.error('Error loading doctor profile:', error)
+      logger.error('Error loading doctor profile:', error)
     }
   }
 
@@ -108,7 +109,7 @@ export default function OnboardingDoctor() {
       
       navigate('/onboarding/done')
     } catch (error: any) {
-      console.error('Error saving doctor profile:', error)
+      logger.error('Error saving doctor profile:', error)
       showToast(error.message || 'Error al guardar perfil', 'error')
     } finally {
       setLoading(false)

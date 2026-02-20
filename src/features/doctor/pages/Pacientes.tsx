@@ -10,6 +10,7 @@ import {
   PatientProfileLite,
 } from '@/features/doctor/services/patients'
 import { showToast } from '@/shared/components/ui/Toast'
+import { logger } from '@/shared/lib/logger'
 
 interface PatientItem {
   id: string
@@ -45,7 +46,7 @@ export default function Pacientes() {
       }))
       setPatients(mapped)
     } catch (err) {
-      console.error('Error loading patients:', err)
+      logger.error('Pacientes.load', err)
       showToast('Error al cargar pacientes', 'error', 3000)
     } finally {
       setLoading(false)
@@ -59,7 +60,7 @@ export default function Pacientes() {
       const data = await searchPatients(searchTerm)
       setResults(data)
     } catch (err) {
-      console.error('Error searching patients:', err)
+      logger.error('Pacientes.search', err)
       showToast('Error al buscar pacientes', 'error', 3000)
     } finally {
       setLoading(false)

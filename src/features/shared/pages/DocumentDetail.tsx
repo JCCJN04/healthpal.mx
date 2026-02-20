@@ -18,6 +18,7 @@ import { RenameDocumentModal, MoveDocumentModal } from '@/shared/components/docu
 import { getDocumentById, getDocumentDownloadUrl, deleteDocument, updateDocument, downloadDocumentFile, shareDocumentWithUser } from '@/shared/lib/queries/documents'
 import { showToast } from '@/shared/components/ui/Toast'
 import { useAuth } from '@/app/providers/AuthContext'
+import { logger } from '@/shared/lib/logger'
 
 
 export default function DocumentDetail() {
@@ -48,7 +49,7 @@ export default function DocumentDetail() {
         setFileUrl(url)
       }
     } catch (err) {
-      console.error('Error loading document:', err)
+      logger.error('DocumentDetail:loadDocument', err)
       showToast('Error al cargar el documento', 'error')
     } finally {
       setLoading(false)
@@ -95,7 +96,6 @@ export default function DocumentDetail() {
 
   const handleDownload = async () => {
     if (!document) return
-    console.log('Descargando documento:', document.id)
 
     // Use the new blob download method to force download
     const result = await downloadDocumentFile(document.file_path, document.title)
@@ -112,7 +112,6 @@ export default function DocumentDetail() {
   const handleShareSubmit = async ({ email }: { email: string; message?: string }) => {
     if (!user || !document) return { success: false, error: 'No hay usuario autenticado' }
 
-    console.log('[share] handleShareSubmit', { documentId: document.id, email, sharedBy: user.id })
     const result = await shareDocumentWithUser(
       document.id,
       user.id,
@@ -131,7 +130,6 @@ export default function DocumentDetail() {
 
   const handleMenuAction = async (action: string) => {
     if (!document) return
-    console.log(`Acción menu: ${action} para`, document.id)
     setMenuOpen(false)
 
     if (action === 'Eliminar') {
@@ -189,7 +187,6 @@ export default function DocumentDetail() {
 
   const handleAddNote = async (content: string) => {
     if (!user || !document) return
-    console.log('Guardando nota:', content)
 
     // Create new note object
     const newNote: Note = {

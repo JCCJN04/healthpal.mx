@@ -7,6 +7,7 @@ import { searchPatients } from '@/features/doctor/services/patients'
 import { searchDocuments } from '@/shared/lib/queries/documents'
 import { searchAppointments, type AppointmentWithDetails } from '@/shared/lib/queries/appointments'
 import { showToast } from '@/shared/components/ui/Toast'
+import { logger } from '@/shared/lib/logger'
 import type { Database } from '@/shared/types/database'
 
 const statusStyles: Record<string, string> = {
@@ -64,7 +65,7 @@ export default function Busqueda() {
 
         setResults({ patients, documents, appointments })
       } catch (err) {
-        console.error('Error during global search:', err)
+        logger.error('Busqueda.search', err)
         showToast('No pudimos completar la búsqueda, inténtalo de nuevo', 'error')
       } finally {
         setLoading(false)

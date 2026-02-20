@@ -17,6 +17,7 @@ import {
 } from '@/shared/lib/queries/chat'
 import { supabase } from '@/shared/lib/supabase'
 import { usePresence } from '@/shared/hooks/usePresence'
+import { logger } from '@/shared/lib/logger'
 
 export default function Mensajes() {
   const { user, loading: authLoading } = useAuth()
@@ -43,7 +44,7 @@ export default function Mensajes() {
   // 1. Initial Load of Conversations
   useEffect(() => {
     if (user) {
-      console.log('[Mensajes] User identified, loading inbox...')
+      logger.debug('[Mensajes] Loading inbox')
       loadConversations()
     }
   }, [user])
@@ -53,18 +54,18 @@ export default function Mensajes() {
     setLoading(true)
     setError(null)
     try {
-      console.log('[Mensajes] Calling listMyConversations for:', user.id)
+      logger.debug('[Mensajes] Fetching conversations')
       const data = await listMyConversations(user.id)
-      console.log('[Mensajes] Received data:', data)
+      logger.debug('[Mensajes] Conversations loaded')
       setConversations(data)
 
       if (selectId) {
-        console.log('[Mensajes] Auto-selecting target conversation:', selectId)
+        logger.debug('[Mensajes] Auto-selecting target conversation')
         setActiveId(selectId)
       }
     } catch (err: any) {
-      console.error('[Mensajes] Failed to load conversations:', err)
-      setError(`CRITICAL: ${err.message}`)
+      logger.error('Mensajes:loadConversations', err)
+      setError('Error al cargar las conversaciones')
     } finally {
       setLoading(false)
     }
@@ -77,11 +78,11 @@ export default function Mensajes() {
     const withUserId = searchParams.get('with') || searchParams.get('doctorId') || searchParams.get('doctor')
     if (!withUserId) return
 
-    console.log('[Mensajes] Starting chat request with user:', withUserId)
+    logger.debug('[Mensajes] Starting chat request')
 
     // If already viewing this user, just clear param
     if (activeConversation?.other_participant?.id === withUserId) {
-      console.log('[Mensajes] Already in this conversation, clearing param.')
+      logger.debug('[Mensajes] Already in this conversation, clearing param')
       setSearchParams({})
       return
     }
@@ -96,7 +97,7 @@ export default function Mensajes() {
 
     try {
       const convId = await getOrCreateConversation(user.id, otherUserId)
-      console.log('[Mensajes] Conversation ID created/fetched:', convId)
+      logger.debug('[Mensajes] Conversation ready')
 
       if (convId) {
         await loadConversations(convId)
@@ -106,7 +107,7 @@ export default function Mensajes() {
         throw new Error('Failed to get conversation ID')
       }
     } catch (err) {
-      console.error('[Mensajes] Critical error starting conversation:', err)
+      logger.error('Mensajes:startConversation', err)
       setError('No pudimos iniciar el chat con este médico.')
     } finally {
       setCreatingChat(false)
@@ -140,7 +141,7 @@ export default function Mensajes() {
   useEffect(() => {
     if (!user) return
 
-    console.log('[Mensajes] Subscribing to message changes for user:', user.id)
+    logger.debug('[Mensajes] Subscribing to message changes')
 
     const channel = supabase
       .channel('chat_updates')
@@ -155,7 +156,7 @@ export default function Mensajes() {
         },
         async (payload) => {
           const newMsg = payload.new
-          console.log('[Mensajes] Realtime message received:', newMsg)
+          logger.debug('[Mensajes] Realtime message received')
 
           // 1. If it belongs to active conversation, add to messages state
           if (activeId === newMsg.conversation_id) {

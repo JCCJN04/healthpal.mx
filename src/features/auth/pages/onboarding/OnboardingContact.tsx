@@ -6,6 +6,7 @@ import { PhoneField } from '@/shared/components/ui/FormField'
 import Button from '@/shared/components/ui/Button'
 import { getMyProfile, updateMyProfile, saveOnboardingStep } from '@/shared/lib/queries/profile'
 import { showToast } from '@/shared/components/ui/Toast'
+import { logger } from '@/shared/lib/logger'
 
 const STEPS = ['Rol', 'Información', 'Contacto', 'Detalles', 'Listo']
 
@@ -31,7 +32,7 @@ export default function OnboardingContact() {
       }
       setRole(profile.role as any)
     } catch (error) {
-      console.error('Error loading profile:', error)
+      logger.error('Error loading profile:', error)
     }
   }
 
@@ -79,7 +80,7 @@ export default function OnboardingContact() {
         navigate('/onboarding/done')
       }
     } catch (error: any) {
-      console.error('Error saving contact:', error)
+      logger.error('Error saving contact:', error)
       showToast(error.message || 'Error al guardar teléfono', 'error')
     } finally {
       setLoading(false)

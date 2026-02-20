@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, ChevronRight, ChevronLeft, Check, AlertCircle } from 'lucide-react';
 import { PatientProfile } from '@/shared/types/database';
+import { logger } from '@/shared/lib/logger';
 
 interface PatientProfileWizardProps {
     initialData: PatientProfile | null;
@@ -96,7 +97,7 @@ const PatientProfileWizard = ({ initialData, isOpen, onClose, onSave }: PatientP
             await onSave(dataToSave);
             onClose();
         } catch (error) {
-            console.error('Error saving wizard:', error);
+            logger.error('PatientProfileWizard.save', error);
             alert('Error al guardar. Intenta de nuevo.');
         } finally {
             setIsSaving(false);

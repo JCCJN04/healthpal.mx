@@ -7,10 +7,10 @@ import { useAuth } from '@/app/providers/AuthContext'
 import { listUpcomingAppointments, getAppointmentDaysInMonth, getDoctorPatientsSnapshot, AppointmentWithDetails } from '@/shared/lib/queries/appointments'
 import { getUnreadTotal } from '@/shared/lib/queries/chat'
 import { getUserDocuments, getDocumentsSharedWithMe } from '@/shared/lib/queries/documents'
-import { logPerformanceSummary } from '@/shared/lib/performance'
 import { DashboardAppointmentsSkeleton, Skeleton } from '@/shared/components/ui/Skeleton'
 import { DashboardSummary } from '@/shared/components/DashboardSummary'
 import { listDoctorPatients, type PatientProfileLite } from '@/features/doctor/services/patients'
+import { logger } from '@/shared/lib/logger'
 
 interface CalendarWidgetProps {
   markedDates: string[];
@@ -386,7 +386,7 @@ export default function Dashboard() {
   }, [user])
 
   useEffect(() => {
-    console.log(`[Dashboard] Rendering ${roleLabel} dashboard`)
+    logger.debug(`[Dashboard] Rendering ${roleLabel} dashboard`)
   }, [roleLabel])
 
   const loadDashboardData = async () => {
@@ -455,18 +455,12 @@ export default function Dashboard() {
       setPatientSnapshot(isDoctor ? enrichedSnapshot : [])
 
     } catch (err) {
-      console.error('Error loading dashboard data:', err)
+      logger.error('Dashboard:loadData', err)
       showToast('Error al cargar datos del dashboard', 'error')
     } finally {
       setLoading(false)
       performance.mark('dashboard-load-end')
       performance.measure('dashboard-load-total', 'dashboard-load-start', 'dashboard-load-end')
-      const loadTime = performance.getEntriesByName('dashboard-load-total')[0]?.duration
-      console.log(`✓ Dashboard fully loaded (${Math.round(loadTime)}ms)`)
-
-      setTimeout(() => {
-        logPerformanceSummary()
-      }, 100)
     }
   }
 

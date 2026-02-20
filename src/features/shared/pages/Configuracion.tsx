@@ -13,6 +13,7 @@ import PatientProfileInfoCard from '@/features/patient/components/PatientProfile
 import PatientProfileWizard from '@/features/patient/components/PatientProfileWizard';
 import { getPatientProfile, upsertPatientProfile } from '@/features/patient/services/patientProfile';
 import { PatientProfile } from '@/shared/types/database';
+import { logger } from '@/shared/lib/logger';
 
 type TabType = 'general' | 'medical' | 'documents';
 
@@ -48,8 +49,8 @@ export default function Configuracion() {
         const profileData = await getMyProfile();
         setProfile(profileData);
       } catch (error: any) {
-        console.error('Error loading profile:', error);
-        setProfileError(error.message || 'Error al cargar perfil');
+        logger.error('Configuracion:loadProfile', error);
+        setProfileError('Error al cargar perfil');
       } finally {
         setIsLoadingProfile(false);
       }
@@ -70,7 +71,7 @@ export default function Configuracion() {
       const data = await getPatientProfile(user.id);
       setPatientProfile(data);
     } catch (error) {
-      console.error('Error loading patient profile:', error);
+      logger.error('Configuracion:loadPatientProfile', error);
     }
   }
 
@@ -82,7 +83,7 @@ export default function Configuracion() {
         const settingsData = await getMySettings();
         setSettings(settingsData);
       } catch (error: any) {
-        console.error('Error loading settings:', error);
+        logger.error('Configuracion:loadSettings', error);
         // Settings will stay null if there's an error
       } finally {
         setIsLoadingSettings(false);
@@ -111,7 +112,7 @@ export default function Configuracion() {
       await refreshProfile(); // Update global context
       setToast({ message: '¡Foto de perfil actualizada!', type: 'success' });
     } catch (error: any) {
-      console.error('Error uploading photo:', error);
+      logger.error('Configuracion:uploadPhoto', error);
       setToast({ message: 'Error al subir la foto', type: 'error' });
     }
   };
@@ -131,8 +132,8 @@ export default function Configuracion() {
       setProfile(updated);
       setToast({ message: '¡Perfil actualizado exitosamente!', type: 'success' });
     } catch (error: any) {
-      console.error('Error updating profile:', error);
-      const errorMessage = error.message || 'Error al actualizar perfil';
+      logger.error('Configuracion:updateProfile', error);
+      const errorMessage = 'Error al actualizar el perfil. Intenta nuevamente.';
       setProfileError(errorMessage);
       setToast({ message: errorMessage, type: 'error' });
       throw error; // Re-throw so component can handle it
@@ -149,8 +150,8 @@ export default function Configuracion() {
 
       setToast({ message: '¡Contraseña actualizada exitosamente!', type: 'success' });
     } catch (error: any) {
-      console.error('Error updating password:', error);
-      const errorMessage = error.message || 'Error al actualizar contraseña';
+      logger.error('Configuracion:updatePassword', error);
+      const errorMessage = 'Error al actualizar la contraseña. Intenta nuevamente.';
       setToast({ message: errorMessage, type: 'error' });
       throw error;
     }
@@ -167,14 +168,14 @@ export default function Configuracion() {
       setSettings(updated);
       // Don't show toast for preferences - they update optimistically
     } catch (error: any) {
-      console.error('Error updating preferences:', error);
+      logger.error('Configuracion:updatePreferences', error);
       throw error;
     }
   };
 
   const handleDeleteAccount = () => {
     // TODO: Implement account deletion
-    console.log('Account deletion not yet implemented');
+    logger.debug('Account deletion not yet implemented');
     setShowDeleteModal(false);
     setToast({ message: 'Eliminación de cuenta: próximamente', type: 'error' });
   };
@@ -187,9 +188,8 @@ export default function Configuracion() {
       setPatientProfile(updated);
       setToast({ message: '¡Información médica actualizada!', type: 'success' });
     } catch (error: any) {
-      console.error('Error saving patient profile:', error);
-      const msg = error.message || 'Error al guardar información médica';
-      setToast({ message: `Error: ${msg}`, type: 'error' });
+      logger.error('Configuracion:savePatientProfile', error);
+      setToast({ message: 'Error al guardar la información médica. Intenta nuevamente.', type: 'error' });
       throw error;
     }
   };

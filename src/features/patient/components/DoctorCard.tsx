@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Calendar, MessageCircle, Eye, MoreVertical, Star, Briefcase } from 'lucide-react';
 import { DoctorWithProfile } from '@/features/patient/services/doctors';
 import { showToast } from '@/shared/components/ui/Toast';
+import { logger } from '@/shared/lib/logger';
 
 interface DoctorCardProps {
   doctor: DoctorWithProfile;
@@ -14,44 +15,38 @@ const DoctorCard: React.FC<DoctorCardProps> = ({ doctor }) => {
   const profile = doctor.doctor_profile;
 
   const handleViewProfile = () => {
-    console.log('View profile:', doctor.full_name);
     navigate(`/dashboard/doctores/${doctor.id}`);
   };
 
   const handleSchedule = () => {
-    console.log('Schedule appointment with:', doctor.full_name);
     navigate(`/dashboard/consultas/nueva?doctor=${doctor.id}`);
   };
 
   const handleSendMessage = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('[DoctorCard] handleSendMessage initiated for:', doctor.full_name, 'ID:', doctor.id);
 
     if (!doctor.id) {
-      console.error('[DoctorCard] Missing doctor.id!', doctor);
+      logger.error('DoctorCard:handleSendMessage', new Error('Missing doctor.id'));
       showToast('Error: No se pudo identificar al doctor', 'error');
       return;
     }
 
     try {
       navigate(`/dashboard/mensajes?with=${doctor.id}`);
-      console.log('[DoctorCard] navigate() called successfully');
       showToast('Abriendo chat...', 'success');
     } catch (err) {
-      console.error('[DoctorCard] Navigation error:', err);
+      logger.error('DoctorCard:navigate', err);
     }
 
     setShowMenu(false);
   };
 
   const handleViewReviews = () => {
-    console.log('View reviews for:', doctor.full_name);
     setShowMenu(false);
   };
 
   const handleRemove = () => {
-    console.log('Remove doctor:', doctor.full_name);
     setShowMenu(false);
   };
 

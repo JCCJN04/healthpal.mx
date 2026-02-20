@@ -6,6 +6,7 @@ import Button from '@/shared/components/ui/Button'
 import { completeOnboarding } from '@/shared/lib/queries/profile'
 import { useAuth } from '@/app/providers/AuthContext'
 import { showToast } from '@/shared/components/ui/Toast'
+import { logger } from '@/shared/lib/logger'
 import { CheckCircle } from 'lucide-react'
 
 const STEPS = ['Rol', 'Información', 'Contacto', 'Detalles', 'Listo']
@@ -28,7 +29,7 @@ export default function OnboardingDone() {
       
       navigate('/dashboard')
     } catch (error: any) {
-      console.error('Error completing onboarding:', error)
+      logger.error('Error completing onboarding:', error)
       showToast(error.message || 'Error al completar onboarding', 'error')
     } finally {
       setLoading(false)

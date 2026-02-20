@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Edit2, Save, X, Mail, Phone, Calendar, User, Loader2 } from 'lucide-react';
+import { logger } from '@/shared/lib/logger';
 
 interface PersonalInfo {
   fullName: string;
@@ -82,7 +83,7 @@ const PersonalInfoCard = ({ initialData, onSave, isLoading = false, saveError = 
         await onSave(formData);
         setIsEditing(false);
       } catch (error) {
-        console.error('Error saving profile:', error);
+        logger.error('PersonalInfoCard.save', error);
         // Error is handled by parent component
       } finally {
         setIsSaving(false);
@@ -240,7 +241,7 @@ const PersonalInfoCard = ({ initialData, onSave, isLoading = false, saveError = 
                       value={formData.phone}
                       onChange={(e) => handleChange('phone', e.target.value)}
                       className="flex-1 bg-transparent outline-none text-gray-900"
-                      placeholder="+52 81 2192 1877"
+                      placeholder="+52 00 0000 0000"
                     />
                   </div>
                   {errors.phone && (

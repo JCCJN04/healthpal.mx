@@ -15,22 +15,18 @@ export const DocumentViewer = ({ fileUrl, fileType = 'pdf', title }: DocumentVie
 
   const handleZoomIn = () => {
     setZoom(prev => Math.min(prev + 25, 200))
-    console.log('Zoom in:', zoom + 25)
   }
 
   const handleZoomOut = () => {
     setZoom(prev => Math.max(prev - 25, 50))
-    console.log('Zoom out:', zoom - 25)
   }
 
   const handleRotate = () => {
     setRotation(prev => (prev + 90) % 360)
-    console.log('Rotate:', rotation + 90)
   }
 
   const handleFitToWidth = () => {
     setZoom(100)
-    console.log('Fit to width')
   }
 
   // TODO: Replace with react-pdf library for production

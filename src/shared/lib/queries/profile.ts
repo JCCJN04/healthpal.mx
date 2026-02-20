@@ -1,4 +1,5 @@
 import { supabase } from '@/shared/lib/supabase'
+import { logger } from '@/shared/lib/logger'
 import type { Database } from '@/shared/types/database'
 
 // Type aliases for convenience
@@ -53,7 +54,7 @@ export async function getMyProfile(): Promise<Profile> {
       .single()
 
     if (insertError) {
-      console.error('Error creating profile:', insertError)
+      logger.error('Error creating profile:', insertError)
       throw insertError
     }
 
@@ -61,7 +62,7 @@ export async function getMyProfile(): Promise<Profile> {
   }
 
   if (error) {
-    console.error('Error fetching profile:', error)
+    logger.error('Error fetching profile:', error)
     throw error
   }
 
@@ -120,7 +121,7 @@ export async function updateMyProfile(updates: ProfileUpdate) {
     .single()
 
   if (error) {
-    console.error('Error updating profile:', error)
+    logger.error('Error updating profile:', error)
     throw error
   }
 
@@ -145,7 +146,7 @@ export async function saveOnboardingStep(step: OnboardingStep) {
     .single()
 
   if (error) {
-    console.error('Error saving onboarding step:', error)
+    logger.error('Error saving onboarding step:', error)
     throw error
   }
 
@@ -169,7 +170,7 @@ export async function upsertDoctorProfile(
     .single()
 
   if (error) {
-    console.error('Error upserting doctor profile:', error)
+    logger.error('Error upserting doctor profile:', error)
     throw error
   }
 
@@ -193,7 +194,7 @@ export async function upsertPatientProfile(
     .single()
 
   if (error) {
-    console.error('Error upserting patient profile:', error)
+    logger.error('Error upserting patient profile:', error)
     throw error
   }
 
@@ -221,7 +222,7 @@ export async function completeOnboarding() {
     .single()
 
   if (error) {
-    console.error('Error completing onboarding:', error)
+    logger.error('completeOnboarding', error)
     throw error
   }
 
@@ -241,7 +242,7 @@ export async function uploadAvatar(userId: string, file: File) {
     .upload(filePath, file)
 
   if (uploadError) {
-    console.error('Error uploading avatar:', uploadError)
+    logger.error('uploadAvatar', uploadError)
     throw uploadError
   }
 

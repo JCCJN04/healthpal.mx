@@ -39,12 +39,6 @@ export const ScheduleModal = ({
     }
 
     const doctor = filteredDoctors.find(d => d.id === selectedDoctor)
-    console.log('Cita agendada:', {
-      doctor: doctor?.name,
-      date: formatDate(selectedDate),
-      time: selectedTime,
-      mode: appointmentMode
-    })
 
     // Reset and close
     setSelectedDoctor('')

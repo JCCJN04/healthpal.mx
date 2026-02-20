@@ -17,7 +17,6 @@ const AgendaPanel: React.FC<AgendaPanelProps> = ({
   const navigate = useNavigate();
 
   const handleOpenAppointment = (id: string) => {
-    console.log('Open appointment:', id);
     navigate(`/dashboard/consultas/${id}`);
   };
 

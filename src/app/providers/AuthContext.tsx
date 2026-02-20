@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback, useRef } f
 import { User, Session, AuthError } from '@supabase/supabase-js'
 import { supabase } from '@/shared/lib/supabase'
 import { getMyProfile } from '@/shared/lib/queries/profile'
+import { logger } from '@/shared/lib/logger'
 import type { Database } from '@/shared/types/database'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
@@ -37,7 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       return await getMyProfile()
     } catch (err) {
-      console.error('Error in fetchProfile:', err)
+      logger.error('fetchProfile', err)
       return null
     }
   }
@@ -57,7 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (user) {
       inactivityTimerRef.current = setTimeout(async () => {
-        console.log('Session expired due to inactivity')
+        logger.info('Session expired due to inactivity')
         await signOut()
       }, INACTIVITY_TIMEOUT)
     }
@@ -74,13 +75,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           const { data, error } = await supabase.auth.refreshSession()
           if (error) {
-            console.error('Error refreshing token:', error)
+            logger.error('refreshSession', error)
             await signOut()
           } else if (data.session) {
-            console.log('JWT token refreshed successfully')
+            logger.debug('JWT token refreshed')
           }
         } catch (err) {
-          console.error('Error in JWT refresh:', err)
+          logger.error('jwtRefresh', err)
         }
       }, JWT_REFRESH_INTERVAL)
     }
@@ -153,7 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               setProfile(profileData)
             }
           }).catch(err => {
-            console.error('Error cargando perfil:', err)
+            logger.error('loadProfile', err)
           })
         }
 
@@ -162,7 +163,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setLoading(false)
         }
       } catch (err: any) {
-        console.error('Error en initAuth:', err.message)
+        logger.error('initAuth', err)
         if (mounted) {
           setLoading(false)
         }
@@ -186,7 +187,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               setProfile(profileData)
             }
           }).catch(err => {
-            console.error('Error en auth change:', err)
+            logger.error('authStateChange', err)
           })
         } else {
           setProfile(null)
@@ -216,7 +217,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { error: signOutError } = await supabase.auth.signOut()
     if (signOutError) {
-      console.error('Error signing out:', signOutError)
+      logger.error('signOut', signOutError)
       throw signOutError
     }
     setUser(null)

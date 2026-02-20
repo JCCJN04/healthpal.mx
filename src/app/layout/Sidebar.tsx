@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '@/app/providers/AuthContext'
+import { logger } from '@/shared/lib/logger'
 
 interface NavItem {
   label: string
@@ -31,7 +32,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
     try {
       await signOut()
     } catch (error) {
-      console.error('Error signing out:', error)
+      logger.error('Error signing out:', error)
     } finally {
       onClose?.()
     }

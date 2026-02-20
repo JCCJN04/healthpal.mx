@@ -1,6 +1,7 @@
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '@/app/providers/AuthContext'
 import type { UserRole } from '@/shared/types/database'
+import { logger } from '@/shared/lib/logger'
 
 interface RequireRoleProps {
   children: React.ReactNode
@@ -41,7 +42,7 @@ export default function RequireRole({
 
   // If the user's role is not in the allowed list, redirect
   if (!allowedRoles.includes(profile.role)) {
-    console.warn(
+    logger.warn(
       `[RequireRole] Acceso denegado: rol "${profile.role}" intentó acceder a ruta restringida a [${allowedRoles.join(', ')}]`
     )
     return <Navigate to={redirectTo} replace />

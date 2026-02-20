@@ -7,6 +7,7 @@ import { DocumentGrid } from '@/shared/components/documents/DocumentGrid'
 import { useAuth } from '@/app/providers/AuthContext'
 import { getUserDocuments, getDocumentsSharedWithMe, uploadDocument, deleteDocument, getFolders, createFolder, deleteFolder, updateFolder, updateDocument } from '@/shared/lib/queries/documents'
 import { showToast } from '@/shared/components/ui/Toast'
+import { validateFile } from '@/shared/lib/errors'
 import type { Database } from '@/shared/types/database'
 
 type Document = Database['public']['Tables']['documents']['Row']
@@ -298,6 +299,13 @@ export default function Documentos() {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
+      // Validate file type and size before accepting
+      const validationError = validateFile(file, 'document')
+      if (validationError) {
+        showToast(validationError, 'error')
+        e.target.value = '' // Reset input
+        return
+      }
       setUploadForm(prev => ({
         ...prev,
         file,

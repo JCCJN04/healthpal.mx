@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { supabase } from '@/shared/lib/supabase'
+import { logger } from '@/shared/lib/logger'
 import type { Database } from '@/shared/types/database'
 
 type Notification = Database['public']['Tables']['notifications']['Row']
@@ -12,13 +13,13 @@ export async function createNotification(payload: NotificationInsert): Promise<{
       .insert(payload)
 
     if (error) {
-      console.error('Error creating notification:', error)
+      logger.error('createNotification', error)
       return { success: false, error: error.message }
     }
 
     return { success: true }
   } catch (err) {
-    console.error('Error in createNotification:', err)
+    logger.error('createNotification', err)
     return { success: false, error: 'Error inesperado' }
   }
 }
@@ -37,13 +38,13 @@ export async function getUnreadNotifications(userId: string): Promise<Notificati
       .limit(10)
 
     if (error) {
-      console.error('Error fetching notifications:', error)
+      logger.error('getUnreadNotifications', error)
       return []
     }
 
     return data || []
   } catch (err) {
-    console.error('Error in getUnreadNotifications:', err)
+    logger.error('getUnreadNotifications', err)
     return []
   }
 }
@@ -61,13 +62,13 @@ export async function markNotificationAsRead(
       .eq('id', notificationId)
 
     if (error) {
-      console.error('Error marking notification as read:', error)
+      logger.error('Error marking notification as read:', error)
       return { success: false, error: error.message }
     }
 
     return { success: true }
   } catch (err) {
-    console.error('Error in markNotificationAsRead:', err)
+    logger.error('Error in markNotificationAsRead:', err)
     return { success: false, error: 'Error inesperado' }
   }
 }
@@ -86,13 +87,13 @@ export async function markAllNotificationsAsRead(
       .eq('is_read', false)
 
     if (error) {
-      console.error('Error marking all notifications as read:', error)
+      logger.error('Error marking all notifications as read:', error)
       return { success: false, error: error.message }
     }
 
     return { success: true }
   } catch (err) {
-    console.error('Error in markAllNotificationsAsRead:', err)
+    logger.error('Error in markAllNotificationsAsRead:', err)
     return { success: false, error: 'Error inesperado' }
   }
 }

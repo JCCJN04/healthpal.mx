@@ -6,6 +6,7 @@ import Tabs from '@/shared/components/ui/Tabs'
 import GoogleIcon from '@/features/auth/components/GoogleIcon'
 import { supabase } from '@/shared/lib/supabase'
 import { showToast } from '@/shared/components/ui/Toast'
+import { logger } from '@/shared/lib/logger'
 
 type UserRole = 'doctor' | 'patient'
 
@@ -99,7 +100,7 @@ export default function Register() {
         }
       }
     } catch (error: any) {
-      console.error('Error en registro:', error)
+      logger.error('register', error)
       showToast('Error inesperado al registrarse. Por favor intenta de nuevo.', 'error')
     } finally {
       setLoading(false)

@@ -60,7 +60,6 @@ const AppointmentRequestReview: React.FC = () => {
     
     // Navigate after short delay
     setTimeout(() => {
-      console.log('Appointment submitted:', appointmentData);
       navigate('/dashboard/consultas');
     }, 1500);
   };

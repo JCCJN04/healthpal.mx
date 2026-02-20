@@ -1,5 +1,6 @@
 import { supabase } from '@/shared/lib/supabase'
 import type { Database } from '@/shared/types/database'
+import { logger } from '@/shared/lib/logger'
 
 export type Appointment = Database['public']['Tables']['appointments']['Row']
 export type Profile = Database['public']['Tables']['profiles']['Row']
@@ -20,7 +21,7 @@ export async function getMyRole(userId: string): Promise<'patient' | 'doctor' | 
         .single()
 
     if (error || !data) {
-        console.error('[CalendarQuery] Error getting role:', error)
+        logger.error('CalendarQuery.getMyRole', error)
         return null
     }
 
@@ -57,7 +58,7 @@ export async function listAppointmentsInRange(params: {
     const { data, error } = await query.order('start_at', { ascending: true })
 
     if (error) {
-        console.error('[CalendarQuery] Error fetching appointments:', error)
+        logger.error('CalendarQuery.listAppointmentsInRange', error)
         return []
     }
 
@@ -79,7 +80,7 @@ export async function getAppointmentById(id: string): Promise<AppointmentWithPro
         .single()
 
     if (error) {
-        console.error('[CalendarQuery] Error fetching appointment:', error)
+        logger.error('CalendarQuery.getAppointmentById', error)
         return null
     }
 

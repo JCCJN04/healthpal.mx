@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { supabase } from '@/shared/lib/supabase'
+import { logger } from '@/shared/lib/logger'
 import type { Database } from '@/shared/types/database'
 
 type Conversation = Database['public']['Tables']['conversations']['Row']
@@ -21,7 +22,7 @@ export interface ConversationWithDetails extends Conversation {
  * List all conversations for the current user
  */
 export async function listMyConversations(userId: string): Promise<ConversationWithDetails[]> {
-    console.log('[ChatQuery] listMyConversations started for:', userId)
+    logger.debug('listMyConversations started')
 
     // 1. Get all conversation IDs where user is a participant
     const { data: participations, error: pError } = await supabase
@@ -30,8 +31,8 @@ export async function listMyConversations(userId: string): Promise<ConversationW
         .eq('user_id', userId)
 
     if (pError) {
-        console.error('[ChatQuery] Failed to fetch participations:', pError)
-        throw new Error(`DB Part: ${pError.message} (${pError.hint || ''})`)
+        logger.error('listMyConversations.participations', pError)
+        throw new Error('Error al cargar las conversaciones')
     }
 
     if (!participations || participations.length === 0) return []
@@ -61,8 +62,8 @@ export async function listMyConversations(userId: string): Promise<ConversationW
         .order('last_message_at', { ascending: false })
 
     if (error) {
-        console.error('[ChatQuery] Failed to fetch conversations details:', error)
-        throw new Error(`DB Main: ${error.message} (${error.hint || ''})`)
+        logger.error('listMyConversations.details', error)
+        throw new Error('Error al cargar las conversaciones')
     }
 
     // 3. For each conversation, fetch unread count (Count messages where created_at > my last_read_at)
@@ -79,7 +80,7 @@ export async function listMyConversations(userId: string): Promise<ConversationW
             .neq('sender_id', userId)
             .gt('created_at', myPart?.last_read_at || '1970-01-01')
 
-        if (countError) console.warn('[ChatQuery] Error counting unread for', conv.id, countError)
+        if (countError) logger.warn('Error counting unread messages')
 
         return {
             ...conv,
@@ -100,7 +101,7 @@ export async function getUnreadTotal(userId: string): Promise<number> {
         if (error) throw error
         return Number(data || 0)
     } catch (err) {
-        console.error('[ChatQuery] Error in getUnreadTotal:', err)
+        logger.error('getUnreadTotal', err)
         return 0
     }
 }
@@ -110,7 +111,7 @@ export async function getUnreadTotal(userId: string): Promise<number> {
  */
 export async function getOrCreateConversation(userId: string, otherUserId: string): Promise<string | null> {
     try {
-        console.log('[ChatQuery] getOrCreateConversation check:', { userId, otherUserId })
+        logger.debug('getOrCreateConversation check')
 
         // 1. Check if a conversation already exists
         const { data: existing, error: eError } = await supabase
@@ -132,7 +133,7 @@ export async function getOrCreateConversation(userId: string, otherUserId: strin
         if (startError) throw startError
         return newId
     } catch (err) {
-        console.error('[ChatQuery] Error in getOrCreateConversation:', err)
+        logger.error('getOrCreateConversation', err)
         return null
     }
 }
@@ -157,7 +158,7 @@ export async function listMessages(conversationId: string, options: { limit?: nu
         if (error) throw error
         return (data || []).reverse()
     } catch (err) {
-        console.error('Error in listMessages:', err)
+        logger.error('listMessages', err)
         return []
     }
 }
@@ -180,7 +181,7 @@ export async function sendMessage(conversationId: string, senderId: string, body
         if (error) throw error
         return { success: true, data }
     } catch (err) {
-        console.error('Error in sendMessage:', err)
+        logger.error('sendMessage', err)
         return { success: false, error: err }
     }
 }
@@ -197,7 +198,7 @@ export async function markConversationRead(conversationId: string, userId: strin
         if (error) throw error
         return { success: true }
     } catch (err) {
-        console.error('Error in markConversationRead:', err)
+        logger.error('markConversationRead', err)
         return { success: false }
     }
 }
@@ -222,7 +223,7 @@ export async function updateUserStatus(userId: string) {
 
         return { success: true }
     } catch (err) {
-        console.error('Error in updateUserStatus:', err)
+        logger.error('updateUserStatus', err)
         return { success: false }
     }
 }
@@ -240,7 +241,7 @@ export async function getUserStatuses(userIds: string[]) {
         if (error) throw error
         return data || []
     } catch (err) {
-        console.error('Error in getUserStatuses:', err)
+        logger.error('getUserStatuses', err)
         return []
     }
 }

@@ -1,4 +1,5 @@
 import { supabase } from '@/shared/lib/supabase'
+import { logger } from '@/shared/lib/logger'
 
 // Type for user_settings (matches database schema)
 interface UserSettings {
@@ -48,7 +49,7 @@ export async function getMySettings(): Promise<UserSettings> {
       .single() as { data: UserSettings | null; error: any }
 
     if (createError) {
-      console.error('Error creating settings:', createError)
+      logger.error('Error creating settings:', createError)
       throw createError
     }
 
@@ -56,7 +57,7 @@ export async function getMySettings(): Promise<UserSettings> {
   }
 
   if (error) {
-    console.error('Error fetching settings:', error)
+    logger.error('Error fetching settings:', error)
     throw error
   }
 
@@ -82,7 +83,7 @@ export async function updateMySettings(updates: UserSettingsUpdate): Promise<Use
     .single() as { data: UserSettings | null; error: any }
 
   if (error) {
-    console.error('Error updating settings:', error)
+    logger.error('updateMySettings', error)
     throw error
   }
 
@@ -110,7 +111,7 @@ export async function upsertMySettings(updates: UserSettingsUpdate): Promise<Use
     .single() as { data: UserSettings | null; error: any }
 
   if (error) {
-    console.error('Error upserting settings:', error)
+    logger.error('Error upserting settings:', error)
     throw error
   }
 

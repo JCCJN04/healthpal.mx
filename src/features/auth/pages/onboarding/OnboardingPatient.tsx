@@ -6,6 +6,7 @@ import { InputField, PhoneField, SelectField, MultiSelectField } from '@/shared/
 import Button from '@/shared/components/ui/Button'
 import { getMyProfile, getPatientProfile, upsertPatientProfile, saveOnboardingStep } from '@/shared/lib/queries/profile'
 import { showToast } from '@/shared/components/ui/Toast'
+import { logger } from '@/shared/lib/logger'
 
 const STEPS = ['Rol', 'Información', 'Contacto', 'Detalles', 'Listo']
 
@@ -74,7 +75,7 @@ export default function OnboardingPatient() {
         }
       }
     } catch (error) {
-      console.error('Error loading patient profile:', error)
+      logger.error('Error loading patient profile:', error)
     }
   }
 
@@ -119,7 +120,7 @@ export default function OnboardingPatient() {
       
       navigate('/onboarding/done')
     } catch (error: any) {
-      console.error('Error saving patient profile:', error)
+      logger.error('Error saving patient profile:', error)
       showToast(error.message || 'Error al guardar perfil', 'error')
     } finally {
       setLoading(false)

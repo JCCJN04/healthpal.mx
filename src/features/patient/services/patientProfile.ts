@@ -1,4 +1,5 @@
 import { supabase } from '@/shared/lib/supabase'
+import { logger } from '@/shared/lib/logger'
 import type { Database, PatientProfile } from '@/shared/types/database'
 
 type PatientProfileInsert = Database['public']['Tables']['patient_profiles']['Insert']
@@ -19,7 +20,7 @@ export async function getPatientProfile(userId: string) {
         if (error.code === 'PGRST116') {
             return null
         }
-        console.error('Error fetching patient profile:', error)
+        logger.error('getPatientProfile', error)
         throw error
     }
 
@@ -44,7 +45,7 @@ export async function upsertPatientProfile(
         .single()
 
     if (error) {
-        console.error('Error upserting patient profile:', JSON.stringify(error, null, 2))
+        logger.error('upsertPatientProfile', error)
         throw error
     }
 
