@@ -27,3 +27,6 @@ dist-ssr
 .env
 .env.*
 !.env.example
+
+# Test files with potential secrets
+test-supabase-connection.html
