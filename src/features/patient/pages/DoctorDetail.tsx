@@ -14,7 +14,6 @@ import {
 } from 'lucide-react';
 import DashboardLayout from '@/app/layout/DashboardLayout';
 import { getDoctorById, DoctorWithProfile } from '@/features/patient/services/doctors';
-import { showToast } from '@/shared/components/ui/Toast';
 
 // Mock reviews (you can move this to a query later)
 const mockReviews = [
@@ -216,31 +215,28 @@ export default function DoctorDetail() {
             <div className="flex">
               <button
                 onClick={() => setSelectedTab('info')}
-                className={`flex-1 px-6 py-4 font-semibold transition-colors border-b-2 ${
-                  selectedTab === 'info'
+                className={`flex-1 px-6 py-4 font-semibold transition-colors border-b-2 ${selectedTab === 'info'
                     ? 'border-[#33C7BE] text-[#33C7BE] bg-teal-50'
                     : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                }`}
+                  }`}
               >
                 Información
               </button>
               <button
                 onClick={() => setSelectedTab('reviews')}
-                className={`flex-1 px-6 py-4 font-semibold transition-colors border-b-2 ${
-                  selectedTab === 'reviews'
+                className={`flex-1 px-6 py-4 font-semibold transition-colors border-b-2 ${selectedTab === 'reviews'
                     ? 'border-[#33C7BE] text-[#33C7BE] bg-teal-50'
                     : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                }`}
+                  }`}
               >
                 Reseñas
               </button>
               <button
                 onClick={() => setSelectedTab('schedule')}
-                className={`flex-1 px-6 py-4 font-semibold transition-colors border-b-2 ${
-                  selectedTab === 'schedule'
+                className={`flex-1 px-6 py-4 font-semibold transition-colors border-b-2 ${selectedTab === 'schedule'
                     ? 'border-[#33C7BE] text-[#33C7BE] bg-teal-50'
                     : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                }`}
+                  }`}
               >
                 Horarios
               </button>
@@ -304,9 +300,8 @@ export default function DoctorDetail() {
                           {[...Array(5)].map((_, i) => (
                             <Star
                               key={i}
-                              className={`w-4 h-4 ${
-                                i < review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
-                              }`}
+                              className={`w-4 h-4 ${i < review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
+                                }`}
                             />
                           ))}
                         </div>

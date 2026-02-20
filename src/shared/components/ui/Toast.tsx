@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { X, CheckCircle, AlertCircle, Info } from 'lucide-react';
+import { X, CheckCircle, AlertCircle, AlertTriangle, Info } from 'lucide-react';
 
-export type ToastType = 'success' | 'error' | 'info';
+export type ToastType = 'success' | 'error' | 'info' | 'warning';
 
 interface Toast {
   id: string;
@@ -20,7 +20,7 @@ const notifyListeners = () => {
 export const showToast = (message: string, type: ToastType = 'info', duration = 3000) => {
   const id = Math.random().toString(36).substring(7);
   const toast: Toast = { id, message, type, duration };
-  
+
   toasts.push(toast);
   notifyListeners();
 
@@ -73,18 +73,21 @@ const ToastItem = ({ toast }: { toast: Toast }) => {
     success: <CheckCircle className="w-5 h-5 text-green-600" />,
     error: <AlertCircle className="w-5 h-5 text-red-600" />,
     info: <Info className="w-5 h-5 text-blue-600" />,
+    warning: <AlertTriangle className="w-5 h-5 text-yellow-600" />,
   };
 
   const bgColors = {
     success: 'bg-green-50 border-green-200',
     error: 'bg-red-50 border-red-200',
     info: 'bg-blue-50 border-blue-200',
+    warning: 'bg-yellow-50 border-yellow-200',
   };
 
   const textColors = {
     success: 'text-green-900',
     error: 'text-red-900',
     info: 'text-blue-900',
+    warning: 'text-yellow-900',
   };
 
   return (

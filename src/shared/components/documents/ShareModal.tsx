@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { X, Mail, UserPlus, Send } from 'lucide-react'
+import { X, Mail, Send } from 'lucide-react'
 
 interface ShareModalProps {
   isOpen: boolean

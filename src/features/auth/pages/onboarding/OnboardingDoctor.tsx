@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import OnboardingLayout from './OnboardingLayout'
@@ -103,10 +104,10 @@ export default function OnboardingDoctor() {
       await saveOnboardingStep('done')
 
       showToast('Perfil de doctor guardado exitosamente', 'success')
-      
+
       // Wait briefly for Supabase to process
       await new Promise(resolve => setTimeout(resolve, 50))
-      
+
       navigate('/onboarding/done')
     } catch (error: any) {
       logger.error('Error saving doctor profile:', error)

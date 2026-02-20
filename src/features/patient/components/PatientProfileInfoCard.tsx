@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import { Edit2, Plus, AlertCircle, Heart, Phone, FileText, Activity } from 'lucide-react';
+import { Edit2, Plus, Heart, Phone, FileText, Activity } from 'lucide-react';
 import { PatientProfile } from '@/shared/types/database';
 
 interface PatientProfileInfoCardProps {
@@ -33,8 +32,8 @@ const PatientProfileInfoCard = ({ data, onEdit, isLoading = false }: PatientProf
                     <h3 className="text-lg font-bold text-gray-900">Datos del perfil</h3>
                     {data && (
                         <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${isComplete
-                                ? 'bg-green-100 text-green-700'
-                                : 'bg-amber-100 text-amber-700'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-amber-100 text-amber-700'
                             }`}>
                             {isComplete ? 'Completo' : 'Incompleto'}
                         </span>

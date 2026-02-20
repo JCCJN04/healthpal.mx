@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Navigate, useLocation } from 'react-router-dom'
+import { Navigate } from 'react-router-dom'
 import { useAuth } from '@/app/providers/AuthContext'
 import { logger } from '@/shared/lib/logger'
 
@@ -15,7 +15,6 @@ interface RequireOnboardingProps {
  */
 export default function RequireOnboarding({ children }: RequireOnboardingProps) {
   const { user, profile, loading: authLoading } = useAuth()
-  const location = useLocation()
   const [checking, setChecking] = useState(true)
   const [onboardingComplete, setOnboardingComplete] = useState(false)
   const [redirectTo, setRedirectTo] = useState<string | null>(null)

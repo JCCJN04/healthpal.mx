@@ -24,7 +24,7 @@ const DoctorList: React.FC<DoctorListProps> = ({ doctors }) => {
     setOpenMenuId(null);
   };
 
-  const handleRemove = (doctor: DoctorWithProfile) => {
+  const handleRemove = (_doctor: DoctorWithProfile) => {
     setOpenMenuId(null);
   };
 

@@ -46,7 +46,7 @@ export default function Documentos() {
   const [currentFolder, setCurrentFolder] = useState<{ id: string | null; name: string }>({ id: null, name: 'Mis Documentos' })
   const [navHistory, setNavHistory] = useState<{ id: string | null; name: string }[]>([])
   const [sharedDocs, setSharedDocs] = useState<Array<{ doc: Document; senderId: string }>>([])
-  const [sharedFolders, setSharedFolders] = useState<Folder[]>([])
+  const [_sharedFolders, setSharedFolders] = useState<Folder[]>([])
   const [movingDocId, setMovingDocId] = useState<string | null>(null)
 
   const [uploadForm, setUploadForm] = useState<{
@@ -118,7 +118,7 @@ export default function Documentos() {
     const ownFolders = legacyShared.length ? await getFolders(user.id, currentFolder.id) : ownFoldersInitial
     const filteredOwnFolders = ownFolders.filter(f => !f.name.toLowerCase().startsWith('compartido de '))
 
-    const targetSenderId = isSharedFolder ? currentFolder.id.replace('shared-', '') : null
+    const targetSenderId = isSharedFolder ? currentFolder.id?.replace('shared-', '') ?? null : null
 
     const docsForView = isSharedFolder
       ? sharedEntries.filter(e => e.senderId === targetSenderId).map(e => e.doc)

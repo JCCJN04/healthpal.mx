@@ -69,7 +69,7 @@ const formatDate = (dateString: string) => {
   })
 }
 
-const DocumentRow = ({ doc, onDelete, onMoveDocument, movingDocId }: { doc: Document; onDelete: (id: string) => void; onMoveDocument?: (id: string, folderId: string | null) => void; movingDocId?: string | null }) => {
+const DocumentRow = ({ doc, onDelete, onMoveDocument, movingDocId: _movingDocId }: { doc: Document; onDelete: (id: string) => void; onMoveDocument?: (id: string, folderId: string | null) => void; movingDocId?: string | null }) => {
   const [menuOpen, setMenuOpen] = useState(false)
   const navigate = useNavigate()
 

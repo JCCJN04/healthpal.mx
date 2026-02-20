@@ -5,6 +5,7 @@ import { WeekCalendar } from '@/shared/components/calendar/WeekCalendar'
 import { AppointmentModal } from '@/shared/components/appointments/AppointmentModal'
 import { mockCalendarEvents, getEventsByDoctor, type CalendarEvent } from '@/shared/mock/calendarEvents'
 import { mockDoctors } from '@/shared/mock/doctors'
+import type { AppointmentWithProfiles } from '@/shared/lib/queries/calendar'
 
 export default function ScheduleAppointment() {
   const [view, setView] = useState<'day' | 'week' | 'month'>('week')
@@ -20,9 +21,29 @@ export default function ScheduleAppointment() {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
 
   // Filter events by selected doctor (if any)
-  const filteredEvents = selectedDoctor 
-    ? getEventsByDoctor(selectedDoctor) 
+  const filteredEvents = selectedDoctor
+    ? getEventsByDoctor(selectedDoctor)
     : mockCalendarEvents
+
+  // Convert CalendarEvent[] to AppointmentWithProfiles[] for the WeekCalendar component
+  const calendarEvents: AppointmentWithProfiles[] = filteredEvents.map(evt => ({
+    id: evt.id,
+    doctor_id: '',
+    patient_id: '',
+    status: evt.type === 'occupied' ? 'confirmed' as const : 'requested' as const,
+    mode: 'in_person' as const,
+    start_at: `${evt.date}T${evt.startTime}:00`,
+    end_at: `${evt.date}T${evt.endTime}:00`,
+    reason: evt.title,
+    symptoms: null,
+    location_text: null,
+    location: null,
+    created_by: '',
+    created_at: '',
+    updated_at: '',
+    doctor: { full_name: evt.doctor },
+    patient: undefined,
+  }))
 
   // Get unique doctor names for dropdown
   const availableDoctors = ['Dr Alfonso Reyes', ...mockDoctors.map(d => d.name)]
@@ -61,16 +82,21 @@ export default function ScheduleAppointment() {
     setCurrentWeekStart(monday)
   }
 
-  const handleTimeSlotClick = (date: Date, time: string) => {
+  const handleTimeSlotClick = (date: Date) => {
     setSelectedDate(date)
-    setSelectedTime(time)
+    const hours = String(date.getHours()).padStart(2, '0')
+    setSelectedTime(`${hours}:00`)
     setSelectedEvent(null)
     setModalMode('booking')
     setModalOpen(true)
   }
 
-  const handleEventClick = (event: CalendarEvent) => {
-    setSelectedEvent(event)
+  const handleEventClick = (event: AppointmentWithProfiles) => {
+    // Find the original CalendarEvent by id for the modal
+    const original = filteredEvents.find(e => e.id === event.id)
+    if (original) {
+      setSelectedEvent(original)
+    }
     setModalMode('view')
     setModalOpen(true)
   }
@@ -113,7 +139,7 @@ export default function ScheduleAppointment() {
             weekStart={currentWeekStart}
             onTimeSlotClick={handleTimeSlotClick}
             onEventClick={handleEventClick}
-            events={filteredEvents}
+            events={calendarEvents}
           />
         ) : view === 'day' ? (
           <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">

@@ -346,7 +346,6 @@ export default function NuevaConsulta() {
                                         const isToday = dateStr === todayStr
                                         const isSelected = formData.date === dateStr
                                         const isPast = new Date(dateStr) < new Date(new Date().setHours(0, 0, 0, 0))
-                                        const isBeforeToday = new Date(dateStr) < new Date(todayStr)
 
                                         return (
                                             <button
@@ -375,7 +374,6 @@ export default function NuevaConsulta() {
                                             {businessHours.map(time => {
                                                 const isOccupied = occupiedSlots.includes(time)
                                                 const isSelected = formData.time === time
-                                                const selectedDate = new Date(formData.date)
                                                 const slotDateTime = new Date(`${formData.date}T${time}:00`)
                                                 const isPastSlot = slotDateTime.getTime() <= Date.now()
                                                 const disableSlot = isOccupied || isPastSlot

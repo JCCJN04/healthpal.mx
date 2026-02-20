@@ -38,8 +38,6 @@ export const ScheduleModal = ({
       return
     }
 
-    const doctor = filteredDoctors.find(d => d.id === selectedDoctor)
-
     // Reset and close
     setSelectedDoctor('')
     setAppointmentMode('presencial')
