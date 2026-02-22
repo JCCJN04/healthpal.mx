@@ -12,7 +12,9 @@ import PreferencesCard from '@/shared/components/settings/PreferencesCard';
 import PatientProfileInfoCard from '@/features/patient/components/PatientProfileInfoCard';
 import PatientProfileWizard from '@/features/patient/components/PatientProfileWizard';
 import { getPatientProfile, upsertPatientProfile } from '@/features/patient/services/patientProfile';
-import { PatientProfile } from '@/shared/types/database';
+import { getDoctorProfile } from '@/shared/lib/queries/profile';
+import DoctorVerificationCard from '@/shared/components/settings/DoctorVerificationCard';
+import { PatientProfile, DoctorProfile } from '@/shared/types/database';
 import { logger } from '@/shared/lib/logger';
 
 type TabType = 'general' | 'medical' | 'documents';
@@ -20,6 +22,7 @@ type TabType = 'general' | 'medical' | 'documents';
 export default function Configuracion() {
   const { user, profile: authProfile, refreshProfile } = useAuth();
   const isPatient = authProfile?.role === 'patient';
+  const isDoctor = authProfile?.role === 'doctor';
   const [activeTab, setActiveTab] = useState<TabType>('general');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
@@ -31,6 +34,7 @@ export default function Configuracion() {
   const [profile, setProfile] = useState<any>(null);
   const [settings, setSettings] = useState<any>(null);
   const [patientProfile, setPatientProfile] = useState<PatientProfile | null>(null);
+  const [doctorProfile, setDoctorProfile] = useState<DoctorProfile | null>(null);
 
   // Error states
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -61,6 +65,9 @@ export default function Configuracion() {
       if (isPatient) {
         loadPatientProfile();
       }
+      if (isDoctor) {
+        loadDoctorProfile();
+      }
     }
   }, [user]);
 
@@ -72,6 +79,17 @@ export default function Configuracion() {
       setPatientProfile(data);
     } catch (error) {
       logger.error('Configuracion:loadPatientProfile', error);
+    }
+  }
+
+  // Fetch doctor profile
+  async function loadDoctorProfile() {
+    try {
+      if (!user) return;
+      const data = await getDoctorProfile(user.id);
+      setDoctorProfile(data as DoctorProfile | null);
+    } catch (error) {
+      logger.error('Configuracion:loadDoctorProfile', error);
     }
   }
 
@@ -302,6 +320,14 @@ export default function Configuracion() {
                   location={userData.location}
                   avatarUrl={userData.avatarUrl}
                   onChangePhoto={handleChangePhoto}
+                />
+              )}
+
+              {/* Doctor Verification Card — only shown to doctors */}
+              {isDoctor && (
+                <DoctorVerificationCard
+                  doctorProfile={doctorProfile}
+                  isLoading={isLoadingProfile}
                 />
               )}
 

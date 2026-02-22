@@ -1,5 +1,5 @@
 import { useState, FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import Button from '@/shared/components/ui/Button'
 import Input from '@/shared/components/ui/Input'
 import Tabs from '@/shared/components/ui/Tabs'
@@ -18,7 +18,9 @@ interface FormErrors {
 
 export default function Register() {
   const navigate = useNavigate()
-  const [role, setRole] = useState<UserRole>('patient')
+  const location = useLocation()
+  const initialRole = (location.state as { role?: string })?.role === 'doctor' ? 'doctor' : 'patient'
+  const [role, setRole] = useState<UserRole>(initialRole)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -72,6 +74,7 @@ export default function Register() {
           data: {
             role: role,
           },
+          emailRedirectTo: `${window.location.origin}/onboarding/role`,
         },
       })
 
@@ -89,14 +92,13 @@ export default function Register() {
       }
 
       if (data.user) {
-        // Verificar si el email necesita confirmación
-        if (data.user.email_confirmed_at) {
+        if (data.session) {
+          // Supabase devolvió sesión → auto-confirm activo (dev) → onboarding directo
           showToast('Registro exitoso. Redirigiendo...', 'success')
-          // Si el email ya está confirmado (auto-confirm activo), redirigir al onboarding
           navigate('/onboarding/role')
         } else {
-          showToast('Registro exitoso. Revisa tu correo para confirmar tu cuenta.', 'success')
-          navigate('/login')
+          // session = null → Supabase requiere confirmación de email
+          navigate('/verify-email', { state: { email }, replace: true })
         }
       }
     } catch (error: any) {

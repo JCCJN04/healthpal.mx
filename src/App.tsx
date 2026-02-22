@@ -7,11 +7,13 @@ import RequireRole from '@/features/auth/components/RequireRole'
 import OnlyOnboarding from '@/features/auth/components/OnlyOnboarding'
 import { ToastContainer } from '@/shared/components/ui/Toast'
 
-// Eager load critical auth pages (small, needed immediately)
+// Eager load critical pages (small, needed immediately)
+import Landing from '@/features/landing/Landing'
 import Login from '@/features/auth/pages/Login'
 import ForgotPassword from '@/features/auth/pages/ForgotPassword'
 import ResetPassword from '@/features/auth/pages/ResetPassword'
 import Register from '@/features/auth/pages/Register'
+import VerifyEmail from '@/features/auth/pages/VerifyEmail'
 
 // Lazy load dashboard pages (large, only needed after auth)
 const Dashboard = lazy(() => import('@/features/shared/pages/Dashboard'))
@@ -54,12 +56,13 @@ function App() {
     <AuthProvider>
       <ToastContainer />
       <Routes>
-        {/* Auth Routes - No lazy loading needed */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        {/* Landing & Auth Routes */}
+        <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/forgot" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
 
         {/* Onboarding Routes - Lazy loaded with Suspense */}
         {/* Protected with OnlyOnboarding to prevent access after completion */}
