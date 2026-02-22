@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import Button from '@/shared/components/ui/Button'
 import Input from '@/shared/components/ui/Input'
 import Tabs from '@/shared/components/ui/Tabs'
-import GoogleIcon from '@/features/auth/components/GoogleIcon'
+// import GoogleIcon from '@/features/auth/components/GoogleIcon' // pendiente de activar
 import { supabase } from '@/shared/lib/supabase'
 import { showToast } from '@/shared/components/ui/Toast'
 import { logger } from '@/shared/lib/logger'
@@ -109,6 +109,7 @@ export default function Register() {
     }
   }
 
+  /* pendiente de activar
   const handleGoogleRegister = async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
@@ -123,6 +124,7 @@ export default function Register() {
       showToast(error.message || 'Error al registrarse con Google', 'error')
     }
   }
+  */
 
   return (
     <div className="flex min-h-screen">

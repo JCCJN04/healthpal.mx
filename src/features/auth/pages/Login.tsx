@@ -4,7 +4,7 @@ import Button from '@/shared/components/ui/Button'
 import Input from '@/shared/components/ui/Input'
 import Checkbox from '@/shared/components/ui/Checkbox'
 import Tabs from '@/shared/components/ui/Tabs'
-import GoogleIcon from '@/features/auth/components/GoogleIcon'
+// import GoogleIcon from '@/features/auth/components/GoogleIcon' // pendiente de activar
 import { supabase } from '@/shared/lib/supabase'
 import { showToast } from '@/shared/components/ui/Toast'
 
@@ -101,6 +101,7 @@ export default function Login() {
     }
   }
 
+  /* pendiente de activar
   const handleGoogleLogin = async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
@@ -115,6 +116,7 @@ export default function Login() {
       showToast(error.message || 'Error al iniciar sesión con Google', 'error')
     }
   }
+  */
 
   return (
     <div className="flex min-h-screen">
