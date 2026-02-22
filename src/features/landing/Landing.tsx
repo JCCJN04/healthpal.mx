@@ -359,8 +359,8 @@ export default function Landing() {
               <h4 className="text-white font-semibold text-sm mb-4">Contacto</h4>
               <ul className="space-y-2.5 text-sm">
                 <li>
-                  <a href="mailto:contacto@healthpal.mx" className="hover:text-primary transition-colors">
-                    contacto@healthpal.mx
+                  <a href="mailto:healthpalmx@gmail.com" className="hover:text-primary transition-colors">
+                    healthpalmx@gmail.com
                   </a>
                 </li>
                 <li>

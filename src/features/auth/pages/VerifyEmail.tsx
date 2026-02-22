@@ -93,8 +93,8 @@ export default function VerifyEmail() {
         {/* Help text */}
         <p className="text-center text-xs text-gray-400 mt-4">
           ¿Problemas? Escríbenos a{' '}
-          <a href="mailto:contacto@healthpal.mx" className="text-primary hover:underline">
-            contacto@healthpal.mx
+          <a href="mailto:healthpalmx@gmail.com" className="text-primary hover:underline">
+            healthpalmx@gmail.com
           </a>
         </p>
       </div>
