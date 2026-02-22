@@ -209,7 +209,7 @@ export default function Login() {
               {loading ? 'Iniciando sesión...' : 'iniciar sesion'}
             </Button>
 
-            {/* Google Login */}
+            {/* Google Login — pendiente de activar
             <Button
               type="button"
               variant="secondary"
@@ -220,6 +220,7 @@ export default function Login() {
               <GoogleIcon />
               <span>Inicia Sesion con Google</span>
             </Button>
+            */}
           </form>
 
           {/* Register Link */}

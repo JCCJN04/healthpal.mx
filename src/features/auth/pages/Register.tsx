@@ -195,7 +195,7 @@ export default function Register() {
               {loading ? 'Creando cuenta...' : 'crear cuenta'}
             </Button>
 
-            {/* Google Register */}
+            {/* Google Register — pendiente de activar
             <Button
               type="button"
               variant="secondary"
@@ -206,6 +206,7 @@ export default function Register() {
               <GoogleIcon />
               <span>Registrate con Google</span>
             </Button>
+            */}
           </form>
 
           {/* Login Link */}
