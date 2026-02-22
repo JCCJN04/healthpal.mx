@@ -237,22 +237,10 @@ export default function Login() {
 
       {/* Right Panel - Image */}
       <div className="hidden lg:block lg:w-[55%] relative">
-        {/* TODO: Replace with actual image at /public/login-doctors.jpg */}
-        <div 
+        <div
           className="absolute inset-0 bg-cover bg-center"
-          style={{
-            backgroundImage: `url('/login-doctors.jpg')`,
-            backgroundColor: '#f0f0f0' // Fallback color
-          }}
-        >
-          {/* Placeholder overlay if image is missing */}
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-200 bg-opacity-50">
-            <div className="text-center text-gray-600 p-8">
-              <p className="text-lg font-medium">Imagen de doctores</p>
-              <p className="text-sm mt-2">Agregar imagen en /public/login-doctors.jpg</p>
-            </div>
-          </div>
-        </div>
+          style={{ backgroundImage: `url('/doctores.png')` }}
+        />
       </div>
     </div>
   )
