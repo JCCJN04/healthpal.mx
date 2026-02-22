@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom'
 import { Suspense, lazy } from 'react'
+import { Analytics } from '@vercel/analytics/react'
 import { AuthProvider } from '@/app/providers/AuthContext'
 import RequireAuth from '@/features/auth/components/RequireAuth'
 import RequireOnboarding from '@/features/auth/components/RequireOnboarding'
@@ -54,6 +55,7 @@ function App() {
 
   return (
     <AuthProvider>
+      <Analytics />
       <ToastContainer />
       <Routes>
         {/* Landing & Auth Routes */}
