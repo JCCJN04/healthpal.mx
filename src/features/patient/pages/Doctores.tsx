@@ -1,47 +1,53 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Grid3x3, List, Search, Filter, UserPlus, Loader2 } from 'lucide-react';
 import DashboardLayout from '@/app/layout/DashboardLayout';
 import DoctorGrid from '@/features/patient/components/DoctorGrid';
 import DoctorList from '@/features/patient/components/DoctorList';
-import { listDoctors, searchDoctors as searchDoctorsQuery } from '@/features/patient/services/doctors';
+import AddDoctorModal from '@/features/patient/components/AddDoctorModal';
+import { getPatientDoctors } from '@/features/patient/services/doctors';
 import type { DoctorWithProfile } from '@/features/patient/services/doctors';
+import { useAuth } from '@/app/providers/AuthContext';
 
 type ViewMode = 'grid' | 'list';
 
 const Doctores: React.FC = () => {
+  const { user } = useAuth();
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [doctors, setDoctors] = useState<DoctorWithProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
+
+  const loadDoctors = useCallback(async () => {
+    if (!user?.id) return;
+    setLoading(true);
+    const data = await getPatientDoctors(user.id);
+    setDoctors(data || []);
+    setLoading(false);
+  }, [user?.id]);
 
   useEffect(() => {
     loadDoctors();
-  }, []);
+  }, [loadDoctors]);
 
-  useEffect(() => {
-    if (searchQuery) {
-      handleSearch();
-    } else {
-      loadDoctors();
-    }
-  }, [searchQuery]);
-
-  const loadDoctors = async () => {
-    setLoading(true);
-    const data = await listDoctors(50);
-    setDoctors(data || []);
-    setLoading(false);
-  };
-
-  const handleSearch = async () => {
-    setLoading(true);
-    const data = await searchDoctorsQuery(searchQuery);
-    setDoctors(data || []);
-    setLoading(false);
-  };
+  // Client-side filter for search within linked doctors
+  const filteredDoctors = searchQuery
+    ? doctors.filter((d) => {
+        const q = searchQuery.toLowerCase();
+        const nameMatch = d.full_name?.toLowerCase().includes(q);
+        const specialtyMatch = d.doctor_profile?.specialty?.toLowerCase().includes(q);
+        const clinicMatch = d.doctor_profile?.clinic_name?.toLowerCase().includes(q);
+        return nameMatch || specialtyMatch || clinicMatch;
+      })
+    : doctors;
 
   const handleAddDoctor = () => {
-    // TODO: Navigate to search/add doctor page
+    setShowAddModal(true);
+  };
+
+  const handleDoctorAdded = () => {
+    // Reload patient's doctors after adding one
+    loadDoctors();
   };
 
   return (
@@ -124,9 +130,9 @@ const Doctores: React.FC = () => {
           <p className="text-sm text-gray-600">
             Mostrando{' '}
             <span className="font-semibold text-gray-900">
-              {doctors.length}
+              {filteredDoctors.length}
             </span>{' '}
-            {doctors.length === 1 ? 'doctor' : 'doctores'}
+            {filteredDoctors.length === 1 ? 'doctor' : 'doctores'}
           </p>
         </div>
 
@@ -135,7 +141,7 @@ const Doctores: React.FC = () => {
           <div className="flex justify-center items-center py-16">
             <Loader2 className="w-8 h-8 animate-spin text-[#33C7BE]" />
           </div>
-        ) : doctors.length === 0 ? (
+        ) : filteredDoctors.length === 0 ? (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-16 text-center">
             <div className="max-w-md mx-auto">
               <div className="w-20 h-20 bg-gradient-to-br from-teal-100 to-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -148,7 +154,7 @@ const Doctores: React.FC = () => {
               </h3>
               <p className="text-gray-600 mb-6">
                 {searchQuery
-                  ? 'Intenta buscar con otros términos o explora nuestro directorio completo.'
+                  ? 'Intenta buscar con otros términos.'
                   : 'Comienza agregando doctores a tu lista para gestionar tus consultas más fácilmente.'}
               </p>
               {searchQuery ? (
@@ -170,11 +176,22 @@ const Doctores: React.FC = () => {
             </div>
           </div>
         ) : viewMode === 'grid' ? (
-          <DoctorGrid doctors={doctors} />
+          <DoctorGrid doctors={filteredDoctors} onDoctorRemoved={loadDoctors} />
         ) : (
-          <DoctorList doctors={doctors} />
+          <DoctorList doctors={filteredDoctors} onDoctorRemoved={loadDoctors} />
         )}
       </div>
+
+      {/* Add Doctor Modal */}
+      {user?.id && (
+        <AddDoctorModal
+          isOpen={showAddModal}
+          onClose={() => setShowAddModal(false)}
+          patientId={user.id}
+          existingDoctorIds={doctors.map(d => d.id)}
+          onDoctorAdded={handleDoctorAdded}
+        />
+      )}
     </DashboardLayout>
   );
 };

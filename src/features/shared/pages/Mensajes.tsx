@@ -220,7 +220,12 @@ export default function Mensajes() {
       setMessages(prev => prev.filter(m => m.id !== tempMsg.id))
     } else {
       // REPLACE temp message with the actual one from DB to prevent duplication with Realtime event
-      setMessages(prev => prev.map(m => m.id === tempMsg.id ? res.data : m))
+      setMessages(prev => {
+        // remove the temp entry and any prior instance of the real id, then append the real message once
+        const withoutTemp = prev.filter(m => m.id !== tempMsg.id)
+        const withoutDupReal = withoutTemp.filter(m => m.id !== res.data.id)
+        return [...withoutDupReal, res.data]
+      })
 
       // Refresh and Move to top
       setConversations(prev => {

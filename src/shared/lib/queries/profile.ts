@@ -41,7 +41,14 @@ export async function getMyProfile(): Promise<Profile> {
       throw secondError
     }
 
-    // Profile still missing: create a baseline record
+    // Only create a fallback profile if the user's email is confirmed
+    // This prevents orphaned profiles for unverified signups
+    if (!user.email_confirmed_at) {
+      throw new Error('Email not verified. Please confirm your email before continuing.')
+    }
+
+    // Profile still missing after email confirmation: create a baseline record
+    // (safety net for trigger timing delays)
     const { data: newProfile, error: insertError } = await supabase
       .from('profiles')
       .insert({

@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, MessageCircle, Eye, MoreVertical, Star, Briefcase } from 'lucide-react';
-import { DoctorWithProfile } from '@/features/patient/services/doctors';
+import { DoctorWithProfile, unlinkDoctorFromPatient } from '@/features/patient/services/doctors';
 import { showToast } from '@/shared/components/ui/Toast';
 import { logger } from '@/shared/lib/logger';
+import { useAuth } from '@/app/providers/AuthContext';
 
 interface DoctorCardProps {
   doctor: DoctorWithProfile;
+  onRemoved?: () => void;
 }
 
-const DoctorCard: React.FC<DoctorCardProps> = ({ doctor }) => {
+const DoctorCard: React.FC<DoctorCardProps> = ({ doctor, onRemoved }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [showMenu, setShowMenu] = useState(false);
   const profile = doctor.doctor_profile;
 
@@ -46,8 +49,16 @@ const DoctorCard: React.FC<DoctorCardProps> = ({ doctor }) => {
     setShowMenu(false);
   };
 
-  const handleRemove = () => {
+  const handleRemove = async () => {
     setShowMenu(false);
+    if (!user?.id) return;
+    const success = await unlinkDoctorFromPatient(user.id, doctor.id);
+    if (success) {
+      showToast('Doctor removido de tu lista', 'success');
+      onRemoved?.();
+    } else {
+      showToast('Error al remover doctor', 'error');
+    }
   };
 
   return (
