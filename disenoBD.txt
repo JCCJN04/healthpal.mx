@@ -1,0 +1,237 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.appointment_notes (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  appointment_id uuid NOT NULL,
+  author_id uuid NOT NULL,
+  note text NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT appointment_notes_pkey PRIMARY KEY (id),
+  CONSTRAINT appointment_notes_appointment_id_fkey FOREIGN KEY (appointment_id) REFERENCES public.appointments(id),
+  CONSTRAINT appointment_notes_author_id_fkey FOREIGN KEY (author_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.appointments (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  doctor_id uuid NOT NULL,
+  patient_id uuid NOT NULL,
+  status USER-DEFINED NOT NULL DEFAULT 'requested'::appointment_status,
+  mode USER-DEFINED NOT NULL DEFAULT 'in_person'::visit_mode,
+  start_at timestamp with time zone NOT NULL,
+  end_at timestamp with time zone NOT NULL,
+  reason text,
+  symptoms text,
+  location_text text,
+  location jsonb,
+  created_by uuid NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT appointments_pkey PRIMARY KEY (id),
+  CONSTRAINT appointments_doctor_id_fkey FOREIGN KEY (doctor_id) REFERENCES public.profiles(id),
+  CONSTRAINT appointments_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.profiles(id),
+  CONSTRAINT appointments_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.care_links (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  doctor_id uuid NOT NULL,
+  patient_id uuid NOT NULL,
+  status text NOT NULL DEFAULT 'active'::text,
+  created_by uuid,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT care_links_pkey PRIMARY KEY (id),
+  CONSTRAINT care_links_doctor_id_fkey FOREIGN KEY (doctor_id) REFERENCES public.profiles(id),
+  CONSTRAINT care_links_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.profiles(id),
+  CONSTRAINT care_links_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.conversation_participants (
+  conversation_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  role_in_chat text,
+  joined_at timestamp with time zone NOT NULL DEFAULT now(),
+  last_read_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT conversation_participants_pkey PRIMARY KEY (conversation_id, user_id),
+  CONSTRAINT conversation_participants_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id),
+  CONSTRAINT conversation_participants_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.conversations (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  last_message_at timestamp with time zone,
+  last_message_text text,
+  metadata jsonb DEFAULT '{}'::jsonb,
+  CONSTRAINT conversations_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.doctor_profiles (
+  doctor_id uuid NOT NULL,
+  professional_license text,
+  specialty text,
+  clinic_name text,
+  bio text,
+  years_experience integer,
+  consultation_price_mxn integer,
+  address_text text,
+  location jsonb,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  cedula_general text,
+  cedula_especialidad text,
+  is_sep_verified boolean NOT NULL DEFAULT false,
+  verification_date timestamp with time zone,
+  CONSTRAINT doctor_profiles_pkey PRIMARY KEY (doctor_id),
+  CONSTRAINT doctor_profiles_doctor_id_fkey FOREIGN KEY (doctor_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.document_folders (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  owner_id uuid NOT NULL,
+  name text NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT document_folders_pkey PRIMARY KEY (id),
+  CONSTRAINT document_folders_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.document_shares (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  document_id uuid NOT NULL,
+  shared_with uuid NOT NULL,
+  shared_by uuid NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT document_shares_pkey PRIMARY KEY (id),
+  CONSTRAINT document_shares_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.documents(id),
+  CONSTRAINT document_shares_shared_with_fkey FOREIGN KEY (shared_with) REFERENCES public.profiles(id),
+  CONSTRAINT document_shares_shared_by_fkey FOREIGN KEY (shared_by) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.documents (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  owner_id uuid NOT NULL,
+  patient_id uuid,
+  uploaded_by uuid,
+  folder_id uuid,
+  title text NOT NULL,
+  category USER-DEFINED NOT NULL DEFAULT 'other'::doc_category,
+  file_path text NOT NULL,
+  mime_type text,
+  file_size integer,
+  checksum text,
+  notes text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT documents_pkey PRIMARY KEY (id),
+  CONSTRAINT documents_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES public.profiles(id),
+  CONSTRAINT documents_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.profiles(id),
+  CONSTRAINT documents_uploaded_by_fkey FOREIGN KEY (uploaded_by) REFERENCES public.profiles(id),
+  CONSTRAINT documents_folder_id_fkey FOREIGN KEY (folder_id) REFERENCES public.folders(id)
+);
+CREATE TABLE public.folders (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  owner_id uuid NOT NULL,
+  parent_id uuid,
+  name text NOT NULL,
+  color text DEFAULT '#33C7BE'::text,
+  is_favorite boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT folders_pkey PRIMARY KEY (id),
+  CONSTRAINT folders_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES auth.users(id),
+  CONSTRAINT folders_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.folders(id)
+);
+CREATE TABLE public.messages (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  conversation_id uuid NOT NULL,
+  sender_id uuid NOT NULL,
+  body text NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT messages_pkey PRIMARY KEY (id),
+  CONSTRAINT messages_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id),
+  CONSTRAINT messages_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.notifications (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  type text NOT NULL,
+  title text,
+  body text,
+  entity_table text,
+  entity_id uuid,
+  is_read boolean NOT NULL DEFAULT false,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT notifications_pkey PRIMARY KEY (id),
+  CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.patient_notes (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  patient_id uuid,
+  doctor_id uuid,
+  title text,
+  body text NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT patient_notes_pkey PRIMARY KEY (id),
+  CONSTRAINT patient_notes_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.profiles(id),
+  CONSTRAINT patient_notes_doctor_id_fkey FOREIGN KEY (doctor_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.patient_profiles (
+  patient_id uuid NOT NULL,
+  address_text text,
+  emergency_contact_name text,
+  emergency_contact_phone text,
+  blood_type text,
+  allergies text,
+  chronic_conditions text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  height_cm integer,
+  weight_kg integer,
+  insurance_provider text,
+  insurance_policy_number text,
+  preferred_language text,
+  notes_for_doctor text,
+  current_medications text,
+  CONSTRAINT patient_profiles_pkey PRIMARY KEY (patient_id),
+  CONSTRAINT patient_profiles_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.profiles (
+  id uuid NOT NULL,
+  role USER-DEFINED NOT NULL DEFAULT 'patient'::user_role,
+  full_name text,
+  email text,
+  phone text,
+  sex USER-DEFINED NOT NULL DEFAULT 'unspecified'::sex_type,
+  birthdate date,
+  avatar_url text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  onboarding_completed boolean NOT NULL DEFAULT false,
+  onboarding_step text,
+  last_seen_at timestamp with time zone,
+  CONSTRAINT profiles_pkey PRIMARY KEY (id),
+  CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.user_settings (
+  user_id uuid NOT NULL,
+  email_notifications boolean NOT NULL DEFAULT true,
+  appointment_reminders boolean NOT NULL DEFAULT true,
+  whatsapp_notifications boolean NOT NULL DEFAULT false,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT user_settings_pkey PRIMARY KEY (user_id),
+  CONSTRAINT user_settings_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.user_status (
+  user_id uuid NOT NULL,
+  last_seen_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT user_status_pkey PRIMARY KEY (user_id),
+  CONSTRAINT user_status_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.verified_reviews (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  appointment_id uuid NOT NULL UNIQUE,
+  patient_id uuid NOT NULL,
+  doctor_id uuid NOT NULL,
+  rating integer NOT NULL CHECK (rating >= 1 AND rating <= 5),
+  comment text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT verified_reviews_pkey PRIMARY KEY (id),
+  CONSTRAINT verified_reviews_appointment_id_fkey FOREIGN KEY (appointment_id) REFERENCES public.appointments(id),
+  CONSTRAINT verified_reviews_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patient_profiles(patient_id),
+  CONSTRAINT verified_reviews_doctor_id_fkey FOREIGN KEY (doctor_id) REFERENCES public.doctor_profiles(doctor_id)
+);

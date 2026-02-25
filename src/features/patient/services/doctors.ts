@@ -173,3 +173,71 @@ export async function getPatientDoctors(patientId: string): Promise<DoctorWithPr
     return []
   }
 }
+
+/**
+ * Link a doctor to a patient (add to care team)
+ */
+export async function linkDoctorToPatient(patientId: string, doctorId: string): Promise<boolean> {
+  try {
+    // Check if link already exists
+    const { data: existing } = await supabase
+      .from('care_links')
+      .select('id, status')
+      .eq('patient_id', patientId)
+      .eq('doctor_id', doctorId)
+      .maybeSingle()
+
+    if (existing) {
+      // Reactivate if inactive
+      if (existing.status !== 'active') {
+        const { error } = await supabase
+          .from('care_links')
+          .update({ status: 'active' })
+          .eq('id', existing.id)
+        if (error) {
+          logger.error('doctors:linkDoctorToPatient:reactivate', error)
+          return false
+        }
+      }
+      return true
+    }
+
+    // Create new link
+    const { error } = await supabase
+      .from('care_links')
+      .insert({ patient_id: patientId, doctor_id: doctorId, status: 'active', created_by: patientId })
+
+    if (error) {
+      logger.error('doctors:linkDoctorToPatient', error)
+      return false
+    }
+
+    return true
+  } catch (err) {
+    logger.error('doctors:linkDoctorToPatient', err)
+    return false
+  }
+}
+
+/**
+ * Unlink a doctor from a patient (remove from care team)
+ */
+export async function unlinkDoctorFromPatient(patientId: string, doctorId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('care_links')
+      .delete()
+      .eq('patient_id', patientId)
+      .eq('doctor_id', doctorId)
+
+    if (error) {
+      logger.error('doctors:unlinkDoctorFromPatient', error)
+      return false
+    }
+
+    return true
+  } catch (err) {
+    logger.error('doctors:unlinkDoctorFromPatient', err)
+    return false
+  }
+}
