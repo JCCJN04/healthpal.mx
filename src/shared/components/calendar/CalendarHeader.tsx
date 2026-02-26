@@ -94,7 +94,9 @@ export const CalendarHeader = ({
                         <button
                             key={v}
                             onClick={() => onViewChange(v)}
-                            className={`px-6 py-2.5 text-[10px] font-black rounded-xl transition-all uppercase tracking-[0.15em] ${view === v
+                            className={`px-6 py-2.5 text-[10px] font-black rounded-xl transition-all uppercase tracking-[0.15em] ${
+                                v === 'week' ? 'hidden md:block' : ''
+                            } ${view === v
                                 ? 'bg-white text-[#33C7BE] shadow-xl shadow-[#33C7BE]/10 border border-white ring-1 ring-black/5 scale-105'
                                 : 'text-gray-400 hover:text-gray-700 hover:bg-white/50'
                                 }`}

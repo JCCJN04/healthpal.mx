@@ -3,27 +3,16 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import OnboardingLayout from './OnboardingLayout'
 import Stepper from '@/shared/components/ui/Stepper'
-import { InputField, SelectField, TextareaField } from '@/shared/components/ui/FormField'
+import { InputField, TextareaField } from '@/shared/components/ui/FormField'
 import Button from '@/shared/components/ui/Button'
+import SearchableSelect from '@/shared/components/ui/SearchableSelect'
+import AddressAutocomplete from '@/shared/components/ui/AddressAutocomplete'
 import { getMyProfile, getDoctorProfile, upsertDoctorProfile, saveOnboardingStep } from '@/shared/lib/queries/profile'
 import { showToast } from '@/shared/components/ui/Toast'
 import { logger } from '@/shared/lib/logger'
+import { SPECIALTIES } from '@/shared/lib/specialties'
 
 const STEPS = ['Rol', 'Información', 'Contacto', 'Detalles', 'Listo']
-
-const SPECIALTIES = [
-  { value: 'medicina_general', label: 'Medicina General' },
-  { value: 'pediatria', label: 'Pediatría' },
-  { value: 'ginecologia', label: 'Ginecología' },
-  { value: 'cardiologia', label: 'Cardiología' },
-  { value: 'dermatologia', label: 'Dermatología' },
-  { value: 'traumatologia', label: 'Traumatología' },
-  { value: 'psiquiatria', label: 'Psiquiatría' },
-  { value: 'neurologia', label: 'Neurología' },
-  { value: 'oftalmologia', label: 'Oftalmología' },
-  { value: 'otorrinolaringologia', label: 'Otorrinolaringología' },
-  { value: 'otro', label: 'Otra especialidad' },
-]
 
 export default function OnboardingDoctor() {
   const navigate = useNavigate()
@@ -37,6 +26,7 @@ export default function OnboardingDoctor() {
     address_text: '',
     bio: '',
   })
+  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
@@ -58,6 +48,10 @@ export default function OnboardingDoctor() {
           address_text: doctorProfile.address_text || '',
           bio: doctorProfile.bio || '',
         })
+        if (doctorProfile.location) {
+          const loc = doctorProfile.location as { lat: number; lng: number }
+          if (loc.lat && loc.lng) setLocation(loc)
+        }
       }
     } catch (error) {
       logger.error('Error loading doctor profile:', error)
@@ -93,13 +87,27 @@ export default function OnboardingDoctor() {
     setLoading(true)
 
     try {
+      // If the user typed a custom address but didn't pick a suggestion,
+      // attempt a one-shot geocode so coordinates are still saved when possible.
+      let finalLocation = location
+      if (formData.address_text.trim() && !finalLocation) {
+        try {
+          const { geocodeAddress } = await import('@/shared/lib/geocoding')
+          const geo = await geocodeAddress(formData.address_text)
+          if (geo) finalLocation = { lat: geo.lat, lng: geo.lng }
+        } catch {
+          // Non-blocking — coordinates are optional
+        }
+      }
+
       await upsertDoctorProfile(userId, {
         specialty: formData.specialty,
-        professional_license: formData.professional_license,
+        professional_license: formData.professional_license.trim(),
         years_experience: parseInt(formData.years_experience),
-        clinic_name: formData.clinic_name || null,
-        address_text: formData.address_text || null,
-        bio: formData.bio || null,
+        clinic_name: formData.clinic_name.trim() || null,
+        address_text: formData.address_text.trim() || null,
+        bio: formData.bio.trim() || null,
+        location: finalLocation,
       })
       await saveOnboardingStep('done')
 
@@ -125,36 +133,53 @@ export default function OnboardingDoctor() {
       <Stepper currentStep={4} totalSteps={5} steps={STEPS} />
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <SelectField
+        {/* ── Specialty (searchable) ── */}
+        <SearchableSelect
           label="Especialidad"
           required
           value={formData.specialty}
-          onChange={(e) => setFormData({ ...formData, specialty: e.target.value })}
-          error={errors.specialty}
+          onChange={(val) => {
+            setFormData({ ...formData, specialty: val })
+            if (errors.specialty) setErrors({ ...errors, specialty: '' })
+          }}
           options={SPECIALTIES}
+          grouped
+          searchPlaceholder="Buscar especialidad..."
+          placeholder="Seleccionar especialidad..."
+          error={errors.specialty}
         />
 
+        {/* ── Professional license ── */}
         <InputField
           label="Cédula Profesional"
           type="text"
           required
           value={formData.professional_license}
-          onChange={(e) => setFormData({ ...formData, professional_license: e.target.value })}
+          onChange={(e) => {
+            setFormData({ ...formData, professional_license: e.target.value })
+            if (errors.professional_license) setErrors({ ...errors, professional_license: '' })
+          }}
           error={errors.professional_license}
           placeholder="1234567"
         />
 
+        {/* ── Years of experience ── */}
         <InputField
           label="Años de Experiencia"
           type="number"
           required
           min="0"
+          max="70"
           value={formData.years_experience}
-          onChange={(e) => setFormData({ ...formData, years_experience: e.target.value })}
+          onChange={(e) => {
+            setFormData({ ...formData, years_experience: e.target.value })
+            if (errors.years_experience) setErrors({ ...errors, years_experience: '' })
+          }}
           error={errors.years_experience}
           placeholder="5"
         />
 
+        {/* ── Clinic name (optional → null if empty) ── */}
         <InputField
           label="Nombre de Clínica/Consultorio"
           type="text"
@@ -164,21 +189,23 @@ export default function OnboardingDoctor() {
           helpText="Opcional"
         />
 
-        <InputField
+        {/* ── Address with autocomplete (optional → null if empty) ── */}
+        <AddressAutocomplete
           label="Dirección de Consultorio"
-          type="text"
           value={formData.address_text}
-          onChange={(e) => setFormData({ ...formData, address_text: e.target.value })}
-          placeholder="Av. Reforma 123, CDMX"
-          helpText="Opcional - Podrás agregar ubicación exacta después"
+          onChange={(addr) => setFormData({ ...formData, address_text: addr })}
+          onCoordinatesChange={setLocation}
+          placeholder="Escribe una dirección..."
+          helpText="Opcional — Comienza a escribir y selecciona una sugerencia"
         />
 
+        {/* ── Bio (optional → null if empty) ── */}
         <TextareaField
           label="Biografía Profesional"
           value={formData.bio}
           onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
           placeholder="Cuéntanos sobre tu experiencia y enfoque médico..."
-          helpText="Opcional - Esto será visible para tus pacientes"
+          helpText="Opcional — Esto será visible para tus pacientes"
         />
 
         {/* Navigation */}

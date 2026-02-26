@@ -33,6 +33,10 @@ const Pacientes = lazy(() => import('@/features/doctor/pages/Pacientes'))
 const PatientDetail = lazy(() => import('@/features/doctor/pages/PatientDetail'))
 const Busqueda = lazy(() => import('@/features/shared/pages/Busqueda'))
 
+// Public pages (no auth required)
+const DirectorioDoctores = lazy(() => import('@/features/public/pages/DirectorioDoctores'))
+const PerfilDoctor = lazy(() => import('@/features/public/pages/PerfilDoctor'))
+
 // Lazy load onboarding pages
 const OnboardingRole = lazy(() => import('@/features/auth/pages/onboarding/OnboardingRole'))
 const OnboardingBasic = lazy(() => import('@/features/auth/pages/onboarding/OnboardingBasic'))
@@ -65,6 +69,10 @@ function App() {
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/register" element={<Register />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
+
+        {/* Public Directory (no auth required) */}
+        <Route path="/directorio" element={<Suspense fallback={<PageLoader />}><DirectorioDoctores /></Suspense>} />
+        <Route path="/directorio/:slug" element={<Suspense fallback={<PageLoader />}><PerfilDoctor /></Suspense>} />
 
         {/* Onboarding Routes - Lazy loaded with Suspense */}
         {/* Protected with OnlyOnboarding to prevent access after completion */}

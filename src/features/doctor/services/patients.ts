@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { supabase } from '@/shared/lib/supabase'
-import type { Database } from '@/shared/types/database'
+import type { Database, DoctorPatientConsent } from '@/shared/types/database'
 import { logger } from '@/shared/lib/logger'
 
 export type PatientProfileLite = {
@@ -8,86 +8,66 @@ export type PatientProfileLite = {
   full_name: string | null
   email: string | null
   avatar_url: string | null
+  consentStatus?: string | null
 }
 
-// Lista pacientes vinculados a un doctor mediante citas previas o conversaciones existentes
+/**
+ * List patients that have ACCEPTED consent for this doctor.
+ * Only returns patients with an accepted consent row.
+ */
 export async function listDoctorPatients(doctorId: string): Promise<PatientProfileLite[]> {
   if (!doctorId) return []
 
-  // 1) Pacientes por historial de citas
-  const { data: apptRows, error: apptError } = await supabase
-    .from('appointments')
-    .select('patient_id')
-    .eq('doctor_id', doctorId)
-    .not('patient_id', 'is', null)
-    .limit(200)
-
-  if (apptError) {
-    logger.error('listDoctorPatients.appointments', apptError)
-  }
-
-  const idsFromAppointments = Array.from(
-    new Set((apptRows || []).map(r => r.patient_id).filter(Boolean) as string[])
-  )
-
-  // 2) Pacientes por conversaciones (participantes que son pacientes)
-  let idsFromChat: string[] = []
   try {
-    const { data: myParts } = await supabase
-      .from('conversation_participants')
-      .select('conversation_id')
-      .eq('user_id', doctorId)
+    // Get all accepted consent rows for this doctor
+    const { data: consentRows, error: consentErr } = await supabase
+      .from('doctor_patient_consent')
+      .select('patient_id, status')
+      .eq('doctor_id', doctorId)
+      .eq('status', 'accepted')
 
-    if (myParts && myParts.length > 0) {
-      const convIds = myParts.map(p => p.conversation_id)
-      const { data: otherParts } = await supabase
-        .from('conversation_participants')
-        .select('user_id')
-        .in('conversation_id', convIds)
-        .neq('user_id', doctorId)
-
-      if (otherParts && otherParts.length > 0) {
-        const otherIds = Array.from(new Set(otherParts.map(p => p.user_id)))
-        // Filter to only patients
-        const { data: patientProfiles } = await supabase
-          .from('profiles')
-          .select('id')
-          .in('id', otherIds)
-          .eq('role', 'patient')
-
-        idsFromChat = (patientProfiles || []).map(p => p.id)
-      }
+    if (consentErr) {
+      logger.error('listDoctorPatients.consent', consentErr)
+      return []
     }
+
+    const ids = (consentRows || []).map((r) => r.patient_id).filter(Boolean)
+    if (ids.length === 0) return []
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, full_name, email, avatar_url')
+      .in('id', ids)
+
+    if (error) {
+      logger.error('listDoctorPatients.profiles', error)
+      return []
+    }
+
+    return (data || []).map(({ id, full_name, email, avatar_url }) => ({
+      id, full_name, email, avatar_url, consentStatus: 'accepted',
+    }))
   } catch (err) {
-    logger.error('listDoctorPatients.chat', err)
-  }
-
-  const ids = Array.from(new Set([...idsFromAppointments, ...idsFromChat]))
-  if (ids.length === 0) return []
-
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, full_name, email, avatar_url')
-    .in('id', ids)
-
-  if (error) {
-    logger.error('listDoctorPatients.profiles', error)
+    logger.error('listDoctorPatients', err)
     return []
   }
-
-  return (data || []).map(({ id, full_name, email, avatar_url }) => ({ id, full_name, email, avatar_url }))
 }
 
-// Busca pacientes existentes (usuarios con rol patient) por nombre o email
-export async function searchPatients(term: string): Promise<PatientProfileLite[]> {
-  if (!term.trim()) return []
+/**
+ * Search patients by name or email.
+ * Returns basic public info (name + avatar only) — does NOT
+ * expose email unless the doctor already has consent.
+ * Requires minimum 3-character search term.
+ */
+export async function searchPatients(term: string, doctorId: string): Promise<PatientProfileLite[]> {
+  if (!term.trim() || term.trim().length < 3) return []
 
   const like = `%${term.trim()}%`
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, full_name, email, avatar_url, role')
+    .select('id, full_name, avatar_url')
     .eq('role', 'patient')
-    .or(`email.ilike.${like},full_name.ilike.${like}`)
+    .or(`full_name.ilike.${like}`)
     .limit(10)
 
   if (error) {
@@ -95,13 +75,35 @@ export async function searchPatients(term: string): Promise<PatientProfileLite[]
     return []
   }
 
-  return (data || []).map(({ id, full_name, email, avatar_url }) => ({ id, full_name, email, avatar_url }))
+  // Check consent status for each result
+  const ids = (data || []).map((p) => p.id)
+  let consentMap: Record<string, string> = {}
+  if (ids.length > 0 && doctorId) {
+    const { data: consents } = await supabase
+      .from('doctor_patient_consent')
+      .select('patient_id, status')
+      .eq('doctor_id', doctorId)
+      .in('patient_id', ids)
+
+    ;(consents || []).forEach((c) => { consentMap[c.patient_id] = c.status })
+  }
+
+  return (data || []).map(({ id, full_name, avatar_url }) => ({
+    id,
+    full_name,
+    email: null, // Never expose email in search results
+    avatar_url,
+    consentStatus: consentMap[id] || null,
+  }))
 }
 
-// Crea (o reutiliza) una conversación con el paciente para activar el inbox
+/**
+ * Create or reuse a conversation with a patient.
+ * Will FAIL at the DB level if no accepted consent exists
+ * (start_new_conversation RPC now enforces consent).
+ */
 export async function linkPatientConversation(doctorId: string, patientId: string): Promise<string | null> {
   try {
-    // Check if a conversation already exists via RPC
     const { data: existing, error: eError } = await supabase
       .rpc('get_conversation_between_users', {
         user_a: doctorId,
@@ -112,7 +114,6 @@ export async function linkPatientConversation(doctorId: string, patientId: strin
       return existing[0].id
     }
 
-    // Start a new conversation via RPC
     const { data: newId, error: startError } = await supabase
       .rpc('start_new_conversation', {
         other_user_id: patientId,
@@ -126,12 +127,15 @@ export async function linkPatientConversation(doctorId: string, patientId: strin
   }
 }
 
-// Obtiene el perfil completo de un paciente para la página de detalle
+/**
+ * Fetches the patient's profile. RLS on patient_profiles will
+ * return null/error if the doctor doesn't have share_basic_profile consent.
+ */
 export async function getPatientFullProfile(patientId: string) {
   const { data, error } = await supabase
     .from('profiles')
     .select(`
-      *,
+      id, full_name, avatar_url, role, birthdate, sex,
       patient_profiles (*)
     `)
     .eq('id', patientId)
@@ -142,6 +146,24 @@ export async function getPatientFullProfile(patientId: string) {
     return null
   }
 
+  return data
+}
+
+/**
+ * Fetches contact info only — gated by share_contact scope at RLS level.
+ * Returns null if doctor lacks the scope.
+ */
+export async function getPatientContactInfo(patientId: string) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('email, phone')
+    .eq('id', patientId)
+    .single()
+
+  if (error) {
+    // RLS will block this if no consent
+    return null
+  }
   return data
 }
 

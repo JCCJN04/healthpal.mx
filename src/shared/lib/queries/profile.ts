@@ -239,24 +239,55 @@ export async function completeOnboarding() {
 
 /**
  * Upload avatar to Supabase Storage
+ *
+ * Handles old avatar cleanup, sets the correct content-type,
+ * and returns the public URL of the newly uploaded file.
  */
 export async function uploadAvatar(userId: string, file: File) {
-  const fileExt = file.name.split('.').pop()
-  const fileName = `${userId}/${Date.now()}.${fileExt}`
-  const filePath = fileName
+  logger.info('uploadAvatar:start', { userId, fileName: file.name, fileType: file.type, fileSize: file.size })
 
-  const { error: uploadError } = await supabase.storage
+  // 1. Remove any previous avatars for this user (best-effort, don't block)
+  try {
+    const { data: existingFiles, error: listError } = await supabase.storage
+      .from('avatars')
+      .list(userId)
+
+    if (listError) {
+      logger.warn('uploadAvatar:list', listError)
+    } else if (existingFiles && existingFiles.length > 0) {
+      const filesToDelete = existingFiles.map((f) => `${userId}/${f.name}`)
+      const { error: deleteError } = await supabase.storage.from('avatars').remove(filesToDelete)
+      if (deleteError) logger.warn('uploadAvatar:delete', deleteError)
+    }
+  } catch (cleanupErr) {
+    logger.warn('uploadAvatar:cleanup', cleanupErr)
+  }
+
+  // 2. Build a unique file path inside the user's folder
+  const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+  const filePath = `${userId}/${Date.now()}.${fileExt}`
+
+  // 3. Upload with explicit content-type and upsert safety
+  const { data: uploadData, error: uploadError } = await supabase.storage
     .from('avatars')
-    .upload(filePath, file)
+    .upload(filePath, file, {
+      contentType: file.type || 'image/jpeg',
+      cacheControl: '3600',
+      upsert: true,
+    })
 
   if (uploadError) {
-    logger.error('uploadAvatar', uploadError)
+    logger.error('uploadAvatar:upload', { message: uploadError.message, name: (uploadError as any).name, statusCode: (uploadError as any).statusCode })
     throw uploadError
   }
 
+  logger.info('uploadAvatar:uploaded', uploadData)
+
+  // 4. Return the public URL
   const { data } = supabase.storage
     .from('avatars')
     .getPublicUrl(filePath)
 
+  logger.info('uploadAvatar:publicUrl', data.publicUrl)
   return data.publicUrl
 }

@@ -17,18 +17,25 @@ import {
     AlertCircle,
     Download,
     ChevronRight,
-    Loader2
+    Loader2,
+    ShieldAlert,
+    ShieldX,
+    ShieldCheck,
+    Send,
+    Lock,
 } from 'lucide-react'
 import DashboardLayout from '@/app/layout/DashboardLayout'
-import { getPatientFullProfile, getPatientNotes, addPatientNote } from '@/features/doctor/services/patients'
+import { getPatientFullProfile, getPatientNotes, addPatientNote, getPatientContactInfo } from '@/features/doctor/services/patients'
 import { getPatientProfile } from '@/shared/lib/queries/profile'
 import { listUpcomingAppointments } from '@/shared/lib/queries/appointments'
 import { getUserDocuments } from '@/shared/lib/queries/documents'
+import { getConsentForPatient, requestPatientAccess, ConsentScopes } from '@/shared/lib/queries/consent'
 import { useAuth } from '@/app/providers/AuthContext'
 import { showToast } from '@/shared/components/ui/Toast'
 import { logger } from '@/shared/lib/logger'
 
 type TabType = 'summary' | 'notes' | 'activity'
+type ConsentGate = 'loading' | 'no-consent' | 'requested' | 'rejected' | 'revoked' | 'accepted'
 
 export default function PatientDetail() {
     const { id } = useParams<{ id: string }>()
@@ -36,7 +43,7 @@ export default function PatientDetail() {
     const navigate = useNavigate()
     const [activeTab, setActiveTab] = useState<TabType>('summary')
     const [patient, setPatient] = useState<any>(null)
-    const [medProfile, setMedProfile] = useState<any>(null) // New state for medical profile
+    const [medProfile, setMedProfile] = useState<any>(null)
     const [notes, setNotes] = useState<any[]>([])
     const [appointments, setAppointments] = useState<any[]>([])
     const [documents, setDocuments] = useState<any[]>([])
@@ -44,16 +51,74 @@ export default function PatientDetail() {
     const [newNote, setNewNote] = useState({ title: '', body: '' })
     const [savingNote, setSavingNote] = useState(false)
 
-    useEffect(() => {
-        if (id) {
-            loadAllData()
-        }
-    }, [id])
+    // Consent state
+    const [consentGate, setConsentGate] = useState<ConsentGate>('loading')
+    const [scopes, setScopes] = useState<ConsentScopes>({
+        share_basic_profile: false,
+        share_contact: false,
+        share_documents: false,
+        share_appointments: false,
+        share_medical_notes: false,
+    })
+    const [contactInfo, setContactInfo] = useState<{ email?: string; phone?: string } | null>(null)
+    const [requestingAccess, setRequestingAccess] = useState(false)
+    const [requestReason, setRequestReason] = useState('')
 
-    async function loadAllData() {
+    useEffect(() => {
+        if (id && user) {
+            checkConsentThenLoad()
+        }
+    }, [id, user])
+
+    async function checkConsentThenLoad() {
         setLoading(true)
         try {
-            // 1. Critical data: Profile
+            // Step 1: Check consent FIRST — never load patient data without it
+            const consent = await getConsentForPatient(user!.id, id!)
+
+            if (!consent) {
+                setConsentGate('no-consent')
+                setLoading(false)
+                return
+            }
+
+            if (consent.status === 'requested') {
+                setConsentGate('requested')
+                setLoading(false)
+                return
+            }
+            if (consent.status === 'rejected') {
+                setConsentGate('rejected')
+                setLoading(false)
+                return
+            }
+            if (consent.status === 'revoked') {
+                setConsentGate('revoked')
+                setLoading(false)
+                return
+            }
+
+            // Status === 'accepted' — save scopes and load data
+            setConsentGate('accepted')
+            setScopes({
+                share_basic_profile: consent.share_basic_profile,
+                share_contact: consent.share_contact,
+                share_documents: consent.share_documents,
+                share_appointments: consent.share_appointments,
+                share_medical_notes: consent.share_medical_notes,
+            })
+
+            await loadPatientData()
+        } catch (err) {
+            logger.error('PatientDetail.consentCheck', err)
+            setConsentGate('no-consent')
+            setLoading(false)
+        }
+    }
+
+    async function loadPatientData() {
+        try {
+            // 1. Critical: basic profile (RLS will still block if no consent)
             const profile = await getPatientFullProfile(id!)
             if (!profile) {
                 setPatient(null)
@@ -62,24 +127,63 @@ export default function PatientDetail() {
             }
             setPatient(profile)
 
-            // 2. Non-critical or secondary data: load in parallel but catch errors individually
-            const [medProfileData, notesData, appointmentsData, documentsData] = await Promise.all([
-                getPatientProfile(id!).catch(e => { logger.error('PatientDetail.medProfile', e); return null }),
-                getPatientNotes(id!, user!.id).catch(e => { logger.error('PatientDetail.notes', e); return [] }),
-                listUpcomingAppointments({ userId: id!, role: 'patient' }).catch(e => { logger.error('PatientDetail.appts', e); return [] }),
-                getUserDocuments(id!).catch(e => { logger.error('PatientDetail.docs', e); return [] })
-            ])
+            // 2. Load additional data ONLY for granted scopes
+            const promises: Promise<any>[] = []
+            const keys: string[] = []
 
-            setMedProfile(medProfileData)
-            setNotes(notesData)
-            setAppointments((appointmentsData || []).slice(0, 5))
-            setDocuments((documentsData || []).slice(0, 5))
+            // Medical profile: always try if basic profile is granted
+            promises.push(getPatientProfile(id!).catch(e => { logger.error('PatientDetail.medProfile', e); return null }))
+            keys.push('medProfile')
+
+            if (scopes.share_medical_notes) {
+                promises.push(getPatientNotes(id!, user!.id).catch(e => { logger.error('PatientDetail.notes', e); return [] }))
+                keys.push('notes')
+            }
+
+            if (scopes.share_appointments) {
+                promises.push(listUpcomingAppointments({ userId: id!, role: 'patient' }).catch(e => { logger.error('PatientDetail.appts', e); return [] }))
+                keys.push('appointments')
+            }
+
+            if (scopes.share_documents) {
+                promises.push(getUserDocuments(id!).catch(e => { logger.error('PatientDetail.docs', e); return [] }))
+                keys.push('documents')
+            }
+
+            if (scopes.share_contact) {
+                promises.push(getPatientContactInfo(id!).catch(e => { logger.error('PatientDetail.contact', e); return null }))
+                keys.push('contact')
+            }
+
+            const results = await Promise.all(promises)
+            keys.forEach((key, i) => {
+                switch (key) {
+                    case 'medProfile': setMedProfile(results[i]); break
+                    case 'notes': setNotes(results[i] || []); break
+                    case 'appointments': setAppointments((results[i] || []).slice(0, 5)); break
+                    case 'documents': setDocuments((results[i] || []).slice(0, 5)); break
+                    case 'contact': setContactInfo(results[i]); break
+                }
+            })
         } catch (err) {
             logger.error('PatientDetail.load', err)
-            showToast('Error crítico al cargar el expediente', 'error')
+            showToast('Error al cargar el expediente', 'error')
         } finally {
             setLoading(false)
         }
+    }
+
+    const handleRequestAccess = async () => {
+        if (!user || !id) return
+        setRequestingAccess(true)
+        const { ok, error } = await requestPatientAccess(user.id, id, requestReason)
+        if (ok) {
+            showToast('Solicitud enviada. El paciente decidirá qué información compartir.', 'success', 4000)
+            setConsentGate('requested')
+        } else {
+            showToast(error || 'Error al solicitar acceso', 'error', 3000)
+        }
+        setRequestingAccess(false)
     }
 
     const handleCreateNote = async (e: React.FormEvent) => {
@@ -111,23 +215,105 @@ export default function PatientDetail() {
         return age
     }
 
-    if (loading) {
+    // ── Consent Gate Screens ──────────────────────────────────────
+    if (loading || consentGate === 'loading') {
         return (
             <DashboardLayout>
                 <div className="flex flex-col items-center justify-center min-h-[400px]">
                     <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-                    <p className="text-gray-500 font-medium">Cargando expediente del paciente...</p>
+                    <p className="text-gray-500 font-medium">Verificando permisos...</p>
                 </div>
             </DashboardLayout>
         )
     }
 
-    if (!patient) {
+    if (!patient && consentGate === 'accepted') {
         return (
             <DashboardLayout>
                 <div className="p-6 text-center">
                     <p className="text-red-500 font-bold">No se encontró el paciente solicitado.</p>
                     <button onClick={() => navigate('/dashboard')} className="mt-4 text-primary hover:underline">Volver al dashboard</button>
+                </div>
+            </DashboardLayout>
+        )
+    }
+
+    // ── Consent Denied / Pending Screens ──────────────────────────
+    if (consentGate !== 'accepted') {
+        const isRequested = consentGate === 'requested'
+        const isRejected = consentGate === 'rejected'
+        const isRevoked = consentGate === 'revoked'
+        const noRelationship = consentGate === 'no-consent'
+
+        return (
+            <DashboardLayout>
+                <div className="max-w-lg mx-auto mt-16">
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="flex items-center gap-2 text-gray-600 hover:text-primary transition-colors mb-6"
+                    >
+                        <ArrowLeft size={20} />
+                        <span className="font-medium">Volver</span>
+                    </button>
+
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
+                        <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
+                            {isRequested ? (
+                                <Clock className="w-8 h-8 text-blue-500" />
+                            ) : isRejected || isRevoked ? (
+                                <ShieldX className="w-8 h-8 text-orange-500" />
+                            ) : (
+                                <ShieldAlert className="w-8 h-8 text-gray-400" />
+                            )}
+                        </div>
+
+                        <h2 className="text-xl font-bold text-gray-900 mb-2">
+                            {isRequested
+                                ? 'Solicitud pendiente'
+                                : isRejected
+                                    ? 'Acceso denegado'
+                                    : isRevoked
+                                        ? 'Acceso revocado'
+                                        : 'Acceso requerido'}
+                        </h2>
+                        <p className="text-sm text-gray-500 mb-6 max-w-sm mx-auto">
+                            {isRequested
+                                ? 'Tu solicitud de acceso está en revisión. El paciente decidirá qué información compartir contigo.'
+                                : isRejected
+                                    ? 'El paciente ha rechazado tu solicitud de acceso. Puedes enviar una nueva solicitud.'
+                                    : isRevoked
+                                        ? 'El paciente ha revocado tu acceso a su expediente. Puedes solicitar acceso nuevamente.'
+                                        : 'Para ver el expediente de este paciente, necesitas solicitar su autorización.'}
+                        </p>
+
+                        {isRequested ? (
+                            <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 text-sm font-semibold rounded-lg">
+                                <Clock size={16} />
+                                Esperando respuesta del paciente
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                <input
+                                    value={requestReason}
+                                    onChange={(e) => setRequestReason(e.target.value)}
+                                    placeholder="Motivo de la solicitud (opcional)"
+                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                />
+                                <button
+                                    onClick={handleRequestAccess}
+                                    disabled={requestingAccess}
+                                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-primary text-white font-bold rounded-lg hover:bg-teal-600 disabled:opacity-50 transition-all"
+                                >
+                                    {requestingAccess ? (
+                                        <Loader2 size={18} className="animate-spin" />
+                                    ) : (
+                                        <Send size={18} />
+                                    )}
+                                    {noRelationship ? 'Solicitar acceso' : 'Re-solicitar acceso'}
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </DashboardLayout>
         )
@@ -167,36 +353,49 @@ export default function PatientDetail() {
                                     <div>
                                         <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{patient.full_name || 'Paciente'}</h1>
                                         <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-gray-500">
-                                            <div className="flex items-center gap-1.5">
-                                                <Mail size={14} className="text-gray-400" />
-                                                <span>{patient.email}</span>
-                                            </div>
-                                            {patient.phone && (
+                                            {scopes.share_contact && contactInfo?.email && (
                                                 <div className="flex items-center gap-1.5">
-                                                    <Phone size={14} className="text-gray-400" />
-                                                    <span>{patient.phone}</span>
+                                                    <Mail size={14} className="text-gray-400" />
+                                                    <span>{contactInfo.email}</span>
                                                 </div>
                                             )}
-                                            <div className="flex items-center gap-1.5 uppercase font-bold text-primary bg-primary/5 px-2 py-0.5 rounded">
-                                                <span>{patient.role}</span>
+                                            {scopes.share_contact && contactInfo?.phone && (
+                                                <div className="flex items-center gap-1.5">
+                                                    <Phone size={14} className="text-gray-400" />
+                                                    <span>{contactInfo.phone}</span>
+                                                </div>
+                                            )}
+                                            {!scopes.share_contact && (
+                                                <div className="flex items-center gap-1.5 text-gray-400">
+                                                    <Lock size={14} />
+                                                    <span className="text-xs italic">Contacto no compartido</span>
+                                                </div>
+                                            )}
+                                            <div className="flex items-center gap-1.5 font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded text-xs">
+                                                <ShieldCheck size={12} />
+                                                <span>Acceso concedido</span>
                                             </div>
                                         </div>
                                     </div>
                                     <div className="flex flex-wrap gap-2">
-                                        <button
-                                            onClick={() => navigate(`/dashboard/mensajes?with=${patient.id}`)}
-                                            className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-teal-600 shadow-sm transition-all"
-                                        >
-                                            <MessageSquare size={18} />
-                                            <span>Mensaje</span>
-                                        </button>
-                                        <button
-                                            onClick={() => navigate(`/dashboard/consultas/nueva?patient=${patient.id}`)}
-                                            className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-all"
-                                        >
-                                            <Calendar size={18} />
-                                            <span>Agendar</span>
-                                        </button>
+                                        {scopes.share_contact && (
+                                            <button
+                                                onClick={() => navigate(`/dashboard/mensajes?with=${patient.id}`)}
+                                                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-teal-600 shadow-sm transition-all"
+                                            >
+                                                <MessageSquare size={18} />
+                                                <span>Mensaje</span>
+                                            </button>
+                                        )}
+                                        {scopes.share_appointments && (
+                                            <button
+                                                onClick={() => navigate(`/dashboard/consultas/nueva?patient=${patient.id}`)}
+                                                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-all"
+                                            >
+                                                <Calendar size={18} />
+                                                <span>Agendar</span>
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -211,10 +410,10 @@ export default function PatientDetail() {
                         {/* Tabs */}
                         <div className="flex border-b border-gray-100 bg-white rounded-t-xl px-2">
                             {[
-                                { id: 'summary', label: 'Resumen Médico', icon: Activity },
-                                { id: 'notes', label: 'Notas Clínicas', icon: StickyNote },
-                                { id: 'activity', label: 'Actividad Reciente', icon: Clock },
-                            ].map((tab) => (
+                                { id: 'summary', label: 'Resumen Médico', icon: Activity, enabled: true },
+                                { id: 'notes', label: 'Notas Clínicas', icon: StickyNote, enabled: scopes.share_medical_notes },
+                                { id: 'activity', label: 'Actividad Reciente', icon: Clock, enabled: scopes.share_appointments || scopes.share_documents },
+                            ].filter(t => t.enabled).map((tab) => (
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id as TabType)}
@@ -317,7 +516,7 @@ export default function PatientDetail() {
                                 </div>
                             )}
 
-                            {activeTab === 'notes' && (
+                            {activeTab === 'notes' && scopes.share_medical_notes && (
                                 <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-300">
                                     {/* Create Note Form */}
                                     <form onSubmit={handleCreateNote} className="bg-gray-50 p-4 rounded-xl space-y-3">
@@ -378,6 +577,7 @@ export default function PatientDetail() {
 
                             {activeTab === 'activity' && (
                                 <div className="space-y-8 animate-in fade-in duration-300">
+                                    {scopes.share_appointments && (
                                     <div className="space-y-4">
                                         <div className="flex items-center justify-between">
                                             <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
@@ -408,8 +608,10 @@ export default function PatientDetail() {
                                             </div>
                                         )}
                                     </div>
+                                    )}
 
-                                    <div className="space-y-4 pt-6 border-t border-gray-100">
+                                    {scopes.share_documents && (
+                                    <div className={`space-y-4 ${scopes.share_appointments ? 'pt-6 border-t border-gray-100' : ''}`}>
                                         <div className="flex items-center justify-between">
                                             <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
                                                 <Droplets size={16} className="text-blue-500" />
@@ -438,6 +640,7 @@ export default function PatientDetail() {
                                             </div>
                                         )}
                                     </div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -451,6 +654,7 @@ export default function PatientDetail() {
                                 Acciones Rápidas
                             </h3>
                             <div className="grid grid-cols-1 gap-2">
+                                {scopes.share_appointments && (
                                 <button
                                     onClick={() => navigate(`/dashboard/consultas/nueva?patient=${patient.id}`)}
                                     className="flex items-center gap-3 p-3 text-sm font-bold text-gray-700 hover:bg-primary/5 hover:text-primary rounded-lg transition-all group"
@@ -460,6 +664,8 @@ export default function PatientDetail() {
                                     </div>
                                     Nueva Consulta
                                 </button>
+                                )}
+                                {scopes.share_documents && (
                                 <button
                                     onClick={() => navigate('/dashboard/documentos')}
                                     className="flex items-center gap-3 p-3 text-sm font-bold text-gray-700 hover:bg-primary/5 hover:text-primary rounded-lg transition-all group"
@@ -469,6 +675,8 @@ export default function PatientDetail() {
                                     </div>
                                     Expediente Digital
                                 </button>
+                                )}
+                                {scopes.share_contact && (
                                 <button
                                     onClick={() => navigate(`/dashboard/mensajes?with=${patient.id}`)}
                                     className="flex items-center gap-3 p-3 text-sm font-bold text-gray-700 hover:bg-primary/5 hover:text-primary rounded-lg transition-all group"
@@ -478,9 +686,12 @@ export default function PatientDetail() {
                                     </div>
                                     Contactar al Paciente
                                 </button>
+                                )}
                             </div>
                         </div>
 
+                        {/* Insurance — only if medical notes scope */}
+                        {scopes.share_medical_notes && (
                         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 relative overflow-hidden">
                             <div className="relative z-10">
                                 <p className="text-[10px] font-bold uppercase tracking-widest text-primary mb-1">Información de Seguro</p>
@@ -497,7 +708,10 @@ export default function PatientDetail() {
                                 </div>
                             </div>
                         </div>
+                        )}
 
+                        {/* Emergency Contact — only with contact scope */}
+                        {scopes.share_contact && (
                         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                             <h3 className="text-sm font-bold text-gray-900 mb-4">Contacto de Emergencia</h3>
                             <div className="space-y-1">
@@ -513,6 +727,7 @@ export default function PatientDetail() {
                                 </a>
                             )}
                         </div>
+                        )}
                     </div>
                 </div>
             </div>

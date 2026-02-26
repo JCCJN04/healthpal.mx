@@ -70,8 +70,8 @@ function isSupabaseError(error: unknown): boolean {
 export const FILE_LIMITS = {
   /** Max document size: 10 MB */
   MAX_DOCUMENT_SIZE: 10 * 1024 * 1024,
-  /** Max avatar size: 2 MB */
-  MAX_AVATAR_SIZE: 2 * 1024 * 1024,
+  /** Max avatar size before compression: 15 MB (will be compressed to ~200KB) */
+  MAX_AVATAR_SIZE: 15 * 1024 * 1024,
   /** Allowed document MIME types */
   ALLOWED_DOCUMENT_TYPES: [
     'application/pdf',

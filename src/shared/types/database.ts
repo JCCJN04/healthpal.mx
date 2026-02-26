@@ -67,6 +67,7 @@ export interface Database {
       doctor_profiles: {
         Row: {
           doctor_id: string
+          slug: string
           professional_license: string | null
           specialty: string | null
           clinic_name: string | null
@@ -80,6 +81,7 @@ export interface Database {
         }
         Insert: {
           doctor_id: string
+          slug?: string
           professional_license?: string | null
           specialty?: string | null
           clinic_name?: string | null
@@ -93,6 +95,7 @@ export interface Database {
         }
         Update: {
           doctor_id?: string
+          slug?: string
           professional_license?: string | null
           specialty?: string | null
           clinic_name?: string | null
@@ -348,6 +351,59 @@ export interface Database {
           created_at?: string
         }
       }
+      doctor_patient_consent: {
+        Row: {
+          id: string
+          doctor_id: string
+          patient_id: string
+          status: 'requested' | 'accepted' | 'rejected' | 'revoked'
+          share_basic_profile: boolean
+          share_contact: boolean
+          share_documents: boolean
+          share_appointments: boolean
+          share_medical_notes: boolean
+          request_reason: string | null
+          access_expires_at: string | null
+          requested_at: string
+          responded_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          doctor_id: string
+          patient_id: string
+          status?: 'requested' | 'accepted' | 'rejected' | 'revoked'
+          share_basic_profile?: boolean
+          share_contact?: boolean
+          share_documents?: boolean
+          share_appointments?: boolean
+          share_medical_notes?: boolean
+          request_reason?: string | null
+          access_expires_at?: string | null
+          requested_at?: string
+          responded_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          doctor_id?: string
+          patient_id?: string
+          status?: 'requested' | 'accepted' | 'rejected' | 'revoked'
+          share_basic_profile?: boolean
+          share_contact?: boolean
+          share_documents?: boolean
+          share_appointments?: boolean
+          share_medical_notes?: boolean
+          request_reason?: string | null
+          access_expires_at?: string | null
+          requested_at?: string
+          responded_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -369,6 +425,63 @@ export interface Database {
         Args: { _patient_id: string }
         Returns: boolean
       }
+      search_public_doctors: {
+        Args: {
+          p_query?: string | null
+          p_specialty?: string | null
+          p_sort?: string
+          p_limit?: number
+          p_offset?: number
+        }
+        Returns: {
+          slug: string
+          display_name: string
+          avatar_url: string | null
+          specialty: string | null
+          clinic_name: string | null
+          bio: string | null
+          years_experience: number | null
+          consultation_price: number | null
+          address_text: string | null
+          location: Json | null
+          is_verified: boolean
+          avg_rating: number
+          review_count: number
+          total_count: number
+        }[]
+      }
+      get_public_doctor_by_slug: {
+        Args: { p_slug: string }
+        Returns: {
+          slug: string
+          display_name: string
+          avatar_url: string | null
+          specialty: string | null
+          clinic_name: string | null
+          bio: string | null
+          years_experience: number | null
+          consultation_price: number | null
+          address_text: string | null
+          location: Json | null
+          is_verified: boolean
+          avg_rating: number
+          review_count: number
+        }[]
+      }
+      get_public_doctor_reviews: {
+        Args: { p_slug: string; p_limit?: number; p_offset?: number }
+        Returns: {
+          rating: number
+          comment: string | null
+          reviewer: string
+          created_at: string
+          total_count: number
+        }[]
+      }
+      get_public_specialties: {
+        Args: Record<PropertyKey, never>
+        Returns: { specialty: string; doctor_count: number }[]
+      }
     }
     Enums: {
       user_role: UserRole
@@ -380,6 +493,15 @@ export interface Database {
   }
 }
 
+/**
+ * Expected shape of the `location` jsonb column in `doctor_profiles`.
+ * Store as: { lat: number; lng: number }
+ */
+export interface DoctorLocation {
+  lat: number;
+  lng: number;
+}
+
 // Convenience types
 export type Profile = Database['public']['Tables']['profiles']['Row']
 export type DoctorProfile = Database['public']['Tables']['doctor_profiles']['Row']
@@ -389,3 +511,19 @@ export type Document = Database['public']['Tables']['documents']['Row']
 export type Notification = Database['public']['Tables']['notifications']['Row']
 export type UserSettings = Database['public']['Tables']['user_settings']['Row']
 export type CareLink = Database['public']['Tables']['care_links']['Row']
+export type DoctorPatientConsent = Database['public']['Tables']['doctor_patient_consent']['Row']
+export type DoctorPatientConsentInsert = Database['public']['Tables']['doctor_patient_consent']['Insert']
+export type DoctorPatientConsentUpdate = Database['public']['Tables']['doctor_patient_consent']['Update']
+export type ConsentStatus = 'requested' | 'accepted' | 'rejected' | 'revoked'
+export type ConsentScope = 'share_basic_profile' | 'share_contact' | 'share_documents' | 'share_appointments' | 'share_medical_notes'
+
+/** Verified review left by a patient after a completed appointment */
+export interface VerifiedReview {
+  id: string
+  appointment_id: string
+  patient_id: string
+  doctor_id: string
+  rating: number
+  comment: string | null
+  created_at: string
+}

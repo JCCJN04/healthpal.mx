@@ -14,11 +14,14 @@
     "@vercel/analytics": "^1.6.1",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.563.0",
+    "mapbox-gl": "^3.19.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-helmet-async": "^2.0.5",
     "react-router-dom": "^6.21.1"
   },
   "devDependencies": {
+    "@types/mapbox__point-geometry": "^1.0.87",
     "@types/react": "^18.2.47",
     "@types/react-dom": "^18.2.18",
     "@typescript-eslint/eslint-plugin": "^6.17.0",

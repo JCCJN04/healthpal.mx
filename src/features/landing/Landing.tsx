@@ -54,6 +54,9 @@ export default function Landing() {
             <button onClick={() => scrollTo('beneficios')} className="hover:text-primary transition-colors">
               Beneficios
             </button>
+            <Link to="/directorio" className="hover:text-primary transition-colors">
+              Directorio
+            </Link>
           </nav>
 
           {/* Desktop CTA */}
@@ -92,6 +95,9 @@ export default function Landing() {
             <button onClick={() => scrollTo('beneficios')} className="block w-full text-left py-2 text-sm text-gray-700 hover:text-primary">
               Beneficios
             </button>
+            <Link to="/directorio" className="block w-full text-left py-2 text-sm text-gray-700 hover:text-primary">
+              Directorio
+            </Link>
             <hr className="border-gray-100" />
             <div className="flex gap-3 pt-1">
               <Link to="/login" className="flex-1">

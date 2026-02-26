@@ -58,7 +58,7 @@ export default function Busqueda() {
         const searchRole = profile?.role === 'doctor' ? 'doctor' : profile?.role === 'patient' ? 'patient' : undefined
 
         const [patients, documents, appointments] = await Promise.all([
-          searchRole === 'doctor' ? searchPatients(qParam) : Promise.resolve([]),
+          searchRole === 'doctor' ? searchPatients(qParam, user.id) : Promise.resolve([]),
           searchDocuments(qParam, user.id),
           searchAppointments(qParam, user.id, searchRole)
         ])

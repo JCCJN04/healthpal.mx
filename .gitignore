@@ -30,3 +30,18 @@ dist-ssr
 
 # Test files with potential secrets
 test-supabase-connection.html
+
+# Vercel
+.vercel
+
+# Supabase local
+supabase/.temp/
+supabase/.branches/
+
+# OS files
+Thumbs.db
+Desktop.ini
+
+# Coverage / test output
+coverage/
+*.lcov

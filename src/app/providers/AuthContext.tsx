@@ -31,8 +31,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<AuthError | null>(null)
 
-  const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null)
-  const jwtRefreshTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const jwtRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const fetchProfile = async () => {
     try {

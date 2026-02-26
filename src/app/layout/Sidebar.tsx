@@ -1,4 +1,4 @@
-import { ReactNode, useMemo } from 'react'
+import { ReactNode, useMemo, useEffect, useState } from 'react'
 import {
   Home,
   FileText,
@@ -12,12 +12,14 @@ import {
 } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '@/app/providers/AuthContext'
+import { countPendingRequests } from '@/shared/lib/queries/consent'
 import { logger } from '@/shared/lib/logger'
 
 interface NavItem {
   label: string
   path: string
   icon: ReactNode
+  badge?: number
 }
 
 interface SidebarProps {
@@ -26,7 +28,15 @@ interface SidebarProps {
 
 export default function Sidebar({ onClose }: SidebarProps) {
   const location = useLocation()
-  const { profile, signOut } = useAuth()
+  const { profile, signOut, user } = useAuth()
+
+  // Pending consent count for patients
+  const [pendingCount, setPendingCount] = useState(0)
+  useEffect(() => {
+    if (user && profile?.role === 'patient') {
+      countPendingRequests(user.id).then(setPendingCount).catch(() => {})
+    }
+  }, [user, profile])
 
   const handleSignOut = async () => {
     try {
@@ -59,9 +69,9 @@ export default function Sidebar({ onClose }: SidebarProps) {
       { label: 'Mensajes', path: '/dashboard/mensajes', icon: <MessageSquare size={20} /> },
       { label: 'Doctores', path: '/dashboard/doctores', icon: <Users size={20} /> },
       { label: 'Calendario', path: '/dashboard/calendario', icon: <Calendar size={20} /> },
-      { label: 'Configuracion', path: '/dashboard/configuracion', icon: <Settings size={20} /> },
+      { label: 'Configuracion', path: '/dashboard/configuracion', icon: <Settings size={20} />, badge: pendingCount },
     ]
-  }, [profile])
+  }, [profile, pendingCount])
 
   return (
     <aside className="w-64 bg-white border-r border-gray-200 h-full flex flex-col">
@@ -94,7 +104,12 @@ export default function Sidebar({ onClose }: SidebarProps) {
               <span className={isActive ? 'text-white' : 'text-gray-600'}>
                 {item.icon}
               </span>
-              <span className="text-sm font-medium">{item.label}</span>
+              <span className="text-sm font-medium flex-1">{item.label}</span>
+              {item.badge && item.badge > 0 ? (
+                <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1 text-[10px] font-bold rounded-full bg-red-500 text-white">
+                  {item.badge}
+                </span>
+              ) : null}
             </Link>
           )
         })}

@@ -61,7 +61,7 @@ Se encontraron **3 vulnerabilidades críticas**: credenciales de Supabase hardco
 |-------|---------|
 | **Archivo** | `test-supabase-connection.html` |
 | **Riesgo** | Exposición de Supabase URL y anon key en archivo HTML versionable |
-| **Evidencia** | `const SUPABASE_URL = 'https://kxdxeobrcdoccqvqkvfw.supabase.co'` + anon key JWT completo |
+| **Evidencia** | `const SUPABASE_URL = 'https://<PROJECT_REF>.supabase.co'` + anon key JWT completo |
 | **Impacto** | Cualquier persona con acceso al repo obtiene credenciales de la DB |
 | **Fix** | Credenciales reemplazadas por strings vacíos + comentario "DO NOT HARDCODE". Archivo añadido a `.gitignore`. |
 | **Acción adicional requerida** | ⚠️ **Rotar la anon key** en el dashboard de Supabase ya que fue commiteada. |

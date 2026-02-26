@@ -36,8 +36,9 @@ export default function Calendario() {
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
 
-  // State
-  const [view, setView] = useState<ViewType>('week');
+  // State — default to 'day' on mobile (< 768px) since week view is hidden
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  const [view, setView] = useState<ViewType>(isMobile ? 'day' : 'week');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [appointments, setAppointments] = useState<AppointmentWithProfiles[]>([]);
   const [loading, setLoading] = useState(true);

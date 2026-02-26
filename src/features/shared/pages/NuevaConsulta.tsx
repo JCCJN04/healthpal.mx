@@ -107,7 +107,7 @@ export default function NuevaConsulta() {
             })
             setPatients(filtered)
         } else {
-            const results = patientSearchQuery ? await searchPatients(patientSearchQuery) : []
+            const results = patientSearchQuery ? await searchPatients(patientSearchQuery, user?.id || '') : []
             setPatients(results)
         }
         setSearching(false)

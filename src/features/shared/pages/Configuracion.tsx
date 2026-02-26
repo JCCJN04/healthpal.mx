@@ -14,10 +14,12 @@ import PatientProfileWizard from '@/features/patient/components/PatientProfileWi
 import { getPatientProfile, upsertPatientProfile } from '@/features/patient/services/patientProfile';
 import { getDoctorProfile } from '@/shared/lib/queries/profile';
 import DoctorVerificationCard from '@/shared/components/settings/DoctorVerificationCard';
+import PatientConsentManager from '@/shared/components/settings/PatientConsentManager';
+import { countPendingRequests } from '@/shared/lib/queries/consent';
 import { PatientProfile, DoctorProfile } from '@/shared/types/database';
 import { logger } from '@/shared/lib/logger';
 
-type TabType = 'general' | 'medical' | 'documents';
+type TabType = 'general' | 'medical' | 'documents' | 'permissions';
 
 export default function Configuracion() {
   const { user, profile: authProfile, refreshProfile } = useAuth();
@@ -42,6 +44,9 @@ export default function Configuracion() {
   // Wizard state
   const [isWizardOpen, setIsWizardOpen] = useState(false);
 
+  // Consent pending count (patients only)
+  const [pendingConsentCount, setPendingConsentCount] = useState(0);
+
   // Toast state
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
@@ -64,6 +69,8 @@ export default function Configuracion() {
       loadProfile();
       if (isPatient) {
         loadPatientProfile();
+        // Load pending consent count for badge
+        countPendingRequests(user.id).then(setPendingConsentCount).catch(() => {});
       }
       if (isDoctor) {
         loadDoctorProfile();
@@ -117,7 +124,10 @@ export default function Configuracion() {
 
   const handleChangePhoto = async (file: File) => {
     try {
-      if (!user) return;
+      if (!user) {
+        setToast({ message: 'No hay sesión activa', type: 'error' });
+        throw new Error('No user session');
+      }
 
       const publicUrl = await uploadAvatar(user.id, file);
 
@@ -131,7 +141,8 @@ export default function Configuracion() {
       setToast({ message: '¡Foto de perfil actualizada!', type: 'success' });
     } catch (error: any) {
       logger.error('Configuracion:uploadPhoto', error);
-      setToast({ message: 'Error al subir la foto', type: 'error' });
+      setToast({ message: `Error al subir la foto: ${error?.message || 'desconocido'}`, type: 'error' });
+      throw error; // Re-throw so ProfileCard can revert the preview
     }
   };
 
@@ -244,7 +255,9 @@ export default function Configuracion() {
     name: profile.full_name || 'Usuario',
     gender: formatGender(profile.sex),
     age: calculateAge(profile.birthdate),
-    location: 'Monterrey, Nuevo León, México', // TODO: Add location to profile
+    location: isDoctor
+      ? (doctorProfile?.address_text || '')
+      : (patientProfile?.address_text || ''),
     avatarUrl: profile.avatar_url || undefined,
   } : null;
 
@@ -262,14 +275,15 @@ export default function Configuracion() {
     appointmentReminders: settings.appointment_reminders,
   } : null;
 
-  const tabs: { id: TabType; label: string }[] = isPatient
+  const tabs: { id: TabType; label: string; enabled: boolean; badge?: number }[] = isPatient
     ? [
-        { id: 'general', label: 'General' },
-        { id: 'medical', label: 'Registro médico' },
-        { id: 'documents', label: 'Documentos del paciente' },
+        { id: 'general', label: 'General', enabled: true },
+        { id: 'permissions', label: 'Permisos', enabled: true, badge: pendingConsentCount },
+        { id: 'medical', label: 'Registro médico', enabled: false },
+        { id: 'documents', label: 'Documentos del paciente', enabled: false },
       ]
     : [
-        { id: 'general', label: 'General' },
+        { id: 'general', label: 'General', enabled: true },
       ];
 
   return (
@@ -291,18 +305,23 @@ export default function Configuracion() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  disabled={tab.id !== 'general'}
+                  disabled={!tab.enabled}
                   className={`flex-1 px-6 py-3 text-sm font-semibold rounded-lg transition-all ${activeTab === tab.id
                     ? 'bg-[#33C7BE] text-white shadow-sm'
-                    : tab.id === 'general'
+                    : tab.enabled
                       ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                       : 'text-gray-400 cursor-not-allowed'
                     }`}
                 >
                   {tab.label}
-                  {tab.id !== 'general' && (
+                  {!tab.enabled && (
                     <span className="ml-2 text-xs opacity-75">(Próximamente)</span>
                   )}
+                  {tab.badge && tab.badge > 0 ? (
+                    <span className="ml-2 inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold rounded-full bg-red-500 text-white">
+                      {tab.badge}
+                    </span>
+                  ) : null}
                 </button>
               ))}
             </div>
@@ -320,6 +339,7 @@ export default function Configuracion() {
                   location={userData.location}
                   avatarUrl={userData.avatarUrl}
                   onChangePhoto={handleChangePhoto}
+                  onValidationError={(msg) => setToast({ message: msg, type: 'error' })}
                 />
               )}
 
@@ -327,7 +347,12 @@ export default function Configuracion() {
               {isDoctor && (
                 <DoctorVerificationCard
                   doctorProfile={doctorProfile}
+                  userId={user?.id ?? ''}
                   isLoading={isLoadingProfile}
+                  onSaved={(updated) => {
+                    setDoctorProfile(updated);
+                    setToast({ message: '¡Perfil médico actualizado!', type: 'success' });
+                  }}
                 />
               )}
 
@@ -390,6 +415,10 @@ export default function Configuracion() {
                 </div>
               </div>
             </div>
+          )}
+
+          {activeTab === 'permissions' && isPatient && (
+            <PatientConsentManager />
           )}
 
           {activeTab === 'medical' && (
