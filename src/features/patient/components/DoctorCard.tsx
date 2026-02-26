@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, MessageCircle, Star, MoreVertical, MapPin, Stethoscope, Clock, DollarSign, UserX, ShieldCheck, BadgeCheck } from 'lucide-react';
+import { Calendar, MessageCircle, Star, MoreVertical, MapPin, Stethoscope, Clock, DollarSign, UserX, ShieldCheck } from 'lucide-react';
 import { DoctorWithProfile, unlinkDoctorFromPatient } from '@/features/patient/services/doctors';
 import { showToast } from '@/shared/components/ui/Toast';
 import { logger } from '@/shared/lib/logger';

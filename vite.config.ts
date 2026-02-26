@@ -25,5 +25,6 @@ export default defineConfig({
         drop_debugger: true,
       },
     },
+    chunkSizeWarningLimit: 1800,
   },
 })
