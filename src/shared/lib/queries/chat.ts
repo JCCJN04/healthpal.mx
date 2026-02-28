@@ -107,31 +107,104 @@ export async function getUnreadTotal(userId: string): Promise<number> {
 }
 
 /**
- * Get or create a conversation between two users
+ * Get or create a conversation between two users.
+ * First tries RPC functions, then falls back to direct table operations
+ * in case the RPC functions don't exist on this Supabase project.
  */
 export async function getOrCreateConversation(userId: string, otherUserId: string): Promise<string | null> {
     try {
-        logger.debug('getOrCreateConversation check')
+        logger.debug('getOrCreateConversation', { userId, otherUserId })
 
-        // 1. Check if a conversation already exists
-        const { data: existing, error: eError } = await supabase
-            .rpc('get_conversation_between_users', {
-                user_a: userId,
-                user_b: otherUserId
-            })
+        // --- Strategy 1: Try RPC functions ---
+        try {
+            const { data: existing, error: eError } = await supabase
+                .rpc('get_conversation_between_users', {
+                    user_a: userId,
+                    user_b: otherUserId
+                })
 
-        if (!eError && existing && existing.length > 0) {
-            return existing[0].id
+            if (!eError && existing && existing.length > 0) {
+                logger.debug('getOrCreateConversation: found via RPC', existing[0].id)
+                return existing[0].id
+            }
+
+            if (!eError || (eError && !eError.message?.includes('function') && !eError.message?.includes('does not exist'))) {
+                // RPC worked but no results — try to start a new conversation
+                const { data: newId, error: startError } = await supabase
+                    .rpc('start_new_conversation', {
+                        other_user_id: otherUserId
+                    })
+
+                if (!startError && newId) {
+                    logger.debug('getOrCreateConversation: created via RPC', newId)
+                    return newId
+                }
+
+                if (startError) {
+                    logger.warn('getOrCreateConversation: start_new_conversation RPC failed', startError.message)
+                }
+            } else {
+                logger.warn('getOrCreateConversation: RPC not available', eError?.message)
+            }
+        } catch (rpcErr) {
+            logger.warn('getOrCreateConversation: RPC approach failed, trying direct tables', rpcErr)
         }
 
-        // 2. Start a new conversation via RPC
-        const { data: newId, error: startError } = await supabase
-            .rpc('start_new_conversation', {
-                other_user_id: otherUserId
-            })
+        // --- Strategy 2: Direct table operations fallback ---
+        logger.debug('getOrCreateConversation: using direct table fallback')
 
-        if (startError) throw startError
-        return newId
+        // 2a. Search for existing conversation between the two users
+        const { data: myParticipations } = await supabase
+            .from('conversation_participants')
+            .select('conversation_id')
+            .eq('user_id', userId)
+
+        if (myParticipations && myParticipations.length > 0) {
+            const myConvIds = myParticipations.map(p => p.conversation_id)
+
+            const { data: otherParticipations } = await supabase
+                .from('conversation_participants')
+                .select('conversation_id')
+                .eq('user_id', otherUserId)
+                .in('conversation_id', myConvIds)
+
+            if (otherParticipations && otherParticipations.length > 0) {
+                logger.debug('getOrCreateConversation: found existing via direct query', otherParticipations[0].conversation_id)
+                return otherParticipations[0].conversation_id
+            }
+        }
+
+        // 2b. Create new conversation
+        const { data: newConv, error: convInsertErr } = await supabase
+            .from('conversations')
+            .insert({
+                created_at: new Date().toISOString(),
+                last_message_at: new Date().toISOString(),
+                last_message_text: null,
+            })
+            .select('id')
+            .single()
+
+        if (convInsertErr || !newConv) {
+            logger.error('getOrCreateConversation: failed to create conversation', convInsertErr)
+            throw convInsertErr || new Error('Failed to create conversation')
+        }
+
+        // 2c. Add both participants
+        const { error: partErr } = await supabase
+            .from('conversation_participants')
+            .insert([
+                { conversation_id: newConv.id, user_id: userId, last_read_at: new Date().toISOString() },
+                { conversation_id: newConv.id, user_id: otherUserId, last_read_at: new Date().toISOString() },
+            ])
+
+        if (partErr) {
+            logger.error('getOrCreateConversation: failed to add participants', partErr)
+            throw partErr
+        }
+
+        logger.debug('getOrCreateConversation: created via direct tables', newConv.id)
+        return newConv.id
     } catch (err) {
         logger.error('getOrCreateConversation', err)
         return null

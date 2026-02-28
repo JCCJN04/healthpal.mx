@@ -13,6 +13,7 @@ export interface AppointmentWithDetails extends Appointment {
     id: string
     full_name: string | null
     avatar_url: string | null
+    email?: string | null
     specialty?: string | null
     clinic_name?: string | null
   } | null
@@ -20,6 +21,7 @@ export interface AppointmentWithDetails extends Appointment {
     id: string
     full_name: string | null
     avatar_url: string | null
+    email?: string | null
   } | null
 }
 
@@ -35,12 +37,14 @@ export async function getAppointmentById(id: string, userId: string): Promise<Ap
         doctor:doctor_id (
           id,
           full_name,
-          avatar_url
+          avatar_url,
+          email
         ),
         patient:patient_id (
           id,
           full_name,
-          avatar_url
+          avatar_url,
+          email
         )
       `)
       .eq('id', id)
@@ -95,12 +99,14 @@ export async function listUpcomingAppointments({ userId, role }: { userId: strin
         doctor:doctor_id (
           id,
           full_name,
-          avatar_url
+          avatar_url,
+          email
         ),
         patient:patient_id (
           id,
           full_name,
-          avatar_url
+          avatar_url,
+          email
         )
       `)
       .gte('start_at', now)
@@ -143,12 +149,14 @@ export async function listPastAppointments({ userId, role }: { userId: string, r
         doctor:doctor_id (
           id,
           full_name,
-          avatar_url
+          avatar_url,
+          email
         ),
         patient:patient_id (
           id,
           full_name,
-          avatar_url
+          avatar_url,
+          email
         )
       `)
       .order('start_at', { ascending: false })
@@ -329,12 +337,12 @@ export async function getDoctorPatientsSnapshot(doctorId: string): Promise<{ pat
     }
 
     const map = new Map<string, string>()
-    ;(data || []).forEach((row) => {
-      if (!row.patient_id) return
-      if (!map.has(row.patient_id)) {
-        map.set(row.patient_id, row.start_at)
-      }
-    })
+      ; (data || []).forEach((row) => {
+        if (!row.patient_id) return
+        if (!map.has(row.patient_id)) {
+          map.set(row.patient_id, row.start_at)
+        }
+      })
 
     return Array.from(map.entries()).map(([patient_id, last_interaction]) => ({ patient_id, last_interaction }))
   } catch (err) {
@@ -389,12 +397,14 @@ export async function searchAppointments(
         doctor:doctor_id (
           id,
           full_name,
-          avatar_url
+          avatar_url,
+          email
         ),
         patient:patient_id (
           id,
           full_name,
-          avatar_url
+          avatar_url,
+          email
         )
       `)
       .order('start_at', { ascending: false })

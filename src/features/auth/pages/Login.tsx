@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react'
+import { useState, FormEvent, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Button from '@/shared/components/ui/Button'
 import Input from '@/shared/components/ui/Input'
@@ -7,17 +7,26 @@ import Tabs from '@/shared/components/ui/Tabs'
 // import GoogleIcon from '@/features/auth/components/GoogleIcon' // pendiente de activar
 import { supabase } from '@/shared/lib/supabase'
 import { showToast } from '@/shared/components/ui/Toast'
+import { useAuth } from '@/app/providers/AuthContext'
 
 type UserRole = 'doctor' | 'patient'
 
 export default function Login() {
   const navigate = useNavigate()
+  const { user, loading: authLoading } = useAuth()
   const [role, setRole] = useState<UserRole>('patient')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(false)
   const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({})
   const [loading, setLoading] = useState(false)
+
+  // If user is already authenticated, redirect to dashboard (which handles onboarding)
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate('/dashboard', { replace: true })
+    }
+  }, [user, authLoading, navigate])
 
   const handleTabChange = (index: number) => {
     setRole(index === 0 ? 'doctor' : 'patient')
@@ -49,11 +58,11 @@ export default function Login() {
 
     // Clear any previous errors
     setErrors({})
-    
+
     setLoading(true)
-    
+
     try {
-      
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -61,7 +70,7 @@ export default function Login() {
 
       if (error) {
         let errorMessage = 'Error al iniciar sesión'
-        
+
         // Mensajes de error más descriptivos
         if (error.message.includes('Email not confirmed')) {
           errorMessage = 'Por favor confirma tu correo antes de iniciar sesión. Revisa tu bandeja de entrada.'
@@ -72,7 +81,7 @@ export default function Login() {
         } else {
           errorMessage = error.message || 'Error al iniciar sesión'
         }
-        
+
         showToast(errorMessage, 'error')
         setErrors({ general: errorMessage })
         return // setLoading(false) happens in finally
@@ -88,10 +97,10 @@ export default function Login() {
       // Success
       showToast('Inicio de sesión exitoso', 'success')
       navigate('/dashboard')
-      
+
       // Note: setLoading will be false after navigation completes,
       // but we won't see it since we're leaving the page
-      
+
     } catch (error: any) {
       const errorMessage = error?.message || 'Error inesperado al iniciar sesión. Por favor intenta de nuevo.'
       showToast(errorMessage, 'error')
@@ -160,7 +169,7 @@ export default function Login() {
                 </button>
               </div>
             )}
-            
+
             {/* Email Input */}
             <Input
               type="email"

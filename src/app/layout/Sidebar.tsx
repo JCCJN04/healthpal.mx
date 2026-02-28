@@ -8,7 +8,10 @@ import {
   CalendarDays,
   Settings,
   X,
-  LogOut
+  LogOut,
+  Briefcase,
+  Clock,
+  Star,
 } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '@/app/providers/AuthContext'
@@ -57,6 +60,8 @@ export default function Sidebar({ onClose }: SidebarProps) {
         { label: 'Consultas', path: '/dashboard/consultas', icon: <CalendarDays size={20} /> },
         { label: 'Mensajes', path: '/dashboard/mensajes', icon: <MessageSquare size={20} /> },
         { label: 'Pacientes', path: '/dashboard/pacientes', icon: <Users size={20} /> },
+        { label: 'Servicios', path: '/dashboard/servicios', icon: <Briefcase size={20} /> },
+        { label: 'Disponibilidad', path: '/dashboard/disponibilidad', icon: <Clock size={20} /> },
         { label: 'Calendario', path: '/dashboard/calendario', icon: <Calendar size={20} /> },
         { label: 'Configuracion', path: '/dashboard/configuracion', icon: <Settings size={20} /> },
       ]
@@ -68,6 +73,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
       { label: 'Consultas', path: '/dashboard/consultas', icon: <CalendarDays size={20} /> },
       { label: 'Mensajes', path: '/dashboard/mensajes', icon: <MessageSquare size={20} /> },
       { label: 'Doctores', path: '/dashboard/doctores', icon: <Users size={20} /> },
+      { label: 'Reseñas', path: '/dashboard/resenas', icon: <Star size={20} /> },
       { label: 'Calendario', path: '/dashboard/calendario', icon: <Calendar size={20} /> },
       { label: 'Configuracion', path: '/dashboard/configuracion', icon: <Settings size={20} />, badge: pendingCount },
     ]

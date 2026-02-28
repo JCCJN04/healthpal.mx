@@ -18,10 +18,23 @@ export default function RequireOnboarding({ children }: RequireOnboardingProps) 
   const [checking, setChecking] = useState(true)
   const [onboardingComplete, setOnboardingComplete] = useState(false)
   const [redirectTo, setRedirectTo] = useState<string | null>(null)
+  const [profileTimedOut, setProfileTimedOut] = useState(false)
+
+  // Safety timeout: if profile doesn't load in 5 seconds, stop waiting
+  useEffect(() => {
+    if (!user || profile) return
+    const timeout = setTimeout(() => {
+      if (!profile) {
+        logger.warn('RequireOnboarding: profile load timeout')
+        setProfileTimedOut(true)
+      }
+    }, 5000)
+    return () => clearTimeout(timeout)
+  }, [user, profile])
 
   useEffect(() => {
     checkOnboarding()
-  }, [user, profile])
+  }, [user, profile, profileTimedOut])
 
   const checkOnboarding = async () => {
     if (!user) {
@@ -29,14 +42,20 @@ export default function RequireOnboarding({ children }: RequireOnboardingProps) 
       return
     }
 
-    // If profile hasn't loaded yet, stay in checking state
+    // If profile hasn't loaded yet and auth is still loading, stay in checking state
     if (!profile && authLoading) {
       return
     }
 
-    // If no profile yet, but auth is done, wait a bit longer for it to load async
+    // If no profile and haven't timed out yet, wait
+    if (!profile && !profileTimedOut) {
+      return
+    }
+
+    // If profile timed out or is still null, redirect to onboarding
     if (!profile) {
-      // Don't set checking false yet, profile might be loading
+      setRedirectTo('/onboarding/role')
+      setChecking(false)
       return
     }
 
@@ -77,8 +96,8 @@ export default function RequireOnboarding({ children }: RequireOnboardingProps) 
     }
   }
 
-  // Show loading state
-  if (authLoading || checking || (user && !profile)) {
+  // Show loading state — only while genuinely checking (not forever)
+  if (authLoading || checking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">

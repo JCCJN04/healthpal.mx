@@ -1,12 +1,16 @@
-import { Link } from 'react-router-dom';
-import { MapPin, Star, ShieldCheck, Stethoscope, Clock, UserPlus } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { MapPin, Star, ShieldCheck, Stethoscope, Clock, Video, Globe } from 'lucide-react';
 import type { PublicDoctor } from '@/shared/lib/queries/publicDoctors';
+import { formatSpecialty } from '@/shared/lib/specialties';
+import AvailabilityCarousel from './AvailabilityCarousel';
 
 interface PublicDoctorCardProps {
   doctor: PublicDoctor;
 }
 
 export default function PublicDoctorCard({ doctor }: PublicDoctorCardProps) {
+  const navigate = useNavigate();
+
   const initials = doctor.display_name
     ? doctor.display_name
         .split(' ')
@@ -19,24 +23,26 @@ export default function PublicDoctorCard({ doctor }: PublicDoctorCardProps) {
   return (
     <div className="group bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md hover:border-primary/30 transition-all duration-200 flex flex-col">
       {/* Top accent */}
-      <div className="h-2 bg-gradient-to-r from-[#33C7BE] to-teal-400" />
+      <div className="h-1.5 bg-gradient-to-r from-[#33C7BE] to-teal-400" />
 
       <div className="p-5 flex flex-col flex-1">
         {/* Header row */}
-        <div className="flex items-start gap-4 mb-4">
+        <div className="flex items-start gap-4 mb-3">
           {/* Avatar */}
-          {doctor.avatar_url ? (
-            <img
-              src={doctor.avatar_url}
-              alt={doctor.display_name}
-              loading="lazy"
-              className="w-16 h-16 rounded-full object-cover flex-shrink-0 border-2 border-gray-100"
-            />
-          ) : (
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#33C7BE] to-teal-500 flex items-center justify-center text-white text-lg font-bold flex-shrink-0">
-              {initials}
-            </div>
-          )}
+          <Link to={`/directorio/${doctor.slug}`} className="shrink-0">
+            {doctor.avatar_url ? (
+              <img
+                src={doctor.avatar_url}
+                alt={doctor.display_name}
+                loading="lazy"
+                className="w-16 h-16 rounded-full object-cover border-2 border-gray-100"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#33C7BE] to-teal-500 flex items-center justify-center text-white text-lg font-bold">
+                {initials}
+              </div>
+            )}
+          </Link>
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
@@ -47,16 +53,32 @@ export default function PublicDoctorCard({ doctor }: PublicDoctorCardProps) {
                 {doctor.display_name}
               </Link>
               {doctor.is_verified && (
-                <ShieldCheck className="w-4 h-4 text-blue-500 flex-shrink-0" aria-label="Verificado" />
+                <ShieldCheck className="w-4 h-4 text-blue-500 shrink-0" aria-label="Verificado" />
               )}
             </div>
 
             {doctor.specialty && (
               <p className="text-sm text-gray-600 flex items-center gap-1.5 mt-0.5">
                 <Stethoscope className="w-3.5 h-3.5 text-gray-400" />
-                {doctor.specialty}
+                {formatSpecialty(doctor.specialty)}
               </p>
             )}
+
+            {/* Badges row */}
+            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+              {doctor.accepts_video && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full">
+                  <Video className="w-3 h-3" />
+                  Videoconsulta
+                </span>
+              )}
+              {doctor.languages && doctor.languages.length > 1 && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full">
+                  <Globe className="w-3 h-3" />
+                  {doctor.languages.join(', ')}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -89,43 +111,49 @@ export default function PublicDoctorCard({ doctor }: PublicDoctorCardProps) {
           <p className="text-sm text-gray-600 line-clamp-2 mb-3">{doctor.bio}</p>
         )}
 
-        {/* Location */}
-        {(doctor.clinic_name || doctor.address_text) && (
-          <p className="text-xs text-gray-500 flex items-start gap-1.5 mb-3">
-            <MapPin className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-primary" />
-            <span className="line-clamp-1">
-              {doctor.clinic_name}
-              {doctor.clinic_name && doctor.address_text ? ' · ' : ''}
-              {doctor.address_text}
-            </span>
-          </p>
-        )}
-
-        {/* Price */}
-        {doctor.consultation_price ? (
-          <p className="text-sm font-semibold text-gray-900 mb-4">
-            ${doctor.consultation_price.toLocaleString('es-MX')} MXN
-          </p>
-        ) : (
-          <p className="text-xs text-gray-400 mb-4">Precio no publicado</p>
-        )}
-
-        {/* CTAs */}
-        <div className="mt-auto flex flex-col gap-2 pt-3 border-t border-gray-100">
-          <Link
-            to={`/register?ref=doctor&slug=${doctor.slug}`}
-            className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-[#33C7BE] text-white text-sm font-semibold rounded-lg hover:bg-teal-600 active:scale-[0.98] transition-all"
-          >
-            <UserPlus className="w-4 h-4" />
-            Regístrate para reservar
-          </Link>
-          <Link
-            to={`/directorio/${doctor.slug}`}
-            className="flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-gray-600 hover:text-primary transition-colors"
-          >
-            Ver perfil completo →
-          </Link>
+        {/* Location + price row */}
+        <div className="flex items-center justify-between mb-3">
+          {(doctor.clinic_name || doctor.address_text) && (
+            <p className="text-xs text-gray-500 flex items-start gap-1.5 flex-1 min-w-0">
+              <MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0 text-primary" />
+              <span className="line-clamp-1">
+                {doctor.city || doctor.clinic_name}
+                {(doctor.city || doctor.clinic_name) && doctor.address_text ? ' · ' : ''}
+                {doctor.address_text}
+              </span>
+            </p>
+          )}
+          {doctor.consultation_price ? (
+            <p className="text-sm font-semibold text-gray-900 shrink-0 ml-2">
+              ${doctor.consultation_price.toLocaleString('es-MX')}
+            </p>
+          ) : null}
         </div>
+
+        {/* ─── Availability Carousel ─── */}
+        <div className="border-t border-gray-100 pt-3 mt-auto">
+          <AvailabilityCarousel
+            doctorSlug={doctor.slug}
+            columns={3}
+            maxSlotsPerDay={3}
+            compact
+            onSlotClick={(slot) => {
+              const params = new URLSearchParams({
+                date: slot.slot_date,
+                time: slot.slot_time,
+              });
+              navigate(`/agendar/${doctor.slug}?${params.toString()}`);
+            }}
+          />
+        </div>
+
+        {/* Profile link */}
+        <Link
+          to={`/directorio/${doctor.slug}`}
+          className="mt-3 flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+        >
+          Ver perfil completo →
+        </Link>
       </div>
     </div>
   );

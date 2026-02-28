@@ -4,7 +4,6 @@ import {
   Search,
   Calendar,
   Clock,
-  User,
   Loader2,
   ChevronRight,
   MapPin,
@@ -84,7 +83,12 @@ export default function Consultas() {
     const status = statusConfig[apt.status]
     const mode = modeConfig[apt.mode]
     const startDate = new Date(apt.start_at)
-    const counterpartName = isDoctor ? (apt.patient?.full_name || 'Paciente') : (apt.doctor?.full_name || 'Especialista')
+    const counterpart = isDoctor ? apt.patient : apt.doctor
+    const counterpartName = counterpart?.full_name
+      || counterpart?.email?.split('@')[0]
+      || (isDoctor ? 'Paciente' : 'Especialista')
+    const counterpartAvatar = counterpart?.avatar_url
+    const counterpartInitial = counterpartName.charAt(0).toUpperCase()
 
     return (
       <div
@@ -93,9 +97,17 @@ export default function Consultas() {
       >
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-full bg-teal-50 flex items-center justify-center flex-shrink-0">
-              <User className="w-6 h-6 text-[#33C7BE]" />
-            </div>
+            {counterpartAvatar ? (
+              <img
+                src={counterpartAvatar}
+                alt={counterpartName}
+                className="w-12 h-12 rounded-full object-cover border-2 border-gray-100 flex-shrink-0"
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-full bg-teal-50 flex items-center justify-center flex-shrink-0 text-[#33C7BE] font-bold text-lg">
+                {counterpartInitial}
+              </div>
+            )}
             <div>
               <h3 className="font-bold text-gray-900 group-hover:text-[#33C7BE] transition-colors line-clamp-1">
                 {apt.reason || 'Consulta Médica'}

@@ -11,30 +11,42 @@ import {
   DollarSign,
   Loader2,
   XCircle,
-  UserPlus,
   Building2,
-  BadgeCheck,
-  Clock,
-  ChevronRight,
   ExternalLink,
+  Video,
+  Globe,
+  Briefcase,
+  MessageSquareText,
 } from 'lucide-react';
 import PublicLayout from '@/features/public/components/PublicLayout';
 import MapboxMap from '@/shared/components/ui/MapboxMap';
+import StickyBookingWidget from '@/features/public/components/StickyBookingWidget';
+import DoctorExperienceTab from '@/features/public/components/DoctorExperienceTab';
+import DoctorServicesTab from '@/features/public/components/DoctorServicesTab';
+import DoctorReviewsTab from '@/features/public/components/DoctorReviewsTab';
 import {
-  getPublicDoctorBySlug,
-  getPublicDoctorReviews,
-  type PublicDoctor,
-  type PublicDoctorReview,
+  getPublicDoctorDetail,
+  type PublicDoctorEnriched,
 } from '@/shared/lib/queries/publicDoctors';
 import { geocodeAddress } from '@/shared/lib/geocoding';
+import { formatSpecialty } from '@/shared/lib/specialties';
+import { buildPhysicianJsonLd } from '@/shared/lib/seoJsonLd';
+
+type TabId = 'experiencia' | 'servicios' | 'opiniones';
+
+const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
+  { id: 'experiencia', label: 'Experiencia', icon: <Briefcase className="w-4 h-4" /> },
+  { id: 'servicios', label: 'Servicios y Precios', icon: <DollarSign className="w-4 h-4" /> },
+  { id: 'opiniones', label: 'Opiniones', icon: <MessageSquareText className="w-4 h-4" /> },
+];
 
 export default function PerfilDoctor() {
   const { slug } = useParams<{ slug: string }>();
 
-  const [doctor, setDoctor] = useState<PublicDoctor | null>(null);
-  const [reviews, setReviews] = useState<PublicDoctorReview[]>([]);
+  const [doctor, setDoctor] = useState<PublicDoctorEnriched | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabId>('experiencia');
 
   const [geocodedCoords, setGeocodedCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [geocoding, setGeocoding] = useState(false);
@@ -48,7 +60,7 @@ export default function PerfilDoctor() {
     setLoading(true);
     setError(false);
 
-    const data = await getPublicDoctorBySlug(s);
+    const data = await getPublicDoctorDetail(s);
     if (!data) {
       setError(true);
       setLoading(false);
@@ -57,8 +69,6 @@ export default function PerfilDoctor() {
 
     setDoctor(data);
     setLoading(false);
-
-    getPublicDoctorReviews(s, 1, 10).then((r) => setReviews(r.data));
 
     const loc = data.location;
     const hasCoords = loc && typeof loc.lat === 'number' && typeof loc.lng === 'number';
@@ -73,11 +83,11 @@ export default function PerfilDoctor() {
   };
 
   const pageTitle = doctor
-    ? `${doctor.display_name} — ${doctor.specialty ?? 'Doctor'} | HealthPal.mx`
+    ? `${doctor.display_name} — ${formatSpecialty(doctor.specialty)} | HealthPal.mx`
     : 'Perfil de Doctor | HealthPal.mx';
 
   const pageDesc = doctor
-    ? `${doctor.display_name}, ${doctor.specialty ?? 'Médico'} con ${doctor.years_experience ?? ''} años de experiencia. ${doctor.clinic_name ? 'Consultorio: ' + doctor.clinic_name + '.' : ''} Agenda tu cita en HealthPal.mx`
+    ? `${doctor.display_name}, ${formatSpecialty(doctor.specialty)} con ${doctor.years_experience ?? ''} años de experiencia. ${doctor.clinic_name ? 'Consultorio: ' + doctor.clinic_name + '.' : ''} Agenda tu cita en HealthPal.mx`
     : 'Consulta el perfil de este doctor en HealthPal.mx';
 
   /* ─── Loading ─── */
@@ -140,11 +150,11 @@ export default function PerfilDoctor() {
       <Helmet>
         <title>{pageTitle}</title>
         <meta name="description" content={pageDesc} />
+        <script type="application/ld+json">{JSON.stringify(buildPhysicianJsonLd(doctor))}</script>
       </Helmet>
 
       {/* ─── Full-width hero gradient ─── */}
       <div className="relative bg-gradient-to-br from-[#33C7BE] via-teal-500 to-emerald-600">
-        {/* Decorative blobs */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-white/5 blur-3xl" />
           <div className="absolute -bottom-20 -left-20 w-72 h-72 rounded-full bg-white/5 blur-2xl" />
@@ -191,12 +201,28 @@ export default function PerfilDoctor() {
               <div className="flex items-center justify-center sm:justify-start gap-x-4 gap-y-1 text-white/80 mt-2 flex-wrap">
                 <span className="inline-flex items-center gap-1.5 text-sm">
                   <Stethoscope className="w-4 h-4" />
-                  {doctor.specialty ?? 'Médico General'}
+                  {formatSpecialty(doctor.specialty)}
                 </span>
                 {doctor.clinic_name && (
                   <span className="inline-flex items-center gap-1.5 text-sm">
                     <Building2 className="w-4 h-4" />
                     {doctor.clinic_name}
+                  </span>
+                )}
+              </div>
+
+              {/* Badges */}
+              <div className="flex items-center justify-center sm:justify-start gap-2 mt-3 flex-wrap">
+                {doctor.accepts_video && (
+                  <span className="inline-flex items-center gap-1 bg-white/15 backdrop-blur-sm text-white text-xs font-medium px-2.5 py-1 rounded-full">
+                    <Video className="w-3.5 h-3.5" />
+                    Videoconsulta disponible
+                  </span>
+                )}
+                {doctor.languages && doctor.languages.length > 0 && (
+                  <span className="inline-flex items-center gap-1 bg-white/15 backdrop-blur-sm text-white text-xs font-medium px-2.5 py-1 rounded-full">
+                    <Globe className="w-3.5 h-3.5" />
+                    {doctor.languages.join(', ')}
                   </span>
                 )}
               </div>
@@ -238,150 +264,122 @@ export default function PerfilDoctor() {
       {/* ─── Main content ─── */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-          {/* ─── Left column ─── */}
+          {/* ─── Left column (2/3) ─── */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Bio */}
-            {doctor.bio && (
-              <Section title="Acerca del doctor">
-                <p className="text-gray-600 leading-relaxed whitespace-pre-line">
-                  {doctor.bio}
-                </p>
-              </Section>
-            )}
+            {/* Tabbed navigation */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              {/* Tab bar */}
+              <div className="border-b border-gray-100">
+                <nav className="flex">
+                  {TABS.map((tab) => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-medium transition-colors border-b-2 ${
+                        activeTab === tab.id
+                          ? 'border-primary text-primary'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-200'
+                      }`}
+                    >
+                      {tab.icon}
+                      <span className="hidden sm:inline">{tab.label}</span>
+                    </button>
+                  ))}
+                </nav>
+              </div>
 
-            {/* Info card — shown here only on mobile (before map) */}
-            <div className="lg:hidden">
-              <InfoCard doctor={doctor} />
+              {/* Tab content */}
+              <div className="p-5 sm:p-6">
+                {activeTab === 'experiencia' && (
+                  <DoctorExperienceTab doctor={doctor} />
+                )}
+                {activeTab === 'servicios' && (
+                  <DoctorServicesTab doctor={doctor} />
+                )}
+                {activeTab === 'opiniones' && (
+                  <DoctorReviewsTab
+                    doctorSlug={slug!}
+                    avgRating={doctor.avg_rating}
+                    reviewCount={doctor.review_count}
+                  />
+                )}
+              </div>
             </div>
 
             {/* Map */}
             {(doctor.address_text || coords) && (
-              <Section title="Ubicación del consultorio">
-                {doctor.address_text && (
-                  <div className="flex items-start gap-3 mb-4 p-3 rounded-lg bg-gray-50">
-                    <MapPin className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-gray-700 text-sm leading-relaxed mb-2">{doctor.address_text}</p>
-                      <a
-                        href={
-                          coords
-                            ? `https://www.google.com/maps?q=${coords.lat},${coords.lng}`
-                            : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(doctor.address_text)}`
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-teal-700 transition-colors"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                        Abrir en Google Maps
-                      </a>
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="px-5 sm:px-6 pt-5 pb-4 border-b border-gray-100">
+                  <h2 className="text-base font-bold text-gray-900">Ubicación del consultorio</h2>
+                </div>
+                <div className="px-5 sm:px-6 py-5">
+                  {doctor.address_text && (
+                    <div className="flex items-start gap-3 mb-4 p-3 rounded-lg bg-gray-50">
+                      <MapPin className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-gray-700 text-sm leading-relaxed mb-2">
+                          {doctor.address_text}
+                          {doctor.city && (
+                            <span className="text-gray-400"> · {doctor.city}</span>
+                          )}
+                        </p>
+                        <a
+                          href={
+                            coords
+                              ? `https://www.google.com/maps?q=${coords.lat},${coords.lng}`
+                              : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(doctor.address_text)}`
+                          }
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-teal-700 transition-colors"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          Abrir en Google Maps
+                        </a>
+                      </div>
                     </div>
-                  </div>
-                )}
-                {geocoding && (
-                  <div className="h-[260px] rounded-xl bg-gray-100 animate-pulse flex items-center justify-center">
-                    <Loader2 className="w-6 h-6 text-primary animate-spin" />
-                  </div>
-                )}
-                {!geocoding && coords && (
-                  <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm">
-                    <MapboxMap
-                      lat={coords.lat}
-                      lng={coords.lng}
-                      address={doctor.address_text ?? undefined}
-                      height="260px"
-                    />
-                  </div>
-                )}
-              </Section>
+                  )}
+                  {geocoding && (
+                    <div className="h-[260px] rounded-xl bg-gray-100 animate-pulse flex items-center justify-center">
+                      <Loader2 className="w-6 h-6 text-primary animate-spin" />
+                    </div>
+                  )}
+                  {!geocoding && coords && (
+                    <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+                      <MapboxMap
+                        lat={coords.lat}
+                        lng={coords.lng}
+                        address={doctor.address_text ?? undefined}
+                        height="260px"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
-
-            {/* Reviews */}
-            <Section title={`Reseñas de pacientes (${doctor.review_count})`}>
-              {reviews.length === 0 ? (
-                <div className="text-center py-8">
-                  <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-gray-100 flex items-center justify-center">
-                    <Star className="w-6 h-6 text-gray-300" />
-                  </div>
-                  <p className="text-gray-400 text-sm">Este doctor aún no tiene reseñas.</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-gray-100">
-                  {reviews.map((r, i) => (
-                    <ReviewItem key={i} review={r} />
-                  ))}
-                </div>
-              )}
-            </Section>
           </div>
 
-          {/* ─── Right column (sidebar) ─── */}
+          {/* ─── Right column: Sticky Booking Widget ─── */}
           <div className="hidden lg:block">
-            {/* Sticky wrapper: both CTA + Info scroll together */}
-            <div className="sticky top-24 space-y-5">
-              {/* CTA Card */}
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                <p className="text-lg font-bold text-gray-900 mb-1">
-                  Agenda una cita
-                </p>
-                <p className="text-sm text-gray-500 mb-5">
-                  Crea tu cuenta gratuita y reserva una consulta al instante.
-                </p>
-
-                <Link
-                  to={`/register?ref=doctor&slug=${slug}`}
-                  className="flex items-center justify-center gap-2 w-full px-5 py-3 bg-[#33C7BE] text-white font-semibold rounded-xl hover:bg-teal-600 active:scale-[0.98] transition-all shadow-sm shadow-teal-200"
-                >
-                  <UserPlus className="w-5 h-5" />
-                  Regístrate gratis
-                </Link>
-
-                <div className="mt-4 pt-4 border-t border-gray-100">
-                  <Link
-                    to="/login"
-                    className="flex items-center justify-center gap-1 text-sm text-gray-500 hover:text-primary transition-colors"
-                  >
-                    ¿Ya tienes cuenta?{' '}
-                    <span className="font-semibold text-primary">Inicia sesión</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </Link>
-                </div>
-              </div>
-
-              {/* Info card — desktop only (mobile rendered in left column) */}
-              <InfoCard doctor={doctor} />
-            </div>
+            <StickyBookingWidget
+              doctorSlug={slug!}
+              displayName={doctor.display_name}
+              consultationPrice={doctor.consultation_price}
+              acceptsVideo={doctor.accepts_video}
+              address={doctor.address_text}
+            />
           </div>
 
-          {/* CTA on mobile — after reviews, at the bottom */}
+          {/* Mobile booking widget (non-sticky, at bottom) */}
           <div className="lg:hidden">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-              <p className="text-lg font-bold text-gray-900 mb-1">
-                Agenda una cita
-              </p>
-              <p className="text-sm text-gray-500 mb-5">
-                Crea tu cuenta gratuita y reserva una consulta al instante.
-              </p>
-
-              <Link
-                to={`/register?ref=doctor&slug=${slug}`}
-                className="flex items-center justify-center gap-2 w-full px-5 py-3 bg-[#33C7BE] text-white font-semibold rounded-xl hover:bg-teal-600 active:scale-[0.98] transition-all shadow-sm shadow-teal-200"
-              >
-                <UserPlus className="w-5 h-5" />
-                Regístrate gratis
-              </Link>
-
-              <div className="mt-4 pt-4 border-t border-gray-100">
-                <Link
-                  to="/login"
-                  className="flex items-center justify-center gap-1 text-sm text-gray-500 hover:text-primary transition-colors"
-                >
-                  ¿Ya tienes cuenta?{' '}
-                  <span className="font-semibold text-primary">Inicia sesión</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </Link>
-              </div>
-            </div>
+            <StickyBookingWidget
+              doctorSlug={slug!}
+              displayName={doctor.display_name}
+              consultationPrice={doctor.consultation_price}
+              acceptsVideo={doctor.accepts_video}
+              address={doctor.address_text}
+            />
           </div>
         </div>
       </div>
@@ -390,17 +388,6 @@ export default function PerfilDoctor() {
 }
 
 /* ─── Sub-components ─────────────────────────────────────────────────────── */
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-      <div className="px-5 sm:px-6 pt-5 pb-4 border-b border-gray-100">
-        <h2 className="text-base font-bold text-gray-900">{title}</h2>
-      </div>
-      <div className="px-5 sm:px-6 py-5">{children}</div>
-    </div>
-  );
-}
 
 function StatCard({
   icon,
@@ -416,118 +403,6 @@ function StatCard({
       <div className="mb-0.5">{icon}</div>
       <p className="text-xl sm:text-2xl font-bold text-gray-900 leading-none">{value}</p>
       <p className="text-xs text-gray-500">{label}</p>
-    </div>
-  );
-}
-
-function InfoRow({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="flex items-center gap-3 px-5 py-3.5">
-      <div className="flex-shrink-0">{icon}</div>
-      <div className="min-w-0 flex-1">
-        <p className="text-xs text-gray-400">{label}</p>
-        <p className="text-sm font-medium text-gray-900 truncate">{value}</p>
-      </div>
-    </div>
-  );
-}
-
-function ReviewItem({ review }: { review: PublicDoctorReview }) {
-  return (
-    <div className="flex gap-3 py-4">
-      {/* Avatar circle */}
-      <div className="flex-shrink-0 w-9 h-9 rounded-full bg-gradient-to-br from-teal-100 to-emerald-100 flex items-center justify-center text-sm font-bold text-primary">
-        {review.reviewer.charAt(0).toUpperCase()}
-      </div>
-
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between gap-2 mb-0.5">
-          <span className="font-semibold text-sm text-gray-900 truncate">
-            {review.reviewer}
-          </span>
-          <span className="text-xs text-gray-400 whitespace-nowrap">
-            {new Date(review.created_at).toLocaleDateString('es-MX', {
-              year: 'numeric',
-              month: 'short',
-              day: 'numeric',
-            })}
-          </span>
-        </div>
-
-        {/* Stars */}
-        <div className="flex items-center gap-0.5 mb-1.5">
-          {Array.from({ length: 5 }).map((_, j) => (
-            <Star
-              key={j}
-              className={`w-3.5 h-3.5 ${
-                j < review.rating
-                  ? 'fill-yellow-400 text-yellow-400'
-                  : 'text-gray-200'
-              }`}
-            />
-          ))}
-        </div>
-
-        {review.comment && (
-          <p className="text-sm text-gray-600 leading-relaxed">{review.comment}</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function InfoCard({ doctor }: { doctor: PublicDoctor }) {
-  return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 divide-y divide-gray-100 overflow-hidden">
-      <div className="px-5 py-4">
-        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-          Información
-        </h3>
-      </div>
-
-      {doctor.specialty && (
-        <InfoRow
-          icon={<Stethoscope className="w-4 h-4 text-primary" />}
-          label="Especialidad"
-          value={doctor.specialty}
-        />
-      )}
-      {doctor.years_experience && (
-        <InfoRow
-          icon={<Clock className="w-4 h-4 text-purple-500" />}
-          label="Experiencia"
-          value={`${doctor.years_experience} años`}
-        />
-      )}
-      {doctor.consultation_price && (
-        <InfoRow
-          icon={<DollarSign className="w-4 h-4 text-blue-500" />}
-          label="Consulta"
-          value={`$${doctor.consultation_price.toLocaleString('es-MX')} MXN`}
-        />
-      )}
-      {doctor.is_verified && (
-        <InfoRow
-          icon={<BadgeCheck className="w-4 h-4 text-emerald-500" />}
-          label="Verificación"
-          value="Cédula verificada por SEP"
-        />
-      )}
-      {doctor.clinic_name && (
-        <InfoRow
-          icon={<Building2 className="w-4 h-4 text-gray-400" />}
-          label="Consultorio"
-          value={doctor.clinic_name}
-        />
-      )}
     </div>
   );
 }

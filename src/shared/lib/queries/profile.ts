@@ -35,7 +35,11 @@ export async function getMyProfile(): Promise<Profile> {
       .eq('id', user.id)
       .single()
 
-    if (secondTry) return secondTry as Profile
+    if (secondTry) {
+      // Fire-and-forget sync
+      syncProfileFromMetadata(secondTry, user)
+      return secondTry as Profile
+    }
 
     if (secondError && secondError.code !== 'PGRST116') {
       throw secondError
@@ -54,6 +58,8 @@ export async function getMyProfile(): Promise<Profile> {
       .insert({
         id: user.id,
         email: user.email,
+        full_name: (user.user_metadata as any)?.full_name || null,
+        phone: (user.user_metadata as any)?.phone || null,
         role: (user.user_metadata as any)?.role || 'patient',
         onboarding_completed: false,
         onboarding_step: 'role',
@@ -78,7 +84,45 @@ export async function getMyProfile(): Promise<Profile> {
     throw new Error('Profile not found')
   }
 
+  // Fire-and-forget: sync full_name from user_metadata if missing (non-blocking)
+  syncProfileFromMetadata(profile, user)
   return profile
+}
+
+/**
+ * If the profile is missing full_name but user_metadata has it,
+ * automatically update the profiles table to sync the data.
+ */
+async function syncProfileFromMetadata(profile: any, user: any): Promise<any> {
+  const metaName = (user.user_metadata as any)?.full_name
+  const metaPhone = (user.user_metadata as any)?.phone
+
+  const updates: Record<string, any> = {}
+
+  if (!profile.full_name && metaName) {
+    updates.full_name = metaName
+  }
+  if (!profile.phone && metaPhone) {
+    updates.phone = metaPhone
+  }
+
+  if (Object.keys(updates).length === 0) return profile
+
+  logger.info('syncProfileFromMetadata: syncing missing fields', updates)
+
+  const { data: updated, error } = await supabase
+    .from('profiles')
+    .update(updates as any)
+    .eq('id', profile.id)
+    .select('*')
+    .single()
+
+  if (error) {
+    logger.warn('syncProfileFromMetadata: failed to sync', error)
+    return profile // Return original profile on error
+  }
+
+  return updated || profile
 }
 
 /**

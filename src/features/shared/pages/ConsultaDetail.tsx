@@ -75,7 +75,7 @@ const modeConfig: Record<VisitMode, { label: string; icon: typeof MapPin; color:
 export default function ConsultaDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [appointment, setAppointment] = useState<AppointmentWithDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -134,8 +134,12 @@ export default function ConsultaDetail() {
   };
 
   const handleSendMessage = () => {
-    if (!appointment?.doctor) return;
-    navigate(`/dashboard/mensajes?with=${appointment.doctor.id}`);
+    if (!appointment) return;
+    // Use profile role to determine counterpart (isDoctor const is declared after early returns)
+    const userIsDoctor = profile?.role === 'doctor' || user?.id === appointment.doctor_id;
+    const counterpartId = userIsDoctor ? appointment.patient_id : appointment.doctor_id;
+    if (!counterpartId) return;
+    navigate(`/dashboard/mensajes?with=${counterpartId}`);
   };
 
   const handleReschedule = () => {
@@ -274,32 +278,59 @@ export default function ConsultaDetail() {
 
         {/* Main Card */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          {/* Doctor Header */}
+          {/* Counterpart Header — show patient info for doctor, doctor info for patient */}
           <div className="bg-gradient-to-r from-[#33C7BE]/10 to-teal-50 p-6 border-b border-gray-100">
             <div className="flex items-start gap-4">
-              {appointment.doctor?.avatar_url ? (
-                <img
-                  src={appointment.doctor.avatar_url}
-                  alt={appointment.doctor.full_name || 'Doctor'}
-                  className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-sm"
-                />
-              ) : (
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#33C7BE] to-teal-500 flex items-center justify-center text-white text-2xl font-bold shadow-sm">
-                  {appointment.doctor?.full_name?.charAt(0) || 'D'}
-                </div>
-              )}
+              {isDoctor ? (
+                /* Doctor viewing → show patient */
+                <>
+                  {appointment.patient?.avatar_url ? (
+                    <img
+                      src={appointment.patient.avatar_url}
+                      alt={appointment.patient.full_name || appointment.patient.email?.split('@')[0] || 'Paciente'}
+                      className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-sm"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#33C7BE] to-teal-500 flex items-center justify-center text-white text-2xl font-bold shadow-sm">
+                      {(appointment.patient?.full_name || appointment.patient?.email || 'P').charAt(0).toUpperCase()}
+                    </div>
+                  )}
 
-              <div className="flex-1">
-                <h1 className="text-2xl font-bold text-gray-900">
-                  {appointment.doctor?.full_name || 'Doctor'}
-                </h1>
-                {appointment.doctor?.specialty && (
-                  <p className="text-gray-600 mt-1">{appointment.doctor.specialty}</p>
-                )}
-                {appointment.doctor?.clinic_name && (
-                  <p className="text-sm text-gray-500 mt-1">{appointment.doctor.clinic_name}</p>
-                )}
-              </div>
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Paciente</p>
+                    <h1 className="text-2xl font-bold text-gray-900">
+                      {appointment.patient?.full_name || appointment.patient?.email?.split('@')[0] || 'Paciente'}
+                    </h1>
+                  </div>
+                </>
+              ) : (
+                /* Patient viewing → show doctor */
+                <>
+                  {appointment.doctor?.avatar_url ? (
+                    <img
+                      src={appointment.doctor.avatar_url}
+                      alt={appointment.doctor.full_name || 'Doctor'}
+                      className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-sm"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#33C7BE] to-teal-500 flex items-center justify-center text-white text-2xl font-bold shadow-sm">
+                      {appointment.doctor?.full_name?.charAt(0) || 'D'}
+                    </div>
+                  )}
+
+                  <div className="flex-1">
+                    <h1 className="text-2xl font-bold text-gray-900">
+                      {appointment.doctor?.full_name || appointment.doctor?.email?.split('@')[0] || 'Doctor'}
+                    </h1>
+                    {appointment.doctor?.specialty && (
+                      <p className="text-gray-600 mt-1">{appointment.doctor.specialty}</p>
+                    )}
+                    {appointment.doctor?.clinic_name && (
+                      <p className="text-sm text-gray-500 mt-1">{appointment.doctor.clinic_name}</p>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -382,28 +413,6 @@ export default function ConsultaDetail() {
               </div>
             )}
 
-            {/* Patient Info (if viewing as doctor) */}
-            {!isPatient && appointment.patient && (
-              <div className="border-t border-gray-100 pt-6">
-                <p className="text-sm text-gray-500 mb-3">Paciente</p>
-                <div className="flex items-center gap-3">
-                  {appointment.patient.avatar_url ? (
-                    <img
-                      src={appointment.patient.avatar_url}
-                      alt={appointment.patient.full_name || 'Paciente'}
-                      className="w-12 h-12 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-semibold">
-                      {appointment.patient.full_name?.charAt(0) || 'P'}
-                    </div>
-                  )}
-                  <div>
-                    <p className="font-semibold text-gray-900">{appointment.patient.full_name || 'Paciente'}</p>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Actions */}
             {isUpcoming && (appointment.status === 'confirmed' || appointment.status === 'requested') && (

@@ -1,13 +1,23 @@
 import { useState } from 'react'
 import {
   Stethoscope, BadgeCheck, Building2, MapPin, Clock,
-  DollarSign, FileText, Pencil, X, Save, Loader2,
+  DollarSign, FileText, Pencil, X, Save, Loader2, Shield,
 } from 'lucide-react'
 import { DoctorProfile } from '@/shared/types/database'
 import { upsertDoctorProfile } from '@/shared/lib/queries/profile'
 import { geocodeAddress } from '@/shared/lib/geocoding'
 import { logger } from '@/shared/lib/logger'
 import { SPECIALTIES, formatSpecialty } from '@/shared/lib/specialties'
+
+const MAJOR_INSURANCES = [
+  'Allianz',
+  'AXA Seguros',
+  'BUPA',
+  'GNP Seguros',
+  'Mapfre',
+  'MetLife',
+  'Seguros Monterrey',
+]
 
 interface DoctorVerificationCardProps {
   doctorProfile: DoctorProfile | null
@@ -33,6 +43,8 @@ export default function DoctorVerificationCard({
     years_experience: doctorProfile?.years_experience?.toString() ?? '',
     consultation_price_mxn: doctorProfile?.consultation_price_mxn?.toString() ?? '',
     bio: doctorProfile?.bio ?? '',
+    consultation_mode: doctorProfile?.consultation_mode ?? 'in-person',
+    accepted_insurances: (doctorProfile as any)?.accepted_insurances as string[] ?? [],
   })
 
   const startEdit = () => {
@@ -44,6 +56,8 @@ export default function DoctorVerificationCard({
       years_experience: doctorProfile?.years_experience?.toString() ?? '',
       consultation_price_mxn: doctorProfile?.consultation_price_mxn?.toString() ?? '',
       bio: doctorProfile?.bio ?? '',
+      consultation_mode: doctorProfile?.consultation_mode ?? 'in-person',
+      accepted_insurances: (doctorProfile as any)?.accepted_insurances as string[] ?? [],
     })
     setSaveError(null)
     setEditing(true)
@@ -73,8 +87,12 @@ export default function DoctorVerificationCard({
           ? parseFloat(form.consultation_price_mxn)
           : null,
         bio: form.bio.trim() || null,
+        consultation_mode: form.consultation_mode,
         location: location as any,
-      })
+        accepted_insurances: form.accepted_insurances.length > 0
+          ? form.accepted_insurances
+          : null,
+      } as any)
 
       onSaved?.(updated as unknown as DoctorProfile)
       setEditing(false)
@@ -237,6 +255,22 @@ export default function DoctorVerificationCard({
                 />
               </div>
 
+              {/* Consultation mode */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+                  Modalidad de consulta
+                </label>
+                <select
+                  value={form.consultation_mode}
+                  onChange={set('consultation_mode')}
+                  className="w-full text-sm rounded-xl border border-gray-200 px-3.5 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
+                >
+                  <option value="in-person">Presencial</option>
+                  <option value="video">En línea (Videoconsulta)</option>
+                  <option value="both">Ambas modalidades</option>
+                </select>
+              </div>
+
               {/* Address */}
               <div>
                 <label className="block text-xs font-semibold text-gray-500 mb-1.5">
@@ -268,6 +302,45 @@ export default function DoctorVerificationCard({
                 className="w-full text-sm rounded-xl border border-gray-200 px-3.5 py-2.5 resize-none focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary placeholder:text-gray-300"
               />
             </div>
+
+            {/* Accepted Insurances */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-2.5">
+                Seguros aceptados
+              </label>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {MAJOR_INSURANCES.map((insurance) => {
+                  const isChecked = form.accepted_insurances.includes(insurance);
+                  return (
+                    <label
+                      key={insurance}
+                      className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-colors ${isChecked
+                        ? 'bg-primary/5 border-primary/30'
+                        : 'bg-white border-gray-200 hover:bg-gray-50'
+                        }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setForm((prev) => ({
+                            ...prev,
+                            accepted_insurances: checked
+                              ? [...prev.accepted_insurances, insurance]
+                              : prev.accepted_insurances.filter((i) => i !== insurance)
+                          }));
+                        }}
+                        className="mt-0.5 rounded border-gray-300 text-primary focus:ring-primary/40 shrink-0"
+                      />
+                      <span className="text-sm text-gray-700 leading-snug font-medium select-none">
+                        {insurance}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         ) : (
           /* ── READ-ONLY VIEW ── */
@@ -280,6 +353,7 @@ export default function DoctorVerificationCard({
                 { icon: <MapPin className="w-4 h-4 text-primary" />, label: 'Dirección', value: doctorProfile?.address_text },
                 { icon: <Clock className="w-4 h-4 text-primary" />, label: 'Años de experiencia', value: doctorProfile?.years_experience != null ? `${doctorProfile.years_experience} años` : null },
                 { icon: <DollarSign className="w-4 h-4 text-primary" />, label: 'Precio de consulta', value: doctorProfile?.consultation_price_mxn != null ? `$${doctorProfile.consultation_price_mxn.toLocaleString('es-MX')} MXN` : null },
+                { icon: <Shield className="w-4 h-4 text-primary" />, label: 'Modalidad de consulta', value: doctorProfile?.consultation_mode === 'in-person' ? 'Presencial' : doctorProfile?.consultation_mode === 'video' ? 'En línea (Videoconsulta)' : doctorProfile?.consultation_mode === 'both' ? 'Ambas modalidades' : 'Presencial' },
               ].map(({ icon, label, value }) => (
                 <div key={label} className="flex items-start gap-2.5">
                   <div className="mt-0.5 shrink-0">{icon}</div>
@@ -306,6 +380,29 @@ export default function DoctorVerificationCard({
                 </div>
               </div>
             )}
+
+            {/* Accepted Insurances read-only */}
+            <div className="flex items-start gap-2.5 pt-1">
+              <Shield className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+              <div className="flex-1">
+                <p className="text-xs text-gray-400 mb-1">Seguros aceptados</p>
+                {((doctorProfile as any)?.accepted_insurances as string[] | null)?.length ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {((doctorProfile as any).accepted_insurances as string[]).map((ins: string) => (
+                      <span
+                        key={ins}
+                        className="inline-flex items-center gap-1 text-xs bg-green-50 text-green-700 px-2.5 py-1 rounded-full font-medium"
+                      >
+                        <Shield className="w-3 h-3" />
+                        {ins}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-400">Sin registrar</p>
+                )}
+              </div>
+            </div>
 
             {!doctorProfile && (
               <p className="text-sm text-gray-400 text-center py-2">

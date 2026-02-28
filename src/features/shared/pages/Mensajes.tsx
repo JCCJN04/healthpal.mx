@@ -108,7 +108,7 @@ export default function Mensajes() {
       }
     } catch (err) {
       logger.error('Mensajes:startConversation', err)
-      setError('No pudimos iniciar el chat con este médico.')
+      setError('No pudimos iniciar el chat. Intenta de nuevo.')
     } finally {
       setCreatingChat(false)
       isStartingConv.current = false
