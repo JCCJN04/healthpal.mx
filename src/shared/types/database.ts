@@ -76,7 +76,7 @@ export interface Database {
           consultation_price_mxn: number | null
           address_text: string | null
           location: Json | null
-          consultation_mode: 'in-person' | 'video' | 'both' | null
+          consultation_mode: string | null
           created_at: string
           updated_at: string
         }
@@ -91,7 +91,7 @@ export interface Database {
           consultation_price_mxn?: number | null
           address_text?: string | null
           location?: Json | null
-          consultation_mode?: 'in-person' | 'video' | 'both' | null
+          consultation_mode?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -106,7 +106,7 @@ export interface Database {
           consultation_price_mxn?: number | null
           address_text?: string | null
           location?: Json | null
-          consultation_mode?: 'in-person' | 'video' | 'both' | null
+          consultation_mode?: string | null
           created_at?: string
           updated_at?: string
         }

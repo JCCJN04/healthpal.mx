@@ -450,8 +450,8 @@ export async function getDoctorAvailability(
   const resolvedEnd = endDate || new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
 
   try {
-    const { data: profile, error: profileError } = await supabase
-      .from('doctor_profiles')
+    const { data: profile, error: profileError } = await (supabase
+      .from('doctor_profiles') as any)
       .select('doctor_id')
       .eq('slug', doctorSlug)
       .single();
