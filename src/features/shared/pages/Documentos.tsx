@@ -6,6 +6,7 @@ import DocumentsTable from '@/shared/components/documents/DocumentsTable'
 import { DocumentGrid } from '@/shared/components/documents/DocumentGrid'
 import { useAuth } from '@/app/providers/AuthContext'
 import { getUserDocuments, getDocumentsSharedWithMe, uploadDocument, deleteDocument, getFolders, createFolder, deleteFolder, updateFolder, updateDocument } from '@/shared/lib/queries/documents'
+import { extractDocumentInfo } from '@/shared/lib/gemini'
 import { showToast } from '@/shared/components/ui/Toast'
 import { validateFile } from '@/shared/lib/errors'
 import type { Database } from '@/shared/types/database'
@@ -48,6 +49,7 @@ export default function Documentos() {
   const [sharedDocs, setSharedDocs] = useState<Array<{ doc: Document; senderId: string }>>([])
   const [_sharedFolders, setSharedFolders] = useState<Folder[]>([])
   const [movingDocId, setMovingDocId] = useState<string | null>(null)
+  const [extracting, setExtracting] = useState(false)
 
   const [uploadForm, setUploadForm] = useState<{
     file: File | null
@@ -176,9 +178,38 @@ export default function Documentos() {
       folderId: currentFolder.id
     })
 
-    if (result.success) {
-      showToast('¡Documento subido exitosamente!', 'success')
+    if (result.success && result.documentId) {
       setUploadModalOpen(false)
+
+      // Attempt background extraction
+      setExtracting(true)
+      showToast('Analizando documento con IA...', 'info')
+
+      try {
+        // We need the file path, but uploadDocument doesn't return it directly in the success result.
+        // However, we can construct it or fetch the document record.
+        // Looking at uploadDocument implementation: filePath = `${userId}/${documentId}/${fileName}`
+        // It's better if we just pass the info to extractDocumentInfo which calls the edge function.
+        // The edge function already handles updating the document notes.
+
+        // Re-construct filePath or fetch it
+        const fileExt = uploadForm.file.name.split('.').pop()
+        const filePath = `${user.id}/${result.documentId}/${result.documentId}.${fileExt}`
+
+        const result_ai = await extractDocumentInfo(result.documentId, filePath, uploadForm.file.type)
+        if (result_ai.success) {
+          showToast('¡Información extraída exitosamente!', 'success')
+        } else {
+          showToast(result_ai.error || 'La IA no pudo procesar el documento.', 'warning')
+        }
+      } catch (err: any) {
+        console.error('Error during AI extraction:', err)
+        showToast(err.message || 'Error al conectar con la IA.', 'error')
+      } finally {
+        setExtracting(false)
+        loadContent()
+      }
+
       setUploadForm({
         file: null,
         title: '',
@@ -632,10 +663,10 @@ export default function Documentos() {
                     disabled={uploading || !uploadForm.file}
                     className="flex-1 px-4 py-2.5 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
                   >
-                    {uploading ? (
+                    {uploading || extracting ? (
                       <>
                         <Loader2 size={16} className="animate-spin" />
-                        <span>Subiendo...</span>
+                        <span>{extracting ? 'Analizando...' : 'Subiendo...'}</span>
                       </>
                     ) : (
                       <span>Subir Documento</span>

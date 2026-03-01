@@ -393,97 +393,53 @@ export async function getPublicDoctorDetail(
   }
 }
 
-// ─── Fallback slot generation ────────────────────────────────────────────────
+// ─── Real availability from doctor_schedules ────────────────────────────────
 
-/**
- * Generate synthetic availability slots for a date range based on
- * standard business hours (Mon–Fri 09:00–17:00, 30-min intervals).
- * Used as a fallback when the backend RPC is not yet available.
- */
-function generateFallbackSlots(
-  startDate: string,
-  endDate: string,
-): AvailabilitySlot[] {
-  const slots: AvailabilitySlot[] = [];
-  const start = new Date(startDate + 'T00:00:00');
-  const end = new Date(endDate + 'T00:00:00');
-  const now = new Date();
-
-  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    const dow = d.getDay(); // 0=Sun … 6=Sat
-    if (dow === 0 || dow === 6) continue; // skip weekends
-
-    const dateStr = d.toISOString().split('T')[0];
-    const isToday = dateStr === now.toISOString().split('T')[0];
-
-    for (let hour = 9; hour < 17; hour++) {
-      for (const min of [0, 30]) {
-        // If today, skip past slots
-        if (isToday && (hour < now.getHours() || (hour === now.getHours() && min <= now.getMinutes()))) {
-          continue;
-        }
-
-        const hh = String(hour).padStart(2, '0');
-        const mm = String(min).padStart(2, '0');
-        slots.push({
-          slot_date: dateStr,
-          slot_time: `${hh}:${mm}:00`,
-          slot_ts: `${dateStr}T${hh}:${mm}:00`,
-        });
-      }
-    }
-  }
-
-  return slots;
+/** Get local date string YYYY-MM-DD (avoids UTC drift from toISOString) */
+function localDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 /**
  * Get availability slots for a doctor in a date range.
- * Falls back to synthetic Mon–Fri 9–17 slots when the backend RPC is unavailable.
+ * Uses the slug-based RPC which resolves doctor_id internally
+ * (bypasses doctor_profiles RLS restriction).
  */
 export async function getDoctorAvailability(
   doctorSlug: string,
   startDate?: string,
   endDate?: string,
 ): Promise<AvailabilitySlot[]> {
-  const resolvedStart = startDate || new Date().toISOString().split('T')[0];
-  const resolvedEnd = endDate || new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
+  const now = new Date();
+  const resolvedStart = startDate || localDateStr(now);
+  const endD = new Date(now);
+  endD.setDate(endD.getDate() + 14);
+  const resolvedEnd = endDate || localDateStr(endD);
 
   try {
-    const { data: profile, error: profileError } = await (supabase
-      .from('doctor_profiles') as any)
-      .select('doctor_id')
-      .eq('slug', doctorSlug)
-      .single();
-
-    if (profileError || !profile) {
-      logger.warn('getDoctorAvailability: slug resolve failed, using fallback slots', profileError?.message);
-      return generateFallbackSlots(resolvedStart, resolvedEnd);
-    }
-
-    const { data, error } = await rpc('get_doctor_availability', {
-      p_doctor_id: profile.doctor_id,
+    const { data, error } = await rpc('get_doctor_availability_by_slug', {
+      p_slug: doctorSlug,
       p_start_date: resolvedStart,
       p_end_date: resolvedEnd,
     });
 
     if (error) {
-      logger.warn('getDoctorAvailability: RPC failed, using fallback slots', error.message);
-      return generateFallbackSlots(resolvedStart, resolvedEnd);
+      console.error('[Availability] RPC error:', error);
+      return [];
     }
 
-    const result = (data ?? []) as AvailabilitySlot[];
-    // If the RPC returned nothing (e.g. doctor has no schedule rows yet), fall back
-    if (result.length === 0) {
-      return generateFallbackSlots(resolvedStart, resolvedEnd);
-    }
-
-    return result;
+    return (data ?? []) as AvailabilitySlot[];
   } catch (err) {
-    logger.warn('getDoctorAvailability: unexpected error, using fallback slots', err);
-    return generateFallbackSlots(resolvedStart, resolvedEnd);
+    console.error('[Availability] Unexpected error:', err);
+    return [];
   }
 }
+
+
+
 
 /**
  * Get list of insurance providers with doctor counts (for filter sidebar).

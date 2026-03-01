@@ -270,7 +270,7 @@ export default function AgendarCita() {
             endDate.setMinutes(endDate.getMinutes() + 30);
             const endAt = endDate.toISOString();
 
-            await createAppointment({
+            const appointmentResult = await createAppointment({
               doctor_id: doctorProfile.doctor_id,
               patient_id: signUpData.user.id,
               start_at: new Date(startAt).toISOString(),
@@ -280,9 +280,22 @@ export default function AgendarCita() {
               status: 'requested',
               created_by: signUpData.user.id,
             });
+
+            // Handle double-booking (UNIQUE constraint violation)
+            if (appointmentResult && 'error' in appointmentResult && appointmentResult.error) {
+              const errMsg = typeof appointmentResult.error === 'string'
+                ? appointmentResult.error
+                : (appointmentResult.error as any)?.message || '';
+              if (errMsg.includes('unique') || errMsg.includes('duplicate') || errMsg.includes('idx_unique_doctor_slot')) {
+                showToast('Este horario ya fue reservado por otro paciente. Por favor elige otro horario.', 'error');
+                setSubmitting(false);
+                return;
+              }
+            }
           } else {
             logger.error('AgendarCita:createAppointment', 'Could not resolve doctor_id from slug');
           }
+
         } catch (appointmentErr) {
           logger.error('AgendarCita:createAppointment', appointmentErr);
           // Non-blocking — appointment data is also in sessionStorage as backup
