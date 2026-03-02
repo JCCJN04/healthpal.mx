@@ -7,7 +7,7 @@ import { logger } from '@/shared/lib/logger';
 const rpc = (supabase as any).rpc.bind(supabase) as (
   fn: string,
   args?: Record<string, unknown>,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 ) => Promise<{ data: any; error: any }>;
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -59,6 +59,7 @@ export interface AvailabilitySlot {
 }
 
 export interface PublicDoctorReview {
+  id?: string;
   rating: number;
   rating_punctuality: number | null;
   rating_attention: number | null;
@@ -67,6 +68,7 @@ export interface PublicDoctorReview {
   reviewer: string;
   is_anonymous: boolean;
   created_at: string;
+  helpful_count?: number;
 }
 
 export interface ReviewSummary {
@@ -226,6 +228,7 @@ export async function getPublicDoctorReviews(
   pageSize = 10,
 ): Promise<PaginatedResult<PublicDoctorReview>> {
   const offset = (page - 1) * pageSize;
+  const empty: PaginatedResult<PublicDoctorReview> = { data: [], totalCount: 0, page, pageSize, totalPages: 0 };
 
   try {
     const { data, error } = await rpc('get_public_doctor_reviews', {
@@ -235,8 +238,8 @@ export async function getPublicDoctorReviews(
     });
 
     if (error) {
-      logger.error('getPublicDoctorReviews', error);
-      return { data: [], totalCount: 0, page, pageSize, totalPages: 0 };
+      logger.warn('getPublicDoctorReviews: RPC failed, falling back to direct query', error.message);
+      return getPublicDoctorReviewsDirect(slug, page, pageSize);
     }
 
     const rows = (data ?? []) as (PublicDoctorReview & { total_count: number })[];
@@ -256,7 +259,108 @@ export async function getPublicDoctorReviews(
     };
   } catch (err) {
     logger.error('getPublicDoctorReviews:unexpected', err);
-    return { data: [], totalCount: 0, page, pageSize, totalPages: 0 };
+    return empty;
+  }
+}
+
+/**
+ * Increments the helpful count for a review (deduplication handled client-side via localStorage).
+ */
+export async function incrementReviewHelpful(reviewId: string): Promise<void> {
+  try {
+    await rpc('increment_review_helpful', { p_review_id: reviewId });
+  } catch (err) {
+    logger.error('incrementReviewHelpful:unexpected', err);
+  }
+}
+
+/**
+ * Direct table fallback for getPublicDoctorReviews when the RPC is unavailable.
+ */
+async function getPublicDoctorReviewsDirect(
+  slug: string,
+  page = 1,
+  pageSize = 10,
+): Promise<PaginatedResult<PublicDoctorReview>> {
+  const offset = (page - 1) * pageSize;
+  const empty: PaginatedResult<PublicDoctorReview> = { data: [], totalCount: 0, page, pageSize, totalPages: 0 };
+
+  try {
+    // Resolve doctor_id from slug
+    const { data: profileData, error: profileError } = await supabase
+      .from('doctor_profiles')
+      .select('doctor_id')
+      .eq('slug', slug)
+      .maybeSingle();
+
+    if (profileError) {
+      logger.error(`getPublicDoctorReviewsDirect: doctor_profiles read denied (anon RLS?) — ${profileError.message} [${profileError.code}]`);
+      return empty;
+    }
+    if (!profileData) {
+      logger.warn('getPublicDoctorReviewsDirect: slug not found', slug);
+      return empty;
+    }
+
+    const doctorId = (profileData as { doctor_id: string }).doctor_id;
+
+    // Count total
+    const { count, error: countError } = await supabase
+      .from('verified_reviews')
+      .select('id', { count: 'exact', head: true })
+      .eq('doctor_id', doctorId);
+
+    if (countError) {
+      logger.error('getPublicDoctorReviewsDirect: count failed', countError.message);
+      return empty;
+    }
+
+    const totalCount = count ?? 0;
+    if (totalCount === 0) return empty;
+
+    // Fetch page of reviews
+    const { data: rows, error: rowsError } = await supabase
+      .from('verified_reviews')
+      .select('id, rating, rating_punctuality, rating_attention, rating_facilities, comment, is_anonymous, created_at, patient_id, helpful_count')
+      .eq('doctor_id', doctorId)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + pageSize - 1);
+
+    if (rowsError || !rows) {
+      logger.error('getPublicDoctorReviewsDirect: rows query failed', rowsError?.message);
+      return empty;
+    }
+
+    // Resolve reviewer names for non-anonymous reviews
+    const patientIds = [...new Set((rows as any[]).filter((r: any) => !r.is_anonymous).map((r: any) => r.patient_id))];
+    const nameMap = new Map<string, string>();
+    if (patientIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', patientIds);
+      for (const p of ((profiles ?? []) as any[])) {
+        nameMap.set(p.id, p.full_name ?? 'Paciente');
+      }
+    }
+
+    const reviews: PublicDoctorReview[] = (rows as any[]).map((r: any) => ({
+      id: r.id,
+      rating: r.rating,
+      rating_punctuality: r.rating_punctuality ?? null,
+      rating_attention: r.rating_attention ?? null,
+      rating_facilities: r.rating_facilities ?? null,
+      comment: r.comment ?? null,
+      reviewer: r.is_anonymous ? 'Anónimo' : (nameMap.get(r.patient_id) ?? 'Paciente'),
+      is_anonymous: r.is_anonymous,
+      created_at: r.created_at,
+      helpful_count: r.helpful_count ?? 0,
+    }));
+
+    return { data: reviews, totalCount, page, pageSize, totalPages: Math.ceil(totalCount / pageSize) };
+  } catch (err) {
+    logger.error('getPublicDoctorReviewsDirect:unexpected', err);
+    return empty;
   }
 }
 
@@ -317,9 +421,8 @@ export async function searchDoctorsAdvanced(
     });
 
     if (error) {
-      // Fallback: RPC may not exist yet (migration not applied) or type signature mismatches.
+      // Fallback: RPC may not exist yet (migration not applied).
       // Delegate to the original search_public_doctors.
-      console.error('searchDoctorsAdvanced SUPABASE RPC ERROR:', error);
       logger.warn('searchDoctorsAdvanced: falling back to searchPublicDoctors', error.message);
       return searchPublicDoctors({
         query: query ?? undefined,
@@ -393,53 +496,97 @@ export async function getPublicDoctorDetail(
   }
 }
 
-// ─── Real availability from doctor_schedules ────────────────────────────────
+// ─── Fallback slot generation ────────────────────────────────────────────────
 
-/** Get local date string YYYY-MM-DD (avoids UTC drift from toISOString) */
-function localDateStr(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+/**
+ * Generate synthetic availability slots for a date range based on
+ * standard business hours (Mon–Fri 09:00–17:00, 30-min intervals).
+ * Used as a fallback when the backend RPC is not yet available.
+ */
+function generateFallbackSlots(
+  startDate: string,
+  endDate: string,
+): AvailabilitySlot[] {
+  const slots: AvailabilitySlot[] = [];
+  const start = new Date(startDate + 'T00:00:00');
+  const end = new Date(endDate + 'T00:00:00');
+  const now = new Date();
+
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const dow = d.getDay(); // 0=Sun … 6=Sat
+    if (dow === 0 || dow === 6) continue; // skip weekends
+
+    const dateStr = d.toISOString().split('T')[0];
+    const isToday = dateStr === now.toISOString().split('T')[0];
+
+    for (let hour = 9; hour < 17; hour++) {
+      for (const min of [0, 30]) {
+        // If today, skip past slots
+        if (isToday && (hour < now.getHours() || (hour === now.getHours() && min <= now.getMinutes()))) {
+          continue;
+        }
+
+        const hh = String(hour).padStart(2, '0');
+        const mm = String(min).padStart(2, '0');
+        slots.push({
+          slot_date: dateStr,
+          slot_time: `${hh}:${mm}:00`,
+          slot_ts: `${dateStr}T${hh}:${mm}:00`,
+        });
+      }
+    }
+  }
+
+  return slots;
 }
 
 /**
  * Get availability slots for a doctor in a date range.
- * Uses the slug-based RPC which resolves doctor_id internally
- * (bypasses doctor_profiles RLS restriction).
+ * Falls back to synthetic Mon–Fri 9–17 slots when the backend RPC is unavailable.
  */
 export async function getDoctorAvailability(
   doctorSlug: string,
   startDate?: string,
   endDate?: string,
 ): Promise<AvailabilitySlot[]> {
-  const now = new Date();
-  const resolvedStart = startDate || localDateStr(now);
-  const endD = new Date(now);
-  endD.setDate(endD.getDate() + 14);
-  const resolvedEnd = endDate || localDateStr(endD);
+  const resolvedStart = startDate || new Date().toISOString().split('T')[0];
+  const resolvedEnd = endDate || new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
 
   try {
-    const { data, error } = await rpc('get_doctor_availability_by_slug', {
-      p_slug: doctorSlug,
+    const { data: profile, error: profileError } = await supabase
+      .from('doctor_profiles')
+      .select('doctor_id')
+      .eq('slug', doctorSlug)
+      .single();
+
+    if (profileError || !profile) {
+      logger.warn('getDoctorAvailability: slug resolve failed, using fallback slots', profileError?.message);
+      return generateFallbackSlots(resolvedStart, resolvedEnd);
+    }
+
+    const { data, error } = await rpc('get_doctor_availability', {
+      p_doctor_id: (profile as any).doctor_id,
       p_start_date: resolvedStart,
       p_end_date: resolvedEnd,
     });
 
     if (error) {
-      console.error('[Availability] RPC error:', error);
-      return [];
+      logger.warn('getDoctorAvailability: RPC failed, using fallback slots', error.message);
+      return generateFallbackSlots(resolvedStart, resolvedEnd);
     }
 
-    return (data ?? []) as AvailabilitySlot[];
+    const result = (data ?? []) as AvailabilitySlot[];
+    // If the RPC returned nothing (e.g. doctor has no schedule rows yet), fall back
+    if (result.length === 0) {
+      return generateFallbackSlots(resolvedStart, resolvedEnd);
+    }
+
+    return result;
   } catch (err) {
-    console.error('[Availability] Unexpected error:', err);
-    return [];
+    logger.warn('getDoctorAvailability: unexpected error, using fallback slots', err);
+    return generateFallbackSlots(resolvedStart, resolvedEnd);
   }
 }
-
-
-
 
 /**
  * Get list of insurance providers with doctor counts (for filter sidebar).

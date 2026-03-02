@@ -61,6 +61,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
         { label: 'Mensajes', path: '/dashboard/mensajes', icon: <MessageSquare size={20} /> },
         { label: 'Pacientes', path: '/dashboard/pacientes', icon: <Users size={20} /> },
         { label: 'Servicios', path: '/dashboard/servicios', icon: <Briefcase size={20} /> },
+        { label: 'Reseñas', path: '/dashboard/resenas-doctor', icon: <Star size={20} /> },
         { label: 'Disponibilidad', path: '/dashboard/disponibilidad', icon: <Clock size={20} /> },
         { label: 'Calendario', path: '/dashboard/calendario', icon: <Calendar size={20} /> },
         { label: 'Configuracion', path: '/dashboard/configuracion', icon: <Settings size={20} /> },

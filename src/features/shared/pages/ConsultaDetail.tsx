@@ -13,6 +13,8 @@ import {
   XCircle,
   AlertCircle,
   Loader2,
+  Star,
+  ClipboardCheck,
 } from 'lucide-react';
 import DashboardLayout from '@/app/layout/DashboardLayout';
 import { useAuth } from '@/app/providers/AuthContext';
@@ -20,6 +22,8 @@ import { getAppointmentById, updateAppointmentStatus, updateAppointment, Appoint
 import { showToast } from '@/shared/components/ui/Toast';
 import { createNotification } from '@/shared/lib/queries/notifications';
 import type { Database } from '@/shared/types/database';
+import ReviewWizard from '@/features/patient/components/ReviewWizard';
+import { getReviewableAppointments, type ReviewableAppointment } from '@/shared/lib/queries/publicDoctors';
 
 type AppointmentStatus = Database['public']['Enums']['appointment_status'];
 type VisitMode = Database['public']['Enums']['visit_mode'];
@@ -86,6 +90,9 @@ export default function ConsultaDetail() {
   const [newDate, setNewDate] = useState<string | null>(null);
   const [newTime, setNewTime] = useState<string | null>(null);
   const [newMode, setNewMode] = useState<VisitMode | null>(null);
+  const [reviewableAppt, setReviewableAppt] = useState<ReviewableAppointment | null>(null);
+  const [alreadyReviewed, setAlreadyReviewed] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
 
   useEffect(() => {
     loadAppointment();
@@ -111,6 +118,29 @@ export default function ConsultaDetail() {
     setNewDate(start.toISOString().split('T')[0])
     setNewTime(start.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false }))
     setNewMode(data.mode)
+    // For completed patient appointments: build a ReviewableAppointment from the data
+    // and check via RPC whether it's already been reviewed.
+    if (data.status === 'completed' && user?.id === data.patient_id) {
+      // Build from appointment fields so the wizard always has what it needs
+      const synthetic: ReviewableAppointment = {
+        appointment_id: data.id,
+        doctor_id: data.doctor_id,
+        doctor_name: data.doctor?.full_name ?? 'Doctor',
+        doctor_slug: data.doctor?.slug ?? '',
+        doctor_avatar: data.doctor?.avatar_url ?? null,
+        specialty: data.doctor?.specialty ?? null,
+        start_at: data.start_at,
+        already_reviewed: false,
+      };
+      setReviewableAppt(synthetic);
+      // Verify whether the patient already reviewed this appointment
+      const reviewable = await getReviewableAppointments();
+      const found = reviewable.find((r) => r.appointment_id === id);
+      if (found?.already_reviewed) {
+        setAlreadyReviewed(true);
+        setReviewableAppt({ ...synthetic, already_reviewed: true });
+      }
+    }
     setLoading(false);
   };
 
@@ -276,6 +306,35 @@ export default function ConsultaDetail() {
           </div>
         </div>
 
+        {/* ── Pending-completion banner (doctor only, past confirmed) ── */}
+        {isDoctor && !isUpcoming && appointment.status === 'confirmed' && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="flex items-center gap-3 flex-1">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+                <ClipboardCheck className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-amber-900">Consulta pendiente de confirmación</p>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  El horario de esta cita ya pasó. Confírmala como completada una vez que la atención haya finalizado.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => updateStatus('completed')}
+              disabled={processingStatus}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-600 text-white text-sm font-semibold rounded-xl hover:bg-amber-700 transition-colors disabled:opacity-60 shrink-0"
+            >
+              {processingStatus ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <ClipboardCheck className="w-4 h-4" />
+              )}
+              Confirmar como completada
+            </button>
+          </div>
+        )}
+
         {/* Main Card */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           {/* Counterpart Header — show patient info for doctor, doctor info for patient */}
@@ -414,9 +473,47 @@ export default function ConsultaDetail() {
             )}
 
 
+            {/* Review section — shown for patients on completed appointments */}
+            {appointment.status === 'completed' && isPatient && (
+              <div className="border-t border-gray-100 pt-6">
+                {alreadyReviewed ? (
+                  <div className="flex items-center gap-2 text-emerald-600 text-sm font-medium bg-emerald-50 px-4 py-3 rounded-xl">
+                    <CheckCircle className="w-4 h-4" />
+                    Ya dejaste una reseña para esta consulta — ¡gracias!
+                  </div>
+                ) : (
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 bg-primary/5 rounded-xl border border-primary/10">
+                    <div className="flex-1">
+                      <p className="font-semibold text-gray-900 text-sm">¿Cómo fue tu consulta?</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Dejar una reseña es <span className="font-medium">completamente opcional</span> y ayuda a otros pacientes a elegir al mejor doctor.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setReviewOpen(true)}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-teal-600 transition-colors shrink-0"
+                    >
+                      <Star className="w-4 h-4" />
+                      Dejar Reseña
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Actions */}
             {isUpcoming && (appointment.status === 'confirmed' || appointment.status === 'requested') && (
               <div className="border-t border-gray-100 pt-6 space-y-4">
+                {appointment.status === 'confirmed' && isDoctor && (
+                  <button
+                    onClick={() => updateStatus('completed')}
+                    disabled={processingStatus}
+                    className="flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-semibold disabled:opacity-60"
+                  >
+                    {processingStatus ? <Loader2 className="w-5 h-5 animate-spin" /> : <ClipboardCheck className="w-5 h-5" />}
+                    <span>Finalizar consulta</span>
+                  </button>
+                )}
                 {appointment.status === 'requested' && isDoctor && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <button
@@ -526,6 +623,18 @@ export default function ConsultaDetail() {
           </div>
         </div>
       </div>
+
+      {/* Review Wizard */}
+      {reviewOpen && reviewableAppt && (
+        <ReviewWizard
+          appointment={reviewableAppt}
+          onClose={() => setReviewOpen(false)}
+          onSuccess={() => {
+            setReviewOpen(false);
+            setAlreadyReviewed(true);
+          }}
+        />
+      )}
 
       {/* Cancel Confirmation Modal */}
       {showCancelModal && (

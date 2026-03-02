@@ -11,12 +11,9 @@ import DirectorioFilters, {
 } from '@/features/public/components/DirectorioFilters';
 import {
   searchDoctorsAdvanced,
-  getPublicSpecialties,
   type PublicDoctor,
-  type SpecialtyOption,
   type SortOption,
 } from '@/shared/lib/queries/publicDoctors';
-import { formatSpecialty } from '@/shared/lib/specialties';
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: 'rating', label: 'Mejor valorados' },
@@ -75,13 +72,6 @@ export default function DirectorioDoctores() {
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  const [specialties, setSpecialties] = useState<SpecialtyOption[]>([]);
-
-  // Load specialties once
-  useEffect(() => {
-    getPublicSpecialties().then(setSpecialties);
-  }, []);
-
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
@@ -135,9 +125,15 @@ export default function DirectorioDoctores() {
 
   // Hero search handler
   const handleHeroSearch = (q: string, c: string, spec?: string) => {
-    setQuery(q);
     setCity(c);
-    if (spec) setSpecialty(spec);
+    if (spec) {
+      // Specialty was explicitly selected from the dropdown — use the slug,
+      // and clear the text query so it doesn't interfere with the specialty filter.
+      setSpecialty(spec);
+      setQuery('');
+    } else {
+      setQuery(q);
+    }
     setPage(1);
   };
 
@@ -161,38 +157,6 @@ export default function DirectorioDoctores() {
         initialCity={city}
         onSearch={handleHeroSearch}
       />
-
-      {/* ─── Specialty pills (horizontal scroll) ─── */}
-      {specialties.length > 0 && (
-        <div className="bg-white border-b border-gray-100 overflow-x-auto">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center gap-2">
-            <button
-              onClick={() => setSpecialty('')}
-              className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                !specialty
-                  ? 'bg-primary text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              Todas
-            </button>
-            {specialties.map((s) => (
-              <button
-                key={s.specialty}
-                onClick={() => setSpecialty(s.specialty === specialty ? '' : s.specialty)}
-                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
-                  specialty === s.specialty
-                    ? 'bg-primary text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                {formatSpecialty(s.specialty)}
-                <span className="ml-1 opacity-60">({s.doctor_count})</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* ─── Main content: sidebar + results ─── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

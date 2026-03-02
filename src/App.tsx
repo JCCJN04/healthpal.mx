@@ -43,6 +43,7 @@ const AgendarCita = lazy(() => import('@/features/public/pages/AgendarCita'))
 const MisResenas = lazy(() => import('@/features/patient/pages/MisResenas'))
 const DoctorServicesManager = lazy(() => import('@/features/doctor/pages/DoctorServicesManager'))
 const AvailabilityCalendarManager = lazy(() => import('@/features/doctor/pages/AvailabilityCalendarManager'))
+const MisResenasDoctorPage = lazy(() => import('@/features/doctor/pages/MisResenasDoctorPage'))
 
 // Lazy load onboarding pages
 const OnboardingRole = lazy(() => import('@/features/auth/pages/onboarding/OnboardingRole'))
@@ -112,6 +113,7 @@ function App() {
         <Route path="/dashboard/pacientes/:id" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['doctor']}><Suspense fallback={<PageLoader />}><PatientDetail /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/servicios" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['doctor']}><Suspense fallback={<PageLoader />}><DoctorServicesManager /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/disponibilidad" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['doctor']}><Suspense fallback={<PageLoader />}><AvailabilityCalendarManager /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
+        <Route path="/dashboard/resenas-doctor" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['doctor']}><Suspense fallback={<PageLoader />}><MisResenasDoctorPage /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/calendario" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><Calendario /></Suspense></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/configuracion" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><Configuracion /></Suspense></RequireOnboarding></RequireAuth>} />
       </Routes>

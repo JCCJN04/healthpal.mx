@@ -14,13 +14,9 @@ import {
   HeartPulse,
   Loader2,
   CheckCircle2,
-  Lock,
-  Eye,
-  EyeOff,
 } from 'lucide-react';
 import { supabase } from '@/shared/lib/supabase';
 import { getPublicDoctorBySlug, type PublicDoctor } from '@/shared/lib/queries/publicDoctors';
-import { createAppointment } from '@/shared/lib/queries/appointments';
 import { formatSpecialty } from '@/shared/lib/specialties';
 import { showToast } from '@/shared/components/ui/Toast';
 import { logger } from '@/shared/lib/logger';
@@ -53,8 +49,6 @@ interface FormData {
   fullName: string;
   email: string;
   phone: string;
-  password: string;
-  confirmPassword: string;
   reason: string;
 }
 
@@ -62,8 +56,6 @@ interface FormErrors {
   fullName?: string;
   email?: string;
   phone?: string;
-  password?: string;
-  confirmPassword?: string;
   reason?: string;
 }
 
@@ -87,13 +79,9 @@ export default function AgendarCita() {
     fullName: '',
     email: '',
     phone: '',
-    password: '',
-    confirmPassword: '',
     reason: '',
   });
   const [errors, setErrors] = useState<FormErrors>({});
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Fetch doctor info
   useEffect(() => {
@@ -127,18 +115,6 @@ export default function AgendarCita() {
       newErrors.phone = 'Ingresa un número de 10 dígitos';
     }
 
-    if (!form.password) {
-      newErrors.password = 'Ingresa una contraseña';
-    } else if (form.password.length < 6) {
-      newErrors.password = 'La contraseña debe tener al menos 6 caracteres';
-    }
-
-    if (!form.confirmPassword) {
-      newErrors.confirmPassword = 'Confirma tu contraseña';
-    } else if (form.password !== form.confirmPassword) {
-      newErrors.confirmPassword = 'Las contraseñas no coinciden';
-    }
-
     if (!form.reason.trim()) {
       newErrors.reason = 'Indica el motivo de tu consulta';
     }
@@ -157,9 +133,10 @@ export default function AgendarCita() {
 
     try {
       // 1. Create auth account (patient role)
+      const tempPassword = crypto.randomUUID().slice(0, 16) + 'A1!';
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: form.email,
-        password: form.password,
+        password: tempPassword,
         options: {
           data: {
             role: 'patient',
@@ -205,100 +182,23 @@ export default function AgendarCita() {
         }),
       );
 
-      // 3. If we got a session (auto-confirm / dev), update profile and create appointment
+      // 3. If we got a session (auto-confirm / dev), update profile directly
       if (signUpData?.session && signUpData.user) {
-        // Update profile with full_name — retry to handle DB trigger timing
-        const profilePayload = {
-          role: 'patient' as const,
-          full_name: form.fullName,
-          phone: form.phone,
-        };
-
         try {
-          // Wait for DB trigger to create the profile row
-          await new Promise((r) => setTimeout(r, 1000));
+          // Wait a moment for the DB trigger to create the profile
+          await new Promise((r) => setTimeout(r, 600));
 
-          // Try update first
-          const { data: updated } = await (supabase
+          await (supabase
             .from('profiles') as any)
-            .update(profilePayload)
-            .eq('id', signUpData.user.id)
-            .select('id')
-            .single();
-
-          if (!updated) {
-            // Profile row doesn't exist yet — wait more and retry
-            await new Promise((r) => setTimeout(r, 1000));
-
-            const { data: retryUpdated } = await (supabase
-              .from('profiles') as any)
-              .update(profilePayload)
-              .eq('id', signUpData.user.id)
-              .select('id')
-              .single();
-
-            if (!retryUpdated) {
-              // Last resort: insert the profile directly
-              await (supabase
-                .from('profiles') as any)
-                .insert({
-                  id: signUpData.user.id,
-                  email: form.email,
-                  ...profilePayload,
-                  onboarding_completed: false,
-                  onboarding_step: 'role',
-                });
-            }
-          }
+            .update({
+              role: 'patient',
+              full_name: form.fullName,
+              phone: form.phone,
+            })
+            .eq('id', signUpData.user.id);
         } catch (profileErr) {
           logger.error('AgendarCita:updateProfile', profileErr);
           // Non-blocking — profile will be completed during onboarding
-        }
-
-        // 4. Resolve doctor_id from slug and create the appointment
-        try {
-          const { data: doctorProfile } = await (supabase
-            .from('doctor_profiles') as any)
-            .select('doctor_id')
-            .eq('slug', slug)
-            .single();
-
-          if (doctorProfile?.doctor_id) {
-            const startAt = `${date}T${time}`;
-            // Default 30-min appointment
-            const endDate = new Date(startAt);
-            endDate.setMinutes(endDate.getMinutes() + 30);
-            const endAt = endDate.toISOString();
-
-            const appointmentResult = await createAppointment({
-              doctor_id: doctorProfile.doctor_id,
-              patient_id: signUpData.user.id,
-              start_at: new Date(startAt).toISOString(),
-              end_at: endAt,
-              reason: form.reason,
-              mode: modality === 'videoconsulta' ? 'video' : 'in_person',
-              status: 'requested',
-              created_by: signUpData.user.id,
-            });
-
-            // Handle double-booking (UNIQUE constraint violation)
-            if (appointmentResult && 'error' in appointmentResult && appointmentResult.error) {
-              const errMsg = typeof appointmentResult.error === 'string'
-                ? appointmentResult.error
-                : (appointmentResult.error as any)?.message || '';
-              if (errMsg.includes('unique') || errMsg.includes('duplicate') || errMsg.includes('idx_unique_doctor_slot')) {
-                showToast('Este horario ya fue reservado por otro paciente. Por favor elige otro horario.', 'error');
-                setSubmitting(false);
-                return;
-              }
-            }
-          } else {
-            logger.error('AgendarCita:createAppointment', 'Could not resolve doctor_id from slug');
-          }
-
-        } catch (appointmentErr) {
-          logger.error('AgendarCita:createAppointment', appointmentErr);
-          // Non-blocking — appointment data is also in sessionStorage as backup
         }
 
         // Show inline confirmation
@@ -364,11 +264,11 @@ export default function AgendarCita() {
 
   const initials = doctor.display_name
     ? doctor.display_name
-      .split(' ')
-      .map((w) => w[0])
-      .join('')
-      .slice(0, 2)
-      .toUpperCase()
+        .split(' ')
+        .map((w) => w[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase()
     : 'DR';
 
   // ─── Confirmation View ─────────────────────────────────────────────────
@@ -563,8 +463,9 @@ export default function AgendarCita() {
                 value={form.fullName}
                 onChange={handleChange}
                 placeholder="Ej. María López García"
-                className={`w-full pl-10 pr-4 py-3 rounded-lg border transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent ${errors.fullName ? 'border-red-400' : 'border-gray-300'
-                  }`}
+                className={`w-full pl-10 pr-4 py-3 rounded-lg border transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent ${
+                  errors.fullName ? 'border-red-400' : 'border-gray-300'
+                }`}
               />
             </div>
             {errors.fullName && (
@@ -589,8 +490,9 @@ export default function AgendarCita() {
                 value={form.email}
                 onChange={handleChange}
                 placeholder="tu@correo.com"
-                className={`w-full pl-10 pr-4 py-3 rounded-lg border transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent ${errors.email ? 'border-red-400' : 'border-gray-300'
-                  }`}
+                className={`w-full pl-10 pr-4 py-3 rounded-lg border transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent ${
+                  errors.email ? 'border-red-400' : 'border-gray-300'
+                }`}
               />
             </div>
             {errors.email && (
@@ -616,82 +518,13 @@ export default function AgendarCita() {
                 onChange={handleChange}
                 placeholder="10 dígitos"
                 maxLength={10}
-                className={`w-full pl-10 pr-4 py-3 rounded-lg border transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent ${errors.phone ? 'border-red-400' : 'border-gray-300'
-                  }`}
+                className={`w-full pl-10 pr-4 py-3 rounded-lg border transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent ${
+                  errors.phone ? 'border-red-400' : 'border-gray-300'
+                }`}
               />
             </div>
             {errors.phone && (
               <p className="text-sm text-red-500 mt-1">{errors.phone}</p>
-            )}
-          </div>
-
-          {/* Password */}
-          <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-gray-700 mb-1.5"
-            >
-              Contraseña
-            </label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                id="password"
-                name="password"
-                type={showPassword ? 'text' : 'password'}
-                value={form.password}
-                onChange={handleChange}
-                placeholder="Mínimo 6 caracteres"
-                autoComplete="new-password"
-                className={`w-full pl-10 pr-12 py-3 rounded-lg border transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent ${errors.password ? 'border-red-400' : 'border-gray-300'
-                  }`}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                tabIndex={-1}
-              >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-            {errors.password && (
-              <p className="text-sm text-red-500 mt-1">{errors.password}</p>
-            )}
-          </div>
-
-          {/* Confirm Password */}
-          <div>
-            <label
-              htmlFor="confirmPassword"
-              className="block text-sm font-medium text-gray-700 mb-1.5"
-            >
-              Confirmar contraseña
-            </label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type={showConfirmPassword ? 'text' : 'password'}
-                value={form.confirmPassword}
-                onChange={handleChange}
-                placeholder="Repite tu contraseña"
-                autoComplete="new-password"
-                className={`w-full pl-10 pr-12 py-3 rounded-lg border transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent ${errors.confirmPassword ? 'border-red-400' : 'border-gray-300'
-                  }`}
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                tabIndex={-1}
-              >
-                {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-            {errors.confirmPassword && (
-              <p className="text-sm text-red-500 mt-1">{errors.confirmPassword}</p>
             )}
           </div>
 
@@ -710,8 +543,9 @@ export default function AgendarCita() {
               value={form.reason}
               onChange={handleChange}
               placeholder="Ej. Dolor de espalda, revisión general, seguimiento…"
-              className={`w-full px-4 py-3 rounded-lg border transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none ${errors.reason ? 'border-red-400' : 'border-gray-300'
-                }`}
+              className={`w-full px-4 py-3 rounded-lg border transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none ${
+                errors.reason ? 'border-red-400' : 'border-gray-300'
+              }`}
             />
             <p className="text-xs text-gray-400 mt-1">
               Esta información ayuda al doctor a prepararse mejor

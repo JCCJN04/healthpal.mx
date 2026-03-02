@@ -73,7 +73,7 @@ export async function createDoctorService(
         name: input.name,
         description: input.description ?? null,
         price: input.price ?? null,
-        duration: input.duration ?? null,
+        duration: input.duration ?? 30,
         is_active: input.is_active ?? true,
         sort_order: input.sort_order ?? 0,
       })

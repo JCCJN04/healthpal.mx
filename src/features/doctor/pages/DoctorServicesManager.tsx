@@ -30,7 +30,7 @@ const EMPTY_FORM: DoctorServiceInput = {
   name: '',
   description: '',
   price: undefined,
-  duration: undefined,
+  duration: 30,
   is_active: true,
 };
 
@@ -77,7 +77,7 @@ export default function DoctorServicesManager() {
       name: service.name,
       description: service.description ?? '',
       price: service.price ?? undefined,
-      duration: service.duration ?? undefined,
+      duration: service.duration ?? 30,
       is_active: service.is_active,
     });
     setShowForm(true);
@@ -220,11 +220,11 @@ export default function DoctorServicesManager() {
                       type="number"
                       min={5}
                       step={5}
-                      value={form.duration ?? ''}
+                      value={form.duration ?? 30}
                       onChange={(e) =>
-                        setForm({ ...form, duration: e.target.value ? Number(e.target.value) : undefined })
+                        setForm({ ...form, duration: e.target.value ? Number(e.target.value) : 30 })
                       }
-                      placeholder="Opcional"
+                      placeholder="30"
                       className="w-full rounded-lg border border-gray-200 pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                     />
                   </div>
@@ -240,8 +240,9 @@ export default function DoctorServicesManager() {
                   className="sr-only"
                 />
                 <div
-                  className={`w-10 h-6 rounded-full transition-colors flex items-center px-0.5 ${form.is_active ? 'bg-primary justify-end' : 'bg-gray-200 justify-start'
-                    }`}
+                  className={`w-10 h-6 rounded-full transition-colors flex items-center px-0.5 ${
+                    form.is_active ? 'bg-primary justify-end' : 'bg-gray-200 justify-start'
+                  }`}
                 >
                   <div className="w-5 h-5 rounded-full bg-white shadow-sm" />
                 </div>
@@ -305,8 +306,9 @@ export default function DoctorServicesManager() {
             {services.map((svc) => (
               <div
                 key={svc.id}
-                className={`bg-white rounded-xl border p-4 flex items-center gap-4 transition-colors ${svc.is_active ? 'border-gray-100' : 'border-gray-100 opacity-50'
-                  }`}
+                className={`bg-white rounded-xl border p-4 flex items-center gap-4 transition-colors ${
+                  svc.is_active ? 'border-gray-100' : 'border-gray-100 opacity-50'
+                }`}
               >
                 <GripVertical className="w-4 h-4 text-gray-300 shrink-0 hidden sm:block" />
 

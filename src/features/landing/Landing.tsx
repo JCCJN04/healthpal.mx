@@ -15,8 +15,11 @@ import {
   ArrowRight,
   Stethoscope,
   Users,
-  ChevronRight,} from 'lucide-react'
+  ChevronRight,
+  MapPin,
+  Star,} from 'lucide-react'
 import Button from '@/shared/components/ui/Button'
+import { SPECIALTIES } from '@/shared/lib/specialties'
 
 /* ------------------------------------------------------------------ */
 /*  Landing Page – HealthPal.mx                                       */
@@ -160,46 +163,10 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ===== PARA PACIENTES ===== */}
-      <section id="pacientes" className="bg-gray-50 py-20 md:py-28">
+      {/* ===== PARA DOCTORES ===== */}
+      <section id="doctores" className="bg-gray-50 py-20 md:py-28">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Section heading */}
-          <div className="text-center max-w-2xl mx-auto mb-14">
-            <span className="inline-block text-xs font-semibold text-primary bg-primary/10 px-3 py-1 rounded-full uppercase tracking-wider mb-3">
-              Para Pacientes
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900">
-              Todo lo que necesitas para cuidar tu salud
-            </h2>
-            <p className="mt-4 text-gray-500 text-lg">
-              Desde encontrar al especialista ideal hasta tener tu historial
-              médico siempre a la mano.
-            </p>
-          </div>
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-            <FeatureCard
-              icon={<CalendarCheck className="w-6 h-6 text-primary" />}
-              title="Agenda citas fácilmente"
-              description="Busca disponibilidad y agenda con tu doctor en segundos. Recibe recordatorios automáticos."
-            />
-            <FeatureCard
-              icon={<FileText className="w-6 h-6 text-primary" />}
-              title="Historial médico digital"
-              description="Accede a tus expedientes, recetas y resultados desde cualquier dispositivo, siempre disponibles."
-            />
-            <FeatureCard
-              icon={<Search className="w-6 h-6 text-primary" />}
-              title="Encuentra especialistas"
-              description="Busca doctores por especialidad, ubicación y disponibilidad. Lee opiniones de otros pacientes."
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* ===== PARA DOCTORES ===== */}
-      <section id="doctores" className="py-20 md:py-28">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-2xl mx-auto mb-14">
             <span className="inline-block text-xs font-semibold text-primary bg-primary/10 px-3 py-1 rounded-full uppercase tracking-wider mb-3">
               Para Doctores
@@ -228,6 +195,127 @@ export default function Landing() {
               icon={<CloudUpload className="w-6 h-6 text-primary" />}
               title="Documentos en la nube"
               description="Sube y organiza estudios, recetas e imágenes. Comparte documentos con tus pacientes de forma segura."
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ===== DIRECTORIO DE DOCTORES ===== */}
+      <section className="py-20 md:py-28 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="relative rounded-3xl bg-gradient-to-br from-primary/5 via-white to-primary/10 border border-primary/10 p-10 md:p-16 text-center overflow-hidden">
+            {/* Decorative blobs */}
+            <div className="absolute -top-16 -right-16 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="relative">
+              <span className="inline-flex items-center gap-2 text-xs font-semibold text-primary bg-primary/10 px-3 py-1 rounded-full uppercase tracking-wider mb-4">
+                <Search size={12} />
+                Directorio Médico
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+                Encuentra al especialista que necesitas
+              </h2>
+              <p className="text-gray-500 text-lg max-w-xl mx-auto mb-10">
+                Accede a nuestro directorio de médicos verificados. Filtra por especialidad,
+                ubicación y disponibilidad para agendar tu consulta.
+              </p>
+
+              {/* Specialty chips */}
+              <div className="flex flex-wrap justify-center gap-2.5 mb-10">
+                {[
+                  'medicina_general',
+                  'cardiologia',
+                  'pediatria',
+                  'ginecologia',
+                  'neurologia',
+                  'traumatologia',
+                  'dermatologia',
+                  'psiquiatria',
+                  'oftalmologia',
+                  'nutriologia_clinica',
+                  'endocrinologia',
+                  'oncologia_medica',
+                ].map((value) => {
+                  const spec = SPECIALTIES.find((s) => s.value === value)
+                  if (!spec) return null
+                  return (
+                    <Link
+                      key={value}
+                      to={`/directorio?especialidad=${encodeURIComponent(value)}`}
+                      className="px-4 py-1.5 rounded-full text-sm font-medium bg-white border border-gray-200 text-gray-700 hover:border-primary hover:text-primary hover:bg-primary/5 transition-all shadow-sm"
+                    >
+                      {spec.label}
+                    </Link>
+                  )
+                })}
+              </div>
+
+              {/* Stats row */}
+              <div className="flex flex-wrap justify-center gap-8 mb-10">
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Users size={15} className="text-primary" />
+                  </div>
+                  <span>Médicos verificados</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Star size={15} className="text-primary" />
+                  </div>
+                  <span>Reseñas de pacientes</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <MapPin size={15} className="text-primary" />
+                  </div>
+                  <span>Búsqueda por ubicación</span>
+                </div>
+              </div>
+
+              <Link to="/directorio">
+                <Button variant="primary" className="px-8 py-3.5 text-base inline-flex items-center gap-2">
+                  <MapPin size={18} />
+                  Explorar Directorio
+                  <ArrowRight size={16} />
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ===== PARA PACIENTES ===== */}
+      <section id="pacientes" className="py-20 md:py-28">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-2xl mx-auto mb-14">
+            <span className="inline-block text-xs font-semibold text-primary bg-primary/10 px-3 py-1 rounded-full uppercase tracking-wider mb-3">
+              Para Pacientes
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900">
+              Todo lo que necesitas para cuidar tu salud
+            </h2>
+            <p className="mt-4 text-gray-500 text-lg">
+              Desde encontrar al especialista ideal hasta tener tu historial
+              médico siempre a la mano.
+            </p>
+          </div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+            <FeatureCard
+              icon={<CalendarCheck className="w-6 h-6 text-primary" />}
+              title="Agenda citas fácilmente"
+              description="Busca disponibilidad y agenda con tu doctor en segundos. Recibe recordatorios automáticos."
+            />
+            <FeatureCard
+              icon={<FileText className="w-6 h-6 text-primary" />}
+              title="Historial médico digital"
+              description="Accede a tus expedientes, recetas y resultados desde cualquier dispositivo, siempre disponibles."
+            />
+            <FeatureCard
+              icon={<Search className="w-6 h-6 text-primary" />}
+              title="Encuentra especialistas"
+              description="Busca doctores por especialidad, ubicación y disponibilidad. Lee opiniones de otros pacientes."
             />
           </div>
         </div>

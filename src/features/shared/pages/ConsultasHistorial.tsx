@@ -12,12 +12,17 @@ import {
   Phone,
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  Star,
+  ClipboardCheck,
 } from 'lucide-react'
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import { listPastAppointments, AppointmentWithDetails } from '@/shared/lib/queries/appointments'
+import { updateAppointmentStatus } from '@/shared/lib/queries/appointments'
 import { useAuth } from '@/app/providers/AuthContext'
 import type { Database } from '@/shared/types/database'
+import ReviewWizard from '@/features/patient/components/ReviewWizard'
+import { getReviewableAppointments, type ReviewableAppointment } from '@/shared/lib/queries/publicDoctors'
 
 // Status and mode configs (duplicated for standalone page)
 type AppointmentStatus = Database['public']['Enums']['appointment_status']
@@ -38,7 +43,16 @@ const modeConfig: Record<VisitMode, { label: string; icon: any; color: string }>
   phone: { label: 'Teléfono', icon: Phone, color: 'text-green-600' },
 }
 
-const AppointmentItem = ({ apt, isDoctor, onClick }: { apt: AppointmentWithDetails; isDoctor: boolean; onClick: () => void }) => {
+const AppointmentItem = ({ apt, isDoctor, onClick, canReview, onReview, canComplete, onComplete, completing }: {
+  apt: AppointmentWithDetails;
+  isDoctor: boolean;
+  onClick: () => void;
+  canReview?: boolean;
+  onReview?: () => void;
+  canComplete?: boolean;
+  onComplete?: () => void;
+  completing?: boolean;
+}) => {
   const status = statusConfig[apt.status]
   const mode = modeConfig[apt.mode]
   const startDate = new Date(apt.start_at)
@@ -83,6 +97,25 @@ const AppointmentItem = ({ apt, isDoctor, onClick }: { apt: AppointmentWithDetai
             <status.icon className="w-4 h-4" />
             {status.label.toUpperCase()}
           </div>
+          {canComplete && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onComplete?.(); }}
+              disabled={completing}
+              className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-500 text-white text-xs font-semibold rounded-lg hover:bg-amber-600 transition-colors shrink-0 disabled:opacity-60"
+            >
+              {completing ? <Loader2 className="w-3 h-3 animate-spin" /> : <ClipboardCheck className="w-3 h-3" />}
+              Confirmar
+            </button>
+          )}
+          {canReview && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onReview?.(); }}
+              className="inline-flex items-center gap-1 px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-teal-600 transition-colors shrink-0"
+            >
+              <Star className="w-3 h-3" />
+              Evaluar
+            </button>
+          )}
           <button className="p-2 rounded-lg bg-gray-50 text-gray-400 group-hover:bg-[#33C7BE]/10 group-hover:text-[#33C7BE] transition-colors">
             <ChevronRight className="w-5 h-5" />
           </button>
@@ -101,6 +134,9 @@ export default function ConsultasHistorial() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [modeFilter, setModeFilter] = useState<string>('all')
+  const [reviewableMap, setReviewableMap] = useState<Map<string, ReviewableAppointment>>(new Map())
+  const [selectedForReview, setSelectedForReview] = useState<ReviewableAppointment | null>(null)
+  const [completingId, setCompletingId] = useState<string | null>(null)
 
   useEffect(() => {
     loadAppointments()
@@ -109,9 +145,25 @@ export default function ConsultasHistorial() {
   const loadAppointments = async () => {
     if (!user) return
     setLoading(true)
-    const past = await listPastAppointments({ userId: user.id, role: profile?.role || undefined })
+    const isDoc = profile?.role === 'doctor'
+    const [past, reviewable] = await Promise.all([
+      listPastAppointments({ userId: user.id, role: profile?.role || undefined }),
+      isDoc ? Promise.resolve([]) : getReviewableAppointments(),
+    ])
     setPastAppointments(past || [])
+    setReviewableMap(new Map((reviewable as ReviewableAppointment[]).map((r) => [r.appointment_id, r])))
     setLoading(false)
+  }
+
+  const handleComplete = async (aptId: string) => {
+    setCompletingId(aptId)
+    const result = await updateAppointmentStatus(aptId, 'completed')
+    if (result.success) {
+      setPastAppointments((prev) =>
+        prev.map((a) => (a.id === aptId ? { ...a, status: 'completed' } : a))
+      )
+    }
+    setCompletingId(null)
   }
 
   const filterList = (list: AppointmentWithDetails[]) => {
@@ -191,12 +243,47 @@ export default function ConsultasHistorial() {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4">
-            {filterList(pastAppointments).map(apt => (
-              <AppointmentItem key={apt.id} apt={apt} isDoctor={isDoctor} onClick={() => navigate(`/dashboard/consultas/${apt.id}`)} />
-            ))}
+            {filterList(pastAppointments).map(apt => {
+              const reviewEntry = reviewableMap.get(apt.id)
+              const isPastConfirmed = isDoctor && apt.status === 'confirmed'
+              return (
+                <AppointmentItem
+                  key={apt.id}
+                  apt={apt}
+                  isDoctor={isDoctor}
+                  canReview={!isDoctor && !!reviewEntry && !reviewEntry.already_reviewed}
+                  onReview={() => {
+                    const r = reviewableMap.get(apt.id)
+                    if (r) setSelectedForReview(r)
+                  }}
+                  canComplete={isPastConfirmed}
+                  onComplete={() => handleComplete(apt.id)}
+                  completing={completingId === apt.id}
+                  onClick={() => navigate(`/dashboard/consultas/${apt.id}`)}
+                />
+              )
+            })}
           </div>
         )}
       </div>
+
+      {/* Review Wizard */}
+      {selectedForReview && (
+        <ReviewWizard
+          appointment={selectedForReview}
+          onClose={() => setSelectedForReview(null)}
+          onSuccess={() => {
+            const id = selectedForReview.appointment_id
+            setSelectedForReview(null)
+            setReviewableMap((prev) => {
+              const next = new Map(prev)
+              const entry = next.get(id)
+              if (entry) next.set(id, { ...entry, already_reviewed: true })
+              return next
+            })
+          }}
+        />
+      )}
     </DashboardLayout>
   )
 }

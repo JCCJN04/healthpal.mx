@@ -10,13 +10,6 @@ const MONTH_NAMES = [
   'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
 ];
 
-function localDateStr(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
 function formatDate(dateStr: string): { dayName: string; dayNum: string; month: string } {
   const d = new Date(dateStr + 'T00:00:00');
   return {
@@ -27,6 +20,7 @@ function formatDate(dateStr: string): { dayName: string; dayNum: string; month: 
 }
 
 function formatTime(timeStr: string): string {
+  // "09:00:00" → "9:00"
   const [h, m] = timeStr.split(':');
   return `${parseInt(h, 10)}:${m}`;
 }
@@ -36,9 +30,13 @@ function getDateRange(offset: number, days: number): [string, string] {
   start.setDate(start.getDate() + offset);
   const end = new Date(start);
   end.setDate(end.getDate() + days - 1);
-  return [localDateStr(start), localDateStr(end)];
+  return [
+    start.toISOString().split('T')[0],
+    end.toISOString().split('T')[0],
+  ];
 }
 
+/** Group slots by date */
 function groupByDate(slots: AvailabilitySlot[]): Map<string, AvailabilitySlot[]> {
   const map = new Map<string, AvailabilitySlot[]>();
   for (const slot of slots) {
@@ -53,9 +51,13 @@ function groupByDate(slots: AvailabilitySlot[]): Map<string, AvailabilitySlot[]>
 
 interface AvailabilityCarouselProps {
   doctorSlug: string;
+  /** Number of day columns to show */
   columns?: number;
+  /** Max time slots per day column */
   maxSlotsPerDay?: number;
+  /** Called when a time slot is clicked */
   onSlotClick?: (slot: AvailabilitySlot) => void;
+  /** Compact mode for card embedding */
   compact?: boolean;
 }
 
@@ -64,7 +66,6 @@ interface AvailabilityCarouselProps {
 export default function AvailabilityCarousel({
   doctorSlug,
   columns = 3,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   maxSlotsPerDay: _maxSlotsPerDay = 4,
   onSlotClick,
   compact = false,
@@ -73,7 +74,7 @@ export default function AvailabilityCarousel({
   const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const WINDOW = 14;
+  const WINDOW = columns + 2; // fetch a bit extra for paging
 
   useEffect(() => {
     let cancelled = false;
@@ -92,6 +93,7 @@ export default function AvailabilityCarousel({
 
   const grouped = useMemo(() => groupByDate(slots), [slots]);
 
+  // Build ordered date keys for the visible columns
   const visibleDates = useMemo(() => {
     const dates: string[] = [];
     const start = new Date();
@@ -99,12 +101,14 @@ export default function AvailabilityCarousel({
     for (let i = 0; i < columns; i++) {
       const d = new Date(start);
       d.setDate(d.getDate() + i);
-      dates.push(localDateStr(d));
+      dates.push(d.toISOString().split('T')[0]);
     }
     return dates;
   }, [dayOffset, columns]);
 
-  const isToday = (dateStr: string) => dateStr === localDateStr(new Date());
+  const isToday = (dateStr: string) => {
+    return dateStr === new Date().toISOString().split('T')[0];
+  };
 
   // ─── Render ──────────────────────────────────────────────────────────────
 
@@ -117,18 +121,14 @@ export default function AvailabilityCarousel({
     );
   }
 
-  if (slots.length === 0) {
+  if (slots.length === 0 && dayOffset === 0) {
     return (
       <div className={`text-center ${compact ? 'py-3' : 'py-6'}`}>
         <Clock className="w-6 h-6 text-gray-300 mx-auto mb-2" />
-        <p className="text-sm text-gray-500">Sin horarios disponibles</p>
-        <p className="text-[10px] text-gray-400 mt-1">El doctor no ha configurado sus horarios</p>
+        <p className="text-sm text-gray-500">Sin horarios disponibles próximamente</p>
       </div>
     );
   }
-
-  // Dynamic max height: compact = 180px, full = 260px
-  const maxHeight = compact ? 'max-h-[180px]' : 'max-h-[260px]';
 
   return (
     <div>
@@ -156,21 +156,22 @@ export default function AvailabilityCarousel({
         </button>
       </div>
 
-      {/* Day columns — each column is individually scrollable */}
-      <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
+      {/* Day columns */}
+      <div className={`grid gap-2`} style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
         {visibleDates.map((dateStr) => {
           const { dayName, dayNum, month } = formatDate(dateStr);
           const daySlots = grouped.get(dateStr) ?? [];
           const today = isToday(dateStr);
 
           return (
-            <div key={dateStr} className="text-center flex flex-col">
+            <div key={dateStr} className="text-center">
               {/* Day header */}
               <div
-                className={`rounded-lg py-1.5 mb-2 shrink-0 ${today
+                className={`rounded-lg py-1.5 mb-2 ${
+                  today
                     ? 'bg-primary/10 text-primary font-semibold'
                     : 'bg-gray-50 text-gray-600'
-                  }`}
+                }`}
               >
                 <div className="text-[10px] uppercase tracking-wide">{dayName}</div>
                 <div className={`text-sm font-bold ${today ? 'text-primary' : 'text-gray-800'}`}>
@@ -178,16 +179,17 @@ export default function AvailabilityCarousel({
                 </div>
               </div>
 
-              {/* ALL time slots — scrollable container */}
+              {/* Time slots */}
               {daySlots.length > 0 ? (
-                <div className={`space-y-1.5 overflow-y-auto ${maxHeight} pr-0.5 scrollbar-thin`}>
+                <div className="overflow-y-auto max-h-36 space-y-1.5 pr-0.5 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-track]:bg-transparent">
                   {daySlots.map((slot) => (
                     <button
                       key={slot.slot_ts}
                       type="button"
                       onClick={() => onSlotClick?.(slot)}
-                      className={`w-full rounded-md border text-xs font-medium transition-all ${compact ? 'py-1.5 px-1' : 'py-2 px-2'
-                        } border-primary/30 text-primary hover:bg-primary hover:text-white hover:border-primary`}
+                      className={`w-full rounded-md border text-xs font-medium transition-all ${
+                        compact ? 'py-1.5 px-1' : 'py-2 px-2'
+                      } border-primary/30 text-primary hover:bg-primary hover:text-white hover:border-primary`}
                     >
                       {formatTime(slot.slot_time)}
                     </button>
