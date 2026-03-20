@@ -453,24 +453,10 @@ export default function ConsultaDetail() {
               )}
             </div>
 
-            {/* Reason & Symptoms */}
-            {(appointment.reason || appointment.symptoms) && (
-              <div className="border-t border-gray-100 pt-6">
-                {appointment.reason && (
-                  <div className="mb-4">
-                    <p className="text-sm text-gray-500 mb-2">Motivo de la consulta</p>
-                    <p className="text-gray-900">{appointment.reason}</p>
-                  </div>
-                )}
-
-                {appointment.symptoms && (
-                  <div>
-                    <p className="text-sm text-gray-500 mb-2">Síntomas adicionales</p>
-                    <p className="text-gray-900">{appointment.symptoms}</p>
-                  </div>
-                )}
-              </div>
-            )}
+            <div className="border-t border-gray-100 pt-6">
+              <p className="text-sm text-gray-500 mb-2">Datos clínicos sensibles</p>
+              <p className="text-gray-900">El motivo y los síntomas se gestionan mediante flujos protegidos y no se muestran aquí en texto plano.</p>
+            </div>
 
 
             {/* Review section — shown for patients on completed appointments */}

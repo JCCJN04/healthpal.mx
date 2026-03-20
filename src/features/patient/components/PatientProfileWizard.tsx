@@ -10,33 +10,25 @@ interface PatientProfileWizardProps {
     onSave: (data: any) => Promise<void>;
 }
 
-type Step = 'emergency' | 'medical' | 'metrics' | 'insurance';
+type Step = 'metrics' | 'insurance';
 
 const PatientProfileWizard = ({ initialData, isOpen, onClose, onSave }: PatientProfileWizardProps) => {
     if (!isOpen) return null;
 
-    const [currentStep, setCurrentStep] = useState<Step>('emergency');
+    const [currentStep, setCurrentStep] = useState<Step>('metrics');
     const [isSaving, setIsSaving] = useState(false);
     const [formData, setFormData] = useState({
-        emergency_contact_name: initialData?.emergency_contact_name || '',
-        emergency_contact_phone: initialData?.emergency_contact_phone || '',
-        allergies: initialData?.allergies || '',
-        chronic_conditions: initialData?.chronic_conditions || '',
-        current_medications: initialData?.current_medications || '',
+        address_text: initialData?.address_text || '',
         blood_type: initialData?.blood_type || '',
         height_cm: initialData?.height_cm || '',
         weight_kg: initialData?.weight_kg || '',
         insurance_provider: initialData?.insurance_provider || '',
-        insurance_policy_number: initialData?.insurance_policy_number || '',
         preferred_language: initialData?.preferred_language || 'Español',
-        notes_for_doctor: initialData?.notes_for_doctor || '',
     });
 
     const steps: { id: Step; label: string; description: string }[] = [
-        { id: 'emergency', label: 'Contacto', description: 'En caso de emergencia' },
-        { id: 'medical', label: 'Historial', description: 'Alergias y condiciones' },
         { id: 'metrics', label: 'Datos', description: 'Peso, altura, sangre' },
-        { id: 'insurance', label: 'Seguro', description: 'Póliza y notas' },
+        { id: 'insurance', label: 'Perfil', description: 'Dirección y seguro' },
     ];
 
     const handleChange = (field: string, value: string | number) => {
@@ -45,11 +37,6 @@ const PatientProfileWizard = ({ initialData, isOpen, onClose, onSave }: PatientP
 
     const validateStep = (step: Step): boolean => {
         switch (step) {
-            case 'emergency':
-                // Optional but recommended. If filled, needs both.
-                if (formData.emergency_contact_name && !formData.emergency_contact_phone) return false;
-                if (!formData.emergency_contact_name && formData.emergency_contact_phone) return false;
-                return true;
             case 'metrics':
                 const h = Number(formData.height_cm);
                 const w = Number(formData.weight_kg);
@@ -151,76 +138,12 @@ const PatientProfileWizard = ({ initialData, isOpen, onClose, onSave }: PatientP
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-8">
-                    {currentStep === 'emergency' && (
+                    {currentStep === 'metrics' && (
                         <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
                             <div className="bg-blue-50 p-4 rounded-lg flex gap-3 text-blue-800 text-sm">
                                 <AlertCircle className="w-5 h-5 shrink-0" />
-                                <p>Esta información es vital en caso de que necesitemos contactar a alguien urgente durante una cita.</p>
+                                <p>Los campos clínicos sensibles están cifrados y ya no se editan en texto plano desde este formulario.</p>
                             </div>
-
-                            <div className="grid gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del contacto</label>
-                                    <input
-                                        type="text"
-                                        value={formData.emergency_contact_name}
-                                        onChange={e => handleChange('emergency_contact_name', e.target.value)}
-                                        placeholder="Ej. María Pérez"
-                                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-100 focus:border-[#33C7BE] outline-none transition-all"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
-                                    <input
-                                        type="tel"
-                                        value={formData.emergency_contact_phone}
-                                        onChange={e => handleChange('emergency_contact_phone', e.target.value)}
-                                        placeholder="Ej. 55 1234 5678"
-                                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-100 focus:border-[#33C7BE] outline-none transition-all"
-                                    />
-                                    <p className="text-xs text-gray-500 mt-1">Mínimo 10 dígitos</p>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {currentStep === 'medical' && (
-                        <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Alergias</label>
-                                <textarea
-                                    value={formData.allergies}
-                                    onChange={e => handleChange('allergies', e.target.value)}
-                                    placeholder="Ej. Penicilina, Nueces, Latex..."
-                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-100 focus:border-[#33C7BE] outline-none transition-all min-h-[80px]"
-                                />
-                                <p className="text-xs text-gray-500 mt-1">Separa con comas</p>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Condiciones Crónicas</label>
-                                <textarea
-                                    value={formData.chronic_conditions}
-                                    onChange={e => handleChange('chronic_conditions', e.target.value)}
-                                    placeholder="Ej. Diabetes Tipo 2, Hipertensión..."
-                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-100 focus:border-[#33C7BE] outline-none transition-all min-h-[80px]"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Medicamentos actuales</label>
-                                <textarea
-                                    value={formData.current_medications}
-                                    onChange={e => handleChange('current_medications', e.target.value)}
-                                    placeholder="Ej. Metformina 850mg c/12hrs..."
-                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-100 focus:border-[#33C7BE] outline-none transition-all min-h-[80px]"
-                                />
-                            </div>
-                        </div>
-                    )}
-
-                    {currentStep === 'metrics' && (
-                        <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Altura (cm)</label>
@@ -284,6 +207,16 @@ const PatientProfileWizard = ({ initialData, isOpen, onClose, onSave }: PatientP
                     {currentStep === 'insurance' && (
                         <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
                             <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
+                                <input
+                                    type="text"
+                                    value={formData.address_text}
+                                    onChange={e => handleChange('address_text', e.target.value)}
+                                    placeholder="Calle, número, colonia"
+                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-100 focus:border-[#33C7BE] outline-none transition-all"
+                                />
+                            </div>
+                            <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Aseguradora</label>
                                 <input
                                     type="text"
@@ -291,26 +224,6 @@ const PatientProfileWizard = ({ initialData, isOpen, onClose, onSave }: PatientP
                                     onChange={e => handleChange('insurance_provider', e.target.value)}
                                     placeholder="Ej. GNP, AXA, MetLife..."
                                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-100 focus:border-[#33C7BE] outline-none transition-all"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Número de Póliza</label>
-                                <input
-                                    type="text"
-                                    value={formData.insurance_policy_number}
-                                    onChange={e => handleChange('insurance_policy_number', e.target.value)}
-                                    placeholder="XXX-XXX-XXX"
-                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-100 focus:border-[#33C7BE] outline-none transition-all"
-                                />
-                            </div>
-
-                            <div className="pt-4 border-t border-gray-100">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Notas adicionales para el doctor</label>
-                                <textarea
-                                    value={formData.notes_for_doctor}
-                                    onChange={e => handleChange('notes_for_doctor', e.target.value)}
-                                    placeholder="Algo más que quieras que sepan tus médicos..."
-                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-100 focus:border-[#33C7BE] outline-none transition-all min-h-[100px]"
                                 />
                             </div>
                         </div>
@@ -321,8 +234,8 @@ const PatientProfileWizard = ({ initialData, isOpen, onClose, onSave }: PatientP
                 <div className="px-8 py-6 border-t border-gray-100 bg-gray-50/50 flex justify-between items-center">
                     <button
                         onClick={handleBack}
-                        disabled={currentStep === 'emergency' || isSaving}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${currentStep === 'emergency'
+                        disabled={currentStep === 'metrics' || isSaving}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${currentStep === 'metrics'
                                 ? 'text-gray-300 cursor-not-allowed'
                                 : 'text-gray-600 hover:bg-gray-100'
                             }`}

@@ -229,7 +229,7 @@ const DoctorHome = ({
                   >
                     <div>
                       <p className="text-sm font-bold text-gray-900">{appointment.patient?.full_name || 'Paciente sin nombre'}</p>
-                      <p className="text-xs text-gray-600">{appointment.reason || 'Consulta'}</p>
+                      <p className="text-xs text-gray-600">Consulta médica</p>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-gray-700 mt-2 sm:mt-0">
                       <span className="px-2 py-1 bg-primary/10 text-primary rounded-full font-semibold">{formattedTime}</span>
@@ -289,7 +289,7 @@ const DoctorHome = ({
                         <span className="text-xs font-semibold text-gray-700">{formattedTime}</span>
                       </div>
                       <p className="text-sm md:text-base text-gray-900 font-bold">{appointment.patient?.full_name || 'Paciente sin nombre'}</p>
-                      <p className="text-xs text-gray-600">{appointment.reason || 'Consulta'}</p>
+                      <p className="text-xs text-gray-600">Consulta médica</p>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-gray-600 mt-2 sm:mt-0">
                       <User size={12} className="text-gray-400" />
@@ -603,7 +603,7 @@ export default function Dashboard() {
                             )}
                           </div>
                           <p className="text-sm md:text-base text-gray-900 font-bold group-hover:text-primary transition-colors">
-                            {appointment.reason || 'Consulta general'}
+                            Consulta médica
                           </p>
                           <div className="flex items-center gap-2 text-xs text-gray-600 mt-1">
                             <User size={12} className="text-gray-400" />

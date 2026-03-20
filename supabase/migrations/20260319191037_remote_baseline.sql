@@ -1,0 +1,2 @@
+-- Baseline migration placeholder to match remote migration history.
+-- This file is intentionally a no-op.

@@ -51,7 +51,6 @@ export default function NuevaConsulta() {
         time: '',
         mode: 'in_person' as VisitMode,
         reason: '',
-        symptoms: ''
     })
 
     // Calendar & Slots State
@@ -181,8 +180,6 @@ export default function NuevaConsulta() {
             start_at: startAt.toISOString(),
             end_at: endAt.toISOString(),
             mode: formData.mode,
-            reason: formData.reason,
-            symptoms: formData.symptoms,
             status: isDoctor ? 'confirmed' : 'requested',
             created_by: user.id
         })
@@ -423,15 +420,13 @@ export default function NuevaConsulta() {
                                     />
                                 </div>
 
-                                <div>
-                                    <label className="block text-sm font-black text-gray-700 uppercase tracking-widest mb-3 px-1">Síntomas adicionales</label>
-                                    <textarea
-                                        rows={2}
-                                        placeholder="Opcional: Describe brevemente tus dudas..."
-                                        value={formData.symptoms}
-                                        onChange={(e) => setFormData({ ...formData, symptoms: e.target.value })}
-                                        className="w-full px-5 py-3 bg-white border-2 border-gray-100 shadow-sm rounded-2xl focus:border-[#33C7BE] focus:ring-0 transition-all font-medium resize-none"
-                                    />
+                                <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3">
+                                    <p className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                                        Privacidad
+                                    </p>
+                                    <p className="text-sm text-gray-600 mt-1">
+                                        Los detalles clínicos sensibles ya no se guardan en texto plano.
+                                    </p>
                                 </div>
                             </div>
                         </div>

@@ -34,8 +34,6 @@ export default function ScheduleAppointment() {
     mode: 'in_person' as const,
     start_at: `${evt.date}T${evt.startTime}:00`,
     end_at: `${evt.date}T${evt.endTime}:00`,
-    reason: evt.title,
-    symptoms: null,
     location_text: null,
     location: null,
     created_by: '',

@@ -489,16 +489,16 @@ export default function PatientDetail() {
                                         <div className="space-y-4">
                                             <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
                                                 <AlertCircle size={16} className="text-red-500" />
-                                                Alergias y Condiciones
+                                                Datos médicos sensibles
                                             </h3>
                                             <div className="space-y-2">
                                                 <div className="bg-red-50/50 p-3 rounded-lg">
-                                                    <p className="text-[10px] font-bold text-red-700 uppercase mb-1">Alergias</p>
-                                                    <p className="text-sm text-gray-700">{medProfile?.allergies || pProfile.allergies || 'Ninguna reportada'}</p>
+                                                    <p className="text-[10px] font-bold text-red-700 uppercase mb-1">Aviso de privacidad</p>
+                                                    <p className="text-sm text-gray-700">Los antecedentes sensibles del paciente se gestionan mediante flujos protegidos y no se muestran en texto plano.</p>
                                                 </div>
                                                 <div className="bg-orange-50/50 p-3 rounded-lg">
-                                                    <p className="text-[10px] font-bold text-orange-700 uppercase mb-1">Enfermedades crónicas</p>
-                                                    <p className="text-sm text-gray-700">{medProfile?.chronic_conditions || pProfile.chronic_conditions || 'Ninguna reportada'}</p>
+                                                    <p className="text-[10px] font-bold text-orange-700 uppercase mb-1">Acceso clínico</p>
+                                                    <p className="text-sm text-gray-700">Para revisar detalles clínicos, utiliza las vistas y permisos específicos del expediente cifrado.</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -507,10 +507,10 @@ export default function PatientDetail() {
                                     <div className="space-y-4 pt-4 border-t border-gray-100">
                                         <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
                                             <FileText size={16} className="text-blue-500" />
-                                            Medicamentos Actuales
+                                            Resumen clínico
                                         </h3>
                                         <div className="bg-gray-50 p-4 rounded-xl text-sm text-gray-700 leading-relaxed italic">
-                                            {medProfile?.current_medications || pProfile.current_medications || 'No hay información de medicamentos disponibles en el expediente.'}
+                                            La información de medicamentos y antecedentes sensibles se consulta desde el flujo clínico protegido.
                                         </div>
                                     </div>
                                 </div>
@@ -598,7 +598,7 @@ export default function PatientDetail() {
                                                                 <span className="text-sm font-bold -mt-1">{new Date(apt.start_at).getDate()}</span>
                                                             </div>
                                                             <div>
-                                                                <p className="text-sm font-bold text-gray-900 group-hover:text-primary transition-colors">{apt.reason || 'Consulta General'}</p>
+                                                                <p className="text-sm font-bold text-gray-900 group-hover:text-primary transition-colors">Consulta médica</p>
                                                                 <p className="text-xs text-gray-500">{new Date(apt.start_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })} • {apt.status}</p>
                                                             </div>
                                                         </div>
@@ -698,8 +698,8 @@ export default function PatientDetail() {
                                 <h3 className="text-lg font-bold text-gray-900 mb-4">{medProfile?.insurance_provider || pProfile.insurance_provider || 'Particular'}</h3>
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-between text-xs py-2 border-b border-gray-50">
-                                        <span className="text-gray-500 font-medium">Póliza</span>
-                                        <span className="font-mono font-bold text-primary">{medProfile?.insurance_policy_number || pProfile.insurance_policy_number || '---'}</span>
+                                        <span className="text-gray-500 font-medium">Cobertura</span>
+                                        <span className="font-mono font-bold text-primary">Gestionada de forma segura</span>
                                     </div>
                                     <div className="flex items-center justify-between text-xs py-2">
                                         <span className="text-gray-500 font-medium">Estatus</span>
@@ -713,17 +713,17 @@ export default function PatientDetail() {
                         {/* Emergency Contact — only with contact scope */}
                         {scopes.share_contact && (
                         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                            <h3 className="text-sm font-bold text-gray-900 mb-4">Contacto de Emergencia</h3>
+                            <h3 className="text-sm font-bold text-gray-900 mb-4">Contacto del Paciente</h3>
                             <div className="space-y-1">
-                                <p className="text-sm font-bold text-gray-900">{medProfile?.emergency_contact_name || pProfile.emergency_contact_name || 'No registrado'}</p>
-                                <p className="text-xs text-gray-500">{medProfile?.emergency_contact_phone || pProfile.emergency_contact_phone || '---'}</p>
+                                <p className="text-sm font-bold text-gray-900">{patient.full_name || 'Paciente'}</p>
+                                <p className="text-xs text-gray-500">{contactInfo?.phone || '---'}</p>
                             </div>
-                            {(medProfile?.emergency_contact_phone || pProfile.emergency_contact_phone) && (
+                            {contactInfo?.phone && (
                                 <a
-                                    href={`tel:${medProfile?.emergency_contact_phone || pProfile.emergency_contact_phone}`}
+                                    href={`tel:${contactInfo.phone}`}
                                     className="mt-4 w-full inline-flex items-center justify-center gap-2 px-4 py-2 border border-red-100 text-red-600 font-bold rounded-lg hover:bg-red-50 transition-all text-xs"
                                 >
-                                    <Phone size={14} /> Llamada Emergencia
+                                    <Phone size={14} /> Llamar
                                 </a>
                             )}
                         </div>

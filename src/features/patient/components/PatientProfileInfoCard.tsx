@@ -1,4 +1,4 @@
-import { Edit2, Plus, Heart, Phone, FileText, Activity } from 'lucide-react';
+import { Edit2, Plus, Heart, FileText, Activity, MapPin } from 'lucide-react';
 import { PatientProfile } from '@/shared/types/database';
 
 interface PatientProfileInfoCardProps {
@@ -10,8 +10,7 @@ interface PatientProfileInfoCardProps {
 const PatientProfileInfoCard = ({ data, onEdit, isLoading = false }: PatientProfileInfoCardProps) => {
     // Check if profile is complete (basic check)
     const isComplete = data &&
-        data.emergency_contact_name &&
-        data.emergency_contact_phone;
+    (data.height_cm || data.weight_kg || data.blood_type || data.address_text);
 
     if (isLoading) {
         return (
@@ -77,16 +76,15 @@ const PatientProfileInfoCard = ({ data, onEdit, isLoading = false }: PatientProf
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Emergency Contact */}
+                        {/* Address */}
                         <div className="bg-gray-50 rounded-lg p-4">
                             <div className="flex items-center gap-2 mb-3">
-                                <Phone className="w-4 h-4 text-gray-500" />
-                                <h4 className="text-sm font-semibold text-gray-900">Contacto de emergencia</h4>
+                                <MapPin className="w-4 h-4 text-gray-500" />
+                                <h4 className="text-sm font-semibold text-gray-900">Dirección</h4>
                             </div>
-                            {data.emergency_contact_name ? (
+                            {data.address_text ? (
                                 <div>
-                                    <p className="text-sm font-medium text-gray-900">{data.emergency_contact_name}</p>
-                                    <p className="text-sm text-gray-600">{data.emergency_contact_phone}</p>
+                                    <p className="text-sm font-medium text-gray-900">{data.address_text}</p>
                                 </div>
                             ) : (
                                 <p className="text-sm text-gray-400 italic">No especificado</p>
@@ -125,51 +123,16 @@ const PatientProfileInfoCard = ({ data, onEdit, isLoading = false }: PatientProf
                         <div className="md:col-span-2 bg-gray-50 rounded-lg p-4">
                             <div className="flex items-center gap-2 mb-3">
                                 <Heart className="w-4 h-4 text-gray-500" />
-                                <h4 className="text-sm font-semibold text-gray-900">Información médica</h4>
+                                <h4 className="text-sm font-semibold text-gray-900">Información de salud</h4>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <span className="block text-xs text-gray-400 uppercase mb-1">Alergias</span>
-                                    {data.allergies ? (
-                                        <div className="flex flex-wrap gap-1">
-                                            {data.allergies.split(',').map((item, i) => (
-                                                <span key={i} className="inline-block px-2 py-1 bg-red-50 text-red-700 text-xs rounded border border-red-100">
-                                                    {item.trim()}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <p className="text-sm text-gray-400 italic">Ninguna registrada</p>
-                                    )}
-                                </div>
-
-                                <div>
-                                    <span className="block text-xs text-gray-400 uppercase mb-1">Condiciones crónicas</span>
-                                    {data.chronic_conditions ? (
-                                        <div className="flex flex-wrap gap-1">
-                                            {data.chronic_conditions.split(',').map((item, i) => (
-                                                <span key={i} className="inline-block px-2 py-1 bg-amber-50 text-amber-700 text-xs rounded border border-amber-100">
-                                                    {item.trim()}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <p className="text-sm text-gray-400 italic">Ninguna registrada</p>
-                                    )}
-                                </div>
-                            </div>
-
-                            {data.current_medications && (
-                                <div className="mt-4 pt-3 border-t border-gray-200">
-                                    <span className="block text-xs text-gray-400 uppercase mb-1">Medicamentos actuales</span>
-                                    <p className="text-sm text-gray-700">{data.current_medications}</p>
-                                </div>
-                            )}
+                            <p className="text-sm text-gray-600">
+                                Los campos clínicos sensibles fueron migrados a almacenamiento cifrado y ya no se muestran en texto plano.
+                            </p>
                         </div>
 
                         {/* Insurance & Notes */}
-                        {(data.insurance_provider || data.notes_for_doctor) && (
+                        {data.insurance_provider && (
                             <div className="md:col-span-2 bg-gray-50 rounded-lg p-4">
                                 <div className="flex items-center gap-2 mb-3">
                                     <FileText className="w-4 h-4 text-gray-500" />
@@ -181,16 +144,6 @@ const PatientProfileInfoCard = ({ data, onEdit, isLoading = false }: PatientProf
                                         <div>
                                             <span className="block text-xs text-gray-400 uppercase mb-1">Seguro Médico</span>
                                             <p className="text-sm font-medium text-gray-900">{data.insurance_provider}</p>
-                                            {data.insurance_policy_number && (
-                                                <p className="text-xs text-gray-500">Póliza: {data.insurance_policy_number}</p>
-                                            )}
-                                        </div>
-                                    )}
-
-                                    {data.notes_for_doctor && (
-                                        <div className={data.insurance_provider ? '' : 'md:col-span-2'}>
-                                            <span className="block text-xs text-gray-400 uppercase mb-1">Notas para el doctor</span>
-                                            <p className="text-sm text-gray-700 italic">"{data.notes_for_doctor}"</p>
                                         </div>
                                     )}
                                 </div>

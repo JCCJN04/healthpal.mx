@@ -45,7 +45,7 @@ export default function DocumentDetail() {
       const doc = await getDocumentById(docId)
       if (doc) {
         setDocument(doc)
-        const url = await getDocumentDownloadUrl(doc.file_path)
+        const url = await getDocumentDownloadUrl(doc)
         setFileUrl(url)
       }
     } catch (err) {
@@ -98,7 +98,7 @@ export default function DocumentDetail() {
     if (!document) return
 
     // Use the new blob download method to force download
-    const result = await downloadDocumentFile(document.file_path, document.title)
+    const result = await downloadDocumentFile(document, document.title)
 
     if (!result.success) {
       showToast(result.error || 'No se pudo descargar el documento', 'error')

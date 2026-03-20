@@ -115,54 +115,33 @@ export interface Database {
         Row: {
           patient_id: string
           address_text: string | null
-          emergency_contact_name: string | null
-          emergency_contact_phone: string | null
           blood_type: string | null
-          allergies: string | null
-          chronic_conditions: string | null
-          current_medications: string | null
           height_cm: number | null
           weight_kg: number | null
           insurance_provider: string | null
-          insurance_policy_number: string | null
           preferred_language: string | null
-          notes_for_doctor: string | null
           created_at: string
           updated_at: string
         }
         Insert: {
           patient_id: string
           address_text?: string | null
-          emergency_contact_name?: string | null
-          emergency_contact_phone?: string | null
           blood_type?: string | null
-          allergies?: string | null
-          chronic_conditions?: string | null
-          current_medications?: string | null
           height_cm?: number | null
           weight_kg?: number | null
           insurance_provider?: string | null
-          insurance_policy_number?: string | null
           preferred_language?: string | null
-          notes_for_doctor?: string | null
           created_at?: string
           updated_at?: string
         }
         Update: {
           patient_id?: string
           address_text?: string | null
-          emergency_contact_name?: string | null
-          emergency_contact_phone?: string | null
           blood_type?: string | null
-          allergies?: string | null
-          chronic_conditions?: string | null
-          current_medications?: string | null
           height_cm?: number | null
           weight_kg?: number | null
           insurance_provider?: string | null
-          insurance_policy_number?: string | null
           preferred_language?: string | null
-          notes_for_doctor?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -176,8 +155,6 @@ export interface Database {
           mode: VisitMode
           start_at: string
           end_at: string
-          reason: string | null
-          symptoms: string | null
           location_text: string | null
           location: Json | null
           created_by: string
@@ -192,8 +169,6 @@ export interface Database {
           mode?: VisitMode
           start_at: string
           end_at: string
-          reason?: string | null
-          symptoms?: string | null
           location_text?: string | null
           location?: Json | null
           created_by: string
@@ -208,8 +183,6 @@ export interface Database {
           mode?: VisitMode
           start_at?: string
           end_at?: string
-          reason?: string | null
-          symptoms?: string | null
           location_text?: string | null
           location?: Json | null
           created_by?: string
@@ -226,10 +199,8 @@ export interface Database {
           folder_id: string | null
           title: string
           category: DocCategory
-          file_path: string
           mime_type: string | null
           file_size: number | null
-          checksum: string | null
           notes: string | null
           created_at: string
           updated_at: string
@@ -242,10 +213,8 @@ export interface Database {
           folder_id?: string | null
           title: string
           category?: DocCategory
-          file_path: string
           mime_type?: string | null
           file_size?: number | null
-          checksum?: string | null
           notes?: string | null
           created_at?: string
           updated_at?: string
@@ -258,10 +227,8 @@ export interface Database {
           folder_id?: string | null
           title?: string
           category?: DocCategory
-          file_path?: string
           mime_type?: string | null
           file_size?: number | null
-          checksum?: string | null
           notes?: string | null
           created_at?: string
           updated_at?: string

@@ -184,23 +184,11 @@ export async function getPatientNotes(patientId: string, doctorId: string) {
   return data
 }
 
-// Agrega una nueva nota clínica
-export async function addPatientNote(patientId: string, doctorId: string, title: string, body: string) {
-  const { data, error } = await supabase
-    .from('patient_notes')
-    .insert({
-      patient_id: patientId,
-      doctor_id: doctorId,
-      title,
-      body
-    })
-    .select()
-    .single()
-
-  if (error) {
-    logger.error('addPatientNote', error)
-    throw error
-  }
-
-  return data
+// Agrega una nueva nota clínica.
+// Plaintext note content is disabled by DB lockdown; this helper now guards callers
+// until encrypted write endpoint is implemented.
+export async function addPatientNote(_patientId: string, _doctorId: string, _title: string, _content: string) {
+  const err = new Error('La captura de notas clinicas requiere el flujo cifrado (pendiente de implementacion).')
+  logger.warn('addPatientNote.disabled', err)
+  throw err
 }

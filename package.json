@@ -7,7 +7,20 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "schema:sync": "node scripts/sync-supabase-schema.mjs",
+    "schema:sync:verbose": "node scripts/sync-supabase-schema.mjs",
+    "privacy:verify": "node scripts/verify-privacy-controls.mjs",
+    "privacy:backfill": "node scripts/run-encryption-backfill.mjs",
+    "privacy:backfill:dry": "node scripts/run-encryption-backfill.mjs --dry-run",
+    "privacy:backfill:legacy": "node scripts/run-encryption-backfill.mjs --allow-legacy-service-key",
+    "privacy:backfill:dry:legacy": "node scripts/run-encryption-backfill.mjs --dry-run --allow-legacy-service-key",
+    "privacy:backfill:cli": "node scripts/run-encryption-backfill-cli.mjs",
+    "privacy:backfill:cli:dry": "node scripts/run-encryption-backfill-cli.mjs --dry-run",
+    "privacy:backfill:enqueue": "node scripts/backfill-admin.mjs enqueue",
+    "privacy:backfill:stats": "node scripts/backfill-admin.mjs stats",
+    "privacy:backfill:coverage": "node scripts/verify-backfill-coverage.mjs",
+    "privacy:phase4:readiness": "node scripts/verify-phase4-readiness.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.43.0",

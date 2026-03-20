@@ -88,7 +88,7 @@ export const MonthView = ({
                       }`}
                   >
                     <span className="opacity-70 font-bold mr-1">{format(new Date(apt.start_at), 'HH:mm')}</span>
-                    {apt.reason || 'Cita'}
+                    Consulta
                   </button>
                 ))}
               </div>

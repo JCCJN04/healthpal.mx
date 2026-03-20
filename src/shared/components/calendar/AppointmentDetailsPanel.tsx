@@ -112,7 +112,7 @@ export const AppointmentDetailsPanel = ({
                         </div>
                     </div>
 
-                    {/* Reason / Symptoms - Elegant Block */}
+                    {/* Appointment Context - Elegant Block */}
                     <div className="space-y-4">
                         <div className="flex items-center gap-2 mb-2">
                             <div className="w-1.5 h-6 bg-[#33C7BE] rounded-full" />
@@ -121,14 +121,8 @@ export const AppointmentDetailsPanel = ({
                         <div className="bg-gradient-to-br from-white to-gray-50 rounded-[2rem] p-8 border border-gray-100 shadow-sm relative overflow-hidden group/box">
                             <div className="absolute top-0 right-0 w-32 h-32 bg-teal-50/30 rounded-full blur-3xl -mr-16 -mt-16 group-hover/box:bg-teal-100/30 transition-colors" />
                             <p className="text-lg font-black text-gray-900 leading-snug italic relative z-10">
-                                "{appointment.reason || 'Sin motivo especificado'}"
+                                "Consulta médica programada"
                             </p>
-                            {appointment.symptoms && (
-                                <div className="mt-6 pt-6 border-t border-gray-100 flex flex-col gap-2">
-                                    <p className="text-[10px] font-black text-[#33C7BE] uppercase tracking-[0.2em] leading-none">Síntomas reportados</p>
-                                    <p className="text-sm text-gray-500 font-bold leading-relaxed">{appointment.symptoms}</p>
-                                </div>
-                            )}
                         </div>
                     </div>
 

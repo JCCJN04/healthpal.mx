@@ -8,6 +8,26 @@ type AppointmentInsert = Database['public']['Tables']['appointments']['Insert']
 type AppointmentUpdate = Database['public']['Tables']['appointments']['Update']
 type AppointmentStatus = Database['public']['Enums']['appointment_status']
 
+function sanitizeAppointmentInsertPayload(payload: AppointmentInsert): AppointmentInsert {
+  return {
+    ...payload,
+    // Plaintext medical fields are disabled at DB level; keep writes compatible.
+    reason: null,
+    symptoms: null,
+  }
+}
+
+function sanitizeAppointmentUpdatePayload(payload: AppointmentUpdate): AppointmentUpdate {
+  const next: AppointmentUpdate = { ...payload }
+  if (Object.prototype.hasOwnProperty.call(next, 'reason')) {
+    next.reason = null
+  }
+  if (Object.prototype.hasOwnProperty.call(next, 'symptoms')) {
+    next.symptoms = null
+  }
+  return next
+}
+
 export interface AppointmentWithDetails extends Appointment {
   doctor: {
     id: string
@@ -219,9 +239,10 @@ async function enrichWithDoctorProfiles(appointments: any[]): Promise<Appointmen
  */
 export async function createAppointment(payload: AppointmentInsert): Promise<{ success: boolean; data?: Appointment; error?: string }> {
   try {
+    const safePayload = sanitizeAppointmentInsertPayload(payload)
     const { data, error } = await supabase
       .from('appointments')
-      .insert(payload)
+      .insert(safePayload)
       .select()
       .single()
 
@@ -242,9 +263,10 @@ export async function createAppointment(payload: AppointmentInsert): Promise<{ s
  */
 export async function updateAppointment(id: string, patch: AppointmentUpdate): Promise<{ success: boolean; error?: string }> {
   try {
+    const safePatch = sanitizeAppointmentUpdatePayload(patch)
     const { error } = await supabase
       .from('appointments')
-      .update(patch)
+      .update(safePatch)
       .eq('id', id)
 
     if (error) {
@@ -428,15 +450,13 @@ export async function searchAppointments(
     const enriched = await enrichWithDoctorProfiles(data || [])
     const termLower = term.trim().toLowerCase()
 
-    // Client-side refinement to match counterpart names and statuses
+    // Client-side refinement based on non-sensitive, still-available fields.
     return enriched.filter((apt) => {
-      const reasonMatch = apt.reason?.toLowerCase().includes(termLower)
-      const symptomMatch = apt.symptoms?.toLowerCase().includes(termLower)
       const doctorMatch = apt.doctor?.full_name?.toLowerCase().includes(termLower)
       const patientMatch = apt.patient?.full_name?.toLowerCase().includes(termLower)
       const statusMatch = apt.status?.toLowerCase().includes(termLower)
 
-      return Boolean(reasonMatch || symptomMatch || doctorMatch || patientMatch || statusMatch)
+      return Boolean(doctorMatch || patientMatch || statusMatch)
     })
   } catch (err) {
     logger.error('searchAppointments', err)

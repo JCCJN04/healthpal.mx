@@ -114,7 +114,7 @@ export const WeekCalendar = ({ weekStart, onTimeSlotClick, onEventClick, events 
                       >
                         <div className="absolute inset-0 bg-white/10 opacity-0 group-hover/card:opacity-100 transition-opacity" />
                         <p className="text-[11px] font-black truncate leading-tight tracking-tight uppercase mb-1">
-                          {event.reason || 'Consulta Médica'}
+                          Consulta médica
                         </p>
                         <div className="flex items-center gap-1.5 opacity-90">
                           <div className="w-1 h-1 rounded-full bg-current" />

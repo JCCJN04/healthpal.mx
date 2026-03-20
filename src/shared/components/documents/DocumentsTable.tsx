@@ -74,7 +74,7 @@ const DocumentRow = ({ doc, onDelete, onMoveDocument, movingDocId: _movingDocId 
   const navigate = useNavigate()
 
   const handleDownload = async () => {
-    const url = await getDocumentDownloadUrl(doc.file_path)
+    const url = await getDocumentDownloadUrl(doc)
     if (url) {
       window.open(url, '_blank')
     }

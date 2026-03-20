@@ -18,6 +18,34 @@ type Folder = {
 type Profile = Database['public']['Tables']['profiles']['Row']
 type DocumentShare = Database['public']['Tables']['document_shares']['Row']
 
+type DocumentPathInput =
+  | string
+  | null
+  | undefined
+  | {
+      owner_id?: string | null
+      id?: string | null
+    }
+
+function buildDeterministicDocumentPath(ownerId: string, documentId: string): string {
+  return `${ownerId}/${documentId}/${documentId}.bin`
+}
+
+function resolveDocumentStoragePath(input: DocumentPathInput): string | null {
+  if (!input) return null
+
+  if (typeof input === 'string') {
+    const value = input.trim()
+    return value.length > 0 ? value : null
+  }
+
+  if (input.owner_id && input.id) {
+    return buildDeterministicDocumentPath(input.owner_id, input.id)
+  }
+
+  return null
+}
+
 /**
  * Get documents for current user
  */
@@ -129,9 +157,7 @@ export async function uploadDocument(
   try {
     // Generate document ID
     const documentId = crypto.randomUUID()
-    const fileExt = file.name.split('.').pop()
-    const fileName = `${documentId}.${fileExt}`
-    const filePath = `${userId}/${documentId}/${fileName}`
+    const filePath = buildDeterministicDocumentPath(userId, documentId)
 
     // Upload to storage
     const { error: uploadError } = await supabase.storage
@@ -153,7 +179,6 @@ export async function uploadDocument(
         uploaded_by: userId,
         title: metadata.title,
         category: metadata.category,
-        file_path: filePath,
         mime_type: file.type,
         file_size: file.size,
         notes: metadata.notes || null,
@@ -196,9 +221,14 @@ export async function deleteDocument(
     }
 
     // Delete from storage
-    const { error: storageError } = await supabase.storage
-      .from('documents')
-      .remove([document.file_path])
+    const path = resolveDocumentStoragePath(document)
+    let storageError = null
+    if (path) {
+      const result = await supabase.storage
+        .from('documents')
+        .remove([path])
+      storageError = result.error
+    }
 
     if (storageError) {
       logger.error('deleteDocument.storage', storageError)
@@ -426,8 +456,9 @@ export async function importSharedDocument(
       return { success: false, error: 'Documento compartido no disponible' }
     }
 
-    if (!sharedDoc.file_path) {
-      logger.warn('importSharedDocument: document has no file_path')
+    const sourcePath = resolveDocumentStoragePath(sharedDoc)
+    if (!sourcePath) {
+      logger.warn('importSharedDocument: document path is not resolvable')
       return { success: false, error: 'Documento sin archivo asociado' }
     }
 
@@ -447,24 +478,20 @@ export async function importSharedDocument(
     const folderId = await ensureSharedFolderForSender(recipientId, share.sender)
 
     const newId = crypto.randomUUID()
-    const fileName = sharedDoc.file_path.split('/').pop() || `${sharedDoc.id}.bin`
-    const targetPath = `${recipientId}/${newId}/${fileName}`
+    const targetPath = buildDeterministicDocumentPath(recipientId, newId)
 
     // Try to copy in storage (owner path -> recipient path)
     let copied = false
-    let finalPath = sharedDoc.file_path
-    const copyResult = await supabase.storage.from('documents').copy(sharedDoc.file_path, targetPath)
+    const copyResult = await supabase.storage.from('documents').copy(sourcePath, targetPath)
     if (!copyResult.error) {
       copied = true
-      finalPath = targetPath
     } else {
       logger.warn('importSharedDocument: storage copy failed, trying fallback')
-      const download = await supabase.storage.from('documents').download(sharedDoc.file_path)
+      const download = await supabase.storage.from('documents').download(sourcePath)
       if (!download.error && download.data) {
         const upload = await supabase.storage.from('documents').upload(targetPath, download.data)
         if (!upload.error) {
           copied = true
-          finalPath = targetPath
         } else {
           logger.error('importSharedDocument.uploadFallback', upload.error)
         }
@@ -474,8 +501,8 @@ export async function importSharedDocument(
     }
 
     if (!copied) {
-      logger.warn('importSharedDocument: proceeding without storage copy')
-      finalPath = sharedDoc.file_path
+      logger.warn('importSharedDocument: storage copy failed, aborting import')
+      return { success: false, error: 'No se pudo copiar el archivo compartido' }
     }
 
     const { error } = await supabase
@@ -487,7 +514,6 @@ export async function importSharedDocument(
         uploaded_by: share.sender.id,
         title: sharedDoc.title,
         category: sharedDoc.category,
-        file_path: finalPath,
         mime_type: sharedDoc.mime_type,
         file_size: sharedDoc.file_size,
         notes: sharedDoc.notes,
@@ -705,11 +731,16 @@ export async function searchDocuments(term: string, userId: string, limit = 30):
 /**
  * Download document file directly (forces download)
  */
-export async function downloadDocumentFile(filePath: string, fileName: string): Promise<{ success: boolean; error?: string }> {
+export async function downloadDocumentFile(pathOrDocument: DocumentPathInput, fileName: string): Promise<{ success: boolean; error?: string }> {
   try {
+    const resolvedPath = resolveDocumentStoragePath(pathOrDocument)
+    if (!resolvedPath) {
+      return { success: false, error: 'No se pudo resolver la ruta del archivo' }
+    }
+
     const { data, error } = await supabase.storage
       .from('documents')
-      .download(filePath)
+      .download(resolvedPath)
 
     if (error) {
       logger.error('downloadDocumentFile', error)
@@ -736,11 +767,16 @@ export async function downloadDocumentFile(filePath: string, fileName: string): 
 /**
  * Get download URL for document (for preview/viewing)
  */
-export async function getDocumentDownloadUrl(filePath: string): Promise<string | null> {
+export async function getDocumentDownloadUrl(pathOrDocument: DocumentPathInput): Promise<string | null> {
   try {
+    const resolvedPath = resolveDocumentStoragePath(pathOrDocument)
+    if (!resolvedPath) {
+      return null
+    }
+
     const { data, error } = await supabase.storage
       .from('documents')
-      .createSignedUrl(filePath, 3600) // 1 hour expiry
+      .createSignedUrl(resolvedPath, 3600) // 1 hour expiry
 
     if (error) {
       logger.error('getDocumentDownloadUrl', error)

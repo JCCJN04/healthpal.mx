@@ -65,13 +65,11 @@ export const DocumentCard = ({ document, onDelete, onDragStart, isMoving }: Docu
     const fetchPreview = async () => {
       // Only try to preview images or PDFs (if we want to try)
       // For now, let's at least get the URL if it exists
-      if (document.file_path) {
-        const url = await getDocumentDownloadUrl(document.file_path)
-        setPreviewUrl(url)
-      }
+      const url = await getDocumentDownloadUrl(document)
+      setPreviewUrl(url)
     }
     fetchPreview()
-  }, [document.file_path])
+  }, [document.id, document.owner_id])
 
   const handleAbrir = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -80,7 +78,7 @@ export const DocumentCard = ({ document, onDelete, onDragStart, isMoving }: Docu
 
   const handleDownload = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const url = await getDocumentDownloadUrl(document.file_path)
+    const url = await getDocumentDownloadUrl(document)
     if (url) {
       window.open(url, '_blank')
     } else {

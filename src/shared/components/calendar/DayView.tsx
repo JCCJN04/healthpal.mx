@@ -141,7 +141,7 @@ export const DayView = ({ date, appointments, onTimeSlotClick, onEventClick, isL
                       <div className="w-2 h-2 rounded-full bg-current animate-pulse md:block hidden" />
                     </div>
                     <h4 className="text-2xl font-black leading-tight mb-4 tracking-tight group-hover/card:translate-x-1 transition-transform">
-                      {event.reason || 'Consulta General'}
+                      Consulta médica
                     </h4>
                   </div>
 

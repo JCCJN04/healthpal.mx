@@ -271,7 +271,7 @@ export default function Busqueda() {
                           {apt.status}
                         </span>
                       </div>
-                      <p className="text-sm font-semibold text-gray-900">{apt.reason || 'Consulta'}</p>
+                      <p className="text-sm font-semibold text-gray-900">Consulta médica</p>
                       <p className="text-xs text-gray-600 mt-1">
                         {counterpart?.full_name || (profile?.role === 'doctor' ? 'Paciente sin nombre' : 'Doctor sin nombre')}
                       </p>

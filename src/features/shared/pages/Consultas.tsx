@@ -68,7 +68,6 @@ export default function Consultas() {
   const filterList = (list: AppointmentWithDetails[]) => {
     return list.filter(apt => {
       const matchesSearch =
-        apt.reason?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         apt.doctor?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         apt.patient?.full_name?.toLowerCase().includes(searchQuery.toLowerCase())
 
@@ -110,7 +109,7 @@ export default function Consultas() {
             )}
             <div>
               <h3 className="font-bold text-gray-900 group-hover:text-[#33C7BE] transition-colors line-clamp-1">
-                {apt.reason || 'Consulta Médica'}
+                Consulta médica
               </h3>
               <p className="text-gray-600 text-sm flex items-center gap-1 mt-1">
                 {isDoctor ? 'Paciente' : 'Con'} <span className="font-semibold">{counterpartName}</span>

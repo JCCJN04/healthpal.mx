@@ -27,8 +27,10 @@ export default function ConversationList({
     const statuses = useBatchUserStatus(userIds)
 
     // Helper to format last message time nicely
-    const formatTime = (dateString: string) => {
+    const formatTime = (dateString?: string | null) => {
+        if (!dateString) return '—'
         const date = new Date(dateString)
+        if (Number.isNaN(date.getTime())) return '—'
         if (isToday(date)) return format(date, 'p', { locale: es })
         if (isYesterday(date)) return 'Ayer'
         return format(date, 'dd/MM/yy', { locale: es })
