@@ -14,8 +14,8 @@ export function usePresence(userId: string | undefined) {
         // 1. Initial status update
         updateUserStatus(userId)
 
-        // 2. Setup GLOBAL presence channel
-        const channel = supabase.channel('global_presence', {
+        // 2. Setup per-user presence channel
+        const channel = supabase.channel(`presence:${userId}`, {
             config: {
                 presence: {
                     key: userId,
@@ -25,7 +25,7 @@ export function usePresence(userId: string | undefined) {
 
         channel
             .on('presence', { event: 'sync' }, () => {
-                // Global presence synced
+                // Presence synced
             })
             .subscribe(async (status) => {
                 if (status === 'SUBSCRIBED') {
@@ -81,15 +81,14 @@ export function useUserStatus(targetUserId: string | null) {
         }
         fetchInitialStatus()
 
-        // 2. Subscribe to GLOBAL Presence to see if target is there
-        const channel = supabase.channel('global_presence')
+        // 2. Subscribe to target user's presence channel
+        const channel = supabase.channel(`presence:${targetUserId}`)
 
         channel
             .on('presence', { event: 'sync' }, () => {
                 if (!mounted) return
                 const state = channel.presenceState()
-                // Check if targetUserId is present anywhere in the state keys
-                const online = Object.keys(state).includes(targetUserId)
+                const online = Object.keys(state).length > 0
                 setIsOnline(online)
                 if (online) {
                     setLastSeen(new Date().toISOString())
@@ -154,29 +153,29 @@ export function useBatchUserStatus(userIds: string[]) {
         }
         fetchStatuses()
 
-        // 2. Real-time Presence (Global)
-        const channel = supabase.channel('global_presence')
-        channel
-            .on('presence', { event: 'sync' }, () => {
-                if (!mounted) return
-                const state = channel.presenceState()
-                const onlineIds = Object.keys(state)
+        // 2. Real-time Presence (Per-user channels)
+        // Note: Supabase has a limit of 100 channels per client.
+        // We only subscribe to a limited batch of user channels here to avoid hitting limits.
+        const channels = userIds.slice(0, 90).map(id => {
+            const channel = supabase.channel(`presence:${id}`)
+            channel
+                .on('presence', { event: 'sync' }, () => {
+                    if (!mounted) return
+                    const state = channel.presenceState()
+                    const isNowOnline = Object.keys(state).length > 0
 
-                setStatuses(prev => {
-                    const next = { ...prev }
-                    userIds.forEach(id => {
-                        const isNowOnline = onlineIds.includes(id)
-                        next[id] = {
-                            ...next[id],
+                    setStatuses(prev => ({
+                        ...prev,
+                        [id]: {
+                            ...prev[id],
                             isOnline: isNowOnline,
-                            // If online, use current time as last seen fallback
-                            lastSeen: isNowOnline ? new Date().toISOString() : (next[id]?.lastSeen || null)
+                            lastSeen: isNowOnline ? new Date().toISOString() : (prev[id]?.lastSeen || null)
                         }
-                    })
-                    return next
+                    }))
                 })
-            })
-            .subscribe()
+                .subscribe()
+            return channel
+        })
 
         // 3. DB Updates
         const dbChannel = supabase
@@ -204,7 +203,7 @@ export function useBatchUserStatus(userIds: string[]) {
 
         return () => {
             mounted = false
-            supabase.removeChannel(channel)
+            channels.forEach(ch => supabase.removeChannel(ch))
             supabase.removeChannel(dbChannel)
         }
     }, [userIdsStr])
