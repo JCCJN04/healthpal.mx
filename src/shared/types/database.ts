@@ -77,6 +77,7 @@ export interface Database {
           address_text: string | null
           location: Json | null
           consultation_mode: string | null
+          is_public: boolean
           created_at: string
           updated_at: string
         }
@@ -92,6 +93,7 @@ export interface Database {
           address_text?: string | null
           location?: Json | null
           consultation_mode?: string | null
+          is_public?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -107,6 +109,7 @@ export interface Database {
           address_text?: string | null
           location?: Json | null
           consultation_mode?: string | null
+          is_public?: boolean
           created_at?: string
           updated_at?: string
         }
