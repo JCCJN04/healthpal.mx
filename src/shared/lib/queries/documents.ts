@@ -31,7 +31,7 @@ function buildDeterministicDocumentPath(ownerId: string, documentId: string): st
   return `${ownerId}/${documentId}/${documentId}.bin`
 }
 
-function resolveDocumentStoragePath(input: DocumentPathInput): string | null {
+async function resolveDocumentStoragePath(input: DocumentPathInput): Promise<string | null> {
   if (!input) return null
 
   if (typeof input === 'string') {
@@ -40,7 +40,20 @@ function resolveDocumentStoragePath(input: DocumentPathInput): string | null {
   }
 
   if (input.owner_id && input.id) {
-    return buildDeterministicDocumentPath(input.owner_id, input.id)
+    const defaultPath = buildDeterministicDocumentPath(input.owner_id, input.id)
+    
+    try {
+      const folderPath = `${input.owner_id}/${input.id}`
+      const { data } = await supabase.storage.from('documents').list(folderPath, { limit: 1 })
+      
+      if (data && data.length > 0 && data[0].name) {
+        return `${folderPath}/${data[0].name}`
+      }
+    } catch (e) {
+      // Silently fallback to default path
+    }
+    
+    return defaultPath
   }
 
   return null
@@ -221,7 +234,7 @@ export async function deleteDocument(
     }
 
     // Delete from storage
-    const path = resolveDocumentStoragePath(document)
+    const path = await resolveDocumentStoragePath(document)
     let storageError = null
     if (path) {
       const result = await supabase.storage
@@ -456,7 +469,7 @@ export async function importSharedDocument(
       return { success: false, error: 'Documento compartido no disponible' }
     }
 
-    const sourcePath = resolveDocumentStoragePath(sharedDoc)
+    const sourcePath = await resolveDocumentStoragePath(sharedDoc)
     if (!sourcePath) {
       logger.warn('importSharedDocument: document path is not resolvable')
       return { success: false, error: 'Documento sin archivo asociado' }
@@ -733,7 +746,7 @@ export async function searchDocuments(term: string, userId: string, limit = 30):
  */
 export async function downloadDocumentFile(pathOrDocument: DocumentPathInput, fileName: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const resolvedPath = resolveDocumentStoragePath(pathOrDocument)
+    const resolvedPath = await resolveDocumentStoragePath(pathOrDocument)
     if (!resolvedPath) {
       return { success: false, error: 'No se pudo resolver la ruta del archivo' }
     }
@@ -769,7 +782,7 @@ export async function downloadDocumentFile(pathOrDocument: DocumentPathInput, fi
  */
 export async function getDocumentDownloadUrl(pathOrDocument: DocumentPathInput): Promise<string | null> {
   try {
-    const resolvedPath = resolveDocumentStoragePath(pathOrDocument)
+    const resolvedPath = await resolveDocumentStoragePath(pathOrDocument)
     if (!resolvedPath) {
       return null
     }

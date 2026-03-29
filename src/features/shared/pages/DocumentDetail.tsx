@@ -32,6 +32,7 @@ export default function DocumentDetail() {
   const [document, setDocument] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [fileUrl, setFileUrl] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState(false)
 
   useEffect(() => {
     if (id) {
@@ -41,16 +42,22 @@ export default function DocumentDetail() {
 
   const loadDocumentData = async (docId: string) => {
     setLoading(true)
+    setLoadError(false)
     try {
       const doc = await getDocumentById(docId)
       if (doc) {
         setDocument(doc)
         const url = await getDocumentDownloadUrl(doc)
-        setFileUrl(url)
+        if (url) {
+          setFileUrl(url)
+        } else {
+          setLoadError(true)
+        }
       }
     } catch (err) {
       logger.error('DocumentDetail:loadDocument', err)
       showToast('Error al cargar el documento', 'error')
+      setLoadError(true)
     } finally {
       setLoading(false)
     }
@@ -378,6 +385,20 @@ export default function DocumentDetail() {
                 fileType={getFileType(document.mime_type)}
                 title={document.title}
               />
+            ) : loadError ? (
+              <div className="bg-white rounded-xl shadow-sm p-12 text-center border-2 border-dashed border-red-100 min-h-[600px] flex flex-col items-center justify-center">
+                <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4">
+                  <span className="text-red-500 text-2xl">⚠️</span>
+                </div>
+                <p className="text-gray-900 font-bold text-lg mb-2">Error al cargar el documento</p>
+                <p className="text-gray-500 mb-6">No se pudo generar el enlace seguro o no tienes los permisos necesarios.</p>
+                <button
+                  onClick={() => loadDocumentData(id!)}
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                >
+                  Reintentar
+                </button>
+              </div>
             ) : (
               <div className="bg-white rounded-xl shadow-sm p-12 text-center border-2 border-dashed border-gray-100 min-h-[600px] flex flex-col items-center justify-center">
                 <Loader2 className="w-12 h-12 text-primary mx-auto mb-4 animate-spin" />
