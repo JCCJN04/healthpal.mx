@@ -17,6 +17,7 @@ import {
   getDoctorConsentRequests,
   ConsentWithProfile,
 } from '@/shared/lib/queries/consent'
+import { mapDashboardPath } from '@/context/DemoContext'
 import { showToast } from '@/shared/components/ui/Toast'
 import { logger } from '@/shared/lib/logger'
 
@@ -205,7 +206,7 @@ export default function Pacientes() {
                       <div className="flex gap-2 flex-shrink-0">
                         {isAccepted && (
                           <button
-                            onClick={() => navigate(`/dashboard/pacientes/${p.id}`)}
+                            onClick={() => navigate(mapDashboardPath(`/dashboard/pacientes/${p.id}`))}
                             className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-primary rounded-lg hover:bg-primary/10 transition-colors"
                           >
                             Ver expediente
@@ -328,7 +329,7 @@ export default function Pacientes() {
               {patients.map((p) => (
                 <div
                   key={p.id}
-                  onClick={() => navigate(`/dashboard/pacientes/${p.id}`)}
+                  onClick={() => navigate(mapDashboardPath(`/dashboard/pacientes/${p.id}`))}
                   className="flex items-start justify-between gap-3 p-4 hover:bg-gray-50 transition-all cursor-pointer group"
                 >
                   <div className="flex items-start gap-3">

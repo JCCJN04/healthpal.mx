@@ -24,6 +24,7 @@ import { createNotification } from '@/shared/lib/queries/notifications';
 import type { Database } from '@/shared/types/database';
 import ReviewWizard from '@/features/patient/components/ReviewWizard';
 import { getReviewableAppointments, type ReviewableAppointment } from '@/shared/lib/queries/publicDoctors';
+import { mapDashboardPath } from '@/context/DemoContext';
 
 type AppointmentStatus = Database['public']['Enums']['appointment_status'];
 type VisitMode = Database['public']['Enums']['visit_mode'];
@@ -169,7 +170,7 @@ export default function ConsultaDetail() {
     const userIsDoctor = profile?.role === 'doctor' || user?.id === appointment.doctor_id;
     const counterpartId = userIsDoctor ? appointment.patient_id : appointment.doctor_id;
     if (!counterpartId) return;
-    navigate(`/dashboard/mensajes?with=${counterpartId}`);
+    navigate(mapDashboardPath(`/dashboard/mensajes?with=${counterpartId}`));
   };
 
   const handleReschedule = () => {
@@ -248,7 +249,7 @@ export default function ConsultaDetail() {
             <h3 className="text-lg font-semibold text-red-900 mb-2">Error al cargar la cita</h3>
             <p className="text-red-700 mb-4">{error || 'La cita no existe o no tienes permiso para verla'}</p>
             <Link
-              to="/dashboard/consultas"
+              to={mapDashboardPath('/dashboard/consultas')}
               className="inline-flex items-center gap-2 text-[#33C7BE] hover:text-teal-600 font-medium"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -293,7 +294,7 @@ export default function ConsultaDetail() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <button
-            onClick={() => navigate('/dashboard/consultas')}
+            onClick={() => navigate(mapDashboardPath('/dashboard/consultas'))}
             className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />

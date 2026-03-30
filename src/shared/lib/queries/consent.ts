@@ -13,6 +13,9 @@
 
 import { supabase } from '@/shared/lib/supabase'
 import { logger } from '@/shared/lib/logger'
+import { isDemoMode } from '@/context/DemoContext'
+import { DEMO_DOCTOR_ID } from '@/data/demoConfig'
+import { demoPatients } from '@/data/demoData'
 import type {
   DoctorPatientConsent,
   ConsentStatus,
@@ -40,6 +43,27 @@ const DEFAULT_SCOPES: ConsentScopes = {
   share_medical_notes: false,
 }
 
+function buildDemoConsent(doctorId: string, patientId: string, status: ConsentStatus = 'accepted'): DoctorPatientConsent {
+  const now = new Date().toISOString()
+  return {
+    id: `demo-consent-${doctorId}-${patientId}`,
+    doctor_id: doctorId,
+    patient_id: patientId,
+    status,
+    request_reason: null,
+    share_basic_profile: true,
+    share_contact: true,
+    share_documents: true,
+    share_appointments: true,
+    share_medical_notes: true,
+    requested_at: now,
+    responded_at: now,
+    expires_at: null,
+    created_at: now,
+    updated_at: now,
+  } as DoctorPatientConsent
+}
+
 // ─── Doctor-side ────────────────────────────────────────
 
 /**
@@ -50,6 +74,10 @@ export async function requestPatientAccess(
   patientId: string,
   reason?: string
 ): Promise<{ ok: boolean; error?: string }> {
+  if (isDemoMode()) {
+    return { ok: true }
+  }
+
   try {
     const { error } = await supabase
       .from('doctor_patient_consent')
@@ -85,6 +113,10 @@ export async function reRequestAccess(
   patientId: string,
   reason?: string
 ): Promise<{ ok: boolean; error?: string }> {
+  if (isDemoMode()) {
+    return { ok: true }
+  }
+
   try {
     const { error, count } = await supabase
       .from('doctor_patient_consent')
@@ -122,6 +154,18 @@ export async function reRequestAccess(
 export async function getDoctorConsentRequests(
   doctorId: string
 ): Promise<ConsentWithProfile[]> {
+  if (isDemoMode()) {
+    return demoPatients.map((patient) => ({
+      ...buildDemoConsent(doctorId, patient.id),
+      patient: {
+        id: patient.id,
+        full_name: patient.full_name,
+        avatar_url: patient.avatar_url,
+        email: patient.email,
+      },
+    })) as ConsentWithProfile[]
+  }
+
   try {
     const { data, error } = await supabase
       .from('doctor_patient_consent')
@@ -148,6 +192,10 @@ export async function getConsentForPatient(
   doctorId: string,
   patientId: string
 ): Promise<DoctorPatientConsent | null> {
+  if (isDemoMode()) {
+    return buildDemoConsent(doctorId || DEMO_DOCTOR_ID, patientId, 'accepted')
+  }
+
   try {
     const { data, error } = await supabase
       .from('doctor_patient_consent')
@@ -176,6 +224,10 @@ export async function getConsentForPatient(
 export async function getPatientPendingRequests(
   patientId: string
 ): Promise<ConsentWithProfile[]> {
+  if (isDemoMode()) {
+    return []
+  }
+
   try {
     const { data, error } = await supabase
       .from('doctor_patient_consent')
@@ -202,6 +254,20 @@ export async function getPatientPendingRequests(
 export async function getPatientDoctorAccess(
   patientId: string
 ): Promise<ConsentWithProfile[]> {
+  if (isDemoMode()) {
+    return [
+      {
+        ...buildDemoConsent(DEMO_DOCTOR_ID, patientId, 'accepted'),
+        doctor: {
+          id: DEMO_DOCTOR_ID,
+          full_name: 'Dr. Demo García',
+          avatar_url: null,
+          email: 'demo@healthpal.mx',
+        },
+      },
+    ] as ConsentWithProfile[]
+  }
+
   try {
     const { data, error } = await supabase
       .from('doctor_patient_consent')
@@ -228,6 +294,10 @@ export async function acceptConsentRequest(
   consentId: string,
   scopes: Partial<ConsentScopes> = {}
 ): Promise<{ ok: boolean; error?: string }> {
+  if (isDemoMode()) {
+    return { ok: true }
+  }
+
   try {
     const merged = { ...DEFAULT_SCOPES, ...scopes }
     const { error } = await supabase
@@ -257,6 +327,10 @@ export async function acceptConsentRequest(
 export async function rejectConsentRequest(
   consentId: string
 ): Promise<{ ok: boolean; error?: string }> {
+  if (isDemoMode()) {
+    return { ok: true }
+  }
+
   try {
     const { error } = await supabase
       .from('doctor_patient_consent')
@@ -284,6 +358,10 @@ export async function rejectConsentRequest(
 export async function revokeConsentAccess(
   consentId: string
 ): Promise<{ ok: boolean; error?: string }> {
+  if (isDemoMode()) {
+    return { ok: true }
+  }
+
   try {
     const { error } = await supabase
       .from('doctor_patient_consent')
@@ -317,6 +395,10 @@ export async function updateConsentScopes(
   consentId: string,
   scopes: Partial<ConsentScopes>
 ): Promise<{ ok: boolean; error?: string }> {
+  if (isDemoMode()) {
+    return { ok: true }
+  }
+
   try {
     const { error } = await supabase
       .from('doctor_patient_consent')
@@ -341,6 +423,10 @@ export async function updateConsentScopes(
 export async function countPendingRequests(
   patientId: string
 ): Promise<number> {
+  if (isDemoMode()) {
+    return 0
+  }
+
   try {
     const { count, error } = await supabase
       .from('doctor_patient_consent')

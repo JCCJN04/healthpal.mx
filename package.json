@@ -20,7 +20,8 @@
     "privacy:backfill:enqueue": "node scripts/backfill-admin.mjs enqueue",
     "privacy:backfill:stats": "node scripts/backfill-admin.mjs stats",
     "privacy:backfill:coverage": "node scripts/verify-backfill-coverage.mjs",
-    "privacy:phase4:readiness": "node scripts/verify-phase4-readiness.mjs"
+    "privacy:phase4:readiness": "node scripts/verify-phase4-readiness.mjs",
+    "demo:doctor:setup": "node scripts/create-demo-doctor.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.43.0",

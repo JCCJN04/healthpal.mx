@@ -2,6 +2,8 @@
 import { supabase } from '@/shared/lib/supabase'
 import type { Database, DoctorPatientConsent } from '@/shared/types/database'
 import { logger } from '@/shared/lib/logger'
+import { isDemoMode } from '@/context/DemoContext'
+import { demoPatients } from '@/data/demoData'
 
 export type PatientProfileLite = {
   id: string
@@ -17,6 +19,16 @@ export type PatientProfileLite = {
  */
 export async function listDoctorPatients(doctorId: string): Promise<PatientProfileLite[]> {
   if (!doctorId) return []
+
+  if (isDemoMode()) {
+    return demoPatients.map((patient) => ({
+      id: patient.id,
+      full_name: patient.full_name,
+      email: patient.email,
+      avatar_url: patient.avatar_url,
+      consentStatus: 'accepted',
+    }))
+  }
 
   try {
     // Get all accepted consent rows for this doctor
@@ -62,6 +74,20 @@ export async function listDoctorPatients(doctorId: string): Promise<PatientProfi
 export async function searchPatients(term: string, doctorId: string): Promise<PatientProfileLite[]> {
   if (!term.trim() || term.trim().length < 3) return []
 
+  if (isDemoMode()) {
+    const text = term.trim().toLowerCase()
+    return demoPatients
+      .filter((patient) => patient.full_name.toLowerCase().includes(text) || patient.email.toLowerCase().includes(text))
+      .map((patient) => ({
+        id: patient.id,
+        full_name: patient.full_name,
+        email: null,
+        avatar_url: patient.avatar_url,
+        consentStatus: 'accepted',
+      }))
+      .slice(0, 10)
+  }
+
   const like = `%${term.trim()}%`
   const { data, error } = await supabase
     .from('profiles')
@@ -103,6 +129,10 @@ export async function searchPatients(term: string, doctorId: string): Promise<Pa
  * (start_new_conversation RPC now enforces consent).
  */
 export async function linkPatientConversation(doctorId: string, patientId: string): Promise<string | null> {
+  if (isDemoMode()) {
+    return `demo-conv-${doctorId}-${patientId}`
+  }
+
   try {
     const { data: existing, error: eError } = await supabase
       .rpc('get_conversation_between_users', {
@@ -132,6 +162,24 @@ export async function linkPatientConversation(doctorId: string, patientId: strin
  * return null/error if the doctor doesn't have share_basic_profile consent.
  */
 export async function getPatientFullProfile(patientId: string) {
+  if (isDemoMode()) {
+    const found = demoPatients.find((patient) => patient.id === patientId)
+    if (!found) return null
+
+    return {
+      id: found.id,
+      full_name: found.full_name,
+      avatar_url: found.avatar_url,
+      role: 'patient',
+      birthdate: '1990-01-01',
+      sex: 'female',
+      patient_profiles: {
+        blood_type: 'O+',
+        allergies: found.diagnosis,
+      },
+    }
+  }
+
   const { data, error } = await supabase
     .from('profiles')
     .select(`
@@ -154,6 +202,12 @@ export async function getPatientFullProfile(patientId: string) {
  * Returns null if doctor lacks the scope.
  */
 export async function getPatientContactInfo(patientId: string) {
+  if (isDemoMode()) {
+    const found = demoPatients.find((patient) => patient.id === patientId)
+    if (!found) return null
+    return { email: found.email, phone: '+52 55 0000 0000' }
+  }
+
   const { data, error } = await supabase
     .from('profiles')
     .select('email, phone')
@@ -169,6 +223,19 @@ export async function getPatientContactInfo(patientId: string) {
 
 // Obtiene las notas clínicas de un paciente para un doctor específico
 export async function getPatientNotes(patientId: string, doctorId: string) {
+  if (isDemoMode()) {
+    return [
+      {
+        id: 'demo-note-001',
+        patient_id: patientId,
+        doctor_id: doctorId,
+        title: 'Nota de seguimiento',
+        content: 'Paciente estable, continuar tratamiento actual.',
+        created_at: new Date().toISOString(),
+      },
+    ]
+  }
+
   const { data, error } = await supabase
     .from('patient_notes')
     .select('*')
@@ -188,6 +255,16 @@ export async function getPatientNotes(patientId: string, doctorId: string) {
 // Plaintext note content is disabled by DB lockdown; this helper now guards callers
 // until encrypted write endpoint is implemented.
 export async function addPatientNote(_patientId: string, _doctorId: string, _title: string, _content: string) {
+  if (isDemoMode()) {
+    return {
+      id: `demo-note-${Date.now()}`,
+      patient_id: _patientId,
+      doctor_id: _doctorId,
+      title: _title,
+      content: _content,
+    }
+  }
+
   const err = new Error('La captura de notas clinicas requiere el flujo cifrado (pendiente de implementacion).')
   logger.warn('addPatientNote.disabled', err)
   throw err

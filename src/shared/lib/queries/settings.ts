@@ -1,5 +1,7 @@
 import { supabase } from '@/shared/lib/supabase'
 import { logger } from '@/shared/lib/logger'
+import { isDemoMode } from '@/context/DemoContext'
+import { demoDoctorProfile } from '@/data/demoData'
 
 // Type for user_settings (matches database schema)
 interface UserSettings {
@@ -18,6 +20,17 @@ type UserSettingsUpdate = Partial<Omit<UserSettings, 'user_id' | 'created_at' | 
  * Creates default settings if they don't exist
  */
 export async function getMySettings(): Promise<UserSettings> {
+  if (isDemoMode()) {
+    return {
+      user_id: demoDoctorProfile.id,
+      email_notifications: true,
+      appointment_reminders: true,
+      whatsapp_notifications: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+  }
+
   const { data: { user } } = await supabase.auth.getUser()
   
   if (!user) {
@@ -68,6 +81,17 @@ export async function getMySettings(): Promise<UserSettings> {
  * Update current user's settings
  */
 export async function updateMySettings(updates: UserSettingsUpdate): Promise<UserSettings> {
+  if (isDemoMode()) {
+    return {
+      user_id: demoDoctorProfile.id,
+      email_notifications: updates.email_notifications ?? true,
+      appointment_reminders: updates.appointment_reminders ?? true,
+      whatsapp_notifications: updates.whatsapp_notifications ?? false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+  }
+
   const { data: { user } } = await supabase.auth.getUser()
   
   if (!user) {
@@ -95,6 +119,17 @@ export async function updateMySettings(updates: UserSettingsUpdate): Promise<Use
  * Useful when you're not sure if settings exist yet
  */
 export async function upsertMySettings(updates: UserSettingsUpdate): Promise<UserSettings> {
+  if (isDemoMode()) {
+    return {
+      user_id: demoDoctorProfile.id,
+      email_notifications: updates.email_notifications ?? true,
+      appointment_reminders: updates.appointment_reminders ?? true,
+      whatsapp_notifications: updates.whatsapp_notifications ?? false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+  }
+
   const { data: { user } } = await supabase.auth.getUser()
   
   if (!user) {

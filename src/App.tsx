@@ -44,6 +44,7 @@ const MisResenas = lazy(() => import('@/features/patient/pages/MisResenas'))
 const DoctorServicesManager = lazy(() => import('@/features/doctor/pages/DoctorServicesManager'))
 const AvailabilityCalendarManager = lazy(() => import('@/features/doctor/pages/AvailabilityCalendarManager'))
 const MisResenasDoctorPage = lazy(() => import('@/features/doctor/pages/MisResenasDoctorPage'))
+const DemoDoctor = lazy(() => import('@/pages/DemoDoctor'))
 
 // Lazy load onboarding pages
 const OnboardingRole = lazy(() => import('@/features/auth/pages/onboarding/OnboardingRole'))
@@ -77,6 +78,9 @@ function App() {
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/register" element={<Register />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
+
+        {/* Demo doctor route (direct URL access only) */}
+        <Route path="/demo/doctor/*" element={<Suspense fallback={<PageLoader />}><DemoDoctor /></Suspense>} />
 
         {/* Public Directory (no auth required) */}
         <Route path="/directorio" element={<Suspense fallback={<PageLoader />}><DirectorioDoctores /></Suspense>} />

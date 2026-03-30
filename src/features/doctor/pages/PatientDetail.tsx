@@ -33,6 +33,7 @@ import { getConsentForPatient, requestPatientAccess, ConsentScopes } from '@/sha
 import { useAuth } from '@/app/providers/AuthContext'
 import { showToast } from '@/shared/components/ui/Toast'
 import { logger } from '@/shared/lib/logger'
+import { mapDashboardPath } from '@/context/DemoContext'
 
 type TabType = 'summary' | 'notes' | 'activity'
 type ConsentGate = 'loading' | 'no-consent' | 'requested' | 'rejected' | 'revoked' | 'accepted'
@@ -232,7 +233,7 @@ export default function PatientDetail() {
             <DashboardLayout>
                 <div className="p-6 text-center">
                     <p className="text-red-500 font-bold">No se encontró el paciente solicitado.</p>
-                    <button onClick={() => navigate('/dashboard')} className="mt-4 text-primary hover:underline">Volver al dashboard</button>
+                    <button onClick={() => navigate(mapDashboardPath('/dashboard'))} className="mt-4 text-primary hover:underline">Volver al dashboard</button>
                 </div>
             </DashboardLayout>
         )
@@ -380,7 +381,7 @@ export default function PatientDetail() {
                                     <div className="flex flex-wrap gap-2">
                                         {scopes.share_contact && (
                                             <button
-                                                onClick={() => navigate(`/dashboard/mensajes?with=${patient.id}`)}
+                                                onClick={() => navigate(mapDashboardPath(`/dashboard/mensajes?with=${patient.id}`))}
                                                 className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-teal-600 shadow-sm transition-all"
                                             >
                                                 <MessageSquare size={18} />
@@ -389,7 +390,7 @@ export default function PatientDetail() {
                                         )}
                                         {scopes.share_appointments && (
                                             <button
-                                                onClick={() => navigate(`/dashboard/consultas/nueva?patient=${patient.id}`)}
+                                                onClick={() => navigate(mapDashboardPath(`/dashboard/consultas/nueva?patient=${patient.id}`))}
                                                 className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-all"
                                             >
                                                 <Calendar size={18} />
@@ -584,14 +585,14 @@ export default function PatientDetail() {
                                                 <Calendar size={16} className="text-primary" />
                                                 Próximas Consultas
                                             </h3>
-                                            <button onClick={() => navigate('/dashboard/consultas')} className="text-xs font-bold text-primary hover:underline">Ver todas</button>
+                                            <button onClick={() => navigate(mapDashboardPath('/dashboard/consultas'))} className="text-xs font-bold text-primary hover:underline">Ver todas</button>
                                         </div>
                                         {appointments.length === 0 ? (
                                             <p className="text-sm text-gray-500 bg-gray-50 p-4 rounded-lg italic">No hay consultas programadas.</p>
                                         ) : (
                                             <div className="space-y-2">
                                                 {appointments.map(apt => (
-                                                    <div key={apt.id} className="group flex items-center justify-between p-3 border border-gray-100 rounded-xl hover:border-primary/30 transition-all cursor-pointer" onClick={() => navigate(`/dashboard/consultas/${apt.id}`)}>
+                                                    <div key={apt.id} className="group flex items-center justify-between p-3 border border-gray-100 rounded-xl hover:border-primary/30 transition-all cursor-pointer" onClick={() => navigate(mapDashboardPath(`/dashboard/consultas/${apt.id}`))}>
                                                         <div className="flex items-center gap-3">
                                                             <div className="w-10 h-10 rounded-lg bg-primary/10 flex flex-col items-center justify-center text-primary">
                                                                 <span className="text-[10px] font-bold uppercase">{new Date(apt.start_at).toLocaleDateString('es-MX', { month: 'short' })}</span>
@@ -617,7 +618,7 @@ export default function PatientDetail() {
                                                 <Droplets size={16} className="text-blue-500" />
                                                 Documentos y Estudios
                                             </h3>
-                                            <button onClick={() => navigate('/dashboard/documentos')} className="text-xs font-bold text-primary hover:underline">Ver todos</button>
+                                            <button onClick={() => navigate(mapDashboardPath('/dashboard/documentos'))} className="text-xs font-bold text-primary hover:underline">Ver todos</button>
                                         </div>
                                         {documents.length === 0 ? (
                                             <p className="text-sm text-gray-500 bg-gray-50 p-4 rounded-lg italic">Sin documentos cargados.</p>
@@ -656,7 +657,7 @@ export default function PatientDetail() {
                             <div className="grid grid-cols-1 gap-2">
                                 {scopes.share_appointments && (
                                 <button
-                                    onClick={() => navigate(`/dashboard/consultas/nueva?patient=${patient.id}`)}
+                                    onClick={() => navigate(mapDashboardPath(`/dashboard/consultas/nueva?patient=${patient.id}`))}
                                     className="flex items-center gap-3 p-3 text-sm font-bold text-gray-700 hover:bg-primary/5 hover:text-primary rounded-lg transition-all group"
                                 >
                                     <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-primary/10">
@@ -667,7 +668,7 @@ export default function PatientDetail() {
                                 )}
                                 {scopes.share_documents && (
                                 <button
-                                    onClick={() => navigate('/dashboard/documentos')}
+                                    onClick={() => navigate(mapDashboardPath('/dashboard/documentos'))}
                                     className="flex items-center gap-3 p-3 text-sm font-bold text-gray-700 hover:bg-primary/5 hover:text-primary rounded-lg transition-all group"
                                 >
                                     <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-primary/10">
@@ -678,7 +679,7 @@ export default function PatientDetail() {
                                 )}
                                 {scopes.share_contact && (
                                 <button
-                                    onClick={() => navigate(`/dashboard/mensajes?with=${patient.id}`)}
+                                    onClick={() => navigate(mapDashboardPath(`/dashboard/mensajes?with=${patient.id}`))}
                                     className="flex items-center gap-3 p-3 text-sm font-bold text-gray-700 hover:bg-primary/5 hover:text-primary rounded-lg transition-all group"
                                 >
                                     <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-primary/10">

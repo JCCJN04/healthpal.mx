@@ -4,6 +4,8 @@ import { supabase } from '@/shared/lib/supabase'
 import { getMyProfile } from '@/shared/lib/queries/profile'
 import { logger } from '@/shared/lib/logger'
 import type { Database } from '@/shared/types/database'
+import { isDemoMode, demoDoctorUser, disableDemoMode } from '@/context/DemoContext'
+import { demoDoctorProfile } from '@/data/demoData'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
 
@@ -17,7 +19,8 @@ interface AuthContextType {
   refreshProfile: () => Promise<void>
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+export const AuthContext = createContext<AuthContextType | undefined>(undefined)
+export type { AuthContextType, Profile }
 
 // Inactivity timeout: 15 minutes
 const INACTIVITY_TIMEOUT = 15 * 60 * 1000
@@ -44,6 +47,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const refreshProfile = async () => {
+    if (isDemoMode()) {
+      setProfile(demoDoctorProfile as any)
+      return
+    }
+
     if (user) {
       const profileData = await fetchProfile()
       setProfile(profileData)
@@ -89,6 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Setup activity listeners for inactivity timeout
   useEffect(() => {
+    if (isDemoMode()) return
     if (!user) return
 
     const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'mousemove']
@@ -118,6 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Setup JWT refresh
   useEffect(() => {
+    if (isDemoMode()) return
     setupJWTRefresh()
 
     return () => {
@@ -129,6 +139,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let mounted = true
+
+    if (isDemoMode()) {
+      setSession(null)
+      setUser(demoDoctorUser as unknown as User)
+      setProfile(demoDoctorProfile as any)
+      setLoading(false)
+      return () => {
+        mounted = false
+      }
+    }
 
     // Inicializar autenticación
     const initAuth = async () => {
@@ -213,6 +233,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     if (jwtRefreshTimerRef.current) {
       clearInterval(jwtRefreshTimerRef.current)
+    }
+
+    if (isDemoMode()) {
+      disableDemoMode()
+      setUser(null)
+      setSession(null)
+      setProfile(null)
+      window.location.href = '/'
+      return
     }
 
     const { error: signOutError } = await supabase.auth.signOut()

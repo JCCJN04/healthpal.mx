@@ -16,6 +16,7 @@ import {
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import { listUpcomingAppointments, listPastAppointments, AppointmentWithDetails } from '@/shared/lib/queries/appointments'
 import { useAuth } from '@/app/providers/AuthContext'
+import { mapDashboardPath } from '@/context/DemoContext'
 import type { Database } from '@/shared/types/database'
 
 type AppointmentStatus = Database['public']['Enums']['appointment_status']
@@ -91,7 +92,7 @@ export default function Consultas() {
 
     return (
       <div
-        onClick={() => navigate(`/dashboard/consultas/${apt.id}`)}
+        onClick={() => navigate(mapDashboardPath(`/dashboard/consultas/${apt.id}`))}
         className="group bg-white p-5 border border-gray-100 rounded-xl hover:border-[#33C7BE] hover:shadow-md transition-all cursor-pointer relative"
       >
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -155,7 +156,7 @@ export default function Consultas() {
             <p className="text-gray-500 font-medium mt-1 text-sm">Gestiona tus citas y revisa tu historial médico.</p>
           </div>
           <button
-            onClick={() => navigate('/dashboard/consultas/nueva')}
+            onClick={() => navigate(mapDashboardPath('/dashboard/consultas/nueva'))}
             className="px-6 py-3 bg-[#33C7BE] text-white font-bold rounded-xl hover:bg-[#2bb5ad] hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-teal-100 flex items-center justify-center gap-2"
           >
             <Calendar className="w-5 h-5" />
@@ -247,7 +248,7 @@ export default function Consultas() {
                     ))}
                   </div>
                   <button
-                    onClick={() => navigate('/dashboard/consultas/historial')}
+                    onClick={() => navigate(mapDashboardPath('/dashboard/consultas/historial'))}
                     className="w-full text-center text-primary font-bold text-sm hover:underline py-2 bg-gray-50 rounded-lg"
                   >
                     Ver más

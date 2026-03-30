@@ -2,6 +2,9 @@
 import { supabase } from '@/shared/lib/supabase'
 import { logger } from '@/shared/lib/logger'
 import type { Database } from '@/shared/types/database'
+import { isDemoMode } from '@/context/DemoContext'
+import { demoMessagesInbox, demoPatients } from '@/data/demoData'
+import { DEMO_DOCTOR_ID, DEMO_PATIENT_IDS } from '@/data/demoConfig'
 
 type Conversation = Database['public']['Tables']['conversations']['Row']
 type Participant = Database['public']['Tables']['conversation_participants']['Row']
@@ -22,6 +25,23 @@ export interface ConversationWithDetails extends Conversation {
  * List all conversations for the current user
  */
 export async function listMyConversations(userId: string): Promise<ConversationWithDetails[]> {
+    if (isDemoMode()) {
+        return demoMessagesInbox.map((message, idx) => ({
+            id: `demo-conv-${idx + 1}`,
+            created_at: message.created_at,
+            last_message_at: message.created_at,
+            last_message_text: message.preview,
+            other_participant: {
+                id: demoPatients[idx % demoPatients.length].id,
+                full_name: message.from,
+                avatar_url: null,
+                email: demoPatients[idx % demoPatients.length].email,
+                role: 'patient',
+            },
+            unread_count: message.unread ? 1 : 0,
+        } as ConversationWithDetails))
+    }
+
     logger.debug('listMyConversations started')
 
     // 1. Get all conversation IDs where user is a participant
@@ -96,6 +116,10 @@ export async function listMyConversations(userId: string): Promise<ConversationW
  * Get total unread messages across all conversations
  */
 export async function getUnreadTotal(userId: string): Promise<number> {
+    if (isDemoMode()) {
+        return demoMessagesInbox.filter((message) => message.unread).length
+    }
+
     try {
         const { data, error } = await supabase.rpc('get_unread_total', { p_user_id: userId })
         if (error) throw error
@@ -112,6 +136,10 @@ export async function getUnreadTotal(userId: string): Promise<number> {
  * in case the RPC functions don't exist on this Supabase project.
  */
 export async function getOrCreateConversation(userId: string, otherUserId: string): Promise<string | null> {
+    if (isDemoMode()) {
+        return `demo-conv-${userId}-${otherUserId}`
+    }
+
     try {
         logger.debug('getOrCreateConversation', { userId, otherUserId })
 
@@ -215,6 +243,17 @@ export async function getOrCreateConversation(userId: string, otherUserId: strin
  * List messages for a specific conversation
  */
 export async function listMessages(conversationId: string, options: { limit?: number, before?: string } = {}) {
+    if (isDemoMode()) {
+        const messages = demoMessagesInbox.map((message, idx) => ({
+            id: `demo-msg-body-${idx + 1}`,
+            conversation_id: conversationId,
+            sender_id: idx % 2 === 0 ? DEMO_PATIENT_IDS.ana : DEMO_DOCTOR_ID,
+            body: message.preview,
+            created_at: message.created_at,
+        }))
+        return messages.slice(0, options.limit || 50).reverse()
+    }
+
     try {
         let query = supabase
             .from('messages')
@@ -240,6 +279,19 @@ export async function listMessages(conversationId: string, options: { limit?: nu
  * Send a message
  */
 export async function sendMessage(conversationId: string, senderId: string, body: string) {
+    if (isDemoMode()) {
+        return {
+            success: true,
+            data: {
+                id: `demo-sent-${Date.now()}`,
+                conversation_id: conversationId,
+                sender_id: senderId,
+                body,
+                created_at: new Date().toISOString(),
+            },
+        }
+    }
+
     try {
         const { data, error } = await supabase
             .from('messages')
@@ -263,6 +315,11 @@ export async function sendMessage(conversationId: string, senderId: string, body
  * Mark a conversation as read
  */
 export async function markConversationRead(conversationId: string, userId: string) {
+    if (isDemoMode()) {
+        logger.info('demo:markConversationRead', { conversationId, userId })
+        return { success: true }
+    }
+
     try {
         const { error } = await supabase.rpc('mark_conversation_read', {
             p_conversation_id: conversationId,
@@ -276,6 +333,11 @@ export async function markConversationRead(conversationId: string, userId: strin
     }
 }
 export async function updateUserStatus(userId: string) {
+    if (isDemoMode()) {
+        logger.info('demo:updateUserStatus', { userId })
+        return { success: true }
+    }
+
     try {
         // 1. Update user_status table
         const { error: statusError } = await supabase
@@ -305,6 +367,11 @@ export async function updateUserStatus(userId: string) {
  * Fetch the status of multiple users
  */
 export async function getUserStatuses(userIds: string[]) {
+    if (isDemoMode()) {
+        const now = new Date().toISOString()
+        return userIds.map((id) => ({ user_id: id, last_seen_at: now }))
+    }
+
     try {
         const { data, error } = await supabase
             .from('user_status')

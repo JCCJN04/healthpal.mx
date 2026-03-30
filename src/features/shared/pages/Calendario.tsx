@@ -28,6 +28,7 @@ import {
   getMyRole,
   AppointmentWithProfiles
 } from '@/shared/lib/queries/calendar';
+import { mapDashboardPath } from '@/context/DemoContext';
 
 type ViewType = 'day' | 'week' | 'month';
 
@@ -144,7 +145,7 @@ export default function Calendario() {
           onPrev={handlePrev}
           onNext={handleNext}
           onToday={handleToday}
-          onSchedule={() => navigate('/dashboard/consultas/nueva')}
+          onSchedule={() => navigate(mapDashboardPath('/dashboard/consultas/nueva'))}
           isLoading={loading}
         />
 
@@ -154,7 +155,7 @@ export default function Calendario() {
             {view === 'week' && (
               <WeekCalendar
                 weekStart={startOfWeek(currentDate, { weekStartsOn: 1 })}
-                onTimeSlotClick={(d) => navigate(`/dashboard/consultas/nueva?date=${d.toISOString()}`)}
+                onTimeSlotClick={(d) => navigate(mapDashboardPath(`/dashboard/consultas/nueva?date=${d.toISOString()}`))}
                 onEventClick={(e: any) => setSelectedAppointmentId(e.id)}
                 events={appointments as any}
               />
@@ -164,7 +165,7 @@ export default function Calendario() {
               <DayView
                 date={currentDate}
                 appointments={appointments as any}
-                onTimeSlotClick={(d) => navigate(`/dashboard/consultas/nueva?date=${d.toISOString()}`)}
+                onTimeSlotClick={(d) => navigate(mapDashboardPath(`/dashboard/consultas/nueva?date=${d.toISOString()}`))}
                 onEventClick={(a: any) => setSelectedAppointmentId(a.id)}
               />
             )}
@@ -187,7 +188,7 @@ export default function Calendario() {
           <AppointmentDetailsPanel
             appointment={selectedAppointment}
             onClose={() => setSelectedAppointmentId(null)}
-            onViewDetail={(id) => navigate(`/dashboard/consultas/${id}`)}
+            onViewDetail={(id) => navigate(mapDashboardPath(`/dashboard/consultas/${id}`))}
           />
         </div>
       </div>

@@ -2,6 +2,12 @@
 import { supabase } from '@/shared/lib/supabase'
 import { logger } from '@/shared/lib/logger'
 import type { Database } from '@/shared/types/database'
+import { isDemoMode } from '@/context/DemoContext'
+import { demoDocuments } from '@/data/demoData'
+import { DEMO_PATIENT_IDS } from '@/data/demoConfig'
+
+const DEMO_DOCUMENTS_KEY = 'healthpal:demo:documents'
+const DEMO_FOLDERS_KEY = 'healthpal:demo:folders'
 
 type Document = Database['public']['Tables']['documents']['Row']
 type Folder = {
@@ -25,10 +31,73 @@ type DocumentPathInput =
   | {
       owner_id?: string | null
       id?: string | null
+      demo_preview_url?: string | null
+      storage_path?: string | null
     }
+
+async function readFileAsDataUrl(file: File): Promise<string | null> {
+  if (typeof FileReader === 'undefined') return null
+
+  return await new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result)
+        return
+      }
+      resolve(null)
+    }
+    reader.onerror = () => resolve(null)
+    reader.readAsDataURL(file)
+  })
+}
 
 function buildDeterministicDocumentPath(ownerId: string, documentId: string): string {
   return `${ownerId}/${documentId}/${documentId}.bin`
+}
+
+function getDemoDocumentsState(): Document[] {
+  if (typeof window === 'undefined') return demoDocuments as Document[]
+
+  const raw = window.sessionStorage.getItem(DEMO_DOCUMENTS_KEY)
+  if (!raw) {
+    window.sessionStorage.setItem(DEMO_DOCUMENTS_KEY, JSON.stringify(demoDocuments))
+    return demoDocuments as Document[]
+  }
+
+  try {
+    return JSON.parse(raw) as Document[]
+  } catch {
+    window.sessionStorage.setItem(DEMO_DOCUMENTS_KEY, JSON.stringify(demoDocuments))
+    return demoDocuments as Document[]
+  }
+}
+
+function setDemoDocumentsState(next: Document[]) {
+  if (typeof window === 'undefined') return
+  window.sessionStorage.setItem(DEMO_DOCUMENTS_KEY, JSON.stringify(next))
+}
+
+function getDemoFoldersState(): Folder[] {
+  if (typeof window === 'undefined') return []
+
+  const raw = window.sessionStorage.getItem(DEMO_FOLDERS_KEY)
+  if (!raw) {
+    window.sessionStorage.setItem(DEMO_FOLDERS_KEY, JSON.stringify([]))
+    return []
+  }
+
+  try {
+    return JSON.parse(raw) as Folder[]
+  } catch {
+    window.sessionStorage.setItem(DEMO_FOLDERS_KEY, JSON.stringify([]))
+    return []
+  }
+}
+
+function setDemoFoldersState(next: Folder[]) {
+  if (typeof window === 'undefined') return
+  window.sessionStorage.setItem(DEMO_FOLDERS_KEY, JSON.stringify(next))
 }
 
 async function resolveDocumentStoragePath(input: DocumentPathInput): Promise<string | null> {
@@ -63,6 +132,12 @@ async function resolveDocumentStoragePath(input: DocumentPathInput): Promise<str
  * Get documents for current user
  */
 export async function getUserDocuments(userId: string, folderId: string | null = null): Promise<Document[]> {
+  if (isDemoMode()) {
+    return getDemoDocumentsState()
+      .filter((doc) => doc.owner_id === userId)
+      .filter((doc) => (folderId ? doc.folder_id === folderId : doc.folder_id === null)) as Document[]
+  }
+
   try {
     let query = supabase
       .from('documents')
@@ -104,6 +179,11 @@ export async function getUserDocuments(userId: string, folderId: string | null =
  * Get document by ID
  */
 export async function getDocumentById(documentId: string): Promise<Document | null> {
+  if (isDemoMode()) {
+    const found = getDemoDocumentsState().find((doc) => doc.id === documentId)
+    return (found || null) as Document | null
+  }
+
   try {
     const { data, error } = await supabase
       .from('documents')
@@ -127,6 +207,10 @@ export async function getDocumentById(documentId: string): Promise<Document | nu
  * List incoming shares for a user with minimal profile info of sender and document payload.
  */
 export async function getDocumentsSharedWithMe(userId: string) {
+  if (isDemoMode()) {
+    return []
+  }
+
   try {
     const { data, error } = await supabase
       .from('document_shares')
@@ -167,6 +251,34 @@ export async function uploadDocument(
     folderId?: string | null
   }
 ): Promise<{ success: boolean; documentId?: string; error?: string }> {
+  if (isDemoMode()) {
+    const id = `demo-doc-${Date.now()}`
+    const createdAt = new Date().toISOString()
+    const demoPreviewUrl = await readFileAsDataUrl(file)
+    const nextDoc = {
+      id,
+      owner_id: userId,
+      patient_id: userId,
+      uploaded_by: userId,
+      title: metadata.title || file.name,
+      category: metadata.category,
+      mime_type: file.type || 'application/octet-stream',
+      file_size: file.size,
+      notes: metadata.notes || null,
+      folder_id: metadata.folderId || null,
+      storage_path: demoPreviewUrl,
+      demo_preview_url: demoPreviewUrl,
+      created_at: createdAt,
+      updated_at: createdAt,
+    } as Document
+
+    const docs = getDemoDocumentsState()
+    setDemoDocumentsState([nextDoc, ...docs])
+
+    logger.info('demo:uploadDocument', { fileName: file.name, userId, metadata, id })
+    return { success: true, documentId: id }
+  }
+
   try {
     // Generate document ID
     const documentId = crypto.randomUUID()
@@ -219,6 +331,13 @@ export async function deleteDocument(
   documentId: string,
   userId: string
 ): Promise<{ success: boolean; error?: string }> {
+  if (isDemoMode()) {
+    const docs = getDemoDocumentsState()
+    setDemoDocumentsState(docs.filter((doc) => !(doc.id === documentId && doc.owner_id === userId)))
+    logger.info('demo:deleteDocument', { documentId, userId })
+    return { success: true }
+  }
+
   try {
     logger.debug('deleteDocument initiated')
 
@@ -275,6 +394,12 @@ export async function deleteDocument(
  * Get folders for current user
  */
 export async function getFolders(userId: string, parentId: string | null = null): Promise<Folder[]> {
+  if (isDemoMode()) {
+    return getDemoFoldersState()
+      .filter((folder) => folder.owner_id === userId)
+      .filter((folder) => folder.parent_id === parentId)
+  }
+
   try {
     let query = supabase
       .from('folders')
@@ -309,6 +434,27 @@ export async function createFolder(
   userId: string,
   parentId: string | null = null
 ): Promise<{ success: boolean; folderId?: string; error?: string }> {
+  if (isDemoMode()) {
+    const id = `demo-folder-${Date.now()}`
+    const now = new Date().toISOString()
+    const folder: Folder = {
+      id,
+      owner_id: userId,
+      parent_id: parentId,
+      name,
+      color: '#33C7BE',
+      is_favorite: false,
+      created_at: now,
+      updated_at: now,
+    }
+
+    const folders = getDemoFoldersState()
+    setDemoFoldersState([...folders, folder])
+
+    logger.info('demo:createFolder', { name, userId, parentId, id })
+    return { success: true, folderId: id }
+  }
+
   try {
     const { data, error } = await supabase
       .from('folders')
@@ -336,6 +482,19 @@ export async function createFolder(
  * Delete a folder
  */
 export async function deleteFolder(folderId: string, userId: string): Promise<{ success: boolean; error?: string }> {
+  if (isDemoMode()) {
+    const folders = getDemoFoldersState()
+    const remainingFolders = folders.filter((folder) => !(folder.id === folderId && folder.owner_id === userId))
+    setDemoFoldersState(remainingFolders)
+
+    const docs = getDemoDocumentsState()
+    const remappedDocs = docs.map((doc) => (doc.folder_id === folderId ? { ...doc, folder_id: null } : doc)) as Document[]
+    setDemoDocumentsState(remappedDocs)
+
+    logger.info('demo:deleteFolder', { folderId, userId })
+    return { success: true }
+  }
+
   try {
     const { error, count } = await supabase
       .from('folders')
@@ -367,6 +526,22 @@ export async function updateFolder(
   userId: string,
   data: { name?: string; color?: string }
 ): Promise<{ success: boolean; error?: string }> {
+  if (isDemoMode()) {
+    const folders = getDemoFoldersState()
+    const next = folders.map((folder) => {
+      if (folder.id !== folderId || folder.owner_id !== userId) return folder
+      return {
+        ...folder,
+        ...data,
+        updated_at: new Date().toISOString(),
+      }
+    })
+    setDemoFoldersState(next)
+
+    logger.info('demo:updateFolder', { folderId, userId, data })
+    return { success: true }
+  }
+
   try {
     const { error } = await supabase
       .from('folders')
@@ -394,6 +569,22 @@ export async function updateDocument(
   userId: string,
   data: { title?: string; notes?: string; folder_id?: string | null }
 ): Promise<{ success: boolean; error?: string }> {
+  if (isDemoMode()) {
+    const docs = getDemoDocumentsState()
+    const next = docs.map((doc) => {
+      if (doc.id !== documentId || doc.owner_id !== userId) return doc
+      return {
+        ...doc,
+        ...data,
+        updated_at: new Date().toISOString(),
+      }
+    }) as Document[]
+    setDemoDocumentsState(next)
+
+    logger.info('demo:updateDocument', { documentId, userId, data })
+    return { success: true }
+  }
+
   try {
     const { error } = await supabase
       .from('documents')
@@ -461,6 +652,10 @@ export async function importSharedDocument(
   share: { document: Document; sender: { id: string; full_name?: string | null; email?: string | null } },
   recipientId: string
 ): Promise<{ success: boolean; created?: boolean; documentId?: string; error?: string }> {
+  if (isDemoMode()) {
+    return { success: true, created: true, documentId: `demo-import-${Date.now()}` }
+  }
+
   try {
     const sharedDoc = share.document
 
@@ -557,6 +752,15 @@ export async function syncSharedDocumentsIntoLibrary(userId: string) {
  * Find a profile by email (case-insensitive). Returns first match.
  */
 export async function findProfileByEmail(email: string): Promise<Profile | null> {
+  if (isDemoMode()) {
+    return {
+      id: DEMO_PATIENT_IDS.ana,
+      email,
+      full_name: 'Paciente Demo',
+      role: 'patient',
+    } as Profile
+  }
+
   try {
     logger.debug('findProfileByEmail initiated')
     const { data, error } = await supabase
@@ -587,6 +791,11 @@ export async function shareDocumentWithUser(
   target: { userId?: string; email?: string },
   opts?: { document?: Document; senderProfile?: { full_name?: string | null; email?: string | null } }
 ): Promise<{ success: boolean; error?: string }> {
+  if (isDemoMode()) {
+    logger.info('demo:shareDocumentWithUser', { documentId, sharedById, target })
+    return { success: true }
+  }
+
   try {
     logger.debug('shareDocumentWithUser initiated')
     let targetUserId = target.userId || null
@@ -653,6 +862,11 @@ export async function revokeDocumentShare(
   sharedById: string,
   sharedWithId: string
 ): Promise<{ success: boolean; error?: string }> {
+  if (isDemoMode()) {
+    logger.info('demo:revokeDocumentShare', { documentId, sharedById, sharedWithId })
+    return { success: true }
+  }
+
   try {
     const { error, count } = await supabase
       .from('document_shares')
@@ -681,6 +895,10 @@ export async function revokeDocumentShare(
  * List users a document is shared with
  */
 export async function listDocumentShares(documentId: string) {
+  if (isDemoMode()) {
+    return []
+  }
+
   try {
     const { data, error } = await supabase
       .from('document_shares')
@@ -745,6 +963,34 @@ export async function searchDocuments(term: string, userId: string, limit = 30):
  * Download document file directly (forces download)
  */
 export async function downloadDocumentFile(pathOrDocument: DocumentPathInput, fileName: string): Promise<{ success: boolean; error?: string }> {
+  if (isDemoMode()) {
+    try {
+      const demoUrl =
+        (typeof pathOrDocument === 'string' && pathOrDocument.startsWith('data:') ? pathOrDocument : null) ||
+        (typeof pathOrDocument === 'object' && pathOrDocument
+          ? (pathOrDocument.demo_preview_url || pathOrDocument.storage_path || null)
+          : null)
+
+      if (!demoUrl) {
+        logger.info('demo:downloadDocumentFile', { fileName, hasPreview: false })
+        return { success: true }
+      }
+
+      const link = document.createElement('a')
+      link.href = demoUrl
+      link.download = fileName
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+
+      logger.info('demo:downloadDocumentFile', { fileName, hasPreview: true })
+      return { success: true }
+    } catch (err) {
+      logger.error('demo:downloadDocumentFile', err)
+      return { success: false, error: 'Error al descargar el archivo en modo demo' }
+    }
+  }
+
   try {
     const resolvedPath = await resolveDocumentStoragePath(pathOrDocument)
     if (!resolvedPath) {
@@ -781,6 +1027,21 @@ export async function downloadDocumentFile(pathOrDocument: DocumentPathInput, fi
  * Get download URL for document (for preview/viewing)
  */
 export async function getDocumentDownloadUrl(pathOrDocument: DocumentPathInput): Promise<string | null> {
+  if (isDemoMode()) {
+    if (typeof pathOrDocument === 'string') {
+      return pathOrDocument.startsWith('data:') ? pathOrDocument : null
+    }
+
+    if (pathOrDocument && typeof pathOrDocument === 'object') {
+      const url = pathOrDocument.demo_preview_url || pathOrDocument.storage_path || null
+      if (url && typeof url === 'string' && url.startsWith('data:')) {
+        return url
+      }
+    }
+
+    return null
+  }
+
   try {
     const resolvedPath = await resolveDocumentStoragePath(pathOrDocument)
     if (!resolvedPath) {

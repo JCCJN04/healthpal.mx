@@ -2,11 +2,16 @@
 import { supabase } from '@/shared/lib/supabase'
 import { logger } from '@/shared/lib/logger'
 import type { Database } from '@/shared/types/database'
+import { isDemoMode } from '@/context/DemoContext'
 
 type Notification = Database['public']['Tables']['notifications']['Row']
 type NotificationInsert = Database['public']['Tables']['notifications']['Insert']
 
 export async function createNotification(payload: NotificationInsert): Promise<{ success: boolean; error?: string }> {
+  if (isDemoMode()) {
+    return { success: true }
+  }
+
   try {
     const { error } = await supabase
       .from('notifications')
@@ -28,6 +33,10 @@ export async function createNotification(payload: NotificationInsert): Promise<{
  * Get unread notifications for user
  */
 export async function getUnreadNotifications(userId: string): Promise<Notification[]> {
+  if (isDemoMode()) {
+    return []
+  }
+
   try {
     const { data, error } = await supabase
       .from('notifications')
@@ -55,6 +64,10 @@ export async function getUnreadNotifications(userId: string): Promise<Notificati
 export async function markNotificationAsRead(
   notificationId: string
 ): Promise<{ success: boolean; error?: string }> {
+  if (isDemoMode()) {
+    return { success: true }
+  }
+
   try {
     const { error } = await supabase
       .from('notifications')
@@ -79,6 +92,10 @@ export async function markNotificationAsRead(
 export async function markAllNotificationsAsRead(
   userId: string
 ): Promise<{ success: boolean; error?: string }> {
+  if (isDemoMode()) {
+    return { success: true }
+  }
+
   try {
     const { error } = await supabase
       .from('notifications')

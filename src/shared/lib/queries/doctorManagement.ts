@@ -1,5 +1,7 @@
 import { supabase } from '@/shared/lib/supabase';
 import { logger } from '@/shared/lib/logger';
+import { isDemoMode } from '@/context/DemoContext';
+import { DEMO_DOCTOR_ID } from '@/data/demoConfig';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -46,6 +48,35 @@ export interface ScheduleBlockInput {
 // ─── Services CRUD ──────────────────────────────────────────────────────────
 
 export async function getDoctorServices(doctorId: string): Promise<DoctorServiceRow[]> {
+  if (isDemoMode()) {
+    return [
+      {
+        id: 'demo-service-1',
+        doctor_id: doctorId,
+        name: 'Consulta general',
+        description: 'Consulta de primera valoracion',
+        price: 600,
+        duration: 30,
+        is_active: true,
+        sort_order: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      {
+        id: 'demo-service-2',
+        doctor_id: doctorId,
+        name: 'Consulta de seguimiento',
+        description: 'Revision mensual y ajuste de tratamiento',
+        price: 450,
+        duration: 20,
+        is_active: true,
+        sort_order: 1,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    ]
+  }
+
   try {
     const { data, error } = await supabase
       .from('doctor_services')
@@ -65,6 +96,21 @@ export async function createDoctorService(
   doctorId: string,
   input: DoctorServiceInput,
 ): Promise<DoctorServiceRow | null> {
+  if (isDemoMode()) {
+    return {
+      id: `demo-service-${Date.now()}`,
+      doctor_id: doctorId,
+      name: input.name,
+      description: input.description ?? null,
+      price: input.price ?? null,
+      duration: input.duration ?? 30,
+      is_active: input.is_active ?? true,
+      sort_order: input.sort_order ?? 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+  }
+
   try {
     const { data, error } = await (supabase
       .from('doctor_services') as any)
@@ -92,6 +138,21 @@ export async function updateDoctorService(
   serviceId: string,
   input: Partial<DoctorServiceInput>,
 ): Promise<DoctorServiceRow | null> {
+  if (isDemoMode()) {
+    return {
+      id: serviceId,
+      doctor_id: DEMO_DOCTOR_ID,
+      name: input.name ?? 'Servicio demo',
+      description: input.description ?? null,
+      price: input.price ?? null,
+      duration: input.duration ?? 30,
+      is_active: input.is_active ?? true,
+      sort_order: input.sort_order ?? 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+  }
+
   try {
     const { data, error } = await (supabase
       .from('doctor_services') as any)
@@ -112,6 +173,11 @@ export async function updateDoctorService(
 }
 
 export async function deleteDoctorService(serviceId: string): Promise<boolean> {
+  if (isDemoMode()) {
+    logger.info('demo:deleteDoctorService', { serviceId })
+    return true
+  }
+
   try {
     const { error } = await supabase
       .from('doctor_services')
@@ -129,6 +195,31 @@ export async function deleteDoctorService(serviceId: string): Promise<boolean> {
 // ─── Schedule CRUD ──────────────────────────────────────────────────────────
 
 export async function getDoctorSchedule(doctorId: string): Promise<DoctorScheduleRow[]> {
+  if (isDemoMode()) {
+    return [
+      {
+        id: 'demo-schedule-1',
+        doctor_id: doctorId,
+        day_of_week: 1,
+        open_time: '09:00:00',
+        close_time: '17:00:00',
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      {
+        id: 'demo-schedule-2',
+        doctor_id: doctorId,
+        day_of_week: 3,
+        open_time: '09:00:00',
+        close_time: '17:00:00',
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    ]
+  }
+
   try {
     const { data, error } = await supabase
       .from('doctor_schedules')
@@ -148,6 +239,11 @@ export async function upsertDoctorSchedule(
   doctorId: string,
   blocks: ScheduleBlockInput[],
 ): Promise<boolean> {
+  if (isDemoMode()) {
+    logger.info('demo:upsertDoctorSchedule', { doctorId, blocks })
+    return true
+  }
+
   try {
     // Delete existing schedule and insert fresh
     const { error: delError } = await supabase
@@ -190,6 +286,11 @@ export async function toggleScheduleDay(
   scheduleId: string,
   isActive: boolean,
 ): Promise<boolean> {
+  if (isDemoMode()) {
+    logger.info('demo:toggleScheduleDay', { scheduleId, isActive })
+    return true
+  }
+
   try {
     const { error } = await (supabase
       .from('doctor_schedules') as any)

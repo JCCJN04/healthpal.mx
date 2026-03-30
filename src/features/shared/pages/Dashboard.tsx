@@ -11,6 +11,7 @@ import { DashboardAppointmentsSkeleton, Skeleton } from '@/shared/components/ui/
 import { DashboardSummary } from '@/shared/components/DashboardSummary'
 import { listDoctorPatients, type PatientProfileLite } from '@/features/doctor/services/patients'
 import { logger } from '@/shared/lib/logger'
+import { mapDashboardPath } from '@/context/DemoContext'
 
 interface CalendarWidgetProps {
   markedDates: string[];
@@ -259,7 +260,7 @@ const DoctorHome = ({
               <Calendar size={48} className="mx-auto text-gray-300 mb-3" />
               <p className="text-gray-500 text-sm md:text-base">No tienes consultas próximas</p>
               <button
-                onClick={() => navigate('/dashboard/consultas')}
+                onClick={() => navigate(mapDashboardPath('/dashboard/consultas'))}
                 className="mt-4 text-primary font-medium text-sm hover:underline"
               >
                 Agendar consulta →
@@ -333,7 +334,7 @@ const DoctorHome = ({
                   <div
                     key={p.patient_id}
                     className="flex items-center justify-between py-2 border-b last:border-b-0 border-gray-100 cursor-pointer hover:bg-gray-50 px-2 -mx-2 rounded-lg transition-colors group"
-                    onClick={() => navigate(`/dashboard/pacientes/${p.patient_id}`)}
+                    onClick={() => navigate(mapDashboardPath(`/dashboard/pacientes/${p.patient_id}`))}
                   >
                     <div>
                       <p className="text-sm font-semibold text-gray-900 group-hover:text-primary transition-colors">
@@ -470,11 +471,11 @@ export default function Dashboard() {
   }
 
   const handleVerConsulta = (id: string) => {
-    navigate(`/dashboard/consultas/${id}`)
+    navigate(mapDashboardPath(`/dashboard/consultas/${id}`))
   }
 
   const handleCalendarDateSelect = (date: string) => {
-    navigate(`/dashboard/calendario?date=${date}&view=day`)
+    navigate(mapDashboardPath(`/dashboard/calendario?date=${date}&view=day`))
   }
 
   const isDoctor = profile?.role === 'doctor'
@@ -512,7 +513,7 @@ export default function Dashboard() {
               </div>
               <div className="flex gap-3 md:gap-4 mx-auto md:mx-0">
                 <button
-                  onClick={() => navigate('/dashboard/consultas')}
+                  onClick={() => navigate(mapDashboardPath('/dashboard/consultas'))}
                   className="text-primary font-medium text-sm hover:underline"
                 >
                   VER
@@ -564,7 +565,7 @@ export default function Dashboard() {
                   <Calendar size={48} className="mx-auto text-gray-300 mb-3" />
                   <p className="text-gray-500 text-sm md:text-base">No tienes consultas próximas</p>
                   <button
-                    onClick={() => navigate('/dashboard/doctores')}
+                    onClick={() => navigate(mapDashboardPath('/dashboard/doctores'))}
                     className="mt-4 text-primary font-medium text-sm hover:underline"
                   >
                     Agendar consulta →
@@ -631,7 +632,7 @@ export default function Dashboard() {
                     )
                   })}
                   <button
-                    onClick={() => navigate('/dashboard/consultas')}
+                    onClick={() => navigate(mapDashboardPath('/dashboard/consultas'))}
                     className="w-full text-center text-primary font-bold text-sm hover:underline py-2 bg-gray-50 rounded-lg"
                   >
                     Ver más
@@ -651,7 +652,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             <div
               className="bg-white rounded-lg shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => navigate('/dashboard/documentos')}
+              onClick={() => navigate(mapDashboardPath('/dashboard/documentos'))}
             >
               <div className="h-2 bg-primary" />
               <div className="p-4 md:p-6">
@@ -679,7 +680,7 @@ export default function Dashboard() {
             {/* Doctores */}
             <div
               className="bg-white rounded-lg shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => navigate('/dashboard/doctores')}
+              onClick={() => navigate(mapDashboardPath('/dashboard/doctores'))}
             >
               <div className="h-2 bg-teal-500" />
               <div className="p-4 md:p-6">
@@ -705,7 +706,7 @@ export default function Dashboard() {
             {/* Calendario */}
             <div
               className="bg-white rounded-lg shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => navigate('/dashboard/calendario')}
+              onClick={() => navigate(mapDashboardPath('/dashboard/calendario'))}
             >
               <div className="h-2 bg-blue-500" />
               <div className="p-4 md:p-6">
@@ -746,7 +747,7 @@ export default function Dashboard() {
           todaysAppointments={todaysAppointments}
           showNotification={showNotification}
           onDismissNotification={handleDescartar}
-          onOpenConsultas={() => navigate('/dashboard/consultas')}
+          onOpenConsultas={() => navigate(mapDashboardPath('/dashboard/consultas'))}
           onOpenConsulta={handleVerConsulta}
           navigate={navigate}
           onSelectCalendarDate={handleCalendarDateSelect}

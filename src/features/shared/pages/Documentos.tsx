@@ -9,6 +9,7 @@ import { getUserDocuments, getDocumentsSharedWithMe, uploadDocument, deleteDocum
 import { extractDocumentInfo } from '@/shared/lib/gemini'
 import { showToast } from '@/shared/components/ui/Toast'
 import { validateFile } from '@/shared/lib/errors'
+import { isDemoMode } from '@/context/DemoContext'
 import type { Database } from '@/shared/types/database'
 
 type Document = Database['public']['Tables']['documents']['Row']
@@ -64,22 +65,22 @@ export default function Documentos() {
   })
 
   useEffect(() => {
-    loadContent()
+    loadContent(currentFolder.id)
   }, [user, currentFolder.id])
 
   useEffect(() => {
     filterContent()
   }, [documents, folders, searchQuery, selectedCategory])
 
-  const loadContent = async () => {
+  const loadContent = async (folderId: string | null = currentFolder.id) => {
     if (!user) return
     setLoading(true)
 
-    const isSharedFolder = currentFolder.id?.startsWith('shared-')
+    const isSharedFolder = folderId?.startsWith('shared-')
 
     const [ownDocs, shared] = await Promise.all([
       // When viewing a synthetic shared folder, skip folder filter (null) to avoid UUID errors
-      getUserDocuments(user.id, isSharedFolder ? null : currentFolder.id),
+      getUserDocuments(user.id, isSharedFolder ? null : folderId),
       getDocumentsSharedWithMe(user.id)
     ])
 
@@ -107,20 +108,20 @@ export default function Documentos() {
     }))
 
     // Remove legacy imported shared folders from DB to avoid clutter
-    const ownFoldersInitial = await getFolders(user.id, isSharedFolder ? null : currentFolder.id)
+    const ownFoldersInitial = await getFolders(user.id, isSharedFolder ? null : folderId)
     const legacyShared = ownFoldersInitial.filter(f => f.name.toLowerCase().startsWith('compartido de '))
     if (legacyShared.length) {
       await Promise.all(legacyShared.map(f => deleteFolder(f.id, user.id)))
       // If current folder was deleted, reset to root
-      if (legacyShared.some(f => f.id === currentFolder.id)) {
+      if (legacyShared.some(f => f.id === folderId)) {
         setCurrentFolder({ id: null, name: 'Mis Documentos' })
         setNavHistory([])
       }
     }
-    const ownFolders = legacyShared.length ? await getFolders(user.id, currentFolder.id) : ownFoldersInitial
+    const ownFolders = legacyShared.length ? await getFolders(user.id, folderId) : ownFoldersInitial
     const filteredOwnFolders = ownFolders.filter(f => !f.name.toLowerCase().startsWith('compartido de '))
 
-    const targetSenderId = isSharedFolder ? currentFolder.id?.replace('shared-', '') ?? null : null
+    const targetSenderId = isSharedFolder ? folderId?.replace('shared-', '') ?? null : null
 
     const docsForView = isSharedFolder
       ? sharedEntries.filter(e => e.senderId === targetSenderId).map(e => e.doc)
@@ -129,7 +130,7 @@ export default function Documentos() {
     // Dedup folders by id and hide synthetic shared folders when inside any folder
     const finalFolders = isSharedFolder
       ? filteredOwnFolders
-      : currentFolder.id
+      : folderId
         ? filteredOwnFolders
         : [...filteredOwnFolders, ...syntheticSharedFolders]
     const dedupFolders = finalFolders.filter((f, idx, arr) => arr.findIndex(x => x.id === f.id) === idx)
@@ -168,18 +169,43 @@ export default function Documentos() {
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!user || !uploadForm.file) return
+    if (!user) {
+      showToast('No se detecto usuario activo en demo. Recarga la pagina.', 'error')
+      return
+    }
+
+    if (!uploadForm.file) {
+      showToast('Selecciona un archivo para continuar.', 'warning')
+      return
+    }
 
     setUploading(true)
     const result = await uploadDocument(uploadForm.file, user.id, {
       title: uploadForm.title || uploadForm.file.name,
       category: uploadForm.category,
       notes: uploadForm.notes,
-      folderId: currentFolder.id
+      folderId: currentFolder.id?.startsWith('shared-') ? null : currentFolder.id
     })
 
     if (result.success && result.documentId) {
       setUploadModalOpen(false)
+
+      if (isDemoMode()) {
+        showToast('Documento subido correctamente (demo)', 'success')
+        setCurrentFolder({ id: null, name: 'Mis Documentos' })
+        setNavHistory([])
+        setSearchQuery('')
+        setSelectedCategory('all')
+        setUploadForm({
+          file: null,
+          title: '',
+          category: 'other',
+          notes: '',
+        })
+        await loadContent(null)
+        setUploading(false)
+        return
+      }
 
       // Attempt background extraction
       setExtracting(true)
@@ -207,7 +233,7 @@ export default function Documentos() {
         showToast(err.message || 'Error al conectar con la IA.', 'error')
       } finally {
         setExtracting(false)
-        loadContent()
+        loadContent(currentFolder.id)
       }
 
       setUploadForm({
@@ -216,7 +242,7 @@ export default function Documentos() {
         category: 'other',
         notes: '',
       })
-      loadContent()
+      loadContent(currentFolder.id)
     } else {
       showToast(result.error || 'Error al subir el documento', 'error')
     }
@@ -236,7 +262,7 @@ export default function Documentos() {
     const result = await deleteDocument(documentId, user.id)
     if (result.success) {
       showToast('Documento eliminado correctamente', 'success')
-      loadContent()
+      loadContent(currentFolder.id)
     } else {
       setDocuments(originalDocs)
       showToast(result.error || 'Error al eliminar', 'error')
@@ -252,7 +278,7 @@ export default function Documentos() {
       showToast('Carpeta creada', 'success')
       setFolderModalOpen(false)
       setNewFolderName('')
-      loadContent()
+      loadContent(currentFolder.id)
     } else {
       showToast(result.error || 'Error al crear carpeta', 'error')
     }
@@ -265,7 +291,7 @@ export default function Documentos() {
     const result = await deleteFolder(folderId, user.id)
     if (result.success) {
       showToast('Carpeta eliminada', 'success')
-      loadContent()
+      loadContent(currentFolder.id)
     } else {
       showToast(result.error || 'Error al eliminar carpeta', 'error')
     }
@@ -279,7 +305,7 @@ export default function Documentos() {
     const result = await updateFolder(folderId, user.id, { name: newName })
     if (result.success) {
       showToast('Carpeta renombrada', 'success')
-      loadContent()
+      loadContent(currentFolder.id)
     } else {
       showToast(result.error || 'Error al renombrar carpeta', 'error')
     }
@@ -302,7 +328,7 @@ export default function Documentos() {
       const result = await updateDocument(docId, user.id, { folder_id: targetFolderId })
       if (result.success) {
         showToast('Documento movido', 'success')
-        await loadContent()
+        await loadContent(currentFolder.id)
       } else {
         showToast(result.error || 'No se pudo mover el documento', 'error')
       }

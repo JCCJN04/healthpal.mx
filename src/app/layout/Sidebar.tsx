@@ -17,6 +17,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '@/app/providers/AuthContext'
 import { countPendingRequests } from '@/shared/lib/queries/consent'
 import { logger } from '@/shared/lib/logger'
+import { mapDashboardPath } from '@/context/DemoContext'
 
 interface NavItem {
   label: string
@@ -96,12 +97,13 @@ export default function Sidebar({ onClose }: SidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
-          const isActive = location.pathname === item.path
+          const resolvedPath = mapDashboardPath(item.path)
+          const isActive = location.pathname === resolvedPath
 
           return (
             <Link
               key={item.path}
-              to={item.path}
+              to={resolvedPath}
               onClick={onClose}
               className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive
                   ? 'bg-primary text-white'
