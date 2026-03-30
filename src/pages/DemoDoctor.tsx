@@ -20,7 +20,7 @@ import { DemoModeProvider } from '@/context/DemoContext'
 function DemoBanner() {
   return (
     <div className="bg-[#33C7BE] text-white text-center text-sm py-1 font-medium fixed top-0 w-full z-50">
-      {'🔍 Modo Demo — Solo lectura'}
+      {'DEMO'}
     </div>
   )
 }
