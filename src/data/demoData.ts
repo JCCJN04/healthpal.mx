@@ -16,7 +16,7 @@ type DemoPatient = {
 export const demoDoctorProfile = {
   id: DEMO_DOCTOR_ID,
   email: DEMO_DOCTOR_EMAIL,
-  full_name: 'Dr. Demo García',
+  full_name: 'Pedro Garcia',
   role: 'doctor',
   avatar_url: null,
   onboarding_completed: true,

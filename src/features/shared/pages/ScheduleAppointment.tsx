@@ -32,6 +32,8 @@ export default function ScheduleAppointment() {
     patient_id: '',
     status: evt.type === 'occupied' ? 'confirmed' as const : 'requested' as const,
     mode: 'in_person' as const,
+    reason: null,
+    symptoms: null,
     start_at: `${evt.date}T${evt.startTime}:00`,
     end_at: `${evt.date}T${evt.endTime}:00`,
     location_text: null,

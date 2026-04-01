@@ -156,6 +156,8 @@ export interface Database {
           patient_id: string
           status: AppointmentStatus
           mode: VisitMode
+          reason: string | null
+          symptoms: string | null
           start_at: string
           end_at: string
           location_text: string | null
@@ -170,6 +172,8 @@ export interface Database {
           patient_id: string
           status?: AppointmentStatus
           mode?: VisitMode
+          reason?: string | null
+          symptoms?: string | null
           start_at: string
           end_at: string
           location_text?: string | null
@@ -184,6 +188,8 @@ export interface Database {
           patient_id?: string
           status?: AppointmentStatus
           mode?: VisitMode
+          reason?: string | null
+          symptoms?: string | null
           start_at?: string
           end_at?: string
           location_text?: string | null

@@ -455,8 +455,8 @@ export default function ConsultaDetail() {
             </div>
 
             <div className="border-t border-gray-100 pt-6">
-              <p className="text-sm text-gray-500 mb-2">Datos clínicos sensibles</p>
-              <p className="text-gray-900">El motivo y los síntomas se gestionan mediante flujos protegidos y no se muestran aquí en texto plano.</p>
+              <p className="text-sm text-gray-500 mb-2">Motivo de la consulta</p>
+              <p className="text-gray-900">{appointment.reason?.trim() || 'No se registró un motivo para esta cita.'}</p>
             </div>
 
 

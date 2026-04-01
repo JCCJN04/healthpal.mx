@@ -121,43 +121,50 @@ export const DayView = ({ date, appointments, onTimeSlotClick, onEventClick, isL
 
             {/* Event Overlays - Modern Deep Gradient */}
             <div className="absolute inset-0 pointer-events-none p-6">
-              {appointments.map(event => (
-                <button
-                  key={event.id}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onEventClick(event);
-                  }}
-                  style={getEventStyle(event)}
-                  className={`absolute left-6 right-6 rounded-[2rem] border p-6 text-left pointer-events-auto transition-all duration-300 hover:scale-[1.01] hover:shadow-2xl hover:z-20 flex flex-col justify-between group/card ${statusColors[event.status as keyof typeof statusColors] || 'bg-gray-100'
-                    }`}
-                >
-                  <div className="absolute inset-0 bg-white/5 opacity-0 group-hover/card:opacity-100 transition-opacity" />
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-[11px] font-black uppercase tracking-[0.2em] opacity-80">
-                        {format(new Date(event.start_at), 'h:mm a')} – {format(new Date(event.end_at), 'h:mm a')}
-                      </p>
-                      <div className="w-2 h-2 rounded-full bg-current animate-pulse md:block hidden" />
-                    </div>
-                    <h4 className="text-2xl font-black leading-tight mb-4 tracking-tight group-hover/card:translate-x-1 transition-transform">
-                      Consulta médica
-                    </h4>
-                  </div>
+              {appointments.map(event => {
+                const durationMinutes = Math.max(0, differenceInMinutes(new Date(event.end_at), new Date(event.start_at)))
+                const isCompact = durationMinutes < 80
 
-                  <div className="flex items-center gap-4 mt-auto">
-                    <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center font-black text-xl border border-white/20 shadow-inner group-hover/card:rotate-6 transition-transform">
-                      {(event.doctor?.full_name?.[0] || event.patient?.full_name?.[0] || '?').toUpperCase()}
+                return (
+                  <button
+                    key={event.id}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEventClick(event);
+                    }}
+                    style={getEventStyle(event)}
+                    className={`absolute left-6 right-6 rounded-[2rem] border ${isCompact ? 'p-4' : 'p-6'} text-left pointer-events-auto transition-all duration-300 hover:scale-[1.01] hover:shadow-2xl hover:z-20 flex flex-col justify-between overflow-hidden group/card ${statusColors[event.status as keyof typeof statusColors] || 'bg-gray-100'
+                      }`}
+                  >
+                    <div className="absolute inset-0 bg-white/5 opacity-0 group-hover/card:opacity-100 transition-opacity" />
+                    <div>
+                      <div className={`flex items-center justify-between ${isCompact ? 'mb-1' : 'mb-2'}`}>
+                        <p className="text-[11px] font-black uppercase tracking-[0.2em] opacity-80">
+                          {format(new Date(event.start_at), 'h:mm a')} – {format(new Date(event.end_at), 'h:mm a')}
+                        </p>
+                        <div className="w-2 h-2 rounded-full bg-current animate-pulse md:block hidden" />
+                      </div>
+                      <h4 className={`${isCompact ? 'text-xl mb-0' : 'text-2xl mb-4'} font-black leading-tight tracking-tight group-hover/card:translate-x-1 transition-transform`}>
+                        Consulta médica
+                      </h4>
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-0.5">Participante</p>
-                      <p className="text-base font-black truncate tracking-tight">
-                        {event.doctor?.full_name || event.patient?.full_name}
-                      </p>
-                    </div>
-                  </div>
-                </button>
-              ))}
+
+                    {!isCompact && (
+                      <div className="flex items-center gap-4 mt-auto">
+                        <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center font-black text-xl border border-white/20 shadow-inner group-hover/card:rotate-6 transition-transform">
+                          {(event.doctor?.full_name?.[0] || event.patient?.full_name?.[0] || '?').toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-0.5">Participante</p>
+                          <p className="text-base font-black truncate tracking-tight">
+                            {event.doctor?.full_name || event.patient?.full_name}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </button>
+                )
+              })}
             </div>
           </div>
         </div>

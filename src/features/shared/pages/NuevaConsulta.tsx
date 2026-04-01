@@ -177,6 +177,7 @@ export default function NuevaConsulta() {
         const result = await createAppointment({
             doctor_id: doctorId,
             patient_id: patientId,
+            reason: formData.reason.trim(),
             start_at: startAt.toISOString(),
             end_at: endAt.toISOString(),
             mode: formData.mode,
@@ -425,7 +426,7 @@ export default function NuevaConsulta() {
                                         Privacidad
                                     </p>
                                     <p className="text-sm text-gray-600 mt-1">
-                                        Los detalles clínicos sensibles ya no se guardan en texto plano.
+                                        El motivo de tu consulta solo es visible para ti y el especialista asignado.
                                     </p>
                                 </div>
                             </div>

@@ -1,13 +1,60 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 import { supabase } from '@/shared/lib/supabase'
 import { logger } from '@/shared/lib/logger'
 import type { Database } from '@/shared/types/database'
 import { isDemoMode } from '@/context/DemoContext'
 import { demoDocuments } from '@/data/demoData'
-import { DEMO_PATIENT_IDS } from '@/data/demoConfig'
+import { DEMO_DOCTOR_EMAIL, DEMO_DOCTOR_PASSWORD, DEMO_PATIENT_IDS } from '@/data/demoConfig'
 
 const DEMO_DOCUMENTS_KEY = 'healthpal:demo:documents'
 const DEMO_FOLDERS_KEY = 'healthpal:demo:folders'
+const DEMO_DOCUMENTS_IN_MEMORY = (import.meta.env.VITE_DEMO_DOCUMENTS_IN_MEMORY as string | undefined) === 'true'
+const DEFAULT_DEMO_DOCTOR_EMAIL = 'demo@healthpal.mx'
+const DEFAULT_DEMO_DOCTOR_PASSWORD = 'DemoDoctor#2026'
+
+function useInMemoryDemoDocuments(): boolean {
+  return isDemoMode() && DEMO_DOCUMENTS_IN_MEMORY
+}
+
+async function getAuthenticatedUserIdForWrite(): Promise<{ userId: string | null; authError?: string }> {
+  try {
+    const { data: currentSessionData } = await supabase.auth.getSession()
+    if (currentSessionData.session?.user?.id) {
+      return { userId: currentSessionData.session.user.id }
+    }
+
+    const { data: currentUserData } = await supabase.auth.getUser()
+    if (currentUserData.user?.id) {
+      return { userId: currentUserData.user.id }
+    }
+
+    if (!isDemoMode()) return { userId: null }
+
+    const emailCandidates = Array.from(new Set([DEMO_DOCTOR_EMAIL, DEFAULT_DEMO_DOCTOR_EMAIL].filter(Boolean)))
+    const passwordCandidates = Array.from(new Set([DEMO_DOCTOR_PASSWORD, DEFAULT_DEMO_DOCTOR_PASSWORD].filter(Boolean)))
+
+    let lastErrorMessage = 'No se pudo autenticar la sesion de demo'
+
+    for (const email of emailCandidates) {
+      for (const password of passwordCandidates) {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+        if (!error && data.user?.id) {
+          return { userId: data.user.id }
+        }
+
+        if (error) {
+          lastErrorMessage = error.message || lastErrorMessage
+          logger.warn('demo:documents:signInWithPassword failed', { email, error: error.message })
+        }
+      }
+    }
+
+    return { userId: null, authError: lastErrorMessage }
+  } catch (err: any) {
+    logger.error('demo:documents:getAuthenticatedUserIdForWrite', err)
+    return { userId: null, authError: err?.message || 'No se pudo autenticar la sesion de demo' }
+  }
+}
 
 type Document = Database['public']['Tables']['documents']['Row']
 type Folder = {
@@ -132,7 +179,7 @@ async function resolveDocumentStoragePath(input: DocumentPathInput): Promise<str
  * Get documents for current user
  */
 export async function getUserDocuments(userId: string, folderId: string | null = null): Promise<Document[]> {
-  if (isDemoMode()) {
+  if (useInMemoryDemoDocuments()) {
     return getDemoDocumentsState()
       .filter((doc) => doc.owner_id === userId)
       .filter((doc) => (folderId ? doc.folder_id === folderId : doc.folder_id === null)) as Document[]
@@ -179,7 +226,7 @@ export async function getUserDocuments(userId: string, folderId: string | null =
  * Get document by ID
  */
 export async function getDocumentById(documentId: string): Promise<Document | null> {
-  if (isDemoMode()) {
+  if (useInMemoryDemoDocuments()) {
     const found = getDemoDocumentsState().find((doc) => doc.id === documentId)
     return (found || null) as Document | null
   }
@@ -207,7 +254,7 @@ export async function getDocumentById(documentId: string): Promise<Document | nu
  * List incoming shares for a user with minimal profile info of sender and document payload.
  */
 export async function getDocumentsSharedWithMe(userId: string) {
-  if (isDemoMode()) {
+  if (useInMemoryDemoDocuments()) {
     return []
   }
 
@@ -251,7 +298,7 @@ export async function uploadDocument(
     folderId?: string | null
   }
 ): Promise<{ success: boolean; documentId?: string; error?: string }> {
-  if (isDemoMode()) {
+  if (useInMemoryDemoDocuments()) {
     const id = `demo-doc-${Date.now()}`
     const createdAt = new Date().toISOString()
     const demoPreviewUrl = await readFileAsDataUrl(file)
@@ -280,9 +327,19 @@ export async function uploadDocument(
   }
 
   try {
+    const { userId: authenticatedUserId, authError } = await getAuthenticatedUserIdForWrite()
+    const ownerId = authenticatedUserId || userId
+
+    if (isDemoMode() && !authenticatedUserId) {
+      return {
+        success: false,
+        error: `No se pudo autenticar la sesion demo para subir documentos: ${authError || 'credenciales invalidas'}`,
+      }
+    }
+
     // Generate document ID
     const documentId = crypto.randomUUID()
-    const filePath = buildDeterministicDocumentPath(userId, documentId)
+    const filePath = buildDeterministicDocumentPath(ownerId, documentId)
 
     // Upload to storage
     const { error: uploadError } = await supabase.storage
@@ -299,10 +356,10 @@ export async function uploadDocument(
       .from('documents')
       .insert({
         id: documentId,
-        owner_id: userId,
-        patient_id: userId,
-        uploaded_by: userId,
-        title: metadata.title,
+        owner_id: ownerId,
+        patient_id: ownerId,
+        uploaded_by: ownerId,
+        title: metadata.title || file.name,
         category: metadata.category,
         mime_type: file.type,
         file_size: file.size,
@@ -331,7 +388,7 @@ export async function deleteDocument(
   documentId: string,
   userId: string
 ): Promise<{ success: boolean; error?: string }> {
-  if (isDemoMode()) {
+  if (useInMemoryDemoDocuments()) {
     const docs = getDemoDocumentsState()
     setDemoDocumentsState(docs.filter((doc) => !(doc.id === documentId && doc.owner_id === userId)))
     logger.info('demo:deleteDocument', { documentId, userId })
@@ -394,7 +451,7 @@ export async function deleteDocument(
  * Get folders for current user
  */
 export async function getFolders(userId: string, parentId: string | null = null): Promise<Folder[]> {
-  if (isDemoMode()) {
+  if (useInMemoryDemoDocuments()) {
     return getDemoFoldersState()
       .filter((folder) => folder.owner_id === userId)
       .filter((folder) => folder.parent_id === parentId)
@@ -434,7 +491,7 @@ export async function createFolder(
   userId: string,
   parentId: string | null = null
 ): Promise<{ success: boolean; folderId?: string; error?: string }> {
-  if (isDemoMode()) {
+  if (useInMemoryDemoDocuments()) {
     const id = `demo-folder-${Date.now()}`
     const now = new Date().toISOString()
     const folder: Folder = {
@@ -482,7 +539,7 @@ export async function createFolder(
  * Delete a folder
  */
 export async function deleteFolder(folderId: string, userId: string): Promise<{ success: boolean; error?: string }> {
-  if (isDemoMode()) {
+  if (useInMemoryDemoDocuments()) {
     const folders = getDemoFoldersState()
     const remainingFolders = folders.filter((folder) => !(folder.id === folderId && folder.owner_id === userId))
     setDemoFoldersState(remainingFolders)
@@ -526,7 +583,7 @@ export async function updateFolder(
   userId: string,
   data: { name?: string; color?: string }
 ): Promise<{ success: boolean; error?: string }> {
-  if (isDemoMode()) {
+  if (useInMemoryDemoDocuments()) {
     const folders = getDemoFoldersState()
     const next = folders.map((folder) => {
       if (folder.id !== folderId || folder.owner_id !== userId) return folder
@@ -569,7 +626,7 @@ export async function updateDocument(
   userId: string,
   data: { title?: string; notes?: string; folder_id?: string | null }
 ): Promise<{ success: boolean; error?: string }> {
-  if (isDemoMode()) {
+  if (useInMemoryDemoDocuments()) {
     const docs = getDemoDocumentsState()
     const next = docs.map((doc) => {
       if (doc.id !== documentId || doc.owner_id !== userId) return doc
@@ -652,7 +709,7 @@ export async function importSharedDocument(
   share: { document: Document; sender: { id: string; full_name?: string | null; email?: string | null } },
   recipientId: string
 ): Promise<{ success: boolean; created?: boolean; documentId?: string; error?: string }> {
-  if (isDemoMode()) {
+  if (useInMemoryDemoDocuments()) {
     return { success: true, created: true, documentId: `demo-import-${Date.now()}` }
   }
 
@@ -752,7 +809,7 @@ export async function syncSharedDocumentsIntoLibrary(userId: string) {
  * Find a profile by email (case-insensitive). Returns first match.
  */
 export async function findProfileByEmail(email: string): Promise<Profile | null> {
-  if (isDemoMode()) {
+  if (useInMemoryDemoDocuments()) {
     return {
       id: DEMO_PATIENT_IDS.ana,
       email,
@@ -791,7 +848,7 @@ export async function shareDocumentWithUser(
   target: { userId?: string; email?: string },
   opts?: { document?: Document; senderProfile?: { full_name?: string | null; email?: string | null } }
 ): Promise<{ success: boolean; error?: string }> {
-  if (isDemoMode()) {
+  if (useInMemoryDemoDocuments()) {
     logger.info('demo:shareDocumentWithUser', { documentId, sharedById, target })
     return { success: true }
   }
@@ -862,7 +919,7 @@ export async function revokeDocumentShare(
   sharedById: string,
   sharedWithId: string
 ): Promise<{ success: boolean; error?: string }> {
-  if (isDemoMode()) {
+  if (useInMemoryDemoDocuments()) {
     logger.info('demo:revokeDocumentShare', { documentId, sharedById, sharedWithId })
     return { success: true }
   }
@@ -881,7 +938,7 @@ export async function revokeDocumentShare(
     }
 
     if ((count || 0) === 0) {
-      return { success: false, error: 'No se encontró la relación a revocar' }
+      return { success: false, error: 'No se encontrÃ³ la relaciÃ³n a revocar' }
     }
 
     return { success: true }
@@ -895,7 +952,7 @@ export async function revokeDocumentShare(
  * List users a document is shared with
  */
 export async function listDocumentShares(documentId: string) {
-  if (isDemoMode()) {
+  if (useInMemoryDemoDocuments()) {
     return []
   }
 
@@ -963,7 +1020,7 @@ export async function searchDocuments(term: string, userId: string, limit = 30):
  * Download document file directly (forces download)
  */
 export async function downloadDocumentFile(pathOrDocument: DocumentPathInput, fileName: string): Promise<{ success: boolean; error?: string }> {
-  if (isDemoMode()) {
+  if (useInMemoryDemoDocuments()) {
     try {
       const demoUrl =
         (typeof pathOrDocument === 'string' && pathOrDocument.startsWith('data:') ? pathOrDocument : null) ||
@@ -1027,7 +1084,7 @@ export async function downloadDocumentFile(pathOrDocument: DocumentPathInput, fi
  * Get download URL for document (for preview/viewing)
  */
 export async function getDocumentDownloadUrl(pathOrDocument: DocumentPathInput): Promise<string | null> {
-  if (isDemoMode()) {
+  if (useInMemoryDemoDocuments()) {
     if (typeof pathOrDocument === 'string') {
       return pathOrDocument.startsWith('data:') ? pathOrDocument : null
     }
@@ -1063,3 +1120,4 @@ export async function getDocumentDownloadUrl(pathOrDocument: DocumentPathInput):
     return null
   }
 }
+

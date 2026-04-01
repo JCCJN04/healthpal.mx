@@ -5,7 +5,7 @@ export const demoDoctorUser = {
   id: DEMO_DOCTOR_ID,
   email: DEMO_DOCTOR_EMAIL,
   user_metadata: {
-    full_name: 'Dr. Demo García',
+    full_name: 'Pedro Garcia',
     role: 'doctor',
     especialidad: 'Medicina General',
     avatar_url: null,

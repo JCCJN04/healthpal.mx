@@ -64,23 +64,11 @@ export function getDemoAppointmentsForCalendar() {
 }
 
 function sanitizeAppointmentInsertPayload(payload: AppointmentInsert): AppointmentInsert {
-  return {
-    ...payload,
-    // Plaintext medical fields are disabled at DB level; keep writes compatible.
-    reason: null,
-    symptoms: null,
-  }
+  return { ...payload }
 }
 
 function sanitizeAppointmentUpdatePayload(payload: AppointmentUpdate): AppointmentUpdate {
-  const next: AppointmentUpdate = { ...payload }
-  if (Object.prototype.hasOwnProperty.call(next, 'reason')) {
-    next.reason = null
-  }
-  if (Object.prototype.hasOwnProperty.call(next, 'symptoms')) {
-    next.symptoms = null
-  }
-  return next
+  return { ...payload }
 }
 
 export interface AppointmentWithDetails extends Appointment {

@@ -6,6 +6,10 @@ import { logger } from '@/shared/lib/logger'
 import type { Database } from '@/shared/types/database'
 import { isDemoMode, demoDoctorUser, disableDemoMode } from '@/context/DemoContext'
 import { demoDoctorProfile } from '@/data/demoData'
+import { DEMO_DOCTOR_EMAIL, DEMO_DOCTOR_PASSWORD } from '@/data/demoConfig'
+
+const DEFAULT_DEMO_DOCTOR_EMAIL = 'demo@healthpal.mx'
+const DEFAULT_DEMO_DOCTOR_PASSWORD = 'DemoDoctor#2026'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
 
@@ -141,10 +145,76 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let mounted = true
 
     if (isDemoMode()) {
-      setSession(null)
-      setUser(demoDoctorUser as unknown as User)
-      setProfile(demoDoctorProfile as any)
-      setLoading(false)
+      const bootstrapDemoAuth = async () => {
+        try {
+          const expectedEmail = DEMO_DOCTOR_EMAIL.toLowerCase()
+          const { data: { session: currentSession } } = await supabase.auth.getSession()
+
+          let demoSession = currentSession
+          const currentEmail = currentSession?.user?.email?.toLowerCase() || ''
+          const shouldRelogin = !currentSession || currentEmail !== expectedEmail
+
+          if (shouldRelogin) {
+            if (currentSession) {
+              await supabase.auth.signOut()
+            }
+
+            const emailCandidates = Array.from(new Set([DEMO_DOCTOR_EMAIL, DEFAULT_DEMO_DOCTOR_EMAIL]))
+            const passwordCandidates = Array.from(new Set([DEMO_DOCTOR_PASSWORD, DEFAULT_DEMO_DOCTOR_PASSWORD]))
+
+            let signedIn = false
+            let lastError: Error | null = null
+
+            for (const email of emailCandidates) {
+              if (signedIn) break
+
+              for (const password of passwordCandidates) {
+                const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+
+                if (!signInError && data.session) {
+                  demoSession = data.session
+                  signedIn = true
+                  break
+                }
+
+                if (signInError) {
+                  logger.warn('demo:signInWithPassword failed', { email, error: signInError.message })
+                  lastError = signInError
+                }
+              }
+            }
+
+            if (!signedIn) {
+              if (lastError) {
+                logger.error('demo:signInWithPassword', lastError)
+                throw lastError
+              }
+
+              throw new Error('No se pudo autenticar el usuario demo')
+            }
+          }
+
+          if (!mounted) return
+
+          setSession(demoSession ?? null)
+          setUser((demoSession?.user as User) || (demoDoctorUser as unknown as User))
+          setProfile(demoDoctorProfile as any)
+        } catch (err) {
+          logger.error('demo:bootstrapAuth', err)
+          if (!mounted) return
+
+          // Fallback to local demo identity when auth bootstrap is unavailable.
+          setSession(null)
+          setUser(demoDoctorUser as unknown as User)
+          setProfile(demoDoctorProfile as any)
+        } finally {
+          if (mounted) {
+            setLoading(false)
+          }
+        }
+      }
+
+      bootstrapDemoAuth()
       return () => {
         mounted = false
       }
@@ -236,6 +306,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (isDemoMode()) {
+      try {
+        await supabase.auth.signOut()
+      } catch (err) {
+        logger.warn('demo:signOut', err)
+      }
+
       disableDemoMode()
       setUser(null)
       setSession(null)

@@ -21,25 +21,126 @@ export interface ConversationWithDetails extends Conversation {
     unread_count: number
 }
 
+type DemoConversationSeed = {
+    conversation_id: string
+    patient_id: string
+    from: string
+    preview: string
+    created_at: string
+    unread: boolean
+    messages: Array<{
+        id: string
+        sender_id: string
+        body: string
+        created_at: string
+    }>
+}
+
+function shiftMinutes(baseIso: string, minutesDelta: number): string {
+    const date = new Date(baseIso)
+    date.setMinutes(date.getMinutes() + minutesDelta)
+    return date.toISOString()
+}
+
+function buildDemoConversationSeeds(): DemoConversationSeed[] {
+    const anaInbox = demoMessagesInbox.find((msg) => msg.from === 'Ana Martinez') || demoMessagesInbox[0]
+    const carlosInbox = demoMessagesInbox.find((msg) => msg.from === 'Carlos Romero') || demoMessagesInbox[1] || demoMessagesInbox[0]
+
+    return [
+        {
+            conversation_id: `demo-conv-${DEMO_PATIENT_IDS.ana}`,
+            patient_id: DEMO_PATIENT_IDS.ana,
+            from: 'Ana Martinez',
+            preview: anaInbox?.preview || 'Doctor, tengo una pregunta sobre la dosis... ',
+            created_at: anaInbox?.created_at || new Date().toISOString(),
+            unread: Boolean(anaInbox?.unread),
+            messages: [
+                {
+                    id: `demo-msg-${DEMO_PATIENT_IDS.ana}-1`,
+                    sender_id: DEMO_PATIENT_IDS.ana,
+                    body: 'Doctor, me puede confirmar la dosis de esta semana?',
+                    created_at: shiftMinutes(anaInbox?.created_at || new Date().toISOString(), -18),
+                },
+                {
+                    id: `demo-msg-${DEMO_PATIENT_IDS.ana}-2`,
+                    sender_id: DEMO_DOCTOR_ID,
+                    body: 'Claro Ana, manten 1 tableta por la manana y 1 por la noche.',
+                    created_at: shiftMinutes(anaInbox?.created_at || new Date().toISOString(), -12),
+                },
+                {
+                    id: `demo-msg-${DEMO_PATIENT_IDS.ana}-3`,
+                    sender_id: DEMO_PATIENT_IDS.ana,
+                    body: anaInbox?.preview || 'Doctor, tengo una pregunta sobre la dosis... ',
+                    created_at: anaInbox?.created_at || new Date().toISOString(),
+                },
+            ],
+        },
+        {
+            conversation_id: `demo-conv-${DEMO_PATIENT_IDS.carlos}`,
+            patient_id: DEMO_PATIENT_IDS.carlos,
+            from: 'Carlos Romero',
+            preview: carlosInbox?.preview || 'Ya subi mis estudios de glucosa.',
+            created_at: carlosInbox?.created_at || new Date().toISOString(),
+            unread: Boolean(carlosInbox?.unread),
+            messages: [
+                {
+                    id: `demo-msg-${DEMO_PATIENT_IDS.carlos}-1`,
+                    sender_id: DEMO_PATIENT_IDS.carlos,
+                    body: 'Doctor, ya estan listos mis resultados de laboratorio.',
+                    created_at: shiftMinutes(carlosInbox?.created_at || new Date().toISOString(), -20),
+                },
+                {
+                    id: `demo-msg-${DEMO_PATIENT_IDS.carlos}-2`,
+                    sender_id: DEMO_DOCTOR_ID,
+                    body: 'Perfecto Carlos, los reviso hoy por la tarde y te escribo.',
+                    created_at: shiftMinutes(carlosInbox?.created_at || new Date().toISOString(), -13),
+                },
+                {
+                    id: `demo-msg-${DEMO_PATIENT_IDS.carlos}-3`,
+                    sender_id: DEMO_PATIENT_IDS.carlos,
+                    body: carlosInbox?.preview || 'Ya subi mis estudios de glucosa.',
+                    created_at: carlosInbox?.created_at || new Date().toISOString(),
+                },
+            ],
+        },
+    ]
+}
+
+function resolveDemoConversationById(conversationId: string): DemoConversationSeed | null {
+    const seeds = buildDemoConversationSeeds()
+
+    // Current canonical format: demo-conv-{patientId}
+    const direct = seeds.find((seed) => seed.conversation_id === conversationId)
+    if (direct) return direct
+
+    // Backward-compatible format used in older demo links: demo-conv-{doctorId}-{patientId}
+    const legacy = seeds.find((seed) => conversationId.endsWith(`-${seed.patient_id}`))
+    return legacy || null
+}
+
 /**
  * List all conversations for the current user
  */
 export async function listMyConversations(userId: string): Promise<ConversationWithDetails[]> {
     if (isDemoMode()) {
-        return demoMessagesInbox.map((message, idx) => ({
-            id: `demo-conv-${idx + 1}`,
-            created_at: message.created_at,
-            last_message_at: message.created_at,
-            last_message_text: message.preview,
-            other_participant: {
-                id: demoPatients[idx % demoPatients.length].id,
-                full_name: message.from,
-                avatar_url: null,
-                email: demoPatients[idx % demoPatients.length].email,
-                role: 'patient',
-            },
-            unread_count: message.unread ? 1 : 0,
-        } as ConversationWithDetails))
+        const seeds = buildDemoConversationSeeds()
+        return seeds.map((seed) => {
+            const patient = demoPatients.find((p) => p.id === seed.patient_id)
+            return {
+                id: seed.conversation_id,
+                created_at: seed.created_at,
+                last_message_at: seed.created_at,
+                last_message_text: seed.preview,
+                other_participant: {
+                    id: seed.patient_id,
+                    full_name: patient?.full_name || seed.from,
+                    avatar_url: patient?.avatar_url || null,
+                    email: patient?.email || null,
+                    role: 'patient',
+                },
+                unread_count: seed.unread ? 1 : 0,
+            } as ConversationWithDetails
+        })
     }
 
     logger.debug('listMyConversations started')
@@ -137,7 +238,7 @@ export async function getUnreadTotal(userId: string): Promise<number> {
  */
 export async function getOrCreateConversation(userId: string, otherUserId: string): Promise<string | null> {
     if (isDemoMode()) {
-        return `demo-conv-${userId}-${otherUserId}`
+        return `demo-conv-${otherUserId}`
     }
 
     try {
@@ -244,14 +345,14 @@ export async function getOrCreateConversation(userId: string, otherUserId: strin
  */
 export async function listMessages(conversationId: string, options: { limit?: number, before?: string } = {}) {
     if (isDemoMode()) {
-        const messages = demoMessagesInbox.map((message, idx) => ({
-            id: `demo-msg-body-${idx + 1}`,
-            conversation_id: conversationId,
-            sender_id: idx % 2 === 0 ? DEMO_PATIENT_IDS.ana : DEMO_DOCTOR_ID,
-            body: message.preview,
-            created_at: message.created_at,
-        }))
-        return messages.slice(0, options.limit || 50).reverse()
+        const seed = resolveDemoConversationById(conversationId)
+        if (!seed) return []
+
+        const messages = seed.messages
+            .map((msg) => ({ ...msg, conversation_id: seed.conversation_id }))
+            .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+
+        return messages.slice(-(options.limit || 50))
     }
 
     try {

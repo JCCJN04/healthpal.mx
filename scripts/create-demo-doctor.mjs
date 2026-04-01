@@ -90,7 +90,7 @@ async function main() {
       password: demoPassword,
       email_confirm: true,
       user_metadata: {
-        full_name: 'Dr. Demo García',
+        full_name: 'Pedro Garcia',
         role: 'doctor',
         especialidad: 'Medicina General',
         avatar_url: null,
@@ -114,7 +114,7 @@ async function main() {
       password: demoPassword,
       user_metadata: {
         ...(user.user_metadata || {}),
-        full_name: 'Dr. Demo García',
+        full_name: 'Pedro Garcia',
         role: 'doctor',
         especialidad: 'Medicina General',
         avatar_url: null,
@@ -133,7 +133,7 @@ async function main() {
     .upsert({
       id: doctorId,
       role: 'doctor',
-      full_name: 'Dr. Demo García',
+      full_name: 'Pedro Garcia',
       email: demoEmail,
       onboarding_completed: true,
       onboarding_step: null,
@@ -159,11 +159,12 @@ async function main() {
 
   upsertEnvVar(ENV_PATH, 'VITE_DEMO_DOCTOR_ID', doctorId)
   upsertEnvVar(ENV_PATH, 'VITE_DEMO_DOCTOR_EMAIL', demoEmail)
+  upsertEnvVar(ENV_PATH, 'VITE_DEMO_DOCTOR_PASSWORD', demoPassword)
 
   console.log('[OK] Demo doctor listo')
   console.log(`- id: ${doctorId}`)
   console.log(`- email: ${demoEmail}`)
-  console.log('- .env actualizado con VITE_DEMO_DOCTOR_ID y VITE_DEMO_DOCTOR_EMAIL')
+  console.log('- .env actualizado con VITE_DEMO_DOCTOR_ID, VITE_DEMO_DOCTOR_EMAIL y VITE_DEMO_DOCTOR_PASSWORD')
 }
 
 main().catch((err) => {

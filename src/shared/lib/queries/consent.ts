@@ -260,7 +260,7 @@ export async function getPatientDoctorAccess(
         ...buildDemoConsent(DEMO_DOCTOR_ID, patientId, 'accepted'),
         doctor: {
           id: DEMO_DOCTOR_ID,
-          full_name: 'Dr. Demo García',
+          full_name: 'Pedro Garcia',
           avatar_url: null,
           email: 'demo@healthpal.mx',
         },
