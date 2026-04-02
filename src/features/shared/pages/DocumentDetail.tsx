@@ -15,8 +15,9 @@ import { DocumentViewer } from '@/shared/components/documents/DocumentViewer'
 import { NotesPanel } from '@/shared/components/documents/NotesPanel'
 import { ShareModal } from '@/shared/components/documents/ShareModal'
 import { RenameDocumentModal, MoveDocumentModal } from '@/shared/components/documents/DocumentModals'
-import { getDocumentById, getDocumentDownloadUrl, deleteDocument, updateDocument, downloadDocumentFile, shareDocumentWithUser } from '@/shared/lib/queries/documents'
+import { getDocumentById, getDocumentDownloadUrl, deleteDocument, updateDocument, downloadDocumentFile, shareDocumentWithUser, buildDeterministicDocumentPath } from '@/shared/lib/queries/documents'
 import { showToast } from '@/shared/components/ui/Toast'
+import { extractDocumentInfo } from '@/shared/lib/gemini'
 import { useAuth } from '@/app/providers/AuthContext'
 import { logger } from '@/shared/lib/logger'
 
@@ -33,6 +34,7 @@ export default function DocumentDetail() {
   const [loading, setLoading] = useState(true)
   const [fileUrl, setFileUrl] = useState<string | null>(null)
   const [loadError, setLoadError] = useState(false)
+  const [isAskingAI, setIsAskingAI] = useState(false)
 
   useEffect(() => {
     if (id) {
@@ -99,6 +101,31 @@ export default function DocumentDetail() {
 
   const handleBack = () => {
     navigate(-1)
+  }
+
+  const handleAskAI = async () => {
+    if (!user || !document) return
+    setIsAskingAI(true)
+    showToast('Analizando documento con IA...', 'info')
+    
+    try {
+      const filePath = buildDeterministicDocumentPath(document.owner_id, document.id)
+      const result_ai = await extractDocumentInfo(document.id, filePath, document.mime_type || 'application/octet-stream')
+      
+      if (result_ai.success) {
+        showToast('¡Análisis generado exitosamente!', 'success')
+        // Refresh document to fetch the new notes from the backend
+        const docResult = await getDocumentById(document.id)
+        if (docResult) setDocument(docResult)
+      } else {
+        showToast(result_ai.error || 'La IA no pudo procesar el documento.', 'warning')
+      }
+    } catch (err: any) {
+      logger.error('Error during Ask AI', err)
+      showToast('Ocurrió un error inesperado con la IA.', 'error')
+    } finally {
+      setIsAskingAI(false)
+    }
   }
 
   const handleDownload = async () => {
@@ -410,7 +437,7 @@ export default function DocumentDetail() {
 
           {/* Right: Notes Panel (25%) */}
           <div className="lg:col-span-1">
-            <NotesPanel notes={parseNotes(document.notes)} onAddNote={handleAddNote} />
+            <NotesPanel notes={parseNotes(document.notes)} onAddNote={handleAddNote} onAskAI={handleAskAI} isAskingAI={isAskingAI} />
           </div>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { Edit2, Plus, Heart, FileText, Activity, MapPin } from 'lucide-react';
+import { Edit2, Plus, FileText, Activity, MapPin } from 'lucide-react';
 import { PatientProfile } from '@/shared/types/database';
 
 interface PatientProfileInfoCardProps {
@@ -117,18 +117,6 @@ const PatientProfileInfoCard = ({ data, onEdit, isLoading = false }: PatientProf
                                     </span>
                                 </div>
                             </div>
-                        </div>
-
-                        {/* Medical Info */}
-                        <div className="md:col-span-2 bg-gray-50 rounded-lg p-4">
-                            <div className="flex items-center gap-2 mb-3">
-                                <Heart className="w-4 h-4 text-gray-500" />
-                                <h4 className="text-sm font-semibold text-gray-900">Información de salud</h4>
-                            </div>
-
-                            <p className="text-sm text-gray-600">
-                                Los campos clínicos sensibles fueron migrados a almacenamiento cifrado y ya no se muestran en texto plano.
-                            </p>
                         </div>
 
                         {/* Insurance & Notes */}

@@ -99,7 +99,7 @@ async function readFileAsDataUrl(file: File): Promise<string | null> {
   })
 }
 
-function buildDeterministicDocumentPath(ownerId: string, documentId: string): string {
+export function buildDeterministicDocumentPath(ownerId: string, documentId: string): string {
   return `${ownerId}/${documentId}/${documentId}.bin`
 }
 

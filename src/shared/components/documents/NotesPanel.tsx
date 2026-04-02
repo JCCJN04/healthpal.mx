@@ -1,13 +1,16 @@
 import { useState } from 'react'
-import { Edit3 } from 'lucide-react'
+import { Edit3, Sparkles, Loader2 } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
 import type { Note } from '@/shared/mock/documentDetail'
 
 interface NotesPanelProps {
   notes: Note[]
   onAddNote?: (content: string) => void
+  onAskAI?: () => Promise<void>
+  isAskingAI?: boolean
 }
 
-export const NotesPanel = ({ notes, onAddNote }: NotesPanelProps) => {
+export const NotesPanel = ({ notes, onAddNote, onAskAI, isAskingAI }: NotesPanelProps) => {
   const [isEditing, setIsEditing] = useState(false)
   const [newNote, setNewNote] = useState('')
 
@@ -32,13 +35,26 @@ export const NotesPanel = ({ notes, onAddNote }: NotesPanelProps) => {
       <div className="bg-gradient-to-r from-[#33C7BE] to-[#2bb5ad] px-6 py-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold text-white">Notas</h2>
-          <button
-            onClick={() => setIsEditing(!isEditing)}
-            className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
-            title="Editar notas"
-          >
-            <Edit3 className="w-5 h-5" />
-          </button>
+          <div className="flex gap-2">
+            {onAskAI && (
+              <button
+                onClick={onAskAI}
+                disabled={isAskingAI}
+                className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors flex items-center gap-1 text-sm disabled:opacity-50"
+                title="Generar análisis con IA"
+              >
+                {isAskingAI ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
+                <span className="hidden sm:inline">IA</span>
+              </button>
+            )}
+            <button
+              onClick={() => setIsEditing(!isEditing)}
+              className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
+              title="Editar notas"
+            >
+              <Edit3 className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -62,9 +78,9 @@ export const NotesPanel = ({ notes, onAddNote }: NotesPanelProps) => {
 
               {/* Note Content */}
               <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-                <p className="text-sm text-gray-700 leading-relaxed">
-                  {note.content}
-                </p>
+                <div className="text-sm text-gray-700 leading-relaxed [&>h1]:text-lg [&>h1]:font-bold [&>h2]:text-base [&>h2]:font-bold [&>h3]:text-sm [&>h3]:font-bold [&>p]:mb-2 [&>ul]:list-disc [&>ul]:pl-5 [&>ul]:mb-2 [&>ol]:list-decimal [&>ol]:pl-5 [&>strong]:font-semibold whitespace-pre-wrap">
+                  <ReactMarkdown>{note.content}</ReactMarkdown>
+                </div>
               </div>
             </div>
           ))

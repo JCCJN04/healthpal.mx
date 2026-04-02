@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { X, ChevronRight, ChevronLeft, Check, AlertCircle } from 'lucide-react';
 import { PatientProfile } from '@/shared/types/database';
 import { logger } from '@/shared/lib/logger';
+import AddressAutocomplete from '@/shared/components/ui/AddressAutocomplete';
+import SearchableSelect from '@/shared/components/ui/SearchableSelect';
 
 interface PatientProfileWizardProps {
     initialData: PatientProfile | null;
@@ -140,9 +142,12 @@ const PatientProfileWizard = ({ initialData, isOpen, onClose, onSave }: PatientP
                 <div className="flex-1 overflow-y-auto p-8">
                     {currentStep === 'metrics' && (
                         <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
-                            <div className="bg-blue-50 p-4 rounded-lg flex gap-3 text-blue-800 text-sm">
-                                <AlertCircle className="w-5 h-5 shrink-0" />
-                                <p>Los campos clínicos sensibles están cifrados y ya no se editan en texto plano desde este formulario.</p>
+                            <div className="bg-blue-50/50 border border-blue-100 p-4 rounded-xl flex gap-3 text-blue-800 text-sm mb-6 shadow-sm">
+                                <AlertCircle className="w-5 h-5 shrink-0 text-blue-500" />
+                                <p className="leading-relaxed">
+                                  <span className="font-bold">Seguridad y Cifrado Activado.</span><br/>
+                                  Alergias, Antecedentes y Medicamentos serán configurados directamente durante la consulta con tu médico usando conectividad E2E de ultra seguridad.
+                                </p>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
@@ -206,26 +211,34 @@ const PatientProfileWizard = ({ initialData, isOpen, onClose, onSave }: PatientP
 
                     {currentStep === 'insurance' && (
                         <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
-                                <input
-                                    type="text"
-                                    value={formData.address_text}
-                                    onChange={e => handleChange('address_text', e.target.value)}
-                                    placeholder="Calle, número, colonia"
-                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-100 focus:border-[#33C7BE] outline-none transition-all"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Aseguradora</label>
-                                <input
-                                    type="text"
-                                    value={formData.insurance_provider}
-                                    onChange={e => handleChange('insurance_provider', e.target.value)}
-                                    placeholder="Ej. GNP, AXA, MetLife..."
-                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-100 focus:border-[#33C7BE] outline-none transition-all"
-                                />
-                            </div>
+                            <AddressAutocomplete
+                                label="Dirección"
+                                value={formData.address_text}
+                                onChange={value => handleChange('address_text', value)}
+                                placeholder="Calle, número, colonia"
+                            />
+                            <SearchableSelect
+                                label="Aseguradora"
+                                value={formData.insurance_provider}
+                                onChange={value => handleChange('insurance_provider', value)}
+                                placeholder="Selecciona una aseguradora"
+                                searchPlaceholder="Buscar aseguradora..."
+                                options={[
+                                    { value: '', label: 'Sin seguro / Particular' },
+                                    { value: 'AXA Seguros', label: 'AXA Seguros' },
+                                    { value: 'GNP Seguros', label: 'GNP Seguros' },
+                                    { value: 'MetLife México', label: 'MetLife México' },
+                                    { value: 'Seguros Monterrey New York Life', label: 'Seguros Monterrey New York Life' },
+                                    { value: 'Mapfre México', label: 'Mapfre México' },
+                                    { value: 'Allianz México', label: 'Allianz México' },
+                                    { value: 'Bupa México', label: 'Bupa México' },
+                                    { value: 'Zurich Seguros', label: 'Zurich Seguros' },
+                                    { value: 'Seguros Inbursa', label: 'Seguros Inbursa' },
+                                    { value: 'Plan Seguro', label: 'Plan Seguro' },
+                                    { value: 'Seguros Banorte', label: 'Seguros Banorte' },
+                                    { value: 'Seguros Atlas', label: 'Seguros Atlas' }
+                                ]}
+                            />
                         </div>
                     )}
                 </div>

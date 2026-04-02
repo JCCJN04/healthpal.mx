@@ -492,14 +492,20 @@ export default function PatientDetail() {
                                                 <AlertCircle size={16} className="text-red-500" />
                                                 Datos médicos sensibles
                                             </h3>
-                                            <div className="space-y-2">
-                                                <div className="bg-red-50/50 p-3 rounded-lg">
-                                                    <p className="text-[10px] font-bold text-red-700 uppercase mb-1">Aviso de privacidad</p>
-                                                    <p className="text-sm text-gray-700">Los antecedentes sensibles del paciente se gestionan mediante flujos protegidos y no se muestran en texto plano.</p>
+                                            <div className="space-y-3">
+                                                <div className="border border-gray-100 rounded-lg p-3">
+                                                    <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">Condiciones Crónicas</p>
+                                                    <p className="text-sm font-medium text-gray-900">{medProfile?.chronic_conditions || pProfile?.chronic_conditions || 'Ninguna registrada'}</p>
                                                 </div>
-                                                <div className="bg-orange-50/50 p-3 rounded-lg">
-                                                    <p className="text-[10px] font-bold text-orange-700 uppercase mb-1">Acceso clínico</p>
-                                                    <p className="text-sm text-gray-700">Para revisar detalles clínicos, utiliza las vistas y permisos específicos del expediente cifrado.</p>
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div className="border border-gray-100 rounded-lg p-3 bg-red-50/30">
+                                                        <p className="text-[10px] font-bold text-red-700 uppercase mb-1">Alergias</p>
+                                                        <p className="text-sm font-medium text-red-900">{medProfile?.allergies || pProfile?.allergies || 'Ninguna'}</p>
+                                                    </div>
+                                                    <div className="border border-gray-100 rounded-lg p-3 bg-blue-50/30">
+                                                        <p className="text-[10px] font-bold text-blue-700 uppercase mb-1">Medicamentos Activos</p>
+                                                        <p className="text-sm font-medium text-blue-900">{medProfile?.current_medications || pProfile?.current_medications || 'Ninguno'}</p>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -509,11 +515,11 @@ export default function PatientDetail() {
                                         <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
                                             <FileText size={16} className="text-blue-500" />
                                             Resumen clínico
-                                        </h3>
-                                        <div className="bg-gray-50 p-4 rounded-xl text-sm text-gray-700 leading-relaxed italic">
-                                            La información de medicamentos y antecedentes sensibles se consulta desde el flujo clínico protegido.
+                                            </h3>
+                                            <div className="bg-blue-50/50 border border-blue-100 p-4 rounded-xl text-sm text-gray-800 leading-relaxed">
+                                                {medProfile?.notes_for_doctor || pProfile?.notes_for_doctor || 'Sin notas clínicas adicionales registradas.'}
+                                            </div>
                                         </div>
-                                    </div>
                                 </div>
                             )}
 

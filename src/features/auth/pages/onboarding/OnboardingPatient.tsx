@@ -83,10 +83,8 @@ export default function OnboardingPatient() {
       <Stepper currentStep={4} totalSteps={5} steps={STEPS} />
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <p className="text-sm text-blue-800">
-            <strong>Privacidad reforzada:</strong> La información médica sensible ahora se protege con cifrado y ya no se captura en texto plano durante onboarding.
-          </p>
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-5 mb-6 text-sm text-blue-800 leading-relaxed shadow-sm">
+          <strong>Privacidad y Cifrado Activo:</strong><br />Tus campos paramétricos sensibles (como alergias y condiciones) se configurarán de forma encriptada (<span className="opacity-90">End-to-End</span>) en tu primera consulta con tu médico autorizado.
         </div>
 
         <SelectField

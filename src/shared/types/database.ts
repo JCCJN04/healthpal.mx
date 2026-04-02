@@ -32,6 +32,7 @@ export interface Database {
           avatar_url: string | null
           onboarding_completed: boolean
           onboarding_step: string | null
+          last_seen_at: string | null
           created_at: string
           updated_at: string
         }
@@ -46,6 +47,7 @@ export interface Database {
           avatar_url?: string | null
           onboarding_completed?: boolean
           onboarding_step?: string | null
+          last_seen_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -60,6 +62,7 @@ export interface Database {
           avatar_url?: string | null
           onboarding_completed?: boolean
           onboarding_step?: string | null
+          last_seen_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -312,6 +315,7 @@ export interface Database {
           status: string
           created_by: string | null
           created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
@@ -320,6 +324,7 @@ export interface Database {
           status?: string
           created_by?: string | null
           created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
@@ -328,6 +333,7 @@ export interface Database {
           status?: string
           created_by?: string | null
           created_at?: string
+          updated_at?: string
         }
       }
       doctor_patient_consent: {
@@ -503,6 +509,13 @@ export interface VerifiedReview {
   patient_id: string
   doctor_id: string
   rating: number
+  rating_punctuality: number | null
+  rating_attention: number | null
+  rating_facilities: number | null
   comment: string | null
+  is_anonymous: boolean
+  helpful_count: number
+  doctor_response: string | null
+  doctor_responded_at: string | null
   created_at: string
 }

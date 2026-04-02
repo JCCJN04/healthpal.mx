@@ -4,6 +4,7 @@ import { logger } from '@/shared/lib/logger'
 import type { Database } from '@/shared/types/database'
 import { isDemoMode } from '@/context/DemoContext'
 import { demoAppointments, demoDoctorProfile, demoPatients } from '@/data/demoData'
+import { createNotification } from '@/shared/lib/queries/notifications'
 
 type Appointment = Database['public']['Tables']['appointments']['Row']
 type AppointmentInsert = Database['public']['Tables']['appointments']['Insert']
@@ -351,6 +352,22 @@ export async function createAppointment(payload: AppointmentInsert): Promise<{ s
       return { success: false, error: error.message }
     }
 
+    // Notify doctor of new appointment request (DB trigger handles this too, but
+    // calling from client ensures delivery in case the trigger is unavailable)
+    if (data?.doctor_id) {
+      const startAt = data.start_at
+        ? new Date(data.start_at).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })
+        : ''
+      createNotification({
+        user_id: data.doctor_id,
+        type: 'appointment_requested',
+        title: 'Nueva solicitud de cita',
+        body: `Un paciente quiere una cita el ${startAt}`,
+        entity_table: 'appointments',
+        entity_id: data.id,
+      }).catch(e => logger.warn('createAppointment:notify', e))
+    }
+
     return { success: true, data }
   } catch (err) {
     logger.error('createAppointment', err)
@@ -385,6 +402,64 @@ export async function updateAppointment(id: string, patch: AppointmentUpdate): P
 
   try {
     const safePatch = sanitizeAppointmentUpdatePayload(patch)
+
+    // Fetch current appointment before update to detect status changes
+    let prevStatus: string | null = null
+    if (patch.status) {
+      const { data: current } = await supabase
+        .from('appointments')
+        .select('status, doctor_id, patient_id, start_at, created_by')
+        .eq('id', id)
+        .single()
+      prevStatus = current?.status ?? null
+
+      // Send notification if status actually changed (DB trigger handles this too)
+      if (current && patch.status !== prevStatus) {
+        const startAt = current.start_at
+          ? new Date(current.start_at).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })
+          : ''
+
+        const notificationMap: Record<string, { userId: string; type: string; title: string; body: string }> = {
+          confirmed: {
+            userId: current.patient_id,
+            type: 'appointment_confirmed',
+            title: 'Cita confirmada',
+            body: `Tu cita del ${startAt} fue confirmada.`,
+          },
+          rejected: {
+            userId: current.patient_id,
+            type: 'appointment_rejected',
+            title: 'Solicitud rechazada',
+            body: `Tu solicitud de cita del ${startAt} no fue aceptada.`,
+          },
+          completed: {
+            userId: current.patient_id,
+            type: 'appointment_completed',
+            title: 'Cita completada — deja tu reseña',
+            body: `¿Cómo fue tu consulta del ${startAt}? Comparte tu experiencia.`,
+          },
+          cancelled: {
+            userId: current.created_by === current.patient_id ? current.doctor_id : current.patient_id,
+            type: 'appointment_cancelled',
+            title: 'Cita cancelada',
+            body: `La cita del ${startAt} fue cancelada.`,
+          },
+        }
+
+        const notif = notificationMap[patch.status as string]
+        if (notif) {
+          createNotification({
+            user_id: notif.userId,
+            type: notif.type,
+            title: notif.title,
+            body: notif.body,
+            entity_table: 'appointments',
+            entity_id: id,
+          }).catch(e => logger.warn('updateAppointment:notify', e))
+        }
+      }
+    }
+
     const { error } = await supabase
       .from('appointments')
       .update(safePatch)

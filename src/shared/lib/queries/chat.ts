@@ -5,6 +5,7 @@ import type { Database } from '@/shared/types/database'
 import { isDemoMode } from '@/context/DemoContext'
 import { demoMessagesInbox, demoPatients } from '@/data/demoData'
 import { DEMO_DOCTOR_ID, DEMO_PATIENT_IDS } from '@/data/demoConfig'
+import { createNotification } from '@/shared/lib/queries/notifications'
 
 type Conversation = Database['public']['Tables']['conversations']['Row']
 type Participant = Database['public']['Tables']['conversation_participants']['Row']
@@ -405,6 +406,29 @@ export async function sendMessage(conversationId: string, senderId: string, body
             .single()
 
         if (error) throw error
+
+        // Notify other participant(s) — DB trigger handles this too, but calling
+        // from client ensures delivery during development or trigger unavailability.
+        supabase
+            .from('conversation_participants')
+            .select('user_id')
+            .eq('conversation_id', conversationId)
+            .neq('user_id', senderId)
+            .then(({ data: others }) => {
+                if (!others) return
+                others.forEach(({ user_id }) => {
+                    createNotification({
+                        user_id,
+                        type: 'new_message',
+                        title: 'Nuevo mensaje',
+                        body: 'Tienes un nuevo mensaje.',
+                        entity_table: 'conversations',
+                        entity_id: conversationId,
+                    }).catch(e => logger.warn('sendMessage:notify', e))
+                })
+            })
+            .catch(e => logger.warn('sendMessage:fetchParticipants', e))
+
         return { success: true, data }
     } catch (err) {
         logger.error('sendMessage', err)
@@ -440,7 +464,8 @@ export async function updateUserStatus(userId: string) {
     }
 
     try {
-        // 1. Update user_status table
+        // Single source of truth: user_status table only.
+        // profiles.last_seen_at was a duplicate that could diverge; removed.
         const { error: statusError } = await supabase
             .from('user_status')
             .upsert({
@@ -450,12 +475,6 @@ export async function updateUserStatus(userId: string) {
             }, { onConflict: 'user_id' })
 
         if (statusError) throw statusError
-
-        // 2. Update profiles table
-        await supabase
-            .from('profiles')
-            .update({ last_seen_at: new Date().toISOString() })
-            .eq('id', userId)
 
         return { success: true }
     } catch (err) {
