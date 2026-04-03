@@ -178,11 +178,11 @@ async function resolveDocumentStoragePath(input: DocumentPathInput): Promise<str
 /**
  * Get documents for current user
  */
-export async function getUserDocuments(userId: string, folderId: string | null = null): Promise<Document[]> {
+export async function getUserDocuments(userId: string, folderId: string | null = null, allFolders = false): Promise<Document[]> {
   if (useInMemoryDemoDocuments()) {
     return getDemoDocumentsState()
       .filter((doc) => doc.owner_id === userId)
-      .filter((doc) => (folderId ? doc.folder_id === folderId : doc.folder_id === null)) as Document[]
+      .filter((doc) => allFolders ? true : (folderId ? doc.folder_id === folderId : doc.folder_id === null)) as Document[]
   }
 
   try {
@@ -191,11 +191,13 @@ export async function getUserDocuments(userId: string, folderId: string | null =
       .select('*')
       .eq('owner_id', userId)
 
-    if (folderId) {
-      query = query.eq('folder_id', folderId)
-    } else {
-      // In the root level, only show documents that don't belong to any folder
-      query = query.is('folder_id', null)
+    if (!allFolders) {
+      if (folderId) {
+        query = query.eq('folder_id', folderId)
+      } else {
+        // In the root level, only show documents that don't belong to any folder
+        query = query.is('folder_id', null)
+      }
     }
 
     const { data, error } = await query.order('created_at', { ascending: false })
@@ -1118,6 +1120,99 @@ export async function getDocumentDownloadUrl(pathOrDocument: DocumentPathInput):
   } catch (err) {
     logger.error('getDocumentDownloadUrl', err)
     return null
+  }
+}
+
+/**
+ * Upload a document on behalf of a patient (doctor uploads).
+ * The doctor is the storage owner; patient_id links the document to the patient.
+ * The document is also shared with the patient so they can see it in their own list.
+ */
+export async function uploadDocumentForPatient(
+  file: File,
+  doctorId: string,
+  patientId: string,
+  metadata: {
+    title: string
+    category: Database['public']['Enums']['doc_category']
+    notes?: string
+  }
+): Promise<{ success: boolean; documentId?: string; error?: string }> {
+  try {
+    const documentId = crypto.randomUUID()
+    const filePath = buildDeterministicDocumentPath(doctorId, documentId)
+
+    const { error: uploadError } = await supabase.storage
+      .from('documents')
+      .upload(filePath, file)
+
+    if (uploadError) {
+      logger.error('uploadDocumentForPatient.storage', uploadError)
+      return { success: false, error: uploadError.message }
+    }
+
+    const { error: dbError } = await supabase
+      .from('documents')
+      .insert({
+        id: documentId,
+        owner_id: doctorId,
+        patient_id: patientId,
+        uploaded_by: doctorId,
+        title: metadata.title || file.name,
+        category: metadata.category,
+        mime_type: file.type,
+        file_size: file.size,
+        notes: metadata.notes || null,
+        folder_id: null,
+      })
+
+    if (dbError) {
+      logger.error('uploadDocumentForPatient.db', dbError)
+      await supabase.storage.from('documents').remove([filePath])
+      return { success: false, error: dbError.message }
+    }
+
+    // Share with patient so it appears in their documents list
+    await supabase.from('document_shares').insert({
+      document_id: documentId,
+      shared_by: doctorId,
+      shared_with: patientId,
+    }).then(({ error }) => {
+      if (error) logger.warn('uploadDocumentForPatient.share', error)
+    })
+
+    return { success: true, documentId }
+  } catch (err) {
+    logger.error('uploadDocumentForPatient', err)
+    return { success: false, error: 'Error inesperado al subir el documento' }
+  }
+}
+
+/**
+ * Fetch documents that a specific doctor has uploaded for a specific patient.
+ */
+export async function getDoctorDocumentsForPatient(
+  doctorId: string,
+  patientId: string
+): Promise<Document[]> {
+  try {
+    const { data, error } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('owner_id', doctorId)
+      .eq('patient_id', patientId)
+      .eq('uploaded_by', doctorId)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      logger.error('getDoctorDocumentsForPatient', error)
+      return []
+    }
+
+    return data || []
+  } catch (err) {
+    logger.error('getDoctorDocumentsForPatient', err)
+    return []
   }
 }
 

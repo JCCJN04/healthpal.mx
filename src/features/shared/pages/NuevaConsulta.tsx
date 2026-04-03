@@ -62,10 +62,15 @@ export default function NuevaConsulta() {
         '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'
     ]
 
-    // Pre-load doctor if ID in URL
+    // Pre-load doctor/patient if ID in URL
     useEffect(() => {
         if (isDoctor) {
-            loadDoctorPatients()
+            const patientId = searchParams.get('patient')
+            if (patientId) {
+                loadDoctorPatientsAndPreselect(patientId)
+            } else {
+                loadDoctorPatients()
+            }
             return
         }
 
@@ -119,6 +124,20 @@ export default function NuevaConsulta() {
         setDoctorPatients(roster)
         setPatients(roster)
         setSearching(false)
+    }
+
+    const loadDoctorPatientsAndPreselect = async (patientId: string) => {
+        if (!user?.id) return
+        setSearching(true)
+        const roster = await listDoctorPatients(user.id)
+        setDoctorPatients(roster)
+        setPatients(roster)
+        setSearching(false)
+        const found = roster.find(p => p.id === patientId)
+        if (found) {
+            setSelectedPatient(found)
+            setStep(2)
+        }
     }
 
     const doctorIdForSchedule = isDoctor ? user?.id : selectedDoctor?.id

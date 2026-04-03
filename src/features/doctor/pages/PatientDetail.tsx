@@ -11,7 +11,6 @@ import {
     Phone,
     Mail,
     Activity,
-    Droplets,
     Scale,
     Ruler,
     AlertCircle,
@@ -27,15 +26,17 @@ import {
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import { getPatientFullProfile, getPatientNotes, addPatientNote, getPatientContactInfo } from '@/features/doctor/services/patients'
 import { getPatientProfile } from '@/shared/lib/queries/profile'
-import { listUpcomingAppointments } from '@/shared/lib/queries/appointments'
-import { getUserDocuments } from '@/shared/lib/queries/documents'
+import { listUpcomingAppointments, listPastAppointments } from '@/shared/lib/queries/appointments'
+import { getUserDocuments, getDocumentDownloadUrl, uploadDocumentForPatient, getDoctorDocumentsForPatient } from '@/shared/lib/queries/documents'
 import { getConsentForPatient, requestPatientAccess, ConsentScopes } from '@/shared/lib/queries/consent'
 import { useAuth } from '@/app/providers/AuthContext'
 import { showToast } from '@/shared/components/ui/Toast'
 import { logger } from '@/shared/lib/logger'
 import { mapDashboardPath } from '@/context/DemoContext'
+import { validateFile } from '@/shared/lib/errors'
+import type { DocCategory } from '@/shared/types/database'
 
-type TabType = 'summary' | 'notes' | 'activity'
+type TabType = 'summary' | 'notes' | 'activity' | 'expediente'
 type ConsentGate = 'loading' | 'no-consent' | 'requested' | 'rejected' | 'revoked' | 'accepted'
 
 export default function PatientDetail() {
@@ -48,6 +49,7 @@ export default function PatientDetail() {
     const [notes, setNotes] = useState<any[]>([])
     const [appointments, setAppointments] = useState<any[]>([])
     const [documents, setDocuments] = useState<any[]>([])
+    const [doctorDocs, setDoctorDocs] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [newNote, setNewNote] = useState({ title: '', body: '' })
     const [savingNote, setSavingNote] = useState(false)
@@ -100,16 +102,18 @@ export default function PatientDetail() {
             }
 
             // Status === 'accepted' — save scopes and load data
-            setConsentGate('accepted')
-            setScopes({
+            const liveScopes: ConsentScopes = {
                 share_basic_profile: consent.share_basic_profile,
                 share_contact: consent.share_contact,
                 share_documents: consent.share_documents,
                 share_appointments: consent.share_appointments,
                 share_medical_notes: consent.share_medical_notes,
-            })
+            }
+            setConsentGate('accepted')
+            setScopes(liveScopes)
 
-            await loadPatientData()
+            // Pass liveScopes directly — React state (scopes) is still stale here
+            await loadPatientData(liveScopes)
         } catch (err) {
             logger.error('PatientDetail.consentCheck', err)
             setConsentGate('no-consent')
@@ -117,7 +121,8 @@ export default function PatientDetail() {
         }
     }
 
-    async function loadPatientData() {
+    async function loadPatientData(scopesOverride?: ConsentScopes) {
+        const s = scopesOverride ?? scopes
         try {
             // 1. Critical: basic profile (RLS will still block if no consent)
             const profile = await getPatientFullProfile(id!)
@@ -136,22 +141,31 @@ export default function PatientDetail() {
             promises.push(getPatientProfile(id!).catch(e => { logger.error('PatientDetail.medProfile', e); return null }))
             keys.push('medProfile')
 
-            if (scopes.share_medical_notes) {
+            if (s.share_medical_notes) {
                 promises.push(getPatientNotes(id!, user!.id).catch(e => { logger.error('PatientDetail.notes', e); return [] }))
                 keys.push('notes')
             }
 
-            if (scopes.share_appointments) {
-                promises.push(listUpcomingAppointments({ userId: id!, role: 'patient' }).catch(e => { logger.error('PatientDetail.appts', e); return [] }))
+            if (s.share_appointments) {
+                promises.push(
+                    Promise.all([
+                        listUpcomingAppointments({ userId: id!, role: 'patient' }).catch(e => { logger.error('PatientDetail.appts.upcoming', e); return [] }),
+                        listPastAppointments({ userId: id!, role: 'patient' }).catch(e => { logger.error('PatientDetail.appts.past', e); return [] }),
+                    ]).then(([upcoming, past]) =>
+                        [...upcoming, ...past].sort((a, b) => new Date(b.start_at).getTime() - new Date(a.start_at).getTime())
+                    )
+                )
                 keys.push('appointments')
             }
 
-            if (scopes.share_documents) {
-                promises.push(getUserDocuments(id!).catch(e => { logger.error('PatientDetail.docs', e); return [] }))
+            if (s.share_documents) {
+                promises.push(getUserDocuments(id!, null, true).catch(e => { logger.error('PatientDetail.docs', e); return [] }))
                 keys.push('documents')
+                promises.push(getDoctorDocumentsForPatient(user!.id, id!).catch(e => { logger.error('PatientDetail.doctorDocs', e); return [] }))
+                keys.push('doctorDocs')
             }
 
-            if (scopes.share_contact) {
+            if (s.share_contact) {
                 promises.push(getPatientContactInfo(id!).catch(e => { logger.error('PatientDetail.contact', e); return null }))
                 keys.push('contact')
             }
@@ -161,8 +175,9 @@ export default function PatientDetail() {
                 switch (key) {
                     case 'medProfile': setMedProfile(results[i]); break
                     case 'notes': setNotes(results[i] || []); break
-                    case 'appointments': setAppointments((results[i] || []).slice(0, 5)); break
-                    case 'documents': setDocuments((results[i] || []).slice(0, 5)); break
+                    case 'appointments': setAppointments(results[i] || []); break
+                    case 'documents': setDocuments(results[i] || []); break
+                    case 'doctorDocs': setDoctorDocs(results[i] || []); break
                     case 'contact': setContactInfo(results[i]); break
                 }
             })
@@ -412,8 +427,9 @@ export default function PatientDetail() {
                         <div className="flex border-b border-gray-100 bg-white rounded-t-xl px-2">
                             {[
                                 { id: 'summary', label: 'Resumen Médico', icon: Activity, enabled: true },
+                                { id: 'expediente', label: 'Expediente Digital', icon: FileText, enabled: scopes.share_documents },
                                 { id: 'notes', label: 'Notas Clínicas', icon: StickyNote, enabled: scopes.share_medical_notes },
-                                { id: 'activity', label: 'Actividad Reciente', icon: Clock, enabled: scopes.share_appointments || scopes.share_documents },
+                                { id: 'activity', label: 'Consultas', icon: Calendar, enabled: scopes.share_appointments },
                             ].filter(t => t.enabled).map((tab) => (
                                 <button
                                     key={tab.id}
@@ -523,6 +539,17 @@ export default function PatientDetail() {
                                 </div>
                             )}
 
+                            {activeTab === 'expediente' && scopes.share_documents && (
+                                <ExpedienteDigital
+                                    documents={documents}
+                                    doctorDocs={doctorDocs}
+                                    patientName={patient.full_name}
+                                    patientId={patient.id}
+                                    doctorId={user!.id}
+                                    onUpload={() => loadPatientData()}
+                                />
+                            )}
+
                             {activeTab === 'notes' && scopes.share_medical_notes && (
                                 <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-300">
                                     {/* Create Note Form */}
@@ -582,71 +609,67 @@ export default function PatientDetail() {
                                 </div>
                             )}
 
-                            {activeTab === 'activity' && (
-                                <div className="space-y-8 animate-in fade-in duration-300">
-                                    {scopes.share_appointments && (
-                                    <div className="space-y-4">
-                                        <div className="flex items-center justify-between">
-                                            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                                                <Calendar size={16} className="text-primary" />
-                                                Próximas Consultas
-                                            </h3>
-                                            <button onClick={() => navigate(mapDashboardPath('/dashboard/consultas'))} className="text-xs font-bold text-primary hover:underline">Ver todas</button>
+                            {activeTab === 'activity' && scopes.share_appointments && (
+                                <div className="space-y-4 animate-in fade-in duration-300">
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                                            <Calendar size={16} className="text-primary" />
+                                            Todas las Consultas
+                                            {appointments.length > 0 && (
+                                                <span className="bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                                    {appointments.length}
+                                                </span>
+                                            )}
+                                        </h3>
+                                    </div>
+                                    {appointments.length === 0 ? (
+                                        <div className="text-center py-12 text-gray-400">
+                                            <Calendar size={40} className="mx-auto mb-2 opacity-20" />
+                                            <p className="text-sm font-medium">No hay consultas registradas.</p>
                                         </div>
-                                        {appointments.length === 0 ? (
-                                            <p className="text-sm text-gray-500 bg-gray-50 p-4 rounded-lg italic">No hay consultas programadas.</p>
-                                        ) : (
-                                            <div className="space-y-2">
-                                                {appointments.map(apt => (
-                                                    <div key={apt.id} className="group flex items-center justify-between p-3 border border-gray-100 rounded-xl hover:border-primary/30 transition-all cursor-pointer" onClick={() => navigate(mapDashboardPath(`/dashboard/consultas/${apt.id}`))}>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {appointments.map(apt => {
+                                                const isPast = new Date(apt.start_at) < new Date()
+                                                const statusMap: Record<string, { label: string; color: string }> = {
+                                                    confirmed: { label: 'Confirmada', color: 'text-green-600 bg-green-50' },
+                                                    requested: { label: 'Solicitada', color: 'text-blue-600 bg-blue-50' },
+                                                    completed: { label: 'Completada', color: 'text-gray-600 bg-gray-100' },
+                                                    cancelled: { label: 'Cancelada', color: 'text-red-500 bg-red-50' },
+                                                    rejected: { label: 'Rechazada', color: 'text-orange-500 bg-orange-50' },
+                                                    no_show: { label: 'No asistió', color: 'text-yellow-600 bg-yellow-50' },
+                                                }
+                                                const st = statusMap[apt.status] || { label: apt.status, color: 'text-gray-500 bg-gray-50' }
+                                                return (
+                                                    <div
+                                                        key={apt.id}
+                                                        className="group flex items-center justify-between p-3 border border-gray-100 rounded-xl hover:border-primary/30 transition-all cursor-pointer"
+                                                        onClick={() => navigate(mapDashboardPath(`/dashboard/consultas/${apt.id}`))}
+                                                    >
                                                         <div className="flex items-center gap-3">
-                                                            <div className="w-10 h-10 rounded-lg bg-primary/10 flex flex-col items-center justify-center text-primary">
+                                                            <div className={`w-10 h-10 rounded-lg flex flex-col items-center justify-center ${isPast ? 'bg-gray-100 text-gray-500' : 'bg-primary/10 text-primary'}`}>
                                                                 <span className="text-[10px] font-bold uppercase">{new Date(apt.start_at).toLocaleDateString('es-MX', { month: 'short' })}</span>
                                                                 <span className="text-sm font-bold -mt-1">{new Date(apt.start_at).getDate()}</span>
                                                             </div>
                                                             <div>
-                                                                <p className="text-sm font-bold text-gray-900 group-hover:text-primary transition-colors">Consulta médica</p>
-                                                                <p className="text-xs text-gray-500">{new Date(apt.start_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })} • {apt.status}</p>
+                                                                <p className="text-sm font-bold text-gray-900 group-hover:text-primary transition-colors">
+                                                                    {apt.reason || 'Consulta médica'}
+                                                                </p>
+                                                                <p className="text-xs text-gray-500">
+                                                                    {new Date(apt.start_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                                    {' · '}
+                                                                    {new Date(apt.start_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
+                                                                </p>
                                                             </div>
                                                         </div>
-                                                        <ChevronRight size={16} className="text-gray-300" />
+                                                        <div className="flex items-center gap-2">
+                                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${st.color}`}>{st.label}</span>
+                                                            <ChevronRight size={14} className="text-gray-300" />
+                                                        </div>
                                                     </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                    )}
-
-                                    {scopes.share_documents && (
-                                    <div className={`space-y-4 ${scopes.share_appointments ? 'pt-6 border-t border-gray-100' : ''}`}>
-                                        <div className="flex items-center justify-between">
-                                            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                                                <Droplets size={16} className="text-blue-500" />
-                                                Documentos y Estudios
-                                            </h3>
-                                            <button onClick={() => navigate(mapDashboardPath('/dashboard/documentos'))} className="text-xs font-bold text-primary hover:underline">Ver todos</button>
+                                                )
+                                            })}
                                         </div>
-                                        {documents.length === 0 ? (
-                                            <p className="text-sm text-gray-500 bg-gray-50 p-4 rounded-lg italic">Sin documentos cargados.</p>
-                                        ) : (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                                {documents.map(doc => (
-                                                    <div key={doc.id} className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl hover:border-primary/30 transition-all group">
-                                                        <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500">
-                                                            <FileText size={18} />
-                                                        </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className="text-xs font-bold text-gray-900 truncate">{doc.title}</p>
-                                                            <p className="text-[10px] text-gray-500">{doc.category} • {(doc.file_size / 1024 / 1024).toFixed(1)} MB</p>
-                                                        </div>
-                                                        <button className="text-gray-400 hover:text-primary p-1">
-                                                            <Download size={14} />
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
                                     )}
                                 </div>
                             )}
@@ -674,24 +697,13 @@ export default function PatientDetail() {
                                 )}
                                 {scopes.share_documents && (
                                 <button
-                                    onClick={() => navigate(mapDashboardPath('/dashboard/documentos'))}
+                                    onClick={() => setActiveTab('expediente')}
                                     className="flex items-center gap-3 p-3 text-sm font-bold text-gray-700 hover:bg-primary/5 hover:text-primary rounded-lg transition-all group"
                                 >
                                     <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-primary/10">
                                         <FileText size={16} />
                                     </div>
                                     Expediente Digital
-                                </button>
-                                )}
-                                {scopes.share_contact && (
-                                <button
-                                    onClick={() => navigate(mapDashboardPath(`/dashboard/mensajes?with=${patient.id}`))}
-                                    className="flex items-center gap-3 p-3 text-sm font-bold text-gray-700 hover:bg-primary/5 hover:text-primary rounded-lg transition-all group"
-                                >
-                                    <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-primary/10">
-                                        <MessageSquare size={16} />
-                                    </div>
-                                    Contactar al Paciente
                                 </button>
                                 )}
                             </div>
@@ -739,5 +751,262 @@ export default function PatientDetail() {
                 </div>
             </div>
         </DashboardLayout>
+    )
+}
+
+const CATEGORY_LABELS: Record<string, string> = {
+    radiology: 'Radiología',
+    prescription: 'Recetas',
+    history: 'Historial',
+    lab: 'Laboratorio',
+    insurance: 'Seguros',
+    other: 'Otros',
+}
+
+
+const CATEGORIES: { value: DocCategory; label: string }[] = [
+    { value: 'radiology', label: 'Radiología' },
+    { value: 'prescription', label: 'Receta' },
+    { value: 'history', label: 'Historial' },
+    { value: 'lab', label: 'Laboratorio' },
+    { value: 'insurance', label: 'Seguro' },
+    { value: 'other', label: 'Otro' },
+]
+
+function DocCard({ doc, downloadingId, onDownload }: { doc: any; downloadingId: string | null; onDownload: (doc: any) => void }) {
+    return (
+        <div className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl hover:border-primary/30 transition-all">
+            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500 flex-shrink-0">
+                <FileText size={18} />
+            </div>
+            <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-gray-900 truncate">{doc.title || 'Documento'}</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">
+                    {CATEGORY_LABELS[doc.category] || doc.category}
+                    {doc.file_size ? ` • ${(doc.file_size / 1024 / 1024).toFixed(1)} MB` : ''}
+                    {doc.created_at ? ` • ${new Date(doc.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}
+                </p>
+            </div>
+            <button
+                onClick={() => onDownload(doc)}
+                disabled={downloadingId === doc.id}
+                className="flex-shrink-0 text-gray-400 hover:text-primary p-1.5 rounded-lg hover:bg-primary/5 transition-colors disabled:opacity-50"
+                title="Descargar"
+            >
+                {downloadingId === doc.id
+                    ? <Loader2 size={16} className="animate-spin" />
+                    : <Download size={16} />
+                }
+            </button>
+        </div>
+    )
+}
+
+function ExpedienteDigital({
+    documents,
+    doctorDocs,
+    patientName,
+    patientId,
+    doctorId,
+    onUpload,
+}: {
+    documents: any[]
+    doctorDocs: any[]
+    patientName: string
+    patientId: string
+    doctorId: string
+    onUpload: () => void
+}) {
+    const [downloadingId, setDownloadingId] = useState<string | null>(null)
+    const [showUpload, setShowUpload] = useState(false)
+    const [uploading, setUploading] = useState(false)
+    const [uploadForm, setUploadForm] = useState<{ file: File | null; title: string; category: DocCategory; notes: string }>({
+        file: null, title: '', category: 'other', notes: '',
+    })
+
+    const handleDownload = async (doc: any) => {
+        setDownloadingId(doc.id)
+        try {
+            const url = await getDocumentDownloadUrl(doc)
+            if (url) {
+                const a = document.createElement('a')
+                a.href = url
+                a.download = doc.title || 'documento'
+                a.target = '_blank'
+                a.rel = 'noopener noreferrer'
+                a.click()
+            } else {
+                showToast('No se pudo obtener el enlace del documento', 'error')
+            }
+        } catch {
+            showToast('Error al descargar el documento', 'error')
+        } finally {
+            setDownloadingId(null)
+        }
+    }
+
+    const handleUpload = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (!uploadForm.file) {
+            showToast('Selecciona un archivo', 'warning')
+            return
+        }
+        const validationError = validateFile(uploadForm.file, 'document')
+        if (validationError) {
+            showToast(validationError, 'error')
+            return
+        }
+        setUploading(true)
+        const result = await uploadDocumentForPatient(
+            uploadForm.file,
+            doctorId,
+            patientId,
+            { title: uploadForm.title || uploadForm.file.name, category: uploadForm.category, notes: uploadForm.notes || undefined }
+        )
+        setUploading(false)
+        if (result.success) {
+            showToast('Documento subido correctamente', 'success')
+            setShowUpload(false)
+            setUploadForm({ file: null, title: '', category: 'other', notes: '' })
+            onUpload()
+        } else {
+            showToast(result.error || 'Error al subir el documento', 'error')
+        }
+    }
+
+    const grouped = documents.reduce<Record<string, any[]>>((acc, doc) => {
+        const cat = doc.category || 'other'
+        if (!acc[cat]) acc[cat] = []
+        acc[cat].push(doc)
+        return acc
+    }, {})
+
+    return (
+        <div className="space-y-6 animate-in fade-in duration-300">
+            {/* Upload button / form */}
+            <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-gray-900">
+                    Expediente de {patientName}
+                </h3>
+                <button
+                    onClick={() => setShowUpload(v => !v)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-xs font-bold rounded-lg hover:bg-teal-600 transition-colors"
+                >
+                    <Plus size={14} />
+                    Nuevo documento
+                </button>
+            </div>
+
+            {showUpload && (
+                <form onSubmit={handleUpload} className="bg-gray-50 border border-gray-100 rounded-xl p-4 space-y-3">
+                    <p className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                        <Plus size={14} className="text-primary" /> Agregar documento al expediente
+                    </p>
+
+                    {/* File picker */}
+                    <label className="flex flex-col items-center justify-center gap-2 p-4 border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:border-primary/40 hover:bg-primary/5 transition-all">
+                        {uploadForm.file ? (
+                            <span className="text-sm font-semibold text-gray-800 truncate max-w-full px-2">{uploadForm.file.name}</span>
+                        ) : (
+                            <>
+                                <Download size={22} className="text-gray-300 rotate-180" />
+                                <span className="text-xs text-gray-400">Haz clic para seleccionar archivo (PDF, imagen, etc.)</span>
+                            </>
+                        )}
+                        <input
+                            type="file"
+                            className="sr-only"
+                            accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx"
+                            onChange={e => {
+                                const f = e.target.files?.[0] || null
+                                setUploadForm(prev => ({ ...prev, file: f, title: prev.title || f?.name.replace(/\.[^/.]+$/, '') || '' }))
+                            }}
+                        />
+                    </label>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <input
+                            value={uploadForm.title}
+                            onChange={e => setUploadForm(prev => ({ ...prev, title: e.target.value }))}
+                            placeholder="Nombre del documento"
+                            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                        />
+                        <select
+                            value={uploadForm.category}
+                            onChange={e => setUploadForm(prev => ({ ...prev, category: e.target.value as DocCategory }))}
+                            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 bg-white"
+                        >
+                            {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                        </select>
+                    </div>
+
+                    <input
+                        value={uploadForm.notes}
+                        onChange={e => setUploadForm(prev => ({ ...prev, notes: e.target.value }))}
+                        placeholder="Notas (opcional)"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+
+                    <div className="flex justify-end gap-2">
+                        <button
+                            type="button"
+                            onClick={() => { setShowUpload(false); setUploadForm({ file: null, title: '', category: 'other', notes: '' }) }}
+                            className="px-3 py-1.5 text-sm font-semibold text-gray-600 hover:text-gray-800 rounded-lg hover:bg-gray-100 transition-colors"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={uploading || !uploadForm.file}
+                            className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-primary text-white text-sm font-bold rounded-lg hover:bg-teal-600 disabled:opacity-50 transition-colors"
+                        >
+                            {uploading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} className="rotate-180" />}
+                            {uploading ? 'Subiendo…' : 'Subir'}
+                        </button>
+                    </div>
+                </form>
+            )}
+
+            {/* Documents uploaded by this doctor */}
+            {doctorDocs.length > 0 && (
+                <div className="space-y-2">
+                    <p className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                        <Plus size={12} /> Subidos por ti
+                        <span className="bg-primary/10 text-primary text-[10px] font-bold px-1.5 py-0.5 rounded-full normal-case">{doctorDocs.length}</span>
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {doctorDocs.map(doc => (
+                            <DocCard key={doc.id} doc={doc} downloadingId={downloadingId} onDownload={handleDownload} />
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Patient's own documents grouped by category */}
+            {documents.length === 0 && doctorDocs.length === 0 ? (
+                <div className="text-center py-12 text-gray-400">
+                    <FileText size={48} className="mx-auto mb-3 opacity-20" />
+                    <p className="text-sm font-medium">El paciente no tiene documentos cargados.</p>
+                    <p className="text-xs mt-1">Puedes agregar el primero con el botón de arriba.</p>
+                </div>
+            ) : documents.length > 0 ? (
+                <div className="space-y-5">
+                    <p className="text-xs font-bold uppercase tracking-wider text-gray-400">
+                        Documentos del paciente
+                        <span className="ml-2 bg-gray-100 text-gray-500 text-[10px] font-bold px-1.5 py-0.5 rounded-full normal-case">{documents.length}</span>
+                    </p>
+                    {Object.entries(grouped).map(([category, docs]) => (
+                        <div key={category} className="space-y-2">
+                            <p className="text-[11px] font-semibold text-gray-400 pl-1">{CATEGORY_LABELS[category] || category}</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {docs.map(doc => (
+                                    <DocCard key={doc.id} doc={doc} downloadingId={downloadingId} onDownload={handleDownload} />
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : null}
+        </div>
     )
 }

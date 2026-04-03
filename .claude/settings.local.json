@@ -3,7 +3,8 @@
     "allow": [
       "Bash(curl -s -X GET \"https://[REDACTED].supabase.co/rest/v1/appointments?select=*&limit=5\" -H \"Authorization: Bearer [REDACTED]\" -H \"apikey: [REDACTED]\" -H \"Content-Type: application/json\")",
       "Bash(python3 -m json.tool)",
-      "Bash(npx supabase:*)"
+      "Bash(npx supabase:*)",
+      "Bash(curl:*)"
     ]
   }
 }
