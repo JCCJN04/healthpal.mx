@@ -1216,3 +1216,32 @@ export async function getDoctorDocumentsForPatient(
   }
 }
 
+/**
+ * Fetch documents that a patient has shared with a specific doctor.
+ * Used in the patient expediente tab to show documents uploaded by the patient via solicitud.
+ */
+export async function getDocumentsSharedByPatientWithDoctor(
+  doctorId: string,
+  patientId: string
+): Promise<Document[]> {
+  try {
+    const { data, error } = await supabase
+      .from('document_shares')
+      .select('document:documents(*)')
+      .eq('shared_with', doctorId)
+      .eq('shared_by', patientId)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      logger.error('getDocumentsSharedByPatientWithDoctor', error)
+      return []
+    }
+
+    return (data || [])
+      .map((row: any) => row.document as Document)
+      .filter(Boolean)
+  } catch (err) {
+    logger.error('getDocumentsSharedByPatientWithDoctor', err)
+    return []
+  }
+}

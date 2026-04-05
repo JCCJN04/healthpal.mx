@@ -38,6 +38,7 @@ const DirectorioDoctores = lazy(() => import('@/features/public/pages/Directorio
 const PerfilDoctor = lazy(() => import('@/features/public/pages/PerfilDoctor'))
 const SeoLanding = lazy(() => import('@/features/public/pages/SeoLanding'))
 const AgendarCita = lazy(() => import('@/features/public/pages/AgendarCita'))
+const SolicitudDocumento = lazy(() => import('@/features/public/pages/SolicitudDocumento'))
 
 // Phase 2: Patient reviews & Doctor management
 const MisResenas = lazy(() => import('@/features/patient/pages/MisResenas'))
@@ -88,6 +89,7 @@ function App() {
         <Route path="/agendar/:slug" element={<Suspense fallback={<PageLoader />}><AgendarCita /></Suspense>} />
         <Route path="/especialistas/:specialty" element={<Suspense fallback={<PageLoader />}><SeoLanding /></Suspense>} />
         <Route path="/especialistas/:specialty/:city" element={<Suspense fallback={<PageLoader />}><SeoLanding /></Suspense>} />
+        <Route path="/solicitud/:token" element={<Suspense fallback={<PageLoader />}><SolicitudDocumento /></Suspense>} />
 
         {/* Onboarding Routes - Lazy loaded with Suspense */}
         {/* Protected with OnlyOnboarding to prevent access after completion */}

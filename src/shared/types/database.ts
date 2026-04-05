@@ -389,6 +389,73 @@ export interface Database {
           updated_at?: string
         }
       }
+      document_shares: {
+        Row: {
+          id: string
+          document_id: string
+          shared_with: string
+          shared_by: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          document_id: string
+          shared_with: string
+          shared_by: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          document_id?: string
+          shared_with?: string
+          shared_by?: string
+          created_at?: string
+        }
+      }
+      document_requests: {
+        Row: {
+          id: string
+          doctor_id: string
+          patient_email: string
+          patient_id: string | null
+          document_type: string
+          description: string | null
+          token: string
+          status: 'pending' | 'fulfilled' | 'expired'
+          expires_at: string
+          fulfilled_at: string | null
+          document_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          doctor_id: string
+          patient_email: string
+          patient_id?: string | null
+          document_type?: string
+          description?: string | null
+          token?: string
+          status?: 'pending' | 'fulfilled' | 'expired'
+          expires_at?: string
+          fulfilled_at?: string | null
+          document_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          doctor_id?: string
+          patient_email?: string
+          patient_id?: string | null
+          document_type?: string
+          description?: string | null
+          token?: string
+          status?: 'pending' | 'fulfilled' | 'expired'
+          expires_at?: string
+          fulfilled_at?: string | null
+          document_id?: string | null
+          created_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never

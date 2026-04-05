@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   User, Search, ShieldCheck, ShieldAlert,
-  Clock, Send, Loader2, ShieldX,
+  Clock, Send, Loader2, ShieldX, FileUp, X, Copy, Check,
 } from 'lucide-react'
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import { useAuth } from '@/app/providers/AuthContext'
@@ -17,9 +17,19 @@ import {
   getDoctorConsentRequests,
   ConsentWithProfile,
 } from '@/shared/lib/queries/consent'
+import { createDocumentRequest } from '@/shared/lib/queries/documentRequests'
 import { mapDashboardPath } from '@/context/DemoContext'
 import { showToast } from '@/shared/components/ui/Toast'
 import { logger } from '@/shared/lib/logger'
+
+const DOC_TYPES = [
+  { value: 'lab', label: 'Resultados de laboratorio' },
+  { value: 'radiology', label: 'Radiología / Imagen' },
+  { value: 'history', label: 'Historial médico' },
+  { value: 'prescription', label: 'Receta médica' },
+  { value: 'insurance', label: 'Seguro médico' },
+  { value: 'other', label: 'Otro documento' },
+]
 
 export default function Pacientes() {
   const navigate = useNavigate()
@@ -34,6 +44,15 @@ export default function Pacientes() {
 
   // Consent requests sent by this doctor
   const [sentRequests, setSentRequests] = useState<ConsentWithProfile[]>([])
+
+  // Document request modal
+  const [docReqOpen, setDocReqOpen] = useState(false)
+  const [docReqEmail, setDocReqEmail] = useState('')
+  const [docReqType, setDocReqType] = useState('lab')
+  const [docReqDesc, setDocReqDesc] = useState('')
+  const [docReqLoading, setDocReqLoading] = useState(false)
+  const [docReqLink, setDocReqLink] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     if (!user) return
@@ -105,6 +124,42 @@ export default function Pacientes() {
     setRequestingId(null)
   }
 
+  const handleCreateDocRequest = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user) return
+    setDocReqLoading(true)
+    try {
+      const { data, error } = await createDocumentRequest(user.id, docReqEmail, docReqType, docReqDesc)
+      if (error || !data) {
+        showToast(error || 'Error al crear la solicitud', 'error', 3000)
+        return
+      }
+      const link = `${window.location.origin}/solicitud/${data.token}`
+      setDocReqLink(link)
+    } catch (err) {
+      logger.error('Pacientes.createDocRequest', err)
+      showToast('Error inesperado', 'error', 3000)
+    } finally {
+      setDocReqLoading(false)
+    }
+  }
+
+  const handleCopyLink = () => {
+    if (!docReqLink) return
+    navigator.clipboard.writeText(docReqLink)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const resetDocReqModal = () => {
+    setDocReqOpen(false)
+    setDocReqLink(null)
+    setDocReqEmail('')
+    setDocReqType('lab')
+    setDocReqDesc('')
+    setCopied(false)
+  }
+
   const canManage = useMemo(() => profile?.role === 'doctor', [profile])
 
   if (!canManage) {
@@ -153,6 +208,13 @@ export default function Pacientes() {
               className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-teal-600 transition-colors disabled:opacity-60"
             >
               Buscar
+            </button>
+            <button
+              onClick={() => setDocReqOpen(true)}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-white border border-primary text-primary font-semibold rounded-lg hover:bg-primary/5 transition-colors"
+            >
+              <FileUp size={16} />
+              Solicitar documento
             </button>
           </div>
         </div>
@@ -354,6 +416,95 @@ export default function Pacientes() {
           )}
         </div>
       </div>
+
+      {/* Document Request Modal */}
+      {docReqOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <FileUp size={18} className="text-primary" />
+                <h2 className="text-base font-bold text-gray-900">Solicitar documento al paciente</h2>
+              </div>
+              <button onClick={resetDocReqModal} className="p-1 hover:bg-gray-100 rounded-lg">
+                <X size={18} className="text-gray-500" />
+              </button>
+            </div>
+
+            {docReqLink ? (
+              /* Link generated — show copy UI */
+              <div className="p-5 space-y-4">
+                <p className="text-sm text-gray-600">
+                  Comparte este enlace con tu paciente. Al abrirlo, se le pedirá crear una cuenta (si no tiene) y subir el documento.
+                </p>
+                <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5">
+                  <span className="text-xs text-gray-700 truncate flex-1 font-mono">{docReqLink}</span>
+                  <button
+                    onClick={handleCopyLink}
+                    className="shrink-0 flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary/80"
+                  >
+                    {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+                    {copied ? 'Copiado' : 'Copiar'}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400">El enlace expira en 7 días.</p>
+                <button
+                  onClick={resetDocReqModal}
+                  className="w-full py-2.5 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors"
+                >
+                  Listo
+                </button>
+              </div>
+            ) : (
+              /* Form */
+              <form onSubmit={handleCreateDocRequest} className="p-5 space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Correo del paciente</label>
+                  <input
+                    type="email"
+                    value={docReqEmail}
+                    onChange={e => setDocReqEmail(e.target.value)}
+                    placeholder="paciente@correo.com"
+                    required
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">No necesita tener cuenta — se le pedirá crearla al abrir el enlace.</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Tipo de documento</label>
+                  <select
+                    value={docReqType}
+                    onChange={e => setDocReqType(e.target.value)}
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white"
+                  >
+                    {DOC_TYPES.map(t => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Instrucción adicional (opcional)</label>
+                  <textarea
+                    value={docReqDesc}
+                    onChange={e => setDocReqDesc(e.target.value)}
+                    placeholder="Ej. Análisis de sangre completo del 15 de abril"
+                    rows={2}
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={docReqLoading}
+                  className="w-full py-2.5 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  {docReqLoading ? <Loader2 size={15} className="animate-spin" /> : <FileUp size={15} />}
+                  Generar enlace
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   )
 }

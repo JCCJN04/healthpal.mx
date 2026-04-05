@@ -27,7 +27,7 @@ import DashboardLayout from '@/app/layout/DashboardLayout'
 import { getPatientFullProfile, getPatientNotes, addPatientNote, getPatientContactInfo } from '@/features/doctor/services/patients'
 import { getPatientProfile } from '@/shared/lib/queries/profile'
 import { listUpcomingAppointments, listPastAppointments } from '@/shared/lib/queries/appointments'
-import { getUserDocuments, getDocumentDownloadUrl, uploadDocumentForPatient, getDoctorDocumentsForPatient } from '@/shared/lib/queries/documents'
+import { getUserDocuments, getDocumentDownloadUrl, uploadDocumentForPatient, getDoctorDocumentsForPatient, getDocumentsSharedByPatientWithDoctor } from '@/shared/lib/queries/documents'
 import { getConsentForPatient, requestPatientAccess, ConsentScopes } from '@/shared/lib/queries/consent'
 import { useAuth } from '@/app/providers/AuthContext'
 import { showToast } from '@/shared/components/ui/Toast'
@@ -50,6 +50,7 @@ export default function PatientDetail() {
     const [appointments, setAppointments] = useState<any[]>([])
     const [documents, setDocuments] = useState<any[]>([])
     const [doctorDocs, setDoctorDocs] = useState<any[]>([])
+    const [patientSharedDocs, setPatientSharedDocs] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [newNote, setNewNote] = useState({ title: '', body: '' })
     const [savingNote, setSavingNote] = useState(false)
@@ -163,6 +164,8 @@ export default function PatientDetail() {
                 keys.push('documents')
                 promises.push(getDoctorDocumentsForPatient(user!.id, id!).catch(e => { logger.error('PatientDetail.doctorDocs', e); return [] }))
                 keys.push('doctorDocs')
+                promises.push(getDocumentsSharedByPatientWithDoctor(user!.id, id!).catch(e => { logger.error('PatientDetail.patientSharedDocs', e); return [] }))
+                keys.push('patientSharedDocs')
             }
 
             if (s.share_contact) {
@@ -178,6 +181,7 @@ export default function PatientDetail() {
                     case 'appointments': setAppointments(results[i] || []); break
                     case 'documents': setDocuments(results[i] || []); break
                     case 'doctorDocs': setDoctorDocs(results[i] || []); break
+                    case 'patientSharedDocs': setPatientSharedDocs(results[i] || []); break
                     case 'contact': setContactInfo(results[i]); break
                 }
             })
@@ -543,6 +547,7 @@ export default function PatientDetail() {
                                 <ExpedienteDigital
                                     documents={documents}
                                     doctorDocs={doctorDocs}
+                                    patientSharedDocs={patientSharedDocs}
                                     patientName={patient.full_name}
                                     patientId={patient.id}
                                     doctorId={user!.id}
@@ -805,6 +810,7 @@ function DocCard({ doc, downloadingId, onDownload }: { doc: any; downloadingId: 
 function ExpedienteDigital({
     documents,
     doctorDocs,
+    patientSharedDocs,
     patientName,
     patientId,
     doctorId,
@@ -812,6 +818,7 @@ function ExpedienteDigital({
 }: {
     documents: any[]
     doctorDocs: any[]
+    patientSharedDocs: any[]
     patientName: string
     patientId: string
     doctorId: string
@@ -982,8 +989,23 @@ function ExpedienteDigital({
                 </div>
             )}
 
+            {/* Documents shared by the patient via solicitud link */}
+            {patientSharedDocs.length > 0 && (
+                <div className="space-y-2">
+                    <p className="text-xs font-bold uppercase tracking-wider text-teal-600 flex items-center gap-1.5">
+                        <Send size={12} /> Enviados por el paciente
+                        <span className="bg-teal-50 text-teal-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full normal-case">{patientSharedDocs.length}</span>
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {patientSharedDocs.map(doc => (
+                            <DocCard key={doc.id} doc={doc} downloadingId={downloadingId} onDownload={handleDownload} />
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {/* Patient's own documents grouped by category */}
-            {documents.length === 0 && doctorDocs.length === 0 ? (
+            {documents.length === 0 && doctorDocs.length === 0 && patientSharedDocs.length === 0 ? (
                 <div className="text-center py-12 text-gray-400">
                     <FileText size={48} className="mx-auto mb-3 opacity-20" />
                     <p className="text-sm font-medium">El paciente no tiene documentos cargados.</p>
