@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import OnboardingLayout from './OnboardingLayout'
 import Stepper from '@/shared/components/ui/Stepper'
@@ -14,6 +14,15 @@ export default function OnboardingRole() {
   const navigate = useNavigate()
   const [selectedRole, setSelectedRole] = useState<'patient' | 'doctor' | null>(null)
   const [loading, setLoading] = useState(false)
+
+  // If the user registered via a doctor's document request link, skip role selection
+  // DB work (role + step) was already done on the solicitud page — just navigate.
+  useEffect(() => {
+    const fromSolicitud = sessionStorage.getItem('healthpal:from_solicitud')
+    if (!fromSolicitud) return
+    sessionStorage.removeItem('healthpal:from_solicitud')
+    navigate('/onboarding/basic', { replace: true })
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

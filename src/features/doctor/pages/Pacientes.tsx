@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   User, Search, ShieldCheck, ShieldAlert,
-  Clock, Send, Loader2, ShieldX, FileUp, X, Copy, Check,
+  Clock, Send, Loader2, ShieldX, FileUp, X, Copy, Check, ChevronRight,
 } from 'lucide-react'
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import { useAuth } from '@/app/providers/AuthContext'
@@ -22,14 +22,6 @@ import { mapDashboardPath } from '@/context/DemoContext'
 import { showToast } from '@/shared/components/ui/Toast'
 import { logger } from '@/shared/lib/logger'
 
-const DOC_TYPES = [
-  { value: 'lab', label: 'Resultados de laboratorio' },
-  { value: 'radiology', label: 'Radiología / Imagen' },
-  { value: 'history', label: 'Historial médico' },
-  { value: 'prescription', label: 'Receta médica' },
-  { value: 'insurance', label: 'Seguro médico' },
-  { value: 'other', label: 'Otro documento' },
-]
 
 export default function Pacientes() {
   const navigate = useNavigate()
@@ -48,7 +40,7 @@ export default function Pacientes() {
   // Document request modal
   const [docReqOpen, setDocReqOpen] = useState(false)
   const [docReqEmail, setDocReqEmail] = useState('')
-  const [docReqType, setDocReqType] = useState('lab')
+  const [docReqType, setDocReqType] = useState('')
   const [docReqDesc, setDocReqDesc] = useState('')
   const [docReqLoading, setDocReqLoading] = useState(false)
   const [docReqLink, setDocReqLink] = useState<string | null>(null)
@@ -182,51 +174,71 @@ export default function Pacientes() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold text-primary uppercase">Panel Doctor</p>
-            <h1 className="text-2xl font-bold text-gray-900">Pacientes</h1>
-            <p className="text-sm text-gray-500">
-              Busca pacientes y solicita acceso a su expediente médico.
-            </p>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-            <div className="relative w-full sm:w-72">
-              <input
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                placeholder="Buscar por nombre (min. 3 letras)"
-                className="w-full px-3 py-2 pl-9 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/40"
-              />
-              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+      <div className="space-y-5 pb-4">
+
+        {/* Premium Header */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-emerald-500 p-6 md:p-8 text-white shadow-lg">
+          <div className="absolute top-0 right-0 bottom-0 w-80 opacity-10 pointer-events-none"
+            style={{ background: 'radial-gradient(circle, white 1.5px, transparent 1.5px)', backgroundSize: '22px 22px' }} />
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-widest text-white/65 mb-1">Panel Doctor</p>
+              <h1 className="text-2xl md:text-3xl font-bold leading-tight">Mis Pacientes</h1>
+              <p className="text-sm text-white/75 mt-1">Gestiona expedientes y solicita documentos a tus pacientes</p>
             </div>
-            <button
-              onClick={handleSearch}
-              disabled={loading}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-teal-600 transition-colors disabled:opacity-60"
-            >
-              Buscar
-            </button>
-            <button
-              onClick={() => setDocReqOpen(true)}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-white border border-primary text-primary font-semibold rounded-lg hover:bg-primary/5 transition-colors"
-            >
-              <FileUp size={16} />
-              Solicitar documento
-            </button>
+            <div className="flex items-center gap-3 shrink-0">
+              <div className="bg-white/20 backdrop-blur-sm rounded-2xl px-5 py-3 text-center min-w-[76px] border border-white/10">
+                <p className="text-2xl font-bold">{patients.length}</p>
+                <p className="text-[11px] text-white/70 font-medium mt-0.5">Con acceso</p>
+              </div>
+              {pendingRequests.length > 0 && (
+                <div className="bg-white/20 backdrop-blur-sm rounded-2xl px-5 py-3 text-center min-w-[76px] border border-white/10">
+                  <p className="text-2xl font-bold">{pendingRequests.length}</p>
+                  <p className="text-[11px] text-white/70 font-medium mt-0.5">Pendientes</p>
+                </div>
+              )}
+            </div>
           </div>
+        </div>
+
+        {/* Search + Actions */}
+        <div className="flex flex-col sm:flex-row gap-2.5">
+          <div className="relative flex-1">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+            <input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              placeholder="Buscar paciente por nombre (mín. 3 letras)…"
+              className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary shadow-sm transition-all"
+            />
+          </div>
+          <button
+            onClick={handleSearch}
+            disabled={loading}
+            className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-primary text-white font-semibold rounded-xl hover:bg-teal-600 transition-all shadow-sm hover:shadow-md active:scale-[0.98] disabled:opacity-60 whitespace-nowrap"
+          >
+            {loading ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
+            Buscar
+          </button>
+          <button
+            onClick={() => setDocReqOpen(true)}
+            className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-white border border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm whitespace-nowrap"
+          >
+            <FileUp size={15} className="text-primary" />
+            Solicitar doc.
+          </button>
         </div>
 
         {/* Search Results */}
         {results.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-100">
-            <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-              <p className="text-sm font-semibold text-gray-800">Resultados</p>
-              {loading && <span className="text-xs text-gray-500">Buscando…</span>}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-gray-50 flex items-center gap-2">
+              <p className="text-sm font-bold text-gray-800">Resultados de búsqueda</p>
+              <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">{results.length}</span>
+              {loading && <Loader2 size={13} className="animate-spin text-gray-400 ml-auto" />}
             </div>
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-gray-50">
               {results.map((p) => {
                 const status = p.consentStatus || getStatusForPatient(p.id)
                 const isAccepted = status === 'accepted'
@@ -234,94 +246,82 @@ export default function Pacientes() {
                 const isRejected = status === 'rejected' || status === 'revoked'
 
                 return (
-                  <div key={p.id} className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold overflow-hidden">
+                  <div key={p.id} className="px-5 py-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/15 to-teal-400/15 flex items-center justify-center text-primary font-bold shrink-0 overflow-hidden">
                           {p.avatar_url ? (
-                            <img src={p.avatar_url} alt="" className="w-full h-full object-cover rounded-full" />
+                            <img src={p.avatar_url} alt="" className="w-full h-full object-cover" />
                           ) : (
                             <User size={18} />
                           )}
                         </div>
-                        <div>
-                          <p className="text-sm font-semibold text-gray-900">{p.full_name || 'Paciente'}</p>
-                          {isPending && (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full mt-0.5">
-                              <Clock size={10} /> Solicitud pendiente
-                            </span>
-                          )}
-                          {isRejected && (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-full mt-0.5">
-                              <ShieldX size={10} /> {status === 'rejected' ? 'Rechazado' : 'Revocado'}
-                            </span>
-                          )}
-                          {isAccepted && (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full mt-0.5">
-                              <ShieldCheck size={10} /> Acceso concedido
-                            </span>
-                          )}
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-gray-900 truncate">{p.full_name || 'Paciente'}</p>
+                          <div className="mt-0.5">
+                            {isPending && (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                                <Clock size={9} /> Pendiente
+                              </span>
+                            )}
+                            {isRejected && (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">
+                                <ShieldX size={9} /> {status === 'rejected' ? 'Rechazado' : 'Revocado'}
+                              </span>
+                            )}
+                            {isAccepted && (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                                <ShieldCheck size={9} /> Con acceso
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
 
-                      {/* Actions based on status */}
-                      <div className="flex gap-2 flex-shrink-0">
+                      <div className="flex gap-2 shrink-0">
                         {isAccepted && (
                           <button
                             onClick={() => navigate(mapDashboardPath(`/dashboard/pacientes/${p.id}`))}
-                            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-primary rounded-lg hover:bg-primary/10 transition-colors"
+                            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold text-primary bg-primary/5 rounded-xl hover:bg-primary/10 transition-colors"
                           >
-                            Ver expediente
+                            Ver expediente <ChevronRight size={14} />
                           </button>
                         )}
                         {!status && (
-                          <>
-                            {showReasonFor === p.id ? (
-                              <div className="flex items-center gap-2">
-                                <input
-                                  value={requestReason}
-                                  onChange={(e) => setRequestReason(e.target.value)}
-                                  placeholder="Motivo (opcional)"
-                                  className="w-48 px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/40"
-                                />
-                                <button
-                                  onClick={() => handleRequestAccess(p.id)}
-                                  disabled={requestingId === p.id}
-                                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-teal-600 disabled:opacity-50"
-                                >
-                                  {requestingId === p.id ? (
-                                    <Loader2 size={14} className="animate-spin" />
-                                  ) : (
-                                    <Send size={14} />
-                                  )}
-                                  Enviar
-                                </button>
-                              </div>
-                            ) : (
+                          showReasonFor === p.id ? (
+                            <div className="flex items-center gap-2">
+                              <input
+                                value={requestReason}
+                                onChange={(e) => setRequestReason(e.target.value)}
+                                placeholder="Motivo (opcional)"
+                                className="w-40 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/25"
+                              />
                               <button
-                                onClick={() => {
-                                  setShowReasonFor(p.id)
-                                  setRequestReason('')
-                                }}
-                                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-primary border border-primary/30 rounded-lg hover:bg-primary/5 transition-colors"
+                                onClick={() => handleRequestAccess(p.id)}
+                                disabled={requestingId === p.id}
+                                className="inline-flex items-center gap-1 px-3.5 py-2 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-teal-600 disabled:opacity-50 transition-colors"
                               >
-                                <ShieldAlert size={14} />
-                                Solicitar acceso
+                                {requestingId === p.id ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+                                Enviar
                               </button>
-                            )}
-                          </>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => { setShowReasonFor(p.id); setRequestReason('') }}
+                              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold text-primary border border-primary/25 rounded-xl hover:bg-primary/5 transition-colors"
+                            >
+                              <ShieldAlert size={13} />
+                              Solicitar acceso
+                            </button>
+                          )
                         )}
                         {isRejected && (
                           <button
                             onClick={() => handleReRequest(p.id)}
                             disabled={requestingId === p.id}
-                            className="inline-flex items-center gap-1 px-3 py-2 text-sm font-semibold text-orange-600 border border-orange-200 rounded-lg hover:bg-orange-50 disabled:opacity-50"
+                            className="inline-flex items-center gap-1 px-3.5 py-2 text-sm font-semibold text-orange-600 border border-orange-200 rounded-xl hover:bg-orange-50 disabled:opacity-50 transition-colors"
                           >
-                            {requestingId === p.id ? (
-                              <Loader2 size={14} className="animate-spin" />
-                            ) : (
-                              <Send size={14} />
-                            )}
+                            {requestingId === p.id ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
                             Re-solicitar
                           </button>
                         )}
@@ -336,34 +336,34 @@ export default function Pacientes() {
 
         {/* Pending Requests */}
         {pendingRequests.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm border border-blue-100">
-            <div className="p-4 border-b border-blue-50 flex items-center gap-2">
-              <Clock className="w-4 h-4 text-blue-500" />
-              <p className="text-sm font-semibold text-gray-800">Solicitudes pendientes</p>
-              <span className="bg-blue-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+          <div className="bg-amber-50 rounded-2xl border border-amber-100 overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-amber-100/80 flex items-center gap-2.5">
+              <div className="w-6 h-6 rounded-full bg-amber-400 flex items-center justify-center shrink-0">
+                <Clock className="w-3.5 h-3.5 text-white" />
+              </div>
+              <p className="text-sm font-bold text-amber-900">Solicitudes de acceso pendientes</p>
+              <span className="ml-auto bg-amber-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
                 {pendingRequests.length}
               </span>
             </div>
-            <div className="divide-y divide-gray-100">
+            <div className="px-3 py-1">
               {pendingRequests.map((r) => (
-                <div key={r.id} className="flex items-center justify-between p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-blue-50 flex items-center justify-center text-blue-500 font-bold overflow-hidden">
-                      {r.patient?.avatar_url ? (
-                        <img src={r.patient.avatar_url} alt="" className="w-full h-full object-cover rounded-full" />
-                      ) : (
-                        (r.patient?.full_name?.charAt(0) || 'P').toUpperCase()
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">{r.patient?.full_name || 'Paciente'}</p>
-                      <p className="text-[11px] text-gray-400">
-                        Enviada {new Date(r.requested_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
-                      </p>
-                    </div>
+                <div key={r.id} className="flex items-center gap-3 py-3 px-2">
+                  <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center text-amber-700 font-bold text-sm shrink-0 overflow-hidden">
+                    {r.patient?.avatar_url ? (
+                      <img src={r.patient.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      (r.patient?.full_name?.charAt(0) || 'P').toUpperCase()
+                    )}
                   </div>
-                  <span className="text-[11px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
-                    Esperando respuesta
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{r.patient?.full_name || 'Paciente'}</p>
+                    <p className="text-[11px] text-amber-700">
+                      Enviada el {new Date(r.requested_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
+                    </p>
+                  </div>
+                  <span className="text-[11px] font-semibold text-amber-700 bg-amber-100 px-2.5 py-1 rounded-full shrink-0">
+                    Esperando…
                   </span>
                 </div>
               ))}
@@ -372,44 +372,61 @@ export default function Pacientes() {
         )}
 
         {/* Patients with Access */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-primary" />
-              <p className="text-sm font-semibold text-gray-800">Pacientes con acceso</p>
-            </div>
-            {loading && patients.length === 0 && <span className="text-xs text-gray-500">Cargando…</span>}
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <ShieldCheck className="w-4 h-4 text-primary" />
+            <p className="text-sm font-bold text-gray-800">Pacientes con acceso</p>
+            {patients.length > 0 && (
+              <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">{patients.length}</span>
+            )}
+            {loading && patients.length === 0 && <Loader2 size={13} className="animate-spin text-gray-400 ml-auto" />}
           </div>
-          {patients.length === 0 ? (
-            <div className="p-8 text-center">
-              <ShieldAlert className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-              <p className="text-sm text-gray-500">Aún no tienes pacientes con acceso concedido.</p>
-              <p className="text-xs text-gray-400 mt-1">Busca pacientes y solicita acceso a su expediente.</p>
+
+          {patients.length === 0 && !loading ? (
+            <div className="bg-white rounded-2xl border border-dashed border-gray-200 py-16 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-primary/10 to-teal-400/10 flex items-center justify-center">
+                <User size={28} className="text-primary/40" />
+              </div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-1">Sin pacientes aún</h3>
+              <p className="text-xs text-gray-400 max-w-[240px] mx-auto leading-relaxed">
+                Usa el buscador para encontrar pacientes y solicitar acceso a su expediente médico.
+              </p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-100">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {patients.map((p) => (
                 <div
                   key={p.id}
                   onClick={() => navigate(mapDashboardPath(`/dashboard/pacientes/${p.id}`))}
-                  className="flex items-start justify-between gap-3 p-4 hover:bg-gray-50 transition-all cursor-pointer group"
+                  className="group bg-white rounded-2xl border border-gray-100 p-5 hover:border-primary/25 hover:shadow-md transition-all duration-200 cursor-pointer"
                 >
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold group-hover:scale-110 transition-transform overflow-hidden">
-                      {p.avatar_url ? (
-                        <img src={p.avatar_url} alt="" className="w-full h-full object-cover rounded-full" />
-                      ) : (
-                        <User size={18} />
-                      )}
+                  <div className="flex items-center gap-3.5">
+                    <div className="relative shrink-0">
+                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/15 to-teal-400/15 flex items-center justify-center text-primary font-bold text-base overflow-hidden">
+                        {p.avatar_url ? (
+                          <img src={p.avatar_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <User size={20} />
+                        )}
+                      </div>
+                      <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-400 rounded-full border-2 border-white shadow-sm" />
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900 group-hover:text-primary transition-colors">{p.full_name || 'Paciente'}</p>
-                      <p className="text-[10px] text-primary font-bold mt-1 opacity-0 group-hover:opacity-100 transition-opacity">Ver expediente →</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900 truncate group-hover:text-primary transition-colors text-sm leading-tight">
+                        {p.full_name || 'Paciente'}
+                      </p>
+                      <p className="text-[11px] text-gray-400 mt-0.5">Acceso activo</p>
                     </div>
+                    <ChevronRight size={16} className="text-gray-200 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
                   </div>
-                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-green-600 bg-green-50 px-2 py-1 rounded-full">
-                    <ShieldCheck size={12} /> Acceso activo
-                  </span>
+                  <div className="mt-4 pt-3.5 border-t border-gray-50 flex items-center justify-between">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                      <ShieldCheck size={9} /> Expediente disponible
+                    </span>
+                    <span className="text-[11px] text-primary font-bold opacity-0 group-hover:opacity-100 transition-opacity">
+                      Ver →
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -471,16 +488,30 @@ export default function Pacientes() {
                   <p className="text-xs text-gray-400 mt-1">No necesita tener cuenta — se le pedirá crearla al abrir el enlace.</p>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Tipo de documento</label>
-                  <select
+                  <label className="block text-xs font-medium text-gray-600 mb-1">¿Qué documento necesitas?</label>
+                  <input
+                    type="text"
+                    list="doc-type-options"
                     value={docReqType}
                     onChange={e => setDocReqType(e.target.value)}
-                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white"
-                  >
-                    {DOC_TYPES.map(t => (
-                      <option key={t.value} value={t.value}>{t.label}</option>
-                    ))}
-                  </select>
+                    placeholder="Selecciona o escribe el tipo de documento…"
+                    required
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                  <datalist id="doc-type-options">
+                    <option value="Análisis de sangre completo" />
+                    <option value="Radiografía" />
+                    <option value="Resonancia magnética" />
+                    <option value="Tomografía" />
+                    <option value="Ultrasonido" />
+                    <option value="Receta médica" />
+                    <option value="Historial médico" />
+                    <option value="Resultados de laboratorio" />
+                    <option value="Póliza de seguro médico" />
+                    <option value="Electrocardiograma" />
+                    <option value="Densitometría ósea" />
+                    <option value="Expediente de vacunación" />
+                  </datalist>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Instrucción adicional (opcional)</label>

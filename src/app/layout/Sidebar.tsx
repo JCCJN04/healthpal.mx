@@ -60,7 +60,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
     <aside className="w-64 bg-white border-r border-gray-200 h-full flex flex-col">
       {/* Mobile header with close button */}
       <div className="lg:hidden flex items-center justify-between p-4 border-b border-gray-200">
-        <h1 className="text-xl font-bold text-primary">Healthpal.mx</h1>
+        <img src="/logo.png" alt="HealthPal.mx" className="h-48" />
         <button
           onClick={onClose}
           className="p-2 hover:bg-gray-100 rounded-lg transition-colors"

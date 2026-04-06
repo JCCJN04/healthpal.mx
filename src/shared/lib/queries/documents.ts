@@ -547,14 +547,53 @@ export async function deleteFolder(folderId: string, userId: string): Promise<{ 
     setDemoFoldersState(remainingFolders)
 
     const docs = getDemoDocumentsState()
-    const remappedDocs = docs.map((doc) => (doc.folder_id === folderId ? { ...doc, folder_id: null } : doc)) as Document[]
-    setDemoDocumentsState(remappedDocs)
+    const docsToDelete = docs.filter((doc) => doc.folder_id === folderId && doc.owner_id === userId)
+    const remainingDocs = docs.filter((doc) => !(doc.folder_id === folderId && doc.owner_id === userId)) as Document[]
+    setDemoDocumentsState(remainingDocs)
 
-    logger.info('demo:deleteFolder', { folderId, userId })
+    logger.info('demo:deleteFolder', { folderId, userId, deletedDocs: docsToDelete.length })
     return { success: true }
   }
 
   try {
+    // Fetch all documents in the folder owned by this user
+    const { data: docsInFolder, error: fetchError } = await supabase
+      .from('documents')
+      .select('id, owner_id, file_path, storage_path')
+      .eq('folder_id', folderId)
+      .eq('owner_id', userId)
+
+    if (fetchError) {
+      logger.error('deleteFolder.fetchDocs', fetchError)
+      return { success: false, error: fetchError.message }
+    }
+
+    // Delete files from storage
+    if (docsInFolder && docsInFolder.length > 0) {
+      const storagePaths: string[] = []
+      for (const doc of docsInFolder) {
+        const path = await resolveDocumentStoragePath(doc as DocumentPathInput)
+        if (path) storagePaths.push(path)
+      }
+      if (storagePaths.length > 0) {
+        const { error: storageError } = await supabase.storage.from('documents').remove(storagePaths)
+        if (storageError) logger.error('deleteFolder.storage', storageError)
+      }
+
+      // Delete document records
+      const { error: docsDeleteError } = await supabase
+        .from('documents')
+        .delete()
+        .eq('folder_id', folderId)
+        .eq('owner_id', userId)
+
+      if (docsDeleteError) {
+        logger.error('deleteFolder.deleteDocs', docsDeleteError)
+        return { success: false, error: docsDeleteError.message }
+      }
+    }
+
+    // Delete the folder
     const { error, count } = await supabase
       .from('folders')
       .delete({ count: 'exact' })

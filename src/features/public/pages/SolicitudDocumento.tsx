@@ -16,17 +16,19 @@ import {
 import { supabase } from '@/shared/lib/supabase'
 import { getDocumentRequestByToken, fulfillDocumentRequest } from '@/shared/lib/queries/documentRequests'
 import { uploadDocument } from '@/shared/lib/queries/documents'
+import { updateMyProfile, saveOnboardingStep } from '@/shared/lib/queries/profile'
 import { validateFile } from '@/shared/lib/errors'
 import { logger } from '@/shared/lib/logger'
 import type { DocumentRequestWithDoctor } from '@/shared/lib/queries/documentRequests'
 
-const DOC_TYPE_LABELS: Record<string, string> = {
-  radiology: 'Radiología / Imagen',
-  prescription: 'Receta médica',
-  history: 'Historial médico',
-  lab: 'Resultados de laboratorio',
-  insurance: 'Seguro médico',
-  other: 'Documento médico',
+function inferCategory(docType: string): 'radiology' | 'prescription' | 'history' | 'lab' | 'insurance' | 'other' {
+  const t = docType.toLowerCase()
+  if (/radiograf|resonancia|tomograf|ultrasonido|imagen|rx|eco|densito|electro/.test(t)) return 'radiology'
+  if (/receta|prescripci/.test(t)) return 'prescription'
+  if (/historial|expediente|vacuna/.test(t)) return 'history'
+  if (/laboratorio|análisis|analisis|sangre|orina|cultivo|biometría|biometria|glucosa/.test(t)) return 'lab'
+  if (/seguro|póliza|poliza/.test(t)) return 'insurance'
+  return 'other'
 }
 
 type Step = 'loading' | 'invalid' | 'expired' | 'fulfilled' | 'auth' | 'upload' | 'done'
@@ -41,11 +43,13 @@ export default function SolicitudDocumento() {
   const [authMode, setAuthMode] = useState<AuthMode>('register')
   const [authLoading, setAuthLoading] = useState(false)
   const [authError, setAuthError] = useState('')
+  const [wrongSession, setWrongSession] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [isNewAccount, setIsNewAccount] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [docTitle, setDocTitle] = useState('')
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [uploadProgress, setUploadProgress] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Auth form state
@@ -69,11 +73,29 @@ export default function SolicitudDocumento() {
     // Pre-fill email from request
     setEmail(data.patient_email)
 
+    // Check if the patient email is already registered
+    const { data: emailExists } = await (supabase as any).rpc('check_email_registered', {
+      p_email: data.patient_email,
+    })
+    setAuthMode(emailExists ? 'login' : 'register')
+
     // Check if user is already logged in
     const { data: session } = await supabase.auth.getSession()
-    if (session.session?.user) {
-      setCurrentUserId(session.session.user.id)
-      setStep('upload')
+    const sessionUser = session.session?.user
+
+    if (sessionUser) {
+      const sessionEmail = sessionUser.email?.toLowerCase().trim()
+      const requestEmail = data.patient_email.toLowerCase().trim()
+
+      if (sessionEmail === requestEmail) {
+        setCurrentUserId(sessionUser.id)
+        setStep('upload')
+      } else {
+        // Wrong account — sign out and show correct form
+        await supabase.auth.signOut()
+        setWrongSession(true)
+        setStep('auth')
+      }
     } else {
       setStep('auth')
     }
@@ -101,10 +123,36 @@ export default function SolicitudDocumento() {
         })
         if (error) { setAuthError(error.message); return }
         if (!data.user) { setAuthError('No se pudo crear la cuenta'); return }
-        setCurrentUserId(data.user.id)
+        const newUserId = data.user.id
+        setCurrentUserId(newUserId)
 
-        // Wait a moment for the profile trigger to run
+        // Wait for the profile DB trigger to run, then prepare onboarding in parallel
         await new Promise(r => setTimeout(r, 1500))
+
+        // Run all post-registration setup concurrently during the wait window
+        await Promise.allSettled([
+          // Set role + advance onboarding step so OnboardingRole can redirect instantly
+          updateMyProfile({ role: 'patient' }),
+          saveOnboardingStep('basic'),
+          // Auto-grant doctor full consent
+          request
+            ? (supabase.from('doctor_patient_consent') as any).upsert({
+                doctor_id: request.doctor_id,
+                patient_id: newUserId,
+                status: 'accepted',
+                share_basic_profile: true,
+                share_contact: true,
+                share_documents: true,
+                share_appointments: true,
+                share_medical_notes: true,
+                responded_at: new Date().toISOString(),
+              }, { onConflict: 'doctor_id,patient_id' })
+            : Promise.resolve(),
+        ])
+
+        // Flag tells OnboardingRole to skip straight to /onboarding/basic (no DB calls needed there)
+        sessionStorage.setItem('healthpal:from_solicitud', '1')
+        setIsNewAccount(true)
         setStep('upload')
       }
     } catch (err) {
@@ -116,48 +164,75 @@ export default function SolicitudDocumento() {
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const validationError = validateFile(file, 'document')
-    if (validationError) { setUploadError(validationError); return }
-    setSelectedFile(file)
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
+
+    const errors: string[] = []
+    const valid: File[] = []
+    for (const f of files) {
+      const err = validateFile(f, 'document')
+      if (err) errors.push(`${f.name}: ${err}`)
+      else valid.push(f)
+    }
+
+    if (errors.length) { setUploadError(errors.join(' · ')); return }
+    setSelectedFiles(prev => {
+      const names = new Set(prev.map(f => f.name))
+      return [...prev, ...valid.filter(f => !names.has(f.name))]
+    })
     setUploadError('')
-    if (!docTitle) setDocTitle(file.name.replace(/\.[^.]+$/, ''))
+    // Reset input so the same file can be re-added after removal
+    e.target.value = ''
+  }
+
+  function removeFile(name: string) {
+    setSelectedFiles(prev => prev.filter(f => f.name !== name))
   }
 
   async function handleUpload(e: React.FormEvent) {
     e.preventDefault()
-    if (!selectedFile || !currentUserId || !request) return
+    if (!selectedFiles.length || !currentUserId || !request) return
     setUploading(true)
     setUploadError('')
+    setUploadProgress(0)
 
     try {
-      const category = (request.document_type as any) || 'other'
-      const result = await uploadDocument(selectedFile, currentUserId, {
-        title: docTitle || selectedFile.name,
-        category,
-        notes: request.description || undefined,
-      })
+      const category = inferCategory(request.document_type || '')
+      const uploadedIds: string[] = []
 
-      if (!result.success || !result.documentId) {
-        setUploadError(result.error || 'Error al subir el documento')
-        return
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i]
+        const result = await uploadDocument(file, currentUserId, {
+          title: file.name.replace(/\.[^.]+$/, ''),
+          category,
+          notes: request.description || undefined,
+        })
+
+        if (!result.success || !result.documentId) {
+          setUploadError(`Error al subir "${file.name}": ${result.error || 'error desconocido'}`)
+          setUploading(false)
+          return
+        }
+
+        uploadedIds.push(result.documentId)
+
+        // Share each document with the doctor
+        await (supabase.from('document_shares') as any).insert({
+          document_id: result.documentId,
+          shared_with: request.doctor_id,
+          shared_by: currentUserId,
+        })
+
+        setUploadProgress(Math.round(((i + 1) / selectedFiles.length) * 100))
       }
 
-      // Share document with the doctor
-      await (supabase.from('document_shares') as any).insert({
-        document_id: result.documentId,
-        shared_with: request.doctor_id,
-        shared_by: currentUserId,
-      })
-
-      // Mark request as fulfilled
-      await fulfillDocumentRequest(token!, currentUserId, result.documentId)
+      // Mark request as fulfilled with the first document
+      await fulfillDocumentRequest(token!, currentUserId, uploadedIds[0])
 
       setStep('done')
     } catch (err) {
       logger.error('solicitudDocumento:upload', err)
-      setUploadError('Error inesperado al subir el documento')
+      setUploadError('Error inesperado al subir los documentos')
     } finally {
       setUploading(false)
     }
@@ -209,7 +284,7 @@ export default function SolicitudDocumento() {
   const doctorName = request?.doctor?.full_name || 'Tu médico'
   const specialty = request?.doctor?.doctor_profiles?.specialty || ''
   const clinic = request?.doctor?.doctor_profiles?.clinic_name || ''
-  const docTypeLabel = DOC_TYPE_LABELS[request?.document_type || 'other'] || 'Documento médico'
+  const docTypeLabel = request?.document_type || 'Documento médico'
 
   // ─── Shared header card ───────────────────────────────────────────────────
   const RequestCard = () => (
@@ -245,6 +320,15 @@ export default function SolicitudDocumento() {
 
           <RequestCard />
 
+          {wrongSession && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-2">
+              <AlertCircle size={16} className="text-amber-500 shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-700">
+                Esta solicitud es para <strong>{request?.patient_email}</strong>. Inicia sesión con esa cuenta o crea una nueva.
+              </p>
+            </div>
+          )}
+
           <div className="text-center">
             <div className="flex items-center gap-2 justify-center text-gray-700">
               <Lock size={16} />
@@ -254,22 +338,6 @@ export default function SolicitudDocumento() {
                   : 'Inicia sesión para subir el documento'}
               </span>
             </div>
-          </div>
-
-          {/* Mode toggle */}
-          <div className="flex rounded-lg border border-gray-200 overflow-hidden text-sm font-medium">
-            <button
-              className={`flex-1 py-2 transition-colors ${authMode === 'register' ? 'bg-primary text-white' : 'text-gray-600 hover:bg-gray-50'}`}
-              onClick={() => setAuthMode('register')}
-            >
-              Crear cuenta
-            </button>
-            <button
-              className={`flex-1 py-2 transition-colors ${authMode === 'login' ? 'bg-primary text-white' : 'text-gray-600 hover:bg-gray-50'}`}
-              onClick={() => setAuthMode('login')}
-            >
-              Ya tengo cuenta
-            </button>
           </div>
 
           <form onSubmit={handleAuth} className="space-y-3">
@@ -346,47 +414,53 @@ export default function SolicitudDocumento() {
           <RequestCard />
 
           <form onSubmit={handleUpload} className="space-y-4">
-            {/* File drop zone */}
+            {/* Drop zone */}
             <div
               onClick={() => fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
-                selectedFile ? 'border-primary/50 bg-primary/5' : 'border-gray-200 hover:border-primary/40 hover:bg-gray-50'
-              }`}
+              className="border-2 border-dashed border-gray-200 hover:border-primary/40 hover:bg-gray-50 rounded-xl p-5 text-center cursor-pointer transition-colors"
             >
               <input
                 ref={fileInputRef}
                 type="file"
+                multiple
                 className="hidden"
                 accept=".pdf,.jpg,.jpeg,.png,.heic,.webp,.doc,.docx"
                 onChange={handleFileChange}
               />
-              {selectedFile ? (
-                <div className="space-y-1">
-                  <FileText size={32} className="mx-auto text-primary" />
-                  <p className="text-sm font-medium text-gray-800">{selectedFile.name}</p>
-                  <p className="text-xs text-gray-400">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
-                  <p className="text-xs text-primary">Clic para cambiar el archivo</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <Upload size={32} className="mx-auto text-gray-300" />
-                  <p className="text-sm font-medium text-gray-600">Selecciona tu documento</p>
-                  <p className="text-xs text-gray-400">PDF, imagen o Word · Máx 10 MB</p>
-                </div>
-              )}
+              <Upload size={28} className="mx-auto text-gray-300 mb-2" />
+              <p className="text-sm font-medium text-gray-600">
+                {selectedFiles.length ? 'Agregar más archivos' : 'Selecciona uno o más documentos'}
+              </p>
+              <p className="text-xs text-gray-400 mt-0.5">PDF, imagen o Word · Máx 10 MB por archivo</p>
             </div>
 
-            {/* Title */}
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Nombre del documento</label>
-              <input
-                type="text"
-                value={docTitle}
-                onChange={e => setDocTitle(e.target.value)}
-                placeholder="Ej. Radiografía de tórax"
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
-              />
-            </div>
+            {/* File list */}
+            {selectedFiles.length > 0 && (
+              <ul className="space-y-2">
+                {selectedFiles.map(f => (
+                  <li key={f.name} className="flex items-center gap-2 bg-primary/5 border border-primary/20 rounded-lg px-3 py-2">
+                    <FileText size={16} className="text-primary shrink-0" />
+                    <span className="text-xs font-medium text-gray-800 flex-1 truncate">{f.name}</span>
+                    <span className="text-xs text-gray-400 shrink-0">{(f.size / 1024 / 1024).toFixed(1)} MB</span>
+                    {!uploading && (
+                      <button type="button" onClick={() => removeFile(f.name)} className="text-gray-400 hover:text-red-500 transition-colors shrink-0">
+                        ×
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {/* Progress bar while uploading */}
+            {uploading && selectedFiles.length > 1 && (
+              <div className="space-y-1">
+                <div className="w-full bg-gray-100 rounded-full h-1.5">
+                  <div className="bg-primary h-1.5 rounded-full transition-all" style={{ width: `${uploadProgress}%` }} />
+                </div>
+                <p className="text-xs text-gray-500 text-center">{uploadProgress}% completado</p>
+              </div>
+            )}
 
             {uploadError && (
               <p className="text-xs text-red-500 flex items-center gap-1">
@@ -396,11 +470,13 @@ export default function SolicitudDocumento() {
 
             <button
               type="submit"
-              disabled={!selectedFile || uploading}
+              disabled={!selectedFiles.length || uploading}
               className="w-full bg-primary text-white py-2.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors disabled:opacity-60"
             >
               {uploading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
-              {uploading ? 'Subiendo documento...' : 'Enviar documento'}
+              {uploading
+                ? `Subiendo${selectedFiles.length > 1 ? ` (${uploadProgress}%)` : ''}…`
+                : `Enviar ${selectedFiles.length > 1 ? `${selectedFiles.length} documentos` : 'documento'}`}
             </button>
           </form>
 
@@ -419,14 +495,16 @@ export default function SolicitudDocumento() {
         <CheckCircle2 size={56} className="mx-auto text-green-500" />
         <h1 className="text-xl font-bold text-gray-900">¡Documento enviado!</h1>
         <p className="text-gray-500 text-sm">
-          Tu documento fue subido con éxito y está disponible para <strong>{doctorName}</strong>.
-          También quedó guardado en tu expediente personal.
+          {selectedFiles.length > 1
+            ? `Tus ${selectedFiles.length} documentos fueron subidos con éxito`
+            : 'Tu documento fue subido con éxito'} y están disponibles para <strong>{doctorName}</strong>.
+          También quedaron guardados en tu expediente personal.
         </p>
         <button
-          onClick={() => navigate('/dashboard/documentos')}
+          onClick={() => navigate(isNewAccount ? '/dashboard' : '/dashboard/documentos')}
           className="mt-2 bg-primary text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors"
         >
-          Ver mis documentos
+          {isNewAccount ? 'Completar mi perfil' : 'Ver mis documentos'}
         </button>
       </div>
     </div>

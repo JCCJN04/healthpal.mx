@@ -22,14 +22,20 @@ import {
     ShieldCheck,
     Send,
     Lock,
+    FileUp,
+    X,
+    Copy,
+    Check,
 } from 'lucide-react'
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import { getPatientFullProfile, getPatientNotes, addPatientNote, getPatientContactInfo } from '@/features/doctor/services/patients'
 import { getPatientProfile } from '@/shared/lib/queries/profile'
 import { listUpcomingAppointments, listPastAppointments } from '@/shared/lib/queries/appointments'
 import { getUserDocuments, getDocumentDownloadUrl, uploadDocumentForPatient, getDoctorDocumentsForPatient, getDocumentsSharedByPatientWithDoctor } from '@/shared/lib/queries/documents'
+import { createDocumentRequest } from '@/shared/lib/queries/documentRequests'
 import { getConsentForPatient, requestPatientAccess, ConsentScopes } from '@/shared/lib/queries/consent'
 import { useAuth } from '@/app/providers/AuthContext'
+import { supabase } from '@/shared/lib/supabase'
 import { showToast } from '@/shared/components/ui/Toast'
 import { logger } from '@/shared/lib/logger'
 import { mapDashboardPath } from '@/context/DemoContext'
@@ -551,6 +557,7 @@ export default function PatientDetail() {
                                     patientName={patient.full_name}
                                     patientId={patient.id}
                                     doctorId={user!.id}
+                                    patientEmail={contactInfo?.email}
                                     onUpload={() => loadPatientData()}
                                 />
                             )}
@@ -778,19 +785,71 @@ const CATEGORIES: { value: DocCategory; label: string }[] = [
     { value: 'other', label: 'Otro' },
 ]
 
-function DocCard({ doc, downloadingId, onDownload }: { doc: any; downloadingId: string | null; onDownload: (doc: any) => void }) {
+function DocCard({
+    doc,
+    downloadingId,
+    onDownload,
+    onCategoryChange,
+}: {
+    doc: any
+    downloadingId: string | null
+    onDownload: (doc: any) => void
+    onCategoryChange?: (docId: string, category: DocCategory) => Promise<void>
+}) {
+    const [editingCategory, setEditingCategory] = useState(false)
+    const [savingCategory, setSavingCategory] = useState(false)
+
+    async function handleCategoryChange(e: React.ChangeEvent<HTMLSelectElement>) {
+        if (!onCategoryChange) return
+        const newCat = e.target.value as DocCategory
+        setSavingCategory(true)
+        await onCategoryChange(doc.id, newCat)
+        setSavingCategory(false)
+        setEditingCategory(false)
+    }
+
     return (
-        <div className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl hover:border-primary/30 transition-all">
-            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500 flex-shrink-0">
+        <div className="flex items-start gap-3 p-3 border border-gray-100 rounded-xl hover:border-primary/30 transition-all">
+            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500 flex-shrink-0 mt-0.5">
                 <FileText size={18} />
             </div>
             <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-gray-900 truncate">{doc.title || 'Documento'}</p>
-                <p className="text-[10px] text-gray-400 mt-0.5">
-                    {CATEGORY_LABELS[doc.category] || doc.category}
-                    {doc.file_size ? ` • ${(doc.file_size / 1024 / 1024).toFixed(1)} MB` : ''}
-                    {doc.created_at ? ` • ${new Date(doc.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}
-                </p>
+                {editingCategory ? (
+                    <div className="flex items-center gap-1 mt-1">
+                        <select
+                            defaultValue={doc.category}
+                            onChange={handleCategoryChange}
+                            disabled={savingCategory}
+                            autoFocus
+                            className="text-xs border border-primary/40 rounded-md px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-primary/40 bg-white"
+                        >
+                            {CATEGORIES.map(c => (
+                                <option key={c.value} value={c.value}>{c.label}</option>
+                            ))}
+                        </select>
+                        {savingCategory
+                            ? <Loader2 size={12} className="animate-spin text-gray-400" />
+                            : <button type="button" onClick={() => setEditingCategory(false)} className="text-xs text-gray-400 hover:text-gray-600">✕</button>
+                        }
+                    </div>
+                ) : (
+                    <p className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
+                        {CATEGORY_LABELS[doc.category] || doc.category}
+                        {onCategoryChange && (
+                            <button
+                                type="button"
+                                onClick={() => setEditingCategory(true)}
+                                className="text-gray-300 hover:text-primary transition-colors"
+                                title="Cambiar categoría"
+                            >
+                                ✎
+                            </button>
+                        )}
+                        {doc.file_size ? ` • ${(doc.file_size / 1024 / 1024).toFixed(1)} MB` : ''}
+                        {doc.created_at ? ` • ${new Date(doc.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}
+                    </p>
+                )}
             </div>
             <button
                 onClick={() => onDownload(doc)}
@@ -814,6 +873,7 @@ function ExpedienteDigital({
     patientName,
     patientId,
     doctorId,
+    patientEmail,
     onUpload,
 }: {
     documents: any[]
@@ -822,10 +882,77 @@ function ExpedienteDigital({
     patientName: string
     patientId: string
     doctorId: string
+    patientEmail?: string
     onUpload: () => void
 }) {
     const [downloadingId, setDownloadingId] = useState<string | null>(null)
+    const [localDocs, setLocalDocs] = useState<any[]>(documents)
+    const [localDoctorDocs, setLocalDoctorDocs] = useState<any[]>(doctorDocs)
+    const [localSharedDocs, setLocalSharedDocs] = useState<any[]>(patientSharedDocs)
     const [showUpload, setShowUpload] = useState(false)
+
+    // Document request modal
+    const [docReqOpen, setDocReqOpen] = useState(false)
+    const [docReqEmail, setDocReqEmail] = useState(patientEmail || '')
+    const [docReqType, setDocReqType] = useState('')
+    const [docReqDesc, setDocReqDesc] = useState('')
+    const [docReqLoading, setDocReqLoading] = useState(false)
+    const [docReqLink, setDocReqLink] = useState<string | null>(null)
+    const [copied, setCopied] = useState(false)
+
+    const handleCreateDocRequest = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setDocReqLoading(true)
+        try {
+            const { data, error } = await (createDocumentRequest as any)(doctorId, docReqEmail, docReqType, docReqDesc)
+            if (error || !data) {
+                showToast(error || 'Error al crear la solicitud', 'error', 3000)
+                return
+            }
+            setDocReqLink(`${window.location.origin}/solicitud/${data.token}`)
+        } catch (err) {
+            showToast('Error inesperado', 'error', 3000)
+        } finally {
+            setDocReqLoading(false)
+        }
+    }
+
+    const handleCopyLink = () => {
+        if (!docReqLink) return
+        navigator.clipboard.writeText(docReqLink)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+    }
+
+    const resetDocReqModal = () => {
+        setDocReqOpen(false)
+        setDocReqLink(null)
+        setDocReqEmail(patientEmail || '')
+        setDocReqType('')
+        setDocReqDesc('')
+        setCopied(false)
+    }
+
+    // Sync local state when props change
+    useEffect(() => { setLocalDocs(documents) }, [documents])
+    useEffect(() => { setLocalDoctorDocs(doctorDocs) }, [doctorDocs])
+    useEffect(() => { setLocalSharedDocs(patientSharedDocs) }, [patientSharedDocs])
+
+    async function handleCategoryChange(docId: string, category: DocCategory) {
+        const { error } = await (supabase as any).rpc('update_document_category', {
+            doc_id: docId,
+            new_category: category,
+        })
+        if (error) {
+            showToast('Error al actualizar la categoría', 'error')
+            return
+        }
+        // Update all three local lists optimistically
+        const patch = (list: any[]) => list.map(d => d.id === docId ? { ...d, category } : d)
+        setLocalDocs(patch)
+        setLocalDoctorDocs(patch)
+        setLocalSharedDocs(patch)
+    }
     const [uploading, setUploading] = useState(false)
     const [uploadForm, setUploadForm] = useState<{ file: File | null; title: string; category: DocCategory; notes: string }>({
         file: null, title: '', category: 'other', notes: '',
@@ -881,7 +1008,7 @@ function ExpedienteDigital({
         }
     }
 
-    const grouped = documents.reduce<Record<string, any[]>>((acc, doc) => {
+    const grouped = localDocs.reduce<Record<string, any[]>>((acc, doc) => {
         const cat = doc.category || 'other'
         if (!acc[cat]) acc[cat] = []
         acc[cat].push(doc)
@@ -895,13 +1022,22 @@ function ExpedienteDigital({
                 <h3 className="text-sm font-bold text-gray-900">
                     Expediente de {patientName}
                 </h3>
-                <button
-                    onClick={() => setShowUpload(v => !v)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-xs font-bold rounded-lg hover:bg-teal-600 transition-colors"
-                >
-                    <Plus size={14} />
-                    Nuevo documento
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => { setDocReqEmail(patientEmail || ''); setDocReqOpen(true) }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white text-primary border border-primary text-xs font-bold rounded-lg hover:bg-primary/5 transition-colors"
+                    >
+                        <FileUp size={14} />
+                        Solicitar documento
+                    </button>
+                    <button
+                        onClick={() => setShowUpload(v => !v)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-xs font-bold rounded-lg hover:bg-teal-600 transition-colors"
+                    >
+                        <Plus size={14} />
+                        Nuevo documento
+                    </button>
+                </div>
             </div>
 
             {showUpload && (
@@ -975,60 +1111,161 @@ function ExpedienteDigital({
             )}
 
             {/* Documents uploaded by this doctor */}
-            {doctorDocs.length > 0 && (
+            {localDoctorDocs.length > 0 && (
                 <div className="space-y-2">
                     <p className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
                         <Plus size={12} /> Subidos por ti
-                        <span className="bg-primary/10 text-primary text-[10px] font-bold px-1.5 py-0.5 rounded-full normal-case">{doctorDocs.length}</span>
+                        <span className="bg-primary/10 text-primary text-[10px] font-bold px-1.5 py-0.5 rounded-full normal-case">{localDoctorDocs.length}</span>
                     </p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {doctorDocs.map(doc => (
-                            <DocCard key={doc.id} doc={doc} downloadingId={downloadingId} onDownload={handleDownload} />
+                        {localDoctorDocs.map(doc => (
+                            <DocCard key={doc.id} doc={doc} downloadingId={downloadingId} onDownload={handleDownload} onCategoryChange={handleCategoryChange} />
                         ))}
                     </div>
                 </div>
             )}
 
             {/* Documents shared by the patient via solicitud link */}
-            {patientSharedDocs.length > 0 && (
+            {localSharedDocs.length > 0 && (
                 <div className="space-y-2">
                     <p className="text-xs font-bold uppercase tracking-wider text-teal-600 flex items-center gap-1.5">
                         <Send size={12} /> Enviados por el paciente
-                        <span className="bg-teal-50 text-teal-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full normal-case">{patientSharedDocs.length}</span>
+                        <span className="bg-teal-50 text-teal-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full normal-case">{localSharedDocs.length}</span>
                     </p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {patientSharedDocs.map(doc => (
-                            <DocCard key={doc.id} doc={doc} downloadingId={downloadingId} onDownload={handleDownload} />
+                        {localSharedDocs.map(doc => (
+                            <DocCard key={doc.id} doc={doc} downloadingId={downloadingId} onDownload={handleDownload} onCategoryChange={handleCategoryChange} />
                         ))}
                     </div>
                 </div>
             )}
 
             {/* Patient's own documents grouped by category */}
-            {documents.length === 0 && doctorDocs.length === 0 && patientSharedDocs.length === 0 ? (
+            {localDocs.length === 0 && localDoctorDocs.length === 0 && localSharedDocs.length === 0 ? (
                 <div className="text-center py-12 text-gray-400">
                     <FileText size={48} className="mx-auto mb-3 opacity-20" />
                     <p className="text-sm font-medium">El paciente no tiene documentos cargados.</p>
                     <p className="text-xs mt-1">Puedes agregar el primero con el botón de arriba.</p>
                 </div>
-            ) : documents.length > 0 ? (
+            ) : localDocs.length > 0 ? (
                 <div className="space-y-5">
                     <p className="text-xs font-bold uppercase tracking-wider text-gray-400">
                         Documentos del paciente
-                        <span className="ml-2 bg-gray-100 text-gray-500 text-[10px] font-bold px-1.5 py-0.5 rounded-full normal-case">{documents.length}</span>
+                        <span className="ml-2 bg-gray-100 text-gray-500 text-[10px] font-bold px-1.5 py-0.5 rounded-full normal-case">{localDocs.length}</span>
                     </p>
                     {Object.entries(grouped).map(([category, docs]) => (
                         <div key={category} className="space-y-2">
                             <p className="text-[11px] font-semibold text-gray-400 pl-1">{CATEGORY_LABELS[category] || category}</p>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 {docs.map(doc => (
-                                    <DocCard key={doc.id} doc={doc} downloadingId={downloadingId} onDownload={handleDownload} />
+                                    <DocCard key={doc.id} doc={doc} downloadingId={downloadingId} onDownload={handleDownload} onCategoryChange={handleCategoryChange} />
                                 ))}
                             </div>
                         </div>
                     ))}
                 </div>
             ) : null}
+
+            {/* Document Request Modal */}
+            {docReqOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                            <div className="flex items-center gap-2">
+                                <FileUp size={18} className="text-primary" />
+                                <h2 className="text-base font-bold text-gray-900">Solicitar documento al paciente</h2>
+                            </div>
+                            <button onClick={resetDocReqModal} className="p-1 hover:bg-gray-100 rounded-lg">
+                                <X size={18} className="text-gray-500" />
+                            </button>
+                        </div>
+
+                        {docReqLink ? (
+                            <div className="p-5 space-y-4">
+                                <p className="text-sm text-gray-600">
+                                    Comparte este enlace con tu paciente. Al abrirlo, se le pedirá crear una cuenta (si no tiene) y subir el documento.
+                                </p>
+                                <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5">
+                                    <span className="text-xs text-gray-700 truncate flex-1 font-mono">{docReqLink}</span>
+                                    <button
+                                        onClick={handleCopyLink}
+                                        className="shrink-0 flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary/80"
+                                    >
+                                        {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+                                        {copied ? 'Copiado' : 'Copiar'}
+                                    </button>
+                                </div>
+                                <p className="text-xs text-gray-400">El enlace expira en 7 días.</p>
+                                <button
+                                    onClick={resetDocReqModal}
+                                    className="w-full py-2.5 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors"
+                                >
+                                    Listo
+                                </button>
+                            </div>
+                        ) : (
+                            <form onSubmit={handleCreateDocRequest} className="p-5 space-y-4">
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-600 mb-1">Correo del paciente</label>
+                                    <input
+                                        type="email"
+                                        value={docReqEmail}
+                                        onChange={e => setDocReqEmail(e.target.value)}
+                                        placeholder="paciente@correo.com"
+                                        required
+                                        className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                    />
+                                    <p className="text-xs text-gray-400 mt-1">No necesita tener cuenta — se le pedirá crearla al abrir el enlace.</p>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-600 mb-1">¿Qué documento necesitas?</label>
+                                    <input
+                                        type="text"
+                                        list="doc-type-options-pd"
+                                        value={docReqType}
+                                        onChange={e => setDocReqType(e.target.value)}
+                                        placeholder="Selecciona o escribe el tipo de documento…"
+                                        required
+                                        className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                    />
+                                    <datalist id="doc-type-options-pd">
+                                        <option value="Análisis de sangre completo" />
+                                        <option value="Radiografía" />
+                                        <option value="Resonancia magnética" />
+                                        <option value="Tomografía" />
+                                        <option value="Ultrasonido" />
+                                        <option value="Receta médica" />
+                                        <option value="Historial médico" />
+                                        <option value="Resultados de laboratorio" />
+                                        <option value="Póliza de seguro médico" />
+                                        <option value="Electrocardiograma" />
+                                        <option value="Densitometría ósea" />
+                                        <option value="Expediente de vacunación" />
+                                    </datalist>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-600 mb-1">Instrucción adicional (opcional)</label>
+                                    <textarea
+                                        value={docReqDesc}
+                                        onChange={e => setDocReqDesc(e.target.value)}
+                                        placeholder="Ej. Análisis de sangre completo del 15 de abril"
+                                        rows={2}
+                                        className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                                    />
+                                </div>
+                                <button
+                                    type="submit"
+                                    disabled={docReqLoading}
+                                    className="w-full py-2.5 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                                >
+                                    {docReqLoading ? <Loader2 size={15} className="animate-spin" /> : <FileUp size={15} />}
+                                    Generar enlace
+                                </button>
+                            </form>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

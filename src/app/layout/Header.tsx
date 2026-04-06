@@ -46,9 +46,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
         </button>
 
         {/* Logo */}
-        <h1 className="text-lg md:text-xl lg:text-2xl font-bold text-primary">
-          Healthpal.mx
-        </h1>
+        <img src="/logo.png" alt="HealthPal.mx" className="h-48" />
       </div>
 
       {/* Right: Search */}

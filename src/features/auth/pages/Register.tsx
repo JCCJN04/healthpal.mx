@@ -132,9 +132,9 @@ export default function Register() {
       <div className="w-full lg:w-[45%] flex items-center justify-center p-8 bg-white">
         <div className="w-full max-w-md">
           {/* Logo/Title */}
-          <h1 className="text-4xl lg:text-5xl font-bold text-primary mb-12">
-            Healthpal.mx
-          </h1>
+          <div className="mb-12">
+            <img src="/logo.png" alt="HealthPal.mx" className="h-48" />
+          </div>
 
           {/* Role Tabs */}
           <div className="flex justify-center mb-8">
