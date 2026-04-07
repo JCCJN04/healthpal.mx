@@ -4,7 +4,11 @@
       "Bash(curl -s -X GET \"https://[REDACTED].supabase.co/rest/v1/appointments?select=*&limit=5\" -H \"Authorization: Bearer [REDACTED]\" -H \"apikey: [REDACTED]\" -H \"Content-Type: application/json\")",
       "Bash(python3 -m json.tool)",
       "Bash(npx supabase:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(python \"C:\\\\Users\\\\mendo\\\\.claude\\\\skills\\\\ui-ux-pro-max\\\\scripts\\\\search.py\" \"modal upload form accessibility\" --domain ux -n 5)",
+      "Bash(python \"C:\\\\Users\\\\mendo\\\\.claude\\\\skills\\\\ui-ux-pro-max\\\\scripts\\\\search.py\" \"healthcare dashboard\" --stack react -n 3)",
+      "Bash(npm run:*)",
+      "Bash(xargs grep:*)"
     ]
   }
 }

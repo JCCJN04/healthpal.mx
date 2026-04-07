@@ -143,7 +143,7 @@ export default function DocumentDetail() {
     setShareModalOpen(true)
   }
 
-  const handleShareSubmit = async ({ email }: { email: string; message?: string }) => {
+  const handleShareSubmit = async (email: string) => {
     if (!user || !document) return { success: false, error: 'No hay usuario autenticado' }
 
     const result = await shareDocumentWithUser(
@@ -446,7 +446,9 @@ export default function DocumentDetail() {
       <ShareModal
         isOpen={shareModalOpen}
         onClose={() => setShareModalOpen(false)}
-        documentTitle={document.title}
+        title={document.title}
+        ownerId={user?.id || ''}
+        documentId={document.id}
         onShare={handleShareSubmit}
       />
 

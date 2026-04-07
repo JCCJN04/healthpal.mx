@@ -1259,6 +1259,55 @@ export async function getDoctorDocumentsForPatient(
  * Fetch documents that a patient has shared with a specific doctor.
  * Used in the patient expediente tab to show documents uploaded by the patient via solicitud.
  */
+export async function getAllSharesByOwner(ownerId: string): Promise<Array<{
+  id: string
+  document_id: string
+  document_title: string
+  document_category: string
+  shared_with: string
+  shared_with_name: string | null
+  shared_with_email: string | null
+  shared_with_avatar: string | null
+  created_at: string
+}>> {
+  if (useInMemoryDemoDocuments()) return []
+
+  try {
+    const { data, error } = await supabase
+      .from('document_shares')
+      .select(`
+        id,
+        document_id,
+        shared_with,
+        created_at,
+        document:documents!document_shares_document_id_fkey(title, category),
+        recipient:profiles!document_shares_shared_with_fkey(id, full_name, email, avatar_url)
+      `)
+      .eq('shared_by', ownerId)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      logger.error('getAllSharesByOwner', error)
+      return []
+    }
+
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      document_id: row.document_id,
+      document_title: row.document?.title || 'Documento',
+      document_category: row.document?.category || 'other',
+      shared_with: row.shared_with,
+      shared_with_name: row.recipient?.full_name ?? null,
+      shared_with_email: row.recipient?.email ?? null,
+      shared_with_avatar: row.recipient?.avatar_url ?? null,
+      created_at: row.created_at,
+    }))
+  } catch (err) {
+    logger.error('getAllSharesByOwner', err)
+    return []
+  }
+}
+
 export async function getDocumentsSharedByPatientWithDoctor(
   doctorId: string,
   patientId: string

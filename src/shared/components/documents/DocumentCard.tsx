@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MoreVertical, FileText, Activity, Pill, Download, Trash2, Eye, Microscope, ShieldCheck, FolderOpen, Loader2 } from 'lucide-react'
+import { MoreVertical, FileText, Activity, Pill, Download, Trash2, Eye, Microscope, ShieldCheck, FolderOpen, Loader2, Share2 } from 'lucide-react'
 import { getDocumentDownloadUrl } from '@/shared/lib/queries/documents'
 import type { Database } from '@/shared/types/database'
 
@@ -12,6 +12,7 @@ interface DocumentCardProps {
   onDelete: (documentId: string) => void
   onDragStart?: (documentId: string, e: React.DragEvent) => void
   isMoving?: boolean
+  onShare?: (documentId: string, title: string) => void
 }
 
 const getIcon = (category: DocCategory) => {
@@ -56,7 +57,7 @@ const formatFileSize = (bytes: number | null) => {
   return `${mb.toFixed(1)} MB`
 }
 
-export const DocumentCard = ({ document, onDelete, onDragStart, isMoving }: DocumentCardProps) => {
+export const DocumentCard = ({ document, onDelete, onDragStart, isMoving, onShare }: DocumentCardProps) => {
   const [menuOpen, setMenuOpen] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const navigate = useNavigate()
@@ -128,8 +129,7 @@ export const DocumentCard = ({ document, onDelete, onDragStart, isMoving }: Docu
 
         {/* Floating Category Tag */}
         <div className="absolute top-3 left-3 z-10 shrink-0">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/90 backdrop-blur-md rounded-lg text-[10px] font-bold text-[#33C7BE] shadow-sm uppercase tracking-wide border border-white/50 shrink-0">
-            {getIcon(document.category)}
+          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/90 backdrop-blur-md rounded-lg text-[10px] font-bold text-primary shadow-sm uppercase tracking-wide border border-white/50 shrink-0">
             <span>{CATEGORY_LABELS[document.category]}</span>
           </div>
         </div>
@@ -149,7 +149,7 @@ export const DocumentCard = ({ document, onDelete, onDragStart, isMoving }: Docu
 
         {/* Quick View Overlay (Mobile & Desktop Hover) */}
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer" onClick={handleAbrir}>
-          <div className="bg-white/90 backdrop-blur-md p-3 rounded-full text-[#33C7BE] shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+          <div className="bg-white/90 backdrop-blur-md p-3 rounded-full text-primary shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
             <Eye size={20} />
           </div>
         </div>
@@ -173,12 +173,24 @@ export const DocumentCard = ({ document, onDelete, onDragStart, isMoving }: Docu
 
         {/* Actions row */}
         <div className="flex items-center justify-between mt-4">
-          <button
-            onClick={handleAbrir}
-            className="text-[10px] font-black text-[#33C7BE] hover:text-[#2bb5ad] transition-all tracking-widest uppercase py-1 px-3 border border-[#33C7BE]/20 rounded-full hover:bg-[#33C7BE]/5"
-          >
-            ABRIR
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handleAbrir}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 py-1.5 px-3 rounded-lg hover:bg-primary/5 transition-colors cursor-pointer"
+            >
+              <Eye size={13} />
+              Ver
+            </button>
+            {onShare && (
+              <button
+                onClick={e => { e.stopPropagation(); onShare(document.id, document.title) }}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-primary py-1.5 px-3 rounded-lg hover:bg-primary/5 transition-colors cursor-pointer"
+                title="Compartir"
+              >
+                <Share2 size={13} />
+              </button>
+            )}
+          </div>
 
           {/* Kebab menu */}
           <div className="relative">

@@ -12,6 +12,7 @@ import {
   Mail,
   KeyRound,
   ArrowRight,
+  X,
 } from 'lucide-react'
 import { supabase } from '@/shared/lib/supabase'
 import { getDocumentRequestByToken, fulfillDocumentRequest } from '@/shared/lib/queries/documentRequests'
@@ -417,7 +418,7 @@ export default function SolicitudDocumento() {
             {/* Drop zone */}
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-gray-200 hover:border-primary/40 hover:bg-gray-50 rounded-xl p-5 text-center cursor-pointer transition-colors"
+              className="border-2 border-dashed border-gray-200 hover:border-primary/40 hover:bg-primary/5 rounded-xl p-8 text-center cursor-pointer transition-all group"
             >
               <input
                 ref={fileInputRef}
@@ -427,24 +428,35 @@ export default function SolicitudDocumento() {
                 accept=".pdf,.jpg,.jpeg,.png,.heic,.webp,.doc,.docx"
                 onChange={handleFileChange}
               />
-              <Upload size={28} className="mx-auto text-gray-300 mb-2" />
-              <p className="text-sm font-medium text-gray-600">
-                {selectedFiles.length ? 'Agregar más archivos' : 'Selecciona uno o más documentos'}
+              <div className="w-14 h-14 rounded-2xl bg-gray-100 group-hover:bg-primary/10 flex items-center justify-center mx-auto mb-3 transition-colors">
+                <Upload size={24} className="text-gray-400 group-hover:text-primary transition-colors" />
+              </div>
+              <p className="text-sm font-semibold text-gray-700">
+                {selectedFiles.length ? 'Agregar más archivos' : 'Arrastra o selecciona tus documentos'}
               </p>
-              <p className="text-xs text-gray-400 mt-0.5">PDF, imagen o Word · Máx 10 MB por archivo</p>
+              <p className="text-xs text-gray-400 mt-1">PDF, imagen o Word · Máx 10 MB por archivo</p>
             </div>
 
             {/* File list */}
             {selectedFiles.length > 0 && (
               <ul className="space-y-2">
                 {selectedFiles.map(f => (
-                  <li key={f.name} className="flex items-center gap-2 bg-primary/5 border border-primary/20 rounded-lg px-3 py-2">
-                    <FileText size={16} className="text-primary shrink-0" />
-                    <span className="text-xs font-medium text-gray-800 flex-1 truncate">{f.name}</span>
-                    <span className="text-xs text-gray-400 shrink-0">{(f.size / 1024 / 1024).toFixed(1)} MB</span>
+                  <li key={f.name} className="flex items-center gap-3 bg-primary/5 border border-primary/20 rounded-xl px-3.5 py-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <FileText size={15} className="text-primary" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-gray-800 truncate">{f.name}</p>
+                      <p className="text-[10px] text-gray-400">{(f.size / 1024 / 1024).toFixed(1)} MB</p>
+                    </div>
                     {!uploading && (
-                      <button type="button" onClick={() => removeFile(f.name)} className="text-gray-400 hover:text-red-500 transition-colors shrink-0">
-                        ×
+                      <button
+                        type="button"
+                        onClick={() => removeFile(f.name)}
+                        className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors shrink-0 cursor-pointer"
+                        aria-label={`Eliminar ${f.name}`}
+                      >
+                        <X size={14} />
                       </button>
                     )}
                   </li>
@@ -453,10 +465,10 @@ export default function SolicitudDocumento() {
             )}
 
             {/* Progress bar while uploading */}
-            {uploading && selectedFiles.length > 1 && (
+            {uploading && (
               <div className="space-y-1">
-                <div className="w-full bg-gray-100 rounded-full h-1.5">
-                  <div className="bg-primary h-1.5 rounded-full transition-all" style={{ width: `${uploadProgress}%` }} />
+                <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                  <div className="bg-primary h-1.5 rounded-full transition-all duration-300" style={{ width: `${uploadProgress || 10}%` }} />
                 </div>
                 <p className="text-xs text-gray-500 text-center">{uploadProgress}% completado</p>
               </div>
@@ -492,17 +504,21 @@ export default function SolicitudDocumento() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 max-w-md w-full text-center space-y-4">
-        <CheckCircle2 size={56} className="mx-auto text-green-500" />
-        <h1 className="text-xl font-bold text-gray-900">¡Documento enviado!</h1>
-        <p className="text-gray-500 text-sm">
-          {selectedFiles.length > 1
-            ? `Tus ${selectedFiles.length} documentos fueron subidos con éxito`
-            : 'Tu documento fue subido con éxito'} y están disponibles para <strong>{doctorName}</strong>.
-          También quedaron guardados en tu expediente personal.
-        </p>
+        <div className="w-16 h-16 rounded-2xl bg-green-50 flex items-center justify-center mx-auto">
+          <CheckCircle2 size={36} className="text-green-500" />
+        </div>
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">¡Documento enviado!</h1>
+          <p className="text-gray-500 text-sm mt-2">
+            {selectedFiles.length > 1
+              ? `Tus ${selectedFiles.length} documentos fueron subidos con éxito`
+              : 'Tu documento fue subido con éxito'} y están disponibles para <strong>{doctorName}</strong>.
+          </p>
+          <p className="text-xs text-gray-400 mt-1">También quedaron guardados en tu expediente personal.</p>
+        </div>
         <button
           onClick={() => navigate(isNewAccount ? '/dashboard' : '/dashboard/documentos')}
-          className="mt-2 bg-primary text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors"
+          className="w-full bg-primary text-white px-6 py-2.5 rounded-xl text-sm font-semibold hover:bg-primary/90 transition-colors cursor-pointer"
         >
           {isNewAccount ? 'Completar mi perfil' : 'Ver mis documentos'}
         </button>
