@@ -26,6 +26,11 @@ import {
     X,
     Copy,
     Check,
+    AlertTriangle,
+    TrendingUp,
+    Heart,
+    Stethoscope,
+    RefreshCw,
 } from 'lucide-react'
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import { getPatientFullProfile, getPatientNotes, addPatientNote, getPatientContactInfo } from '@/features/doctor/services/patients'
@@ -350,76 +355,100 @@ export default function PatientDetail() {
 
     return (
         <DashboardLayout>
-            <div className="max-w-6xl mx-auto space-y-6 p-4 md:p-6">
+            <div className="max-w-6xl mx-auto space-y-5 p-4 md:p-6">
                 {/* Navigation */}
                 <button
                     onClick={() => navigate(-1)}
-                    className="flex items-center gap-2 text-gray-600 hover:text-primary transition-colors mb-2"
+                    className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-primary transition-colors"
                 >
-                    <ArrowLeft size={20} />
-                    <span className="font-medium">Volver</span>
+                    <ArrowLeft size={16} />
+                    <span className="font-medium">Volver a pacientes</span>
                 </button>
 
                 {/* Header Card */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div className="h-24 bg-gradient-to-r from-primary to-teal-600"></div>
-                    <div className="px-6 pb-6">
-                        <div className="flex flex-col md:flex-row gap-6 -mt-12">
-                            <div className="w-24 h-24 md:w-32 md:h-32 rounded-2xl bg-white p-1 shadow-lg flex-shrink-0">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
+                    {/* Banner */}
+                    <div className="h-28 bg-gradient-to-r from-teal-500 via-primary to-cyan-500 relative rounded-t-2xl overflow-hidden">
+                        <div className="absolute inset-0 opacity-10" style={{backgroundImage:'radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)', backgroundSize:'30px 30px'}} />
+                    </div>
+                    <div className="px-6 pb-5">
+                        <div className="flex flex-col md:flex-row gap-5 -mt-10">
+                            {/* Avatar */}
+                            <div className="relative z-10 w-20 h-20 md:w-24 md:h-24 rounded-2xl ring-4 ring-white shadow-lg flex-shrink-0 overflow-hidden bg-primary/10">
                                 {patient.avatar_url ? (
-                                    <img src={patient.avatar_url} alt="" className="w-full h-full rounded-xl object-cover" />
+                                    <img src={patient.avatar_url} alt="" className="w-full h-full object-cover" />
                                 ) : (
-                                    <div className="w-full h-full rounded-xl bg-primary/10 flex items-center justify-center text-primary text-3xl font-bold uppercase">
+                                    <div className="w-full h-full flex items-center justify-center text-primary text-3xl font-bold uppercase">
                                         {patient.full_name?.charAt(0) || 'P'}
                                     </div>
                                 )}
                             </div>
-                            <div className="flex-1 pt-2 md:pt-14">
-                                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                            <div className="flex-1 pt-2 md:pt-12">
+                                <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-3">
                                     <div>
-                                        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{patient.full_name || 'Paciente'}</h1>
-                                        <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-gray-500">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <h1 className="text-xl md:text-2xl font-bold text-gray-900">{patient.full_name || 'Paciente'}</h1>
+                                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">
+                                                <ShieldCheck size={10} />
+                                                Acceso concedido
+                                            </span>
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-3 mt-1.5">
                                             {scopes.share_contact && contactInfo?.email && (
-                                                <div className="flex items-center gap-1.5">
-                                                    <Mail size={14} className="text-gray-400" />
-                                                    <span>{contactInfo.email}</span>
-                                                </div>
+                                                <span className="flex items-center gap-1 text-xs text-gray-500">
+                                                    <Mail size={12} className="text-gray-400" />
+                                                    {contactInfo.email}
+                                                </span>
                                             )}
                                             {scopes.share_contact && contactInfo?.phone && (
-                                                <div className="flex items-center gap-1.5">
-                                                    <Phone size={14} className="text-gray-400" />
-                                                    <span>{contactInfo.phone}</span>
-                                                </div>
+                                                <a href={`tel:${contactInfo.phone}`} className="flex items-center gap-1 text-xs text-gray-500 hover:text-primary transition-colors">
+                                                    <Phone size={12} className="text-gray-400" />
+                                                    {contactInfo.phone}
+                                                </a>
                                             )}
                                             {!scopes.share_contact && (
-                                                <div className="flex items-center gap-1.5 text-gray-400">
-                                                    <Lock size={14} />
-                                                    <span className="text-xs italic">Contacto no compartido</span>
-                                                </div>
+                                                <span className="flex items-center gap-1 text-xs text-gray-400 italic">
+                                                    <Lock size={11} /> Contacto no compartido
+                                                </span>
                                             )}
-                                            <div className="flex items-center gap-1.5 font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded text-xs">
-                                                <ShieldCheck size={12} />
-                                                <span>Acceso concedido</span>
-                                            </div>
+                                        </div>
+                                        {/* Quick stats pills */}
+                                        <div className="flex flex-wrap gap-2 mt-3">
+                                            <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100 px-2.5 py-1 rounded-full">
+                                                <Activity size={11} /> {calculateAge(patient.birthdate)} años
+                                            </span>
+                                            <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-100 px-2.5 py-1 rounded-full">
+                                                {patient.sex === 'male' ? '♂' : patient.sex === 'female' ? '♀' : '⚥'} {patient.sex === 'male' ? 'Hombre' : patient.sex === 'female' ? 'Mujer' : 'Otro'}
+                                            </span>
+                                            {(medProfile?.blood_type || pProfile.blood_type) && (
+                                                <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-red-50 text-red-700 border border-red-100 px-2.5 py-1 rounded-full">
+                                                    🩸 {medProfile?.blood_type || pProfile.blood_type}
+                                                </span>
+                                            )}
+                                            {scopes.share_medical_notes && (medProfile?.insurance_provider || pProfile.insurance_provider) && (
+                                                <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-teal-50 text-teal-700 border border-teal-100 px-2.5 py-1 rounded-full">
+                                                    🏥 {medProfile?.insurance_provider || pProfile.insurance_provider}
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
-                                    <div className="flex flex-wrap gap-2">
+                                    <div className="flex flex-wrap gap-2 lg:flex-shrink-0">
                                         {scopes.share_contact && (
                                             <button
                                                 onClick={() => navigate(mapDashboardPath(`/dashboard/mensajes?with=${patient.id}`))}
-                                                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-teal-600 shadow-sm transition-all"
+                                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-teal-600 shadow-sm transition-all min-h-[44px]"
                                             >
-                                                <MessageSquare size={18} />
-                                                <span>Mensaje</span>
+                                                <MessageSquare size={15} />
+                                                Mensaje
                                             </button>
                                         )}
-                                        {scopes.share_appointments && (
+                                        {scopes.share_medical_notes && (
                                             <button
-                                                onClick={() => navigate(mapDashboardPath(`/dashboard/consultas/nueva?patient=${patient.id}`))}
-                                                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-all"
+                                                onClick={() => setActiveTab('notes')}
+                                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-50 hover:border-primary/30 transition-all min-h-[44px]"
                                             >
-                                                <Calendar size={18} />
-                                                <span>Agendar</span>
+                                                <StickyNote size={15} />
+                                                Nueva nota
                                             </button>
                                         )}
                                     </div>
@@ -429,123 +458,256 @@ export default function PatientDetail() {
                     </div>
                 </div>
 
+                {/* Mobile quick stats — shown only below lg, replaces sidebar stats */}
+                <div className="lg:hidden flex items-center gap-2 overflow-x-auto pb-0.5">
+                    {[
+                        { icon: StickyNote, label: 'notas', value: notes.length, color: 'text-primary bg-primary/10', enabled: scopes.share_medical_notes, onClick: () => setActiveTab('notes') },
+                        { icon: FileText, label: 'documentos', value: documents.length + doctorDocs.length + patientSharedDocs.length, color: 'text-blue-600 bg-blue-50', enabled: scopes.share_documents, onClick: () => setActiveTab('expediente') },
+                        { icon: Calendar, label: 'consultas', value: appointments.length, color: 'text-purple-600 bg-purple-50', enabled: scopes.share_appointments, onClick: null },
+                    ].filter(s => s.enabled).map((s, i) => (
+                        <button
+                            key={i}
+                            onClick={s.onClick ?? undefined}
+                            disabled={!s.onClick}
+                            className="flex-shrink-0 flex items-center gap-2.5 px-3 py-2.5 bg-white border border-gray-100 rounded-xl hover:border-primary/30 transition-all disabled:cursor-default"
+                        >
+                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${s.color}`}>
+                                <s.icon size={15} />
+                            </div>
+                            <div className="text-left">
+                                <p className="text-base font-bold text-gray-900 leading-none">{s.value}</p>
+                                <p className="text-[10px] text-gray-500 mt-0.5">{s.label}</p>
+                            </div>
+                        </button>
+                    ))}
+                </div>
+
                 {/* Info Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Left Column: Summary & Medical Info */}
-                    <div className="lg:col-span-2 space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                    {/* Left Column */}
+                    <div className="lg:col-span-2 space-y-0">
                         {/* Tabs */}
-                        <div className="flex border-b border-gray-100 bg-white rounded-t-xl px-2">
+                        <div className="flex gap-1 bg-gray-100/80 rounded-xl p-1 overflow-x-auto">
                             {[
                                 { id: 'summary', label: 'Resumen Médico', icon: Activity, enabled: true },
-                                { id: 'expediente', label: 'Expediente Digital', icon: FileText, enabled: scopes.share_documents },
+                                { id: 'expediente', label: 'Expediente', icon: FileText, enabled: scopes.share_documents },
                                 { id: 'notes', label: 'Notas Clínicas', icon: StickyNote, enabled: scopes.share_medical_notes },
-                                { id: 'activity', label: 'Consultas', icon: Calendar, enabled: scopes.share_appointments },
+                                { id: 'activity', label: 'Consultas', icon: Calendar, enabled: false },
                             ].filter(t => t.enabled).map((tab) => (
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id as TabType)}
-                                    className={`flex items-center gap-2 px-6 py-4 text-sm font-bold transition-all border-b-2 ${activeTab === tab.id
-                                        ? 'text-primary border-primary bg-primary/5'
-                                        : 'text-gray-500 border-transparent hover:text-gray-700 hover:bg-gray-50'
+                                    className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg transition-all flex-1 justify-center ${activeTab === tab.id
+                                        ? 'bg-white text-primary shadow-sm'
+                                        : 'text-gray-500 hover:text-gray-700'
                                         }`}
                                 >
-                                    <tab.icon size={16} />
-                                    {tab.label}
+                                    <tab.icon size={15} />
+                                    <span className="hidden sm:inline">{tab.label}</span>
                                 </button>
                             ))}
                         </div>
 
-                        <div className="bg-white rounded-b-xl shadow-sm border border-gray-100 p-6 min-h-[400px]">
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 min-h-[420px] mt-3">
                             {activeTab === 'summary' && (
-                                <div className="space-y-8 animate-in fade-in duration-300">
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                                        <div className="p-3 bg-blue-50/50 rounded-xl border border-blue-100/50">
-                                            <p className="text-[10px] uppercase tracking-wider font-bold text-blue-600 mb-1">Edad</p>
-                                            <p className="text-xl font-bold text-gray-900">{calculateAge(patient.birthdate)} años</p>
-                                        </div>
-                                        <div className="p-3 bg-purple-50/50 rounded-xl border border-purple-100/50">
-                                            <p className="text-[10px] uppercase tracking-wider font-bold text-purple-600 mb-1">Sexo</p>
-                                            <p className="text-xl font-bold text-gray-900 capitalize">{patient.sex === 'male' ? 'Hombre' : patient.sex === 'female' ? 'Mujer' : 'Otro'}</p>
-                                        </div>
-                                        <div className="p-3 bg-red-50/50 rounded-xl border border-red-100/50">
-                                            <p className="text-[10px] uppercase tracking-wider font-bold text-red-600 mb-1">Tipo Sangre</p>
-                                            <p className="text-xl font-bold text-gray-900">{medProfile?.blood_type || pProfile.blood_type || 'N/A'}</p>
-                                        </div>
-                                        <div className="p-3 bg-green-50/50 rounded-xl border border-green-100/50">
-                                            <p className="text-[10px] uppercase tracking-wider font-bold text-green-600 mb-1">Idioma</p>
-                                            <p className="text-xl font-bold text-gray-900 uppercase">{medProfile?.preferred_language || pProfile.preferred_language || 'ES'}</p>
-                                        </div>
+                                <div className="space-y-6 animate-in fade-in duration-300">
+                                    {/* Vital stats row */}
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                        {[
+                                            { label: 'Edad', value: `${calculateAge(patient.birthdate)} años`, icon: '🎂', bg: 'bg-blue-50', border: 'border-blue-100', text: 'text-blue-700' },
+                                            { label: 'Sexo', value: patient.sex === 'male' ? 'Hombre' : patient.sex === 'female' ? 'Mujer' : 'Otro', icon: patient.sex === 'male' ? '♂' : '♀', bg: 'bg-purple-50', border: 'border-purple-100', text: 'text-purple-700' },
+                                            { label: 'Tipo de Sangre', value: medProfile?.blood_type || pProfile.blood_type || '—', icon: '🩸', bg: 'bg-red-50', border: 'border-red-100', text: 'text-red-700' },
+                                            { label: 'Idioma', value: (medProfile?.preferred_language || pProfile.preferred_language || 'ES').toUpperCase(), icon: '🌐', bg: 'bg-teal-50', border: 'border-teal-100', text: 'text-teal-700' },
+                                        ].map((s, i) => (
+                                            <div key={i} className={`${s.bg} border ${s.border} rounded-xl p-3.5`}>
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <p className={`text-[10px] uppercase tracking-widest font-bold ${s.text} opacity-70`}>{s.label}</p>
+                                                    <span className="text-base">{s.icon}</span>
+                                                </div>
+                                                <p className={`text-lg font-bold ${s.text}`}>{s.value}</p>
+                                            </div>
+                                        ))}
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                        <div className="space-y-4">
-                                            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                                                <Scale size={16} className="text-primary" />
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="space-y-3">
+                                            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                                                <Scale size={13} className="text-primary" />
                                                 Mediciones Biométricas
                                             </h3>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="border border-gray-100 rounded-lg p-3">
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <Ruler size={14} className="text-gray-400" />
-                                                        <span className="text-xs text-gray-500 font-medium">Altura</span>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="bg-gray-50 border border-gray-100 rounded-xl p-3.5">
+                                                    <div className="flex items-center gap-1.5 mb-1.5">
+                                                        <Ruler size={13} className="text-gray-400" />
+                                                        <span className="text-[10px] text-gray-400 font-semibold uppercase">Altura</span>
                                                     </div>
-                                                    <p className="text-lg font-bold text-gray-900">
-                                                        {medProfile?.height_cm !== undefined && medProfile?.height_cm !== null
-                                                            ? `${medProfile.height_cm} cm`
-                                                            : pProfile.height_cm !== undefined && pProfile.height_cm !== null
-                                                                ? `${pProfile.height_cm} cm`
-                                                                : '---'}
+                                                    <p className="text-xl font-bold text-gray-900">
+                                                        {medProfile?.height_cm ?? pProfile.height_cm
+                                                            ? `${medProfile?.height_cm ?? pProfile.height_cm}`
+                                                            : '—'}
+                                                        <span className="text-xs font-medium text-gray-400 ml-1">cm</span>
                                                     </p>
                                                 </div>
-                                                <div className="border border-gray-100 rounded-lg p-3">
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <Scale size={14} className="text-gray-400" />
-                                                        <span className="text-xs text-gray-500 font-medium">Peso</span>
+                                                <div className="bg-gray-50 border border-gray-100 rounded-xl p-3.5">
+                                                    <div className="flex items-center gap-1.5 mb-1.5">
+                                                        <Scale size={13} className="text-gray-400" />
+                                                        <span className="text-[10px] text-gray-400 font-semibold uppercase">Peso</span>
                                                     </div>
-                                                    <p className="text-lg font-bold text-gray-900">
-                                                        {medProfile?.weight_kg !== undefined && medProfile?.weight_kg !== null
-                                                            ? `${medProfile.weight_kg} kg`
-                                                            : pProfile.weight_kg !== undefined && pProfile.weight_kg !== null
-                                                                ? `${pProfile.weight_kg} kg`
-                                                                : '---'}
+                                                    <p className="text-xl font-bold text-gray-900">
+                                                        {medProfile?.weight_kg ?? pProfile.weight_kg
+                                                            ? `${medProfile?.weight_kg ?? pProfile.weight_kg}`
+                                                            : '—'}
+                                                        <span className="text-xs font-medium text-gray-400 ml-1">kg</span>
                                                     </p>
                                                 </div>
                                             </div>
+                                            {/* IMC Auto-calculado */}
+                                            {(() => {
+                                                const h = medProfile?.height_cm ?? pProfile?.height_cm
+                                                const w = medProfile?.weight_kg ?? pProfile?.weight_kg
+                                                if (!h || !w || h <= 0) return null
+                                                const bmi = w / Math.pow(h / 100, 2)
+                                                const bmiFixed = bmi.toFixed(1)
+                                                const cat = bmi < 18.5
+                                                    ? { label: 'Bajo peso', color: 'text-blue-700', bg: 'bg-blue-50', border: 'border-blue-100', bar: 'bg-blue-400', pct: (bmi / 40) * 100 }
+                                                    : bmi < 25
+                                                    ? { label: 'Peso normal', color: 'text-green-700', bg: 'bg-green-50', border: 'border-green-200', bar: 'bg-green-500', pct: (bmi / 40) * 100 }
+                                                    : bmi < 30
+                                                    ? { label: 'Sobrepeso', color: 'text-yellow-700', bg: 'bg-yellow-50', border: 'border-yellow-200', bar: 'bg-yellow-400', pct: (bmi / 40) * 100 }
+                                                    : { label: 'Obesidad', color: 'text-red-700', bg: 'bg-red-50', border: 'border-red-200', bar: 'bg-red-500', pct: Math.min((bmi / 40) * 100, 100) }
+                                                return (
+                                                    <div className={`${cat.bg} border ${cat.border} rounded-lg p-3`}>
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <TrendingUp size={14} className="text-gray-400" />
+                                                                <span className="text-xs text-gray-500 font-medium">IMC (auto-calculado)</span>
+                                                            </div>
+                                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${cat.color} ${cat.bg} border ${cat.border}`}>{cat.label}</span>
+                                                        </div>
+                                                        <p className={`text-xl font-bold ${cat.color}`}>{bmiFixed} <span className="text-xs font-medium text-gray-400">kg/m²</span></p>
+                                                        <div className="mt-2 h-1.5 bg-white/60 rounded-full overflow-hidden">
+                                                            <div className={`h-full ${cat.bar} rounded-full transition-all`} style={{ width: `${Math.min(cat.pct, 100)}%` }} />
+                                                        </div>
+                                                        <div className="flex justify-between text-[9px] text-gray-400 mt-0.5 font-medium">
+                                                            <span>Bajo</span><span>Normal</span><span>Sobre</span><span>Obesidad</span>
+                                                        </div>
+                                                    </div>
+                                                )
+                                            })()}
                                         </div>
 
-                                        <div className="space-y-4">
-                                            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                                                <AlertCircle size={16} className="text-red-500" />
-                                                Datos médicos sensibles
+                                        <div className="space-y-3">
+                                            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                                                <AlertCircle size={13} className="text-red-500" />
+                                                Datos Clínicos Clave
                                             </h3>
-                                            <div className="space-y-3">
-                                                <div className="border border-gray-100 rounded-lg p-3">
-                                                    <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">Condiciones Crónicas</p>
-                                                    <p className="text-sm font-medium text-gray-900">{medProfile?.chronic_conditions || pProfile?.chronic_conditions || 'Ninguna registrada'}</p>
-                                                </div>
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    <div className="border border-gray-100 rounded-lg p-3 bg-red-50/30">
-                                                        <p className="text-[10px] font-bold text-red-700 uppercase mb-1">Alergias</p>
-                                                        <p className="text-sm font-medium text-red-900">{medProfile?.allergies || pProfile?.allergies || 'Ninguna'}</p>
+                                            <div className="space-y-2.5">
+                                                <div className="flex items-start gap-3 p-3 bg-orange-50 border border-orange-100 rounded-xl">
+                                                    <span className="text-base flex-shrink-0 mt-0.5">🫀</span>
+                                                    <div>
+                                                        <p className="text-[10px] font-bold text-orange-600 uppercase tracking-wider">Condiciones Crónicas</p>
+                                                        <p className="text-sm font-semibold text-gray-800 mt-0.5">{medProfile?.chronic_conditions || pProfile?.chronic_conditions || 'Ninguna registrada'}</p>
                                                     </div>
-                                                    <div className="border border-gray-100 rounded-lg p-3 bg-blue-50/30">
-                                                        <p className="text-[10px] font-bold text-blue-700 uppercase mb-1">Medicamentos Activos</p>
-                                                        <p className="text-sm font-medium text-blue-900">{medProfile?.current_medications || pProfile?.current_medications || 'Ninguno'}</p>
+                                                </div>
+                                                <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-100 rounded-xl">
+                                                    <span className="text-base flex-shrink-0 mt-0.5">⚠️</span>
+                                                    <div>
+                                                        <p className="text-[10px] font-bold text-red-600 uppercase tracking-wider">Alergias</p>
+                                                        <p className="text-sm font-semibold text-gray-800 mt-0.5">{medProfile?.allergies || pProfile?.allergies || 'Ninguna conocida'}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-start gap-3 p-3 bg-blue-50 border border-blue-100 rounded-xl">
+                                                    <span className="text-base flex-shrink-0 mt-0.5">💊</span>
+                                                    <div>
+                                                        <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Medicación Activa</p>
+                                                        <p className="text-sm font-semibold text-gray-800 mt-0.5">{medProfile?.current_medications || pProfile?.current_medications || 'Ninguna'}</p>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="space-y-4 pt-4 border-t border-gray-100">
-                                        <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                                            <FileText size={16} className="text-blue-500" />
-                                            Resumen clínico
-                                            </h3>
-                                            <div className="bg-blue-50/50 border border-blue-100 p-4 rounded-xl text-sm text-gray-800 leading-relaxed">
-                                                {medProfile?.notes_for_doctor || pProfile?.notes_for_doctor || 'Sin notas clínicas adicionales registradas.'}
-                                            </div>
+                                    <div className="space-y-2 pt-4 border-t border-gray-100">
+                                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                                            <FileText size={13} className="text-blue-500" />
+                                            Notas del paciente al médico
+                                        </h3>
+                                        <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-100 p-4 rounded-xl text-sm text-gray-700 leading-relaxed italic">
+                                            "{medProfile?.notes_for_doctor || pProfile?.notes_for_doctor || 'El paciente no ha dejado notas adicionales.'}"
                                         </div>
+                                    </div>
+
+                                    {/* ── Señales Clínicas Auto-generadas ────────────────── */}
+                                    {(() => {
+                                        const allergies = (medProfile?.allergies ?? pProfile?.allergies ?? '').trim()
+                                        const conditions = (medProfile?.chronic_conditions ?? pProfile?.chronic_conditions ?? '').trim()
+                                        const meds = (medProfile?.current_medications ?? pProfile?.current_medications ?? '').trim()
+                                        const lastNote = notes[0]
+
+                                        const alerts: { type: 'danger' | 'warning' | 'info' | 'neutral'; icon: any; label: string; value: string; action?: string }[] = []
+
+                                        if (allergies && allergies.toLowerCase() !== 'ninguna' && allergies.toLowerCase() !== 'no') {
+                                            alerts.push({ type: 'danger', icon: AlertTriangle, label: '⚠ Alergia conocida', value: allergies, action: 'Verificar antes de prescribir' })
+                                        }
+                                        if (conditions && conditions.toLowerCase() !== 'ninguna' && conditions.toLowerCase() !== 'no') {
+                                            alerts.push({ type: 'warning', icon: Heart, label: 'Condición crónica activa', value: conditions, action: 'Monitoreo continuo recomendado' })
+                                        }
+                                        if (meds && meds.toLowerCase() !== 'ninguno' && meds.toLowerCase() !== 'no') {
+                                            alerts.push({ type: 'info', icon: Stethoscope, label: 'Medicación en curso', value: meds, action: 'Revisar posibles interacciones' })
+                                        }
+                                        if (scopes.share_medical_notes && lastNote) {
+                                            const daysSince = Math.floor((Date.now() - new Date(lastNote.created_at).getTime()) / 86400000)
+                                            if (daysSince > 60) {
+                                                alerts.push({ type: 'neutral', icon: RefreshCw, label: 'Seguimiento pendiente', value: `Sin notas desde hace ${daysSince} días`, action: 'Considera agregar una nota de evolución' })
+                                            }
+                                        } else if (scopes.share_medical_notes && notes.length === 0) {
+                                            alerts.push({ type: 'neutral', icon: StickyNote, label: 'Sin historial de evolución', value: 'No hay notas clínicas registradas aún', action: 'Agrega la primera nota para iniciar el expediente' })
+                                        }
+
+                                        if (alerts.length === 0) return (
+                                            <div className="pt-4 border-t border-gray-100">
+                                                <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-100 rounded-xl px-4 py-3">
+                                                    <ShieldCheck size={16} className="text-green-600 flex-shrink-0" />
+                                                    <span className="font-semibold">Sin señales clínicas de alerta registradas</span>
+                                                </div>
+                                            </div>
+                                        )
+
+                                        const colorMap = {
+                                            danger: { card: 'bg-red-50 border-red-200', title: 'text-red-700', sub: 'text-red-600', badge: 'bg-red-100 text-red-700' },
+                                            warning: { card: 'bg-orange-50 border-orange-200', title: 'text-orange-700', sub: 'text-orange-600', badge: 'bg-orange-100 text-orange-700' },
+                                            info: { card: 'bg-blue-50 border-blue-200', title: 'text-blue-700', sub: 'text-blue-600', badge: 'bg-blue-100 text-blue-700' },
+                                            neutral: { card: 'bg-gray-50 border-gray-200', title: 'text-gray-700', sub: 'text-gray-500', badge: 'bg-gray-100 text-gray-600' },
+                                        }
+
+                                        return (
+                                            <div className="space-y-3 pt-4 border-t border-gray-100">
+                                                <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                                                    <AlertTriangle size={16} className="text-orange-500" />
+                                                    Señales Clínicas
+                                                    <span className="ml-1 bg-orange-100 text-orange-600 text-[10px] font-bold px-2 py-0.5 rounded-full">{alerts.length}</span>
+                                                </h3>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    {alerts.map((a, i) => {
+                                                        const c = colorMap[a.type]
+                                                        const Icon = a.icon
+                                                        return (
+                                                            <div key={i} className={`flex items-start gap-3 p-3 rounded-xl border ${c.card}`}>
+                                                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${c.badge}`}>
+                                                                    <Icon size={15} />
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <p className={`text-[10px] font-bold uppercase tracking-wider ${c.sub}`}>{a.label}</p>
+                                                                    <p className={`text-sm font-semibold ${c.title} truncate`}>{a.value}</p>
+                                                                    {a.action && <p className="text-[10px] text-gray-400 mt-0.5">{a.action}</p>}
+                                                                </div>
+                                                            </div>
+                                                        )
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )
+                                    })()}
                                 </div>
                             )}
 
@@ -563,56 +725,75 @@ export default function PatientDetail() {
                             )}
 
                             {activeTab === 'notes' && scopes.share_medical_notes && (
-                                <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-300">
+                                <div className="space-y-5 animate-in slide-in-from-bottom-4 duration-300">
                                     {/* Create Note Form */}
-                                    <form onSubmit={handleCreateNote} className="bg-gray-50 p-4 rounded-xl space-y-3">
-                                        <div className="flex items-center gap-2 text-primary mb-1">
-                                            <Plus size={18} />
+                                    <form onSubmit={handleCreateNote} className="border border-primary/20 bg-primary/5 rounded-2xl p-4 space-y-3">
+                                        <div className="flex items-center gap-2 text-primary">
+                                            <StickyNote size={16} />
                                             <span className="text-sm font-bold">Nueva Nota Clínica</span>
                                         </div>
                                         <input
-                                            placeholder="Título de la nota (ej: Seguimiento de tratamiento)"
-                                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/40 focus:outline-none"
+                                            placeholder="Título (ej: Seguimiento post-consulta)"
+                                            className="w-full px-3 py-2.5 border border-gray-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none"
                                             value={newNote.title}
                                             onChange={e => setNewNote({ ...newNote, title: e.target.value })}
                                         />
                                         <textarea
-                                            placeholder="Describe la evolución, hallazgos o recomendaciones..."
+                                            placeholder="Evolución clínica, hallazgos, indicaciones, plan de tratamiento..."
                                             rows={4}
-                                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/40 focus:outline-none resize-none"
+                                            className="w-full px-3 py-2.5 border border-gray-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none resize-none"
                                             value={newNote.body}
                                             onChange={e => setNewNote({ ...newNote, body: e.target.value })}
                                             required
                                         />
-                                        <div className="flex justify-end">
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-[10px] text-gray-400 flex items-center gap-1">
+                                                <Lock size={10} /> Cifrada con AES-256
+                                            </p>
                                             <button
                                                 type="submit"
                                                 disabled={savingNote || !newNote.body.trim()}
-                                                className="px-4 py-2 bg-primary text-white text-sm font-bold rounded-lg hover:bg-teal-600 disabled:opacity-50 transition-all flex items-center gap-2"
+                                                className="px-5 py-2 bg-primary text-white text-sm font-bold rounded-xl hover:bg-teal-600 disabled:opacity-50 transition-all flex items-center gap-2 shadow-sm"
                                             >
-                                                {savingNote ? <Loader2 size={16} className="animate-spin" /> : <StickyNote size={16} />}
+                                                {savingNote ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
                                                 Guardar Nota
                                             </button>
                                         </div>
                                     </form>
 
-                                    {/* Notes Timeline */}
-                                    <div className="space-y-4">
-                                        <h3 className="text-sm font-bold text-gray-900">Historial de evolución</h3>
+                                    {/* Timeline */}
+                                    <div>
+                                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">
+                                            Historial de Evolución — {notes.length} {notes.length === 1 ? 'nota' : 'notas'}
+                                        </p>
                                         {notes.length === 0 ? (
-                                            <div className="text-center py-10 text-gray-400">
-                                                <StickyNote size={40} className="mx-auto mb-2 opacity-20" />
-                                                <p className="text-sm font-medium">Aún no hay notas para este paciente.</p>
+                                            <div className="text-center py-12 text-gray-400">
+                                                <div className="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                                                    <StickyNote size={24} className="opacity-40" />
+                                                </div>
+                                                <p className="text-sm font-semibold text-gray-500">Sin notas clínicas aún</p>
+                                                <p className="text-xs text-gray-400 mt-1">Las notas que agregues aparecerán aquí</p>
                                             </div>
                                         ) : (
-                                            <div className="space-y-4">
-                                                {notes.map(note => (
-                                                    <div key={note.id} className="border-l-2 border-primary/20 pl-4 py-1">
-                                                        <div className="flex items-center justify-between mb-1">
-                                                            <h4 className="font-bold text-gray-900 text-sm">{note.title || 'Nota Clínica'}</h4>
-                                                            <span className="text-[10px] font-bold text-gray-400 uppercase">{new Date(note.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                                            <div className="relative space-y-0 overflow-hidden">
+                                                {/* Timeline line */}
+                                                <div className="absolute left-[18px] top-5 bottom-5 w-0.5 bg-gray-100" />
+                                                {notes.map((note, idx) => (
+                                                    <div key={note.id} className="relative flex gap-4 pb-5 last:pb-0">
+                                                        {/* Dot */}
+                                                        <div className={`relative z-10 w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${idx === 0 ? 'bg-primary text-white shadow-md shadow-primary/30' : 'bg-white border-2 border-gray-200 text-gray-400'}`}>
+                                                            <StickyNote size={14} />
                                                         </div>
-                                                        <p className="text-sm text-gray-700 leading-relaxed">{note.body}</p>
+                                                        {/* Card */}
+                                                        <div className={`flex-1 rounded-2xl border p-4 ${idx === 0 ? 'bg-white border-primary/20 shadow-sm' : 'bg-gray-50 border-gray-100'}`}>
+                                                            <div className="flex items-start justify-between gap-2 mb-2">
+                                                                <h4 className="font-bold text-gray-900 text-sm leading-tight">{note.title || 'Nota Clínica'}</h4>
+                                                                <span className="text-[10px] font-semibold text-gray-400 whitespace-nowrap bg-gray-100 px-2 py-0.5 rounded-full">
+                                                                    {new Date(note.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{note.body}</p>
+                                                        </div>
                                                     </div>
                                                 ))}
                                             </div>
@@ -658,16 +839,16 @@ export default function PatientDetail() {
                                                         className="group flex items-center justify-between p-3 border border-gray-100 rounded-xl hover:border-primary/30 transition-all cursor-pointer"
                                                         onClick={() => navigate(mapDashboardPath(`/dashboard/consultas/${apt.id}`))}
                                                     >
-                                                        <div className="flex items-center gap-3">
-                                                            <div className={`w-10 h-10 rounded-lg flex flex-col items-center justify-center ${isPast ? 'bg-gray-100 text-gray-500' : 'bg-primary/10 text-primary'}`}>
+                                                        <div className="flex items-center gap-3 min-w-0">
+                                                            <div className={`w-10 h-10 rounded-lg flex flex-col items-center justify-center flex-shrink-0 ${isPast ? 'bg-gray-100 text-gray-500' : 'bg-primary/10 text-primary'}`}>
                                                                 <span className="text-[10px] font-bold uppercase">{new Date(apt.start_at).toLocaleDateString('es-MX', { month: 'short' })}</span>
                                                                 <span className="text-sm font-bold -mt-1">{new Date(apt.start_at).getDate()}</span>
                                                             </div>
-                                                            <div>
-                                                                <p className="text-sm font-bold text-gray-900 group-hover:text-primary transition-colors">
+                                                            <div className="min-w-0">
+                                                                <p className="text-sm font-bold text-gray-900 group-hover:text-primary transition-colors truncate">
                                                                     {apt.reason || 'Consulta médica'}
                                                                 </p>
-                                                                <p className="text-xs text-gray-500">
+                                                                <p className="text-xs text-gray-500 truncate">
                                                                     {new Date(apt.start_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
                                                                     {' · '}
                                                                     {new Date(apt.start_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
@@ -689,76 +870,100 @@ export default function PatientDetail() {
                     </div>
 
                     {/* Right Column: Actions and Highlights */}
-                    <div className="space-y-6">
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                            <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
-                                <Plus size={16} className="text-primary" />
-                                Acciones Rápidas
-                            </h3>
-                            <div className="grid grid-cols-1 gap-2">
-                                {scopes.share_appointments && (
-                                <button
-                                    onClick={() => navigate(mapDashboardPath(`/dashboard/consultas/nueva?patient=${patient.id}`))}
-                                    className="flex items-center gap-3 p-3 text-sm font-bold text-gray-700 hover:bg-primary/5 hover:text-primary rounded-lg transition-all group"
-                                >
-                                    <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-primary/10">
-                                        <Plus size={16} />
+                    <div className="space-y-4">
+                        {/* Activity Stats — hidden on mobile (shown in quick stats row above) */}
+                        <div className="hidden lg:block bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Actividad del Expediente</p>
+                            <div className="space-y-3">
+                                {[
+                                    { icon: StickyNote, label: 'Notas clínicas', value: notes.length, color: 'text-primary bg-primary/10', onClick: () => setActiveTab('notes') },
+                                    { icon: FileText, label: 'Documentos', value: documents.length + doctorDocs.length + patientSharedDocs.length, color: 'text-blue-600 bg-blue-50', onClick: () => setActiveTab('expediente') },
+                                    { icon: Calendar, label: 'Consultas', value: appointments.length, color: 'text-purple-600 bg-purple-50', onClick: null },
+                                ].map((s, i) => (
+                                    <div
+                                        key={i}
+                                        onClick={s.onClick ?? undefined}
+                                        className={`flex items-center gap-3 p-3 rounded-xl border border-gray-100 ${s.onClick ? 'cursor-pointer hover:border-primary/30 hover:bg-gray-50 transition-all' : ''}`}
+                                    >
+                                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${s.color}`}>
+                                            <s.icon size={16} />
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-xs text-gray-500 font-medium">{s.label}</p>
+                                        </div>
+                                        <span className="text-lg font-bold text-gray-900">{s.value}</span>
                                     </div>
-                                    Nueva Consulta
-                                </button>
-                                )}
-                                {scopes.share_documents && (
-                                <button
-                                    onClick={() => setActiveTab('expediente')}
-                                    className="flex items-center gap-3 p-3 text-sm font-bold text-gray-700 hover:bg-primary/5 hover:text-primary rounded-lg transition-all group"
-                                >
-                                    <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-primary/10">
-                                        <FileText size={16} />
-                                    </div>
-                                    Expediente Digital
-                                </button>
-                                )}
+                                ))}
                             </div>
-                        </div>
-
-                        {/* Insurance — only if medical notes scope */}
-                        {scopes.share_medical_notes && (
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 relative overflow-hidden">
-                            <div className="relative z-10">
-                                <p className="text-[10px] font-bold uppercase tracking-widest text-primary mb-1">Información de Seguro</p>
-                                <h3 className="text-lg font-bold text-gray-900 mb-4">{medProfile?.insurance_provider || pProfile.insurance_provider || 'Particular'}</h3>
-                                <div className="space-y-3">
-                                    <div className="flex items-center justify-between text-xs py-2 border-b border-gray-50">
-                                        <span className="text-gray-500 font-medium">Cobertura</span>
-                                        <span className="font-mono font-bold text-primary">Gestionada de forma segura</span>
-                                    </div>
-                                    <div className="flex items-center justify-between text-xs py-2">
-                                        <span className="text-gray-500 font-medium">Estatus</span>
-                                        <span className="bg-teal-50 text-teal-600 px-2 py-0.5 rounded font-bold uppercase border border-teal-100">Activo</span>
-                                    </div>
+                            {notes.length > 0 && (
+                                <div className="mt-3 pt-3 border-t border-gray-50 flex items-center gap-1.5 text-[11px] text-gray-400">
+                                    <Clock size={11} />
+                                    Última nota: {new Date(notes[0].created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
                                 </div>
-                            </div>
-                        </div>
-                        )}
-
-                        {/* Emergency Contact — only with contact scope */}
-                        {scopes.share_contact && (
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                            <h3 className="text-sm font-bold text-gray-900 mb-4">Contacto del Paciente</h3>
-                            <div className="space-y-1">
-                                <p className="text-sm font-bold text-gray-900">{patient.full_name || 'Paciente'}</p>
-                                <p className="text-xs text-gray-500">{contactInfo?.phone || '---'}</p>
-                            </div>
-                            {contactInfo?.phone && (
-                                <a
-                                    href={`tel:${contactInfo.phone}`}
-                                    className="mt-4 w-full inline-flex items-center justify-center gap-2 px-4 py-2 border border-red-100 text-red-600 font-bold rounded-lg hover:bg-red-50 transition-all text-xs"
-                                >
-                                    <Phone size={14} /> Llamar
-                                </a>
                             )}
                         </div>
+
+                        {/* Quick Actions */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Acciones Rápidas</p>
+                            <div className="space-y-2">
+                                {scopes.share_contact && (
+                                    <button
+                                        onClick={() => navigate(mapDashboardPath(`/dashboard/mensajes?with=${patient.id}`))}
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-primary/5 hover:text-primary rounded-xl transition-all group border border-transparent hover:border-primary/20"
+                                    >
+                                        <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                                            <MessageSquare size={15} />
+                                        </div>
+                                        Enviar Mensaje
+                                        <ChevronRight size={14} className="ml-auto text-gray-300 group-hover:text-primary/50" />
+                                    </button>
+                                )}
+                                {scopes.share_medical_notes && (
+                                    <button
+                                        onClick={() => setActiveTab('notes')}
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-primary/5 hover:text-primary rounded-xl transition-all group border border-transparent hover:border-primary/20"
+                                    >
+                                        <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                                            <StickyNote size={15} />
+                                        </div>
+                                        Nueva Nota Clínica
+                                        <ChevronRight size={14} className="ml-auto text-gray-300 group-hover:text-primary/50" />
+                                    </button>
+                                )}
+                                {scopes.share_documents && (
+                                    <button
+                                        onClick={() => setActiveTab('expediente')}
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-primary/5 hover:text-primary rounded-xl transition-all group border border-transparent hover:border-primary/20"
+                                    >
+                                        <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                                            <FileText size={15} />
+                                        </div>
+                                        Ver Expediente
+                                        <ChevronRight size={14} className="ml-auto text-gray-300 group-hover:text-primary/50" />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Insurance */}
+                        {scopes.share_medical_notes && (medProfile?.insurance_provider || pProfile.insurance_provider) && (
+                            <div className="bg-gradient-to-br from-teal-500 to-cyan-600 rounded-2xl p-5 text-white">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-teal-100 mb-1">Seguro Médico</p>
+                                <p className="text-base font-bold mt-1">{medProfile?.insurance_provider || pProfile.insurance_provider}</p>
+                                <div className="mt-3 flex items-center justify-between">
+                                    <span className="text-xs text-teal-100">Cobertura activa</span>
+                                    <span className="text-[10px] font-bold bg-white/20 px-2 py-0.5 rounded-full">ACTIVO</span>
+                                </div>
+                            </div>
                         )}
+
+
+                        {/* Privacy badge */}
+                        <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl">
+                            <Lock size={13} className="text-gray-400 flex-shrink-0" />
+                            <p className="text-[11px] text-gray-400 leading-snug">Datos cifrados con AES-256. Solo tú puedes ver este expediente.</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -834,13 +1039,13 @@ function DocCard({
                         }
                     </div>
                 ) : (
-                    <p className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
+                    <p className="text-[10px] text-gray-400 mt-0.5 flex flex-wrap items-center gap-x-1 gap-y-0.5">
                         {CATEGORY_LABELS[doc.category] || doc.category}
                         {onCategoryChange && (
                             <button
                                 type="button"
                                 onClick={() => setEditingCategory(true)}
-                                className="text-gray-300 hover:text-primary transition-colors"
+                                className="text-gray-300 hover:text-primary transition-colors p-0.5 rounded"
                                 title="Cambiar categoría"
                             >
                                 ✎
@@ -1018,24 +1223,24 @@ function ExpedienteDigital({
     return (
         <div className="space-y-6 animate-in fade-in duration-300">
             {/* Upload button / form */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <h3 className="text-sm font-bold text-gray-900">
                     Expediente de {patientName}
                 </h3>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-shrink-0">
                     <button
                         onClick={() => { setDocReqEmail(patientEmail || ''); setDocReqOpen(true) }}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white text-primary border border-primary text-xs font-bold rounded-lg hover:bg-primary/5 transition-colors"
+                        className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 bg-white text-primary border border-primary text-xs font-bold rounded-lg hover:bg-primary/5 transition-colors"
                     >
                         <FileUp size={14} />
-                        Solicitar documento
+                        Solicitar
                     </button>
                     <button
                         onClick={() => setShowUpload(v => !v)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-xs font-bold rounded-lg hover:bg-teal-600 transition-colors"
+                        className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 bg-primary text-white text-xs font-bold rounded-lg hover:bg-teal-600 transition-colors"
                     >
                         <Plus size={14} />
-                        Nuevo documento
+                        Nuevo doc
                     </button>
                 </div>
             </div>
@@ -1168,8 +1373,8 @@ function ExpedienteDigital({
 
             {/* Document Request Modal */}
             {docReqOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
+                    <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
                         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
                             <div className="flex items-center gap-2">
                                 <FileUp size={18} className="text-primary" />
@@ -1189,7 +1394,7 @@ function ExpedienteDigital({
                                     <span className="text-xs text-gray-700 truncate flex-1 font-mono">{docReqLink}</span>
                                     <button
                                         onClick={handleCopyLink}
-                                        className="shrink-0 flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary/80"
+                                        className="shrink-0 flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 px-2 py-1.5 rounded-md hover:bg-primary/5 transition-colors"
                                     >
                                         {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
                                         {copied ? 'Copiado' : 'Copiar'}

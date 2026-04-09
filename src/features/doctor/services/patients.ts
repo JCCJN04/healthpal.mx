@@ -221,7 +221,7 @@ export async function getPatientContactInfo(patientId: string) {
   return data
 }
 
-// Obtiene las notas clínicas de un paciente para un doctor específico
+// Obtiene las notas clínicas de un paciente — descifradas vía Edge Function
 export async function getPatientNotes(patientId: string, doctorId: string) {
   if (isDemoMode()) {
     return [
@@ -230,42 +230,60 @@ export async function getPatientNotes(patientId: string, doctorId: string) {
         patient_id: patientId,
         doctor_id: doctorId,
         title: 'Nota de seguimiento',
-        content: 'Paciente estable, continuar tratamiento actual.',
+        body: 'Paciente estable, continuar tratamiento actual.',
         created_at: new Date().toISOString(),
       },
     ]
   }
 
-  const { data, error } = await supabase
-    .from('patient_notes')
-    .select('*')
-    .eq('patient_id', patientId)
-    .eq('doctor_id', doctorId)
-    .order('created_at', { ascending: false })
+  // Call Edge Function to get decrypted notes
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return []
 
-  if (error) {
-    logger.error('getPatientNotes', error)
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const res = await fetch(
+    `${supabaseUrl}/functions/v1/patient-notes?patient_id=${patientId}&doctor_id=${doctorId}`,
+    { headers: { Authorization: `Bearer ${session.access_token}` } }
+  )
+
+  if (!res.ok) {
+    logger.error('getPatientNotes.edge', await res.text())
     return []
   }
 
-  return data
+  return res.json()
 }
 
-// Agrega una nueva nota clínica.
-// Plaintext note content is disabled by DB lockdown; this helper now guards callers
-// until encrypted write endpoint is implemented.
-export async function addPatientNote(_patientId: string, _doctorId: string, _title: string, _content: string) {
+// Agrega una nueva nota clínica cifrada vía Edge Function
+export async function addPatientNote(patientId: string, _doctorId: string, title: string, body: string) {
   if (isDemoMode()) {
     return {
       id: `demo-note-${Date.now()}`,
-      patient_id: _patientId,
+      patient_id: patientId,
       doctor_id: _doctorId,
-      title: _title,
-      content: _content,
+      title,
+      body,
+      created_at: new Date().toISOString(),
     }
   }
 
-  const err = new Error('La captura de notas clinicas requiere el flujo cifrado (pendiente de implementacion).')
-  logger.warn('addPatientNote.disabled', err)
-  throw err
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) throw new Error('No hay sesión activa')
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const res = await fetch(`${supabaseUrl}/functions/v1/patient-notes`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ patient_id: patientId, title, body }),
+  })
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Error desconocido' }))
+    throw new Error(err.error || 'Error al guardar la nota')
+  }
+
+  return res.json()
 }
