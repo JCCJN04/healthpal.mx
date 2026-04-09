@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation, Navigate } from 'react-router-dom'
-import { MailCheck, RefreshCw, ArrowLeft, HeartPulse } from 'lucide-react'
+import { MailCheck, RefreshCw, ArrowLeft } from 'lucide-react'
 import { supabase } from '@/shared/lib/supabase'
 import { showToast } from '@/shared/components/ui/Toast'
 import Button from '@/shared/components/ui/Button'
@@ -43,11 +43,8 @@ export default function VerifyEmail() {
         {/* Card */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
           {/* Logo */}
-          <div className="flex items-center justify-center gap-2 mb-8">
-            <HeartPulse className="w-7 h-7 text-primary" />
-            <span className="text-xl font-bold text-primary">
-              HealthPal<span className="text-gray-400 font-normal">.mx</span>
-            </span>
+          <div className="flex items-center justify-center mb-8">
+            <img src="/logo.png" alt="HealthPal.mx" className="h-64" />
           </div>
 
           {/* Icon */}

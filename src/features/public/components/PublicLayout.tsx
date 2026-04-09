@@ -16,11 +16,8 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200/60">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
-            <HeartPulse className="w-7 h-7 text-primary" />
-            <span className="text-xl font-bold text-primary tracking-tight">
-              HealthPal<span className="text-gray-400 font-normal">.mx</span>
-            </span>
+          <Link to="/">
+            <img src="/logo.png" alt="HealthPal.mx" className="h-48" />
           </Link>
 
           {/* Desktop nav */}
@@ -120,11 +117,8 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-10">
             {/* Brand */}
             <div className="sm:col-span-2 lg:col-span-1">
-              <Link to="/" className="flex items-center gap-2 mb-4">
-                <HeartPulse className="w-6 h-6 text-primary" />
-                <span className="text-lg font-bold text-white">
-                  HealthPal<span className="text-gray-500 font-normal">.mx</span>
-                </span>
+              <Link to="/" className="mb-4 inline-block">
+                <img src="/logo.png" alt="HealthPal.mx" className="h-48 brightness-0 invert" />
               </Link>
               <p className="text-sm leading-relaxed">
                 Plataforma integral de salud que conecta pacientes y doctores de

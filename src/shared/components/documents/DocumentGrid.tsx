@@ -19,6 +19,8 @@ interface DocumentGridProps {
   onRenameFolder: (folderId: string, currentName: string) => void
   onMoveDocument?: (docId: string, folderId: string | null) => void
   movingDocId?: string | null
+  onShareDocument?: (docId: string, title: string) => void
+  onShareFolder?: (folderId: string, folderName: string) => void
 }
 
 export const DocumentGrid = ({
@@ -29,7 +31,9 @@ export const DocumentGrid = ({
   onFolderClick,
   onRenameFolder,
   onMoveDocument,
-  movingDocId
+  movingDocId,
+  onShareDocument,
+  onShareFolder,
 }: DocumentGridProps) => {
   if (documents.length === 0 && folders.length === 0) {
     return (
@@ -54,6 +58,7 @@ export const DocumentGrid = ({
                 onDelete={onDeleteFolder}
                 onRename={onRenameFolder}
                 onDropDocument={onMoveDocument && !folder.id.startsWith('shared-') ? (docId) => onMoveDocument(docId, folder.id) : undefined}
+                onShare={onShareFolder}
               />
             ))}
           </div>
@@ -76,6 +81,7 @@ export const DocumentGrid = ({
                   e.dataTransfer.setData('text/plain', payload)
                 } : undefined}
                 isMoving={movingDocId === document.id}
+                onShare={onShareDocument}
               />
             ))}
           </div>

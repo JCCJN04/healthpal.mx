@@ -547,14 +547,53 @@ export async function deleteFolder(folderId: string, userId: string): Promise<{ 
     setDemoFoldersState(remainingFolders)
 
     const docs = getDemoDocumentsState()
-    const remappedDocs = docs.map((doc) => (doc.folder_id === folderId ? { ...doc, folder_id: null } : doc)) as Document[]
-    setDemoDocumentsState(remappedDocs)
+    const docsToDelete = docs.filter((doc) => doc.folder_id === folderId && doc.owner_id === userId)
+    const remainingDocs = docs.filter((doc) => !(doc.folder_id === folderId && doc.owner_id === userId)) as Document[]
+    setDemoDocumentsState(remainingDocs)
 
-    logger.info('demo:deleteFolder', { folderId, userId })
+    logger.info('demo:deleteFolder', { folderId, userId, deletedDocs: docsToDelete.length })
     return { success: true }
   }
 
   try {
+    // Fetch all documents in the folder owned by this user
+    const { data: docsInFolder, error: fetchError } = await supabase
+      .from('documents')
+      .select('id, owner_id, file_path, storage_path')
+      .eq('folder_id', folderId)
+      .eq('owner_id', userId)
+
+    if (fetchError) {
+      logger.error('deleteFolder.fetchDocs', fetchError)
+      return { success: false, error: fetchError.message }
+    }
+
+    // Delete files from storage
+    if (docsInFolder && docsInFolder.length > 0) {
+      const storagePaths: string[] = []
+      for (const doc of docsInFolder) {
+        const path = await resolveDocumentStoragePath(doc as DocumentPathInput)
+        if (path) storagePaths.push(path)
+      }
+      if (storagePaths.length > 0) {
+        const { error: storageError } = await supabase.storage.from('documents').remove(storagePaths)
+        if (storageError) logger.error('deleteFolder.storage', storageError)
+      }
+
+      // Delete document records
+      const { error: docsDeleteError } = await supabase
+        .from('documents')
+        .delete()
+        .eq('folder_id', folderId)
+        .eq('owner_id', userId)
+
+      if (docsDeleteError) {
+        logger.error('deleteFolder.deleteDocs', docsDeleteError)
+        return { success: false, error: docsDeleteError.message }
+      }
+    }
+
+    // Delete the folder
     const { error, count } = await supabase
       .from('folders')
       .delete({ count: 'exact' })
@@ -1216,3 +1255,81 @@ export async function getDoctorDocumentsForPatient(
   }
 }
 
+/**
+ * Fetch documents that a patient has shared with a specific doctor.
+ * Used in the patient expediente tab to show documents uploaded by the patient via solicitud.
+ */
+export async function getAllSharesByOwner(ownerId: string): Promise<Array<{
+  id: string
+  document_id: string
+  document_title: string
+  document_category: string
+  shared_with: string
+  shared_with_name: string | null
+  shared_with_email: string | null
+  shared_with_avatar: string | null
+  created_at: string
+}>> {
+  if (useInMemoryDemoDocuments()) return []
+
+  try {
+    const { data, error } = await supabase
+      .from('document_shares')
+      .select(`
+        id,
+        document_id,
+        shared_with,
+        created_at,
+        document:documents!document_shares_document_id_fkey(title, category),
+        recipient:profiles!document_shares_shared_with_fkey(id, full_name, email, avatar_url)
+      `)
+      .eq('shared_by', ownerId)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      logger.error('getAllSharesByOwner', error)
+      return []
+    }
+
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      document_id: row.document_id,
+      document_title: row.document?.title || 'Documento',
+      document_category: row.document?.category || 'other',
+      shared_with: row.shared_with,
+      shared_with_name: row.recipient?.full_name ?? null,
+      shared_with_email: row.recipient?.email ?? null,
+      shared_with_avatar: row.recipient?.avatar_url ?? null,
+      created_at: row.created_at,
+    }))
+  } catch (err) {
+    logger.error('getAllSharesByOwner', err)
+    return []
+  }
+}
+
+export async function getDocumentsSharedByPatientWithDoctor(
+  doctorId: string,
+  patientId: string
+): Promise<Document[]> {
+  try {
+    const { data, error } = await supabase
+      .from('document_shares')
+      .select('document:documents(*)')
+      .eq('shared_with', doctorId)
+      .eq('shared_by', patientId)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      logger.error('getDocumentsSharedByPatientWithDoctor', error)
+      return []
+    }
+
+    return (data || [])
+      .map((row: any) => row.document as Document)
+      .filter(Boolean)
+  } catch (err) {
+    logger.error('getDocumentsSharedByPatientWithDoctor', err)
+    return []
+  }
+}

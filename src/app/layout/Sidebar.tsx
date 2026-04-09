@@ -1,21 +1,14 @@
-import { ReactNode, useMemo, useEffect, useState } from 'react'
+import { ReactNode, useMemo } from 'react'
 import {
   Home,
   FileText,
-  Calendar,
-  MessageSquare,
   Users,
-  CalendarDays,
   Settings,
   X,
   LogOut,
-  Briefcase,
-  Clock,
-  Star,
 } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '@/app/providers/AuthContext'
-import { countPendingRequests } from '@/shared/lib/queries/consent'
 import { logger } from '@/shared/lib/logger'
 import { mapDashboardPath } from '@/context/DemoContext'
 
@@ -32,15 +25,7 @@ interface SidebarProps {
 
 export default function Sidebar({ onClose }: SidebarProps) {
   const location = useLocation()
-  const { profile, signOut, user } = useAuth()
-
-  // Pending consent count for patients
-  const [pendingCount, setPendingCount] = useState(0)
-  useEffect(() => {
-    if (user && profile?.role === 'patient') {
-      countPendingRequests(user.id).then(setPendingCount).catch(() => {})
-    }
-  }, [user, profile])
+  const { profile, signOut } = useAuth()
 
   const handleSignOut = async () => {
     try {
@@ -57,35 +42,25 @@ export default function Sidebar({ onClose }: SidebarProps) {
     if (isDoctor) {
       return [
         { label: 'Inicio', path: '/dashboard', icon: <Home size={20} /> },
-        { label: 'Documentos', path: '/dashboard/documentos', icon: <FileText size={20} /> },
-        { label: 'Consultas', path: '/dashboard/consultas', icon: <CalendarDays size={20} /> },
-        { label: 'Mensajes', path: '/dashboard/mensajes', icon: <MessageSquare size={20} /> },
         { label: 'Pacientes', path: '/dashboard/pacientes', icon: <Users size={20} /> },
-        { label: 'Servicios', path: '/dashboard/servicios', icon: <Briefcase size={20} /> },
-        { label: 'Reseñas', path: '/dashboard/resenas-doctor', icon: <Star size={20} /> },
-        { label: 'Disponibilidad', path: '/dashboard/disponibilidad', icon: <Clock size={20} /> },
-        { label: 'Calendario', path: '/dashboard/calendario', icon: <Calendar size={20} /> },
+        { label: 'Documentos', path: '/dashboard/documentos', icon: <FileText size={20} /> },
         { label: 'Configuracion', path: '/dashboard/configuracion', icon: <Settings size={20} /> },
       ]
     }
 
     return [
       { label: 'Inicio', path: '/dashboard', icon: <Home size={20} /> },
-      { label: 'Documentos', path: '/dashboard/documentos', icon: <FileText size={20} /> },
-      { label: 'Consultas', path: '/dashboard/consultas', icon: <CalendarDays size={20} /> },
-      { label: 'Mensajes', path: '/dashboard/mensajes', icon: <MessageSquare size={20} /> },
       { label: 'Doctores', path: '/dashboard/doctores', icon: <Users size={20} /> },
-      { label: 'Reseñas', path: '/dashboard/resenas', icon: <Star size={20} /> },
-      { label: 'Calendario', path: '/dashboard/calendario', icon: <Calendar size={20} /> },
-      { label: 'Configuracion', path: '/dashboard/configuracion', icon: <Settings size={20} />, badge: pendingCount },
+      { label: 'Documentos', path: '/dashboard/documentos', icon: <FileText size={20} /> },
+      { label: 'Configuracion', path: '/dashboard/configuracion', icon: <Settings size={20} /> },
     ]
-  }, [profile, pendingCount])
+  }, [profile])
 
   return (
     <aside className="w-64 bg-white border-r border-gray-200 h-full flex flex-col">
       {/* Mobile header with close button */}
       <div className="lg:hidden flex items-center justify-between p-4 border-b border-gray-200">
-        <h1 className="text-xl font-bold text-primary">Healthpal.mx</h1>
+        <img src="/logo.png" alt="HealthPal.mx" className="h-48" />
         <button
           onClick={onClose}
           className="p-2 hover:bg-gray-100 rounded-lg transition-colors"

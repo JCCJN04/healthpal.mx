@@ -1,4 +1,4 @@
-import { MoreVertical, Folder, Trash2, Edit } from 'lucide-react'
+import { MoreVertical, Folder, Trash2, Edit, Share2 } from 'lucide-react'
 import { useState } from 'react'
 
 interface FolderCardProps {
@@ -12,9 +12,10 @@ interface FolderCardProps {
     onDelete: (folderId: string) => void
     onRename: (folderId: string, currentName: string) => void
     onDropDocument?: (docId: string, folderId: string) => void
+    onShare?: (folderId: string, folderName: string) => void
 }
 
-export const FolderCard = ({ folder, onClick, onDelete, onRename, onDropDocument }: FolderCardProps) => {
+export const FolderCard = ({ folder, onClick, onDelete, onRename, onDropDocument, onShare }: FolderCardProps) => {
     const [menuOpen, setMenuOpen] = useState(false)
     const [isDragOver, setIsDragOver] = useState(false)
 
@@ -55,7 +56,7 @@ export const FolderCard = ({ folder, onClick, onDelete, onRename, onDropDocument
                 setIsDragOver(false)
             }}
             onDrop={handleDrop}
-            className={`bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 border ${isDragOver ? 'border-[#33C7BE] ring-2 ring-[#33C7BE]/30' : 'border-transparent hover:border-[#33C7BE]/20'} group cursor-pointer p-4`}
+            className={`bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 border ${isDragOver ? 'border-primary ring-2 ring-primary/30' : 'border-transparent hover:border-primary/20'} group cursor-pointer p-4`}
         >
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -78,7 +79,7 @@ export const FolderCard = ({ folder, onClick, onDelete, onRename, onDropDocument
                 <div className="relative">
                     <button
                         onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
-                        className="p-1.5 hover:bg-gray-100 rounded-full transition-colors opacity-0 group-hover:opacity-100"
+                        className="p-1.5 hover:bg-gray-100 rounded-full transition-colors opacity-50 group-hover:opacity-100 cursor-pointer"
                     >
                         <MoreVertical size={18} className="text-gray-400" />
                     </button>
@@ -89,7 +90,16 @@ export const FolderCard = ({ folder, onClick, onDelete, onRename, onDropDocument
                                 className="fixed inset-0 z-20"
                                 onClick={(e) => { e.stopPropagation(); setMenuOpen(false); }}
                             />
-                            <div className="absolute right-0 top-full mt-1 w-40 bg-white rounded-lg shadow-xl border border-gray-100 py-1 z-30 ring-1 ring-black ring-opacity-5">
+                            <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-lg shadow-xl border border-gray-100 py-1 z-30 ring-1 ring-black ring-opacity-5">
+                                {onShare && !folder.id.startsWith('shared-') && (
+                                    <button
+                                        onClick={(e) => handleMenuClick(e, () => onShare(folder.id, folder.name))}
+                                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                                    >
+                                        <Share2 size={14} />
+                                        Compartir
+                                    </button>
+                                )}
                                 <button
                                     onClick={(e) => handleMenuClick(e, () => onRename(folder.id, folder.name))}
                                     className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
