@@ -8,7 +8,8 @@ import {
   Download,
   Trash2,
   Eye,
-  Folder as FolderIcon
+  Folder as FolderIcon,
+  UserCircle,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
@@ -22,6 +23,9 @@ type Folder = {
   name: string
   color: string
   created_at: string
+  avatarUrl?: string | null
+  subtitle?: string | null
+  docCount?: number
 }
 
 interface DocumentsTableProps {
@@ -204,20 +208,50 @@ const FolderRow = ({ folder, onClick, onMoveDocument }: { folder: Folder; onClic
     >
       <td className="py-3 md:py-4 px-3 md:px-6">
         <div className="flex items-center gap-2 md:gap-3">
-          <div className="flex-shrink-0 text-[#33C7BE]">
-            <FolderIcon size={20} fill="currentColor" className="opacity-20 text-[#33C7BE]" />
-            <FolderIcon size={20} className="absolute -mt-5" />
+          <div className="flex-shrink-0">
+            {folder.id.startsWith('shared-') ? (
+              folder.avatarUrl ? (
+                <img
+                  src={folder.avatarUrl}
+                  alt={folder.name}
+                  className="w-8 h-8 rounded-full object-cover ring-2 ring-primary/20"
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-teal-600 flex items-center justify-center text-white">
+                  <UserCircle size={18} />
+                </div>
+              )
+            ) : (
+              <div className="relative text-[#33C7BE]">
+                <FolderIcon size={20} fill="currentColor" className="opacity-20" />
+                <FolderIcon size={20} className="absolute inset-0" />
+              </div>
+            )}
           </div>
-          <span className="text-xs md:text-sm text-gray-900 font-medium group-hover:text-[#33C7BE] transition-colors text-left truncate max-w-[200px] md:max-w-[260px] inline-block align-middle">
-            {folder.name}
-          </span>
+          <div className="min-w-0">
+            <span className="text-xs md:text-sm text-gray-900 font-medium group-hover:text-[#33C7BE] transition-colors truncate max-w-[180px] md:max-w-[240px] block">
+              {folder.name}
+            </span>
+            {folder.id.startsWith('shared-') && (
+              <span className="text-[10px] text-primary font-semibold uppercase tracking-wide">
+                {folder.subtitle ?? 'Compartido'}
+              </span>
+            )}
+          </div>
         </div>
       </td>
       <td className="py-3 md:py-4 px-3 md:px-6 text-center hidden md:table-cell">
         <span className="text-sm text-gray-600">{formatDate(folder.created_at)}</span>
       </td>
       <td className="py-3 md:py-4 px-3 md:px-6 text-center hidden lg:table-cell">
-        <span className="text-xs md:text-sm text-gray-600">-</span>
+        {folder.id.startsWith('shared-') && folder.docCount !== undefined && folder.docCount > 0 ? (
+          <span className="text-xs font-semibold bg-primary/10 text-primary rounded-full px-2 py-0.5">
+            {folder.docCount} doc{folder.docCount !== 1 ? 's' : ''}
+          </span>
+        ) : (
+          <span className="text-xs md:text-sm text-gray-600">-</span>
+        )}
       </td>
       <td className="py-3 md:py-4 px-3 md:px-6 text-right">
         {/* Placeholder for alignment, folders usually have their own management actions but valid here too */}

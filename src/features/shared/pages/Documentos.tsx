@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react'
-import { Upload, Search, FileText, Loader2, Plus, FileUp, X, Copy, Check, Activity, Pill, Microscope, ShieldCheck, Users } from 'lucide-react'
+import { Upload, Search, FileText, Loader2, Plus, FileUp, X, Copy, Check, Activity, Pill, Microscope, ShieldCheck, Users, Link2, MessageCircle, Share2, ChevronLeft, UserCircle } from 'lucide-react'
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import ViewToggle from '@/shared/components/ui/ViewToggle'
 import DocumentsTable from '@/shared/components/documents/DocumentsTable'
 import { DocumentGrid } from '@/shared/components/documents/DocumentGrid'
+import { DocumentPreviewModal } from '@/shared/components/documents/DocumentPreviewModal'
 import { ShareModal, type KnownDoctor } from '@/shared/components/documents/ShareModal'
 import { AccessPanel } from '@/shared/components/documents/AccessPanel'
 import { useAuth } from '@/app/providers/AuthContext'
-import { getUserDocuments, getDocumentsSharedWithMe, uploadDocument, deleteDocument, getFolders, createFolder, deleteFolder, updateFolder, updateDocument, shareDocumentWithUser } from '@/shared/lib/queries/documents'
-import { getPatientDoctorAccess } from '@/shared/lib/queries/consent'
+import { getUserDocuments, getDocumentsSharedWithMe, getDocumentsSharedByMeWith, uploadDocument, deleteDocument, getFolders, createFolder, deleteFolder, updateFolder, updateDocument, shareDocumentWithUser, saveExternalUrlDocument } from '@/shared/lib/queries/documents'
+import { getPatientDoctorAccess, getDoctorConsentRequests } from '@/shared/lib/queries/consent'
 import { createDocumentRequest } from '@/shared/lib/queries/documentRequests'
 import { showToast } from '@/shared/components/ui/Toast'
 import { validateFile } from '@/shared/lib/errors'
@@ -22,6 +23,10 @@ type Folder = {
   name: string
   color: string
   created_at: string
+  avatarUrl?: string | null
+  subtitle?: string | null
+  docCount?: number
+  hasNew?: boolean
 }
 
 const CATEGORIES = [
@@ -61,6 +66,7 @@ export default function Documentos() {
   const [uploading, setUploading] = useState(false)
   const [currentFolder, setCurrentFolder] = useState<{ id: string | null; name: string }>({ id: null, name: 'Mis Documentos' })
   const [navHistory, setNavHistory] = useState<{ id: string | null; name: string }[]>([])
+  const [currentFolderInfo, setCurrentFolderInfo] = useState<{ avatarUrl?: string | null; subtitle?: string | null } | null>(null)
   const [sharedDocs, setSharedDocs] = useState<Array<{ doc: Document; senderId: string }>>([])
   const [_sharedFolders, setSharedFolders] = useState<Folder[]>([])
   const [movingDocId, setMovingDocId] = useState<string | null>(null)
@@ -75,6 +81,7 @@ export default function Documentos() {
   const [docReqLink, setDocReqLink] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [dragOver, setDragOver] = useState(false)
+  const [sortBy, setSortBy] = useState<'date' | 'name'>('date')
 
   // Share modal state
   const [shareTarget, setShareTarget] = useState<{
@@ -85,6 +92,9 @@ export default function Documentos() {
   } | null>(null)
   const [accessPanelOpen, setAccessPanelOpen] = useState(false)
   const [knownDoctors, setKnownDoctors] = useState<KnownDoctor[]>([])
+
+  // Document preview modal
+  const [previewDoc, setPreviewDoc] = useState<Document | null>(null)
 
   const [uploadForm, setUploadForm] = useState<{
     file: File | null
@@ -98,13 +108,23 @@ export default function Documentos() {
     notes: '',
   })
 
+  // URL-link mode (for radiology/lab links instead of file upload)
+  const [urlMode, setUrlMode] = useState(false)
+  const [urlForm, setUrlForm] = useState<{
+    url: string
+    title: string
+    category: DocCategory
+    notes: string
+  }>({ url: '', title: '', category: 'radiology', notes: '' })
+  const [savingUrl, setSavingUrl] = useState(false)
+
   useEffect(() => {
     loadContent(currentFolder.id)
   }, [user, currentFolder.id])
 
   useEffect(() => {
     filterContent()
-  }, [documents, folders, searchQuery, selectedCategory])
+  }, [documents, folders, searchQuery, selectedCategory, currentFolder.id, sortBy])
 
   // Load known doctors for patient quick-select in ShareModal
   useEffect(() => {
@@ -135,14 +155,21 @@ export default function Documentos() {
     ])
 
     // Drop imported copies (owner = me, uploaded_by != me) to avoid duplicates
-    const cleanedOwn = ownDocs.filter(doc => !(doc.owner_id === user.id && doc.uploaded_by !== user.id))
+    // Also drop docs uploaded for a patient context (patient_id != user.id) from root view
+    const cleanedOwn = ownDocs.filter(doc =>
+      !(doc.owner_id === user.id && doc.uploaded_by !== user.id) &&
+      (!doc.patient_id || doc.patient_id === user.id)
+    )
 
     const sharedEntries = (shared as any[]) // document payload comes from join
       .map((s) => ({
         doc: (s as any).document as Document,
         senderId: (s as any).sender?.id || 'shared',
         senderName: (s as any).sender?.full_name || (s as any).sender?.email || 'Compartido',
-        senderEmail: (s as any).sender?.email || ''
+        senderEmail: (s as any).sender?.email || '',
+        senderAvatarUrl: (s as any).sender?.avatar_url || null,
+        senderRole: (s as any).sender?.role || null,
+        senderSpecialty: (s as any).sender?.doctor_profile?.specialty || null,
       }))
       .filter(entry => !!entry.doc)
 
@@ -151,17 +178,63 @@ export default function Documentos() {
     sharedEntries.forEach(entry => { if (entry.senderEmail) emailMap.set(entry.senderId, entry.senderEmail) })
     setSenderEmailMap(emailMap)
 
-    // Build synthetic shared folders by sender, short name = patient name/email only
-    const sharedFolderMap = new Map<string, string>()
+    // Build synthetic shared folders by sender
+    const senderMetaMap = new Map<string, { name: string; avatarUrl: string | null; role: string | null; specialty: string | null }>()
     sharedEntries.forEach(entry => {
-      sharedFolderMap.set(entry.senderId, entry.senderName)
+      if (!senderMetaMap.has(entry.senderId)) {
+        senderMetaMap.set(entry.senderId, {
+          name: entry.senderName,
+          avatarUrl: entry.senderAvatarUrl,
+          role: entry.senderRole,
+          specialty: entry.senderSpecialty,
+        })
+      }
     })
-    const syntheticSharedFolders: Folder[] = Array.from(sharedFolderMap.entries()).map(([senderId, name]) => ({
+
+    // Count docs per sender and track newest doc date
+    const NEW_THRESHOLD_MS = 48 * 60 * 60 * 1000 // 48 hours
+    const docCountBySender = new Map<string, number>()
+    const latestDocBySender = new Map<string, number>()
+    sharedEntries.forEach(entry => {
+      docCountBySender.set(entry.senderId, (docCountBySender.get(entry.senderId) ?? 0) + 1)
+      const docTime = new Date(entry.doc.created_at).getTime()
+      const prev = latestDocBySender.get(entry.senderId) ?? 0
+      if (docTime > prev) latestDocBySender.set(entry.senderId, docTime)
+    })
+
+    const syntheticSharedFolders: Folder[] = Array.from(senderMetaMap.entries()).map(([senderId, meta]) => ({
       id: `shared-${senderId}`,
-      name,
+      name: meta.name,
       color: '#33C7BE',
       created_at: new Date().toISOString(),
+      avatarUrl: meta.avatarUrl,
+      subtitle: meta.role === 'doctor' ? (meta.specialty ?? 'Doctor') : null,
+      docCount: docCountBySender.get(senderId) ?? 0,
+      hasNew: (Date.now() - (latestDocBySender.get(senderId) ?? 0)) < NEW_THRESHOLD_MS,
     }))
+
+    // For doctors at root level: also include consented patients who haven't shared docs yet
+    if (profile?.role === 'doctor' && !folderId) {
+      const consentedPatients = await getDoctorConsentRequests(user.id)
+      const existingIds = new Set(syntheticSharedFolders.map(f => f.id))
+      consentedPatients
+        .filter(c => c.status === 'accepted' && c.patient?.id)
+        .forEach(c => {
+          const fid = `shared-${c.patient!.id}`
+          if (!existingIds.has(fid)) {
+            syntheticSharedFolders.push({
+              id: fid,
+              name: c.patient!.full_name || c.patient!.email || 'Paciente',
+              color: '#33C7BE',
+              created_at: new Date().toISOString(),
+              avatarUrl: c.patient!.avatar_url ?? null,
+              subtitle: null,
+              docCount: 0,
+              hasNew: false,
+            })
+          }
+        })
+    }
 
     // Remove legacy imported shared folders from DB to avoid clutter
     const ownFoldersInitial = await getFolders(user.id, isSharedFolder ? null : folderId)
@@ -179,9 +252,26 @@ export default function Documentos() {
 
     const targetSenderId = isSharedFolder ? folderId?.replace('shared-', '') ?? null : null
 
-    const docsForView = isSharedFolder
-      ? sharedEntries.filter(e => e.senderId === targetSenderId).map(e => e.doc)
-      : cleanedOwn
+    // For shared patient folder: merge patient→doctor AND doctor→patient shares
+    let docsForView: Document[]
+    if (isSharedFolder && targetSenderId) {
+      const patientToDoctorDocs = sharedEntries
+        .filter(e => e.senderId === targetSenderId)
+        .map(e => e.doc)
+
+      const outbound = await getDocumentsSharedByMeWith(user.id, targetSenderId)
+      const doctorToPatientDocs = (outbound as any[])
+        .map(s => (s as any).document as Document)
+        .filter(Boolean)
+
+      // Merge and deduplicate by doc ID
+      const merged = new Map<string, Document>()
+      patientToDoctorDocs.forEach(d => merged.set(d.id, d))
+      doctorToPatientDocs.forEach(d => merged.set(d.id, d))
+      docsForView = Array.from(merged.values())
+    } else {
+      docsForView = cleanedOwn
+    }
 
     // Dedup folders by id and hide synthetic shared folders when inside any folder
     const finalFolders = isSharedFolder
@@ -212,11 +302,21 @@ export default function Documentos() {
       filtFlds = filtFlds.filter(f => f.name.toLowerCase().includes(search))
     }
 
-    // Filter by category
-    if (selectedCategory !== 'all') {
+    // Category filter: inside any folder (not root)
+    if (selectedCategory !== 'all' && currentFolder.id) {
       filtDocs = filtDocs.filter(doc => doc.category === selectedCategory)
-      // Hide all folders when filtering by category unless they match search (folders don't have categories)
       if (!searchQuery) filtFlds = []
+    }
+
+    // Sort at root level
+    if (!currentFolder.id) {
+      if (sortBy === 'name') {
+        filtFlds = [...filtFlds].sort((a, b) => a.name.localeCompare(b.name, 'es-MX'))
+        filtDocs = [...filtDocs].sort((a, b) => a.title.localeCompare(b.title, 'es-MX'))
+      } else {
+        filtFlds = [...filtFlds].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        filtDocs = [...filtDocs].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      }
     }
 
     setFilteredDocuments(filtDocs)
@@ -236,11 +336,13 @@ export default function Documentos() {
     }
 
     setUploading(true)
+    const patientIdForUpload = currentFolder.id?.startsWith('shared-') ? currentFolder.id.replace('shared-', '') : null
     const result = await uploadDocument(uploadForm.file, user.id, {
       title: uploadForm.title || uploadForm.file.name,
       category: uploadForm.category,
       notes: uploadForm.notes,
-      folderId: currentFolder.id?.startsWith('shared-') ? null : currentFolder.id
+      folderId: patientIdForUpload ? null : currentFolder.id,
+      patientId: patientIdForUpload,
     })
 
     if (result.success && result.documentId) {
@@ -263,8 +365,14 @@ export default function Documentos() {
         return
       }
 
+      // Auto-share with patient when uploading from their shared folder
+      if (currentFolder.id?.startsWith('shared-')) {
+        const patientId = currentFolder.id.replace('shared-', '')
+        await shareDocumentWithUser(result.documentId, user.id, { userId: patientId }, {
+          senderProfile: { full_name: profile?.full_name, email: user.email },
+        })
+      }
       showToast("Documento subido correctamente", "success")
-      loadContent(currentFolder.id)
       setUploadForm({
         file: null,
         title: '',
@@ -369,6 +477,10 @@ export default function Documentos() {
   const handleFolderClick = (id: string, name: string) => {
     setNavHistory(prev => [...prev, currentFolder])
     setCurrentFolder({ id, name })
+    setSelectedCategory('all')
+    setSearchQuery('')
+    const folderMeta = folders.find(f => f.id === id)
+    setCurrentFolderInfo(folderMeta ? { avatarUrl: folderMeta.avatarUrl, subtitle: folderMeta.subtitle } : null)
   }
 
   const handleBackNavigation = (index: number) => {
@@ -380,6 +492,9 @@ export default function Documentos() {
       setCurrentFolder(target)
       setNavHistory(navHistory.slice(0, index))
     }
+    setCurrentFolderInfo(null)
+    setSelectedCategory('all')
+    setSearchQuery('')
   }
 
   const handleCreateDocRequest = async (e: React.FormEvent) => {
@@ -414,6 +529,49 @@ export default function Documentos() {
     setDocReqType('')
     setDocReqDesc('')
     setCopied(false)
+  }
+
+  const handleSaveUrl = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user) return
+    let url = urlForm.url.trim()
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://' + url
+    }
+    setSavingUrl(true)
+    const patientIdForUrl = currentFolder.id?.startsWith('shared-') ? currentFolder.id.replace('shared-', '') : null
+    const result = await saveExternalUrlDocument(user.id, {
+      title: urlForm.title,
+      category: urlForm.category,
+      external_url: url,
+      notes: urlForm.notes,
+      folderId: patientIdForUrl ? null : currentFolder.id,
+      patientId: patientIdForUrl,
+    })
+    setSavingUrl(false)
+    if (result.success) {
+      // Auto-share with patient when saving from their shared folder
+      if (result.documentId && currentFolder.id?.startsWith('shared-')) {
+        const patientId = currentFolder.id.replace('shared-', '')
+        await shareDocumentWithUser(result.documentId, user.id, { userId: patientId }, {
+          senderProfile: { full_name: profile?.full_name, email: user.email },
+        })
+      }
+      showToast('Enlace guardado correctamente', 'success')
+      setUploadModalOpen(false)
+      setUrlMode(false)
+      setUrlForm({ url: '', title: '', category: 'radiology', notes: '' })
+      loadContent(currentFolder.id)
+    } else {
+      showToast(result.error || 'Error al guardar el enlace', 'error')
+    }
+  }
+
+  const handleShareViaWhatsApp = () => {
+    if (!docReqLink) return
+    const doctorName = profile?.full_name ? `Dr(a). ${profile.full_name}` : 'Tu médico'
+    const text = `Hola, ${doctorName} te solicita que subas un documento médico de forma segura.\n\n📎 *Documento:* ${docReqType}\n\n🔗 Haz clic aquí para subirlo:\n${docReqLink}\n\n_El enlace vence en 7 días._`
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener')
   }
 
   // ─── Sharing handlers ─────────────────────────────────────────────────────
@@ -484,108 +642,231 @@ export default function Documentos() {
     <DashboardLayout>
       <div className="space-y-4 pb-4">
 
-        {/* Premium Header */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-teal-600 p-6 md:p-7 text-white shadow-lg">
-          <div className="absolute top-0 right-0 bottom-0 w-72 opacity-10 pointer-events-none"
-            style={{ background: 'radial-gradient(circle, white 1.5px, transparent 1.5px)', backgroundSize: '22px 22px' }} />
-          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold leading-tight">
-                {currentFolder.id ? currentFolder.name : 'Mis Documentos'}
-              </h1>
-              <p className="text-sm text-white/75 mt-1">
-                {currentFolder.id?.startsWith('shared-')
-                  ? 'Documentos compartidos contigo por este paciente'
-                  : currentFolder.id
-                    ? 'Carpeta de documentos'
-                    : 'Administra y organiza tus archivos médicos'}
-              </p>
-            </div>
-            {/* Stats pills */}
-            <div className="flex items-center gap-2.5 flex-wrap shrink-0">
-              <div className="bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2 border border-white/10 text-center min-w-[60px]">
-                <p className="text-xl font-bold">{documents.length}</p>
-                <p className="text-[10px] text-white/70 font-medium">Archivos</p>
+        {/* Header */}
+        {profile?.role === 'patient' && !currentFolder.id ? (
+          /* ── Patient root: Duolingo-style hero ── */
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-teal-500 to-cyan-500 p-5 md:p-6 text-white shadow-lg">
+            <div className="absolute inset-0 opacity-10 pointer-events-none"
+              style={{ background: 'radial-gradient(circle at 80% 20%, white 1px, transparent 1px)', backgroundSize: '18px 18px' }} />
+            <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <p className="text-white/70 text-sm font-medium mb-0.5">Bienvenido</p>
+                <h1 className="text-2xl md:text-3xl font-black leading-tight tracking-tight">
+                  {profile?.full_name?.split(' ')[0] ?? 'Mis Documentos'}
+                </h1>
+                <p className="text-white/75 text-sm mt-1">Tus documentos y los de tus médicos</p>
               </div>
-              <div className="bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2 border border-white/10 text-center min-w-[60px]">
-                <p className="text-xl font-bold">{new Set(documents.map(d => d.category)).size}</p>
-                <p className="text-[10px] text-white/70 font-medium">Categorías</p>
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-4 py-2.5 border border-white/10 text-center">
+                  <p className="text-2xl font-black">{documents.length}</p>
+                  <p className="text-[10px] text-white/70 font-semibold uppercase tracking-wide">Archivos</p>
+                </div>
+                <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-4 py-2.5 border border-white/10 text-center">
+                  <p className="text-2xl font-black">{folders.filter(f => f.id.startsWith('shared-')).length}</p>
+                  <p className="text-[10px] text-white/70 font-semibold uppercase tracking-wide">Médicos</p>
+                </div>
               </div>
             </div>
-          </div>
-          {/* Action buttons row inside header */}
-          <div className="relative z-10 flex items-center gap-2 mt-5 flex-wrap">
-            {profile?.role === 'patient' && (
+            <div className="relative z-10 flex items-center gap-2 mt-4 flex-wrap">
+              <button
+                onClick={() => setUploadModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-white text-primary text-sm font-black rounded-xl hover:bg-white/90 transition-all shadow-md"
+              >
+                <Upload size={15} />
+                Subir documento
+              </button>
               <button
                 onClick={() => setAccessPanelOpen(true)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-white/20 hover:bg-white/30 border border-white/20 text-white text-sm font-semibold rounded-xl transition-all backdrop-blur-sm"
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-white/20 hover:bg-white/30 border border-white/20 text-white text-sm font-semibold rounded-xl transition-all"
               >
                 <Users size={15} />
                 Ver accesos
               </button>
-            )}
-            {profile?.role === 'doctor' && currentFolder.id?.startsWith('shared-') && (
               <button
-                onClick={() => {
-                  const senderId = currentFolder.id!.replace('shared-', '')
-                  setDocReqEmail(senderEmailMap.get(senderId) || '')
-                  setDocReqOpen(true)
-                }}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-white/20 hover:bg-white/30 border border-white/20 text-white text-sm font-semibold rounded-xl transition-all backdrop-blur-sm"
+                onClick={() => setFolderModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-white/20 hover:bg-white/30 border border-white/20 text-white text-sm font-semibold rounded-xl transition-all"
               >
-                <FileUp size={15} />
-                Solicitar documento
+                <Plus size={15} />
+                Nueva carpeta
               </button>
-            )}
-            <button
-              onClick={() => setFolderModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-white/20 hover:bg-white/30 border border-white/20 text-white text-sm font-semibold rounded-xl transition-all backdrop-blur-sm"
-            >
-              <Plus size={15} />
-              Nueva Carpeta
-            </button>
-            <button
-              onClick={() => setUploadModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-white text-primary text-sm font-bold rounded-xl hover:bg-white/90 transition-all shadow-sm"
-            >
-              <Upload size={15} />
-              Subir Documento
-            </button>
+            </div>
           </div>
-        </div>
+
+        ) : profile?.role === 'patient' && currentFolder.id?.startsWith('shared-') ? (
+          /* ── Patient inside a doctor's folder: profile card header ── */
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="h-1.5 w-full bg-gradient-to-r from-primary to-teal-400" />
+            <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+              {/* Back + avatar + info */}
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <button
+                  onClick={() => handleBackNavigation(-1)}
+                  className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-400 hover:text-gray-700 shrink-0"
+                  aria-label="Volver"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+                {currentFolderInfo?.avatarUrl ? (
+                  <img
+                    src={currentFolderInfo.avatarUrl}
+                    alt={currentFolder.name}
+                    className="w-14 h-14 rounded-full object-cover ring-4 ring-primary/20 shadow-md shrink-0"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                  />
+                ) : (
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary to-teal-600 flex items-center justify-center ring-4 ring-primary/20 shadow-md shrink-0">
+                    <UserCircle size={30} className="text-white" />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <h1 className="text-lg font-black text-gray-900 leading-tight truncate">{currentFolder.name}</h1>
+                  {currentFolderInfo?.subtitle && (
+                    <span className="inline-block mt-1 text-[11px] font-bold uppercase tracking-wider bg-primary/10 text-primary rounded-full px-2.5 py-0.5">
+                      {currentFolderInfo.subtitle}
+                    </span>
+                  )}
+                </div>
+              </div>
+              {/* Stats + upload */}
+              <div className="flex items-center gap-2 sm:shrink-0">
+                <div className="bg-gray-50 rounded-xl px-4 py-2 text-center border border-gray-100">
+                  <p className="text-xl font-black text-gray-900">{documents.length}</p>
+                  <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Archivos</p>
+                </div>
+                <button
+                  onClick={() => setUploadModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-primary text-white text-sm font-black rounded-xl hover:bg-primary/90 transition-all shadow-md"
+                >
+                  <Upload size={15} />
+                  Subir
+                </button>
+              </div>
+            </div>
+          </div>
+
+        ) : (
+          /* ── Doctor header OR patient inside own folder ── */
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-teal-600 p-6 md:p-7 text-white shadow-lg">
+            <div className="absolute top-0 right-0 bottom-0 w-72 opacity-10 pointer-events-none"
+              style={{ background: 'radial-gradient(circle, white 1.5px, transparent 1.5px)', backgroundSize: '22px 22px' }} />
+            <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold leading-tight">
+                  {currentFolder.id ? currentFolder.name : 'Mis Documentos'}
+                </h1>
+                <p className="text-sm text-white/75 mt-1">
+                  {currentFolder.id?.startsWith('shared-')
+                    ? 'Documentos compartidos entre ustedes'
+                    : currentFolder.id
+                      ? 'Carpeta de documentos'
+                      : 'Administra y organiza tus archivos médicos'}
+                </p>
+              </div>
+              <div className="flex items-center gap-2.5 flex-wrap shrink-0">
+                <div className="bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2 border border-white/10 text-center min-w-[60px]">
+                  <p className="text-xl font-bold">{documents.length}</p>
+                  <p className="text-[10px] text-white/70 font-medium">Archivos</p>
+                </div>
+                <div className="bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2 border border-white/10 text-center min-w-[60px]">
+                  <p className="text-xl font-bold">{new Set(documents.map(d => d.category)).size}</p>
+                  <p className="text-[10px] text-white/70 font-medium">Categorías</p>
+                </div>
+              </div>
+            </div>
+            <div className="relative z-10 flex items-center gap-2 mt-5 flex-wrap">
+              {profile?.role === 'doctor' && currentFolder.id?.startsWith('shared-') && (
+                <button
+                  onClick={() => {
+                    const senderId = currentFolder.id!.replace('shared-', '')
+                    setDocReqEmail(senderEmailMap.get(senderId) || '')
+                    setDocReqOpen(true)
+                  }}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-white/20 hover:bg-white/30 border border-white/20 text-white text-sm font-semibold rounded-xl transition-all backdrop-blur-sm"
+                >
+                  <FileUp size={15} />
+                  Solicitar documento
+                </button>
+              )}
+              {!currentFolder.id?.startsWith('shared-') && (
+                <button
+                  onClick={() => setFolderModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-white/20 hover:bg-white/30 border border-white/20 text-white text-sm font-semibold rounded-xl transition-all backdrop-blur-sm"
+                >
+                  <Plus size={15} />
+                  Nueva Carpeta
+                </button>
+              )}
+              <button
+                onClick={() => setUploadModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-white text-primary text-sm font-bold rounded-xl hover:bg-white/90 transition-all shadow-sm"
+              >
+                <Upload size={15} />
+                Subir Documento
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Search + Filter row */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3">
-          <div className="flex flex-col sm:flex-row gap-2.5">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-              <input
-                type="text"
-                placeholder="Buscar documentos y carpetas…"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary text-sm transition-all"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1 bg-gray-50 rounded-xl p-1 border border-gray-100 overflow-x-auto no-scrollbar">
-                {CATEGORIES.map(cat => (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 space-y-2.5">
+          {/* Row 1: Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+            <input
+              type="text"
+              placeholder={
+                !currentFolder.id
+                  ? (profile?.role === 'patient' ? 'Buscar médicos o documentos…' : 'Buscar pacientes o carpetas…')
+                  : currentFolder.id.startsWith('shared-')
+                    ? (profile?.role === 'patient' ? 'Buscar documentos de tu médico…' : 'Buscar documentos del paciente…')
+                    : 'Buscar documentos y carpetas…'
+              }
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary text-sm transition-all"
+            />
+          </div>
+          {/* Row 2: Filters + ViewToggle */}
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar">
+              {/* Root: sort pills */}
+              {!currentFolder.id && (
+                <div className="inline-flex items-center gap-1 bg-gray-50 rounded-xl p-1 border border-gray-100">
                   <button
-                    key={cat.value}
-                    onClick={() => setSelectedCategory(cat.value)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                      selectedCategory === cat.value
-                        ? 'bg-primary text-white shadow-sm'
-                        : 'text-gray-500 hover:text-gray-700 hover:bg-white'
-                    }`}
+                    onClick={() => setSortBy('date')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${sortBy === 'date' ? 'bg-primary text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-white'}`}
                   >
-                    {getCategoryIcon(cat.value)}
-                    {cat.label}
+                    Más reciente
                   </button>
-                ))}
-              </div>
-              <ViewToggle view={view} onViewChange={setView} />
+                  <button
+                    onClick={() => setSortBy('name')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${sortBy === 'name' ? 'bg-primary text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-white'}`}
+                  >
+                    Nombre A–Z
+                  </button>
+                </div>
+              )}
+              {/* Inside any folder: category filters */}
+              {currentFolder.id && (
+                <div className="inline-flex items-center gap-1 bg-gray-50 rounded-xl p-1 border border-gray-100">
+                  {CATEGORIES.map(cat => (
+                    <button
+                      key={cat.value}
+                      onClick={() => setSelectedCategory(cat.value)}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                        selectedCategory === cat.value
+                          ? 'bg-primary text-white shadow-sm'
+                          : 'text-gray-500 hover:text-gray-700 hover:bg-white'
+                      }`}
+                    >
+                      {getCategoryIcon(cat.value)}
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
+            <ViewToggle view={view} onViewChange={setView} />
           </div>
         </div>
 
@@ -636,28 +917,75 @@ export default function Documentos() {
             <p className="text-sm text-gray-400">Cargando documentos…</p>
           </div>
         ) : filteredDocuments.length === 0 && filteredFolders.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-12 text-center">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-primary/10 to-teal-400/10 flex items-center justify-center">
-              <FileText size={28} className="text-primary/40" />
-            </div>
-            <h3 className="text-base font-semibold text-gray-700 mb-1">
-              {documents.length === 0 ? 'Sin documentos aún' : 'Sin resultados'}
-            </h3>
-            <p className="text-sm text-gray-400 mb-6 max-w-xs mx-auto">
-              {documents.length === 0
-                ? 'Sube tu primer documento médico para comenzar'
-                : 'Intenta ajustar los filtros de búsqueda'}
-            </p>
-            {documents.length === 0 && (
-              <button
-                onClick={() => setUploadModalOpen(true)}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors font-semibold text-sm shadow-sm hover:shadow-md"
-              >
-                <Upload size={16} />
-                Subir Documento
-              </button>
-            )}
-          </div>
+          (() => {
+            const isPatient = profile?.role === 'patient'
+            const isInsideSharedFolder = !!currentFolder.id?.startsWith('shared-')
+            const hasResults = documents.length > 0 || folders.length > 0
+
+            let icon = <FileText size={28} className="text-primary/40" />
+            let title = 'Sin resultados'
+            let desc = 'Intenta ajustar los filtros de búsqueda'
+            let action: React.ReactNode = null
+
+            if (hasResults) {
+              // Filtered but no match
+              title = 'Sin resultados'
+              desc = 'Intenta ajustar los filtros de búsqueda'
+            } else if (isInsideSharedFolder) {
+              icon = <FileText size={28} className="text-primary/40" />
+              title = isPatient
+                ? 'Este médico aún no ha compartido documentos'
+                : 'Este paciente aún no ha compartido documentos'
+              desc = isPatient
+                ? 'Cuando tu médico comparta estudios o recetas contigo aparecerán aquí.'
+                : 'Cuando el paciente suba documentos y los comparta contigo aparecerán aquí.'
+            } else if (isPatient) {
+              icon = <Users size={28} className="text-primary/40" />
+              title = 'Tus médicos aún no han compartido nada'
+              desc = 'Aquí verás las carpetas de cada médico que comparta documentos contigo. También puedes subir tus propios archivos.'
+              action = (
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <button
+                    onClick={() => setUploadModalOpen(true)}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors font-semibold text-sm shadow-sm"
+                  >
+                    <Upload size={16} />
+                    Subir documento
+                  </button>
+                  <button
+                    onClick={() => setAccessPanelOpen(true)}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 border border-primary/30 text-primary rounded-xl hover:bg-primary/5 transition-colors font-semibold text-sm"
+                  >
+                    <Users size={16} />
+                    Ver accesos
+                  </button>
+                </div>
+              )
+            } else {
+              title = 'Sin documentos aún'
+              desc = 'Sube tu primer documento médico para comenzar'
+              action = (
+                <button
+                  onClick={() => setUploadModalOpen(true)}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors font-semibold text-sm shadow-sm"
+                >
+                  <Upload size={16} />
+                  Subir Documento
+                </button>
+              )
+            }
+
+            return (
+              <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-12 text-center">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-primary/10 to-teal-400/10 flex items-center justify-center">
+                  {icon}
+                </div>
+                <h3 className="text-base font-semibold text-gray-700 mb-1">{title}</h3>
+                <p className="text-sm text-gray-400 mb-6 max-w-xs mx-auto">{desc}</p>
+                {action}
+              </div>
+            )
+          })()
         ) : view === 'list' ? (
           <DocumentsTable
             documents={filteredDocuments}
@@ -677,11 +1005,18 @@ export default function Documentos() {
             onRenameFolder={handleRenameFolder}
             onMoveDocument={handleMoveDocument}
             movingDocId={movingDocId}
-            onShareDocument={profile?.role === 'patient' ? handleShareDocument : undefined}
+            onShareDocument={handleShareDocument}
             onShareFolder={profile?.role === 'patient' ? handleShareFolder : undefined}
           />
         )}
       </div>
+
+      {/* Document Preview Modal */}
+      <DocumentPreviewModal
+        document={previewDoc}
+        onClose={() => setPreviewDoc(null)}
+        onShare={handleShareDocument}
+      />
 
       {/* Upload Modal */}
       {uploadModalOpen && (
@@ -695,11 +1030,11 @@ export default function Documentos() {
           >
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <div className="flex items-center gap-2">
-                <Upload size={18} className="text-primary" />
-                <h2 className="text-base font-bold text-gray-900">Subir Documento</h2>
+                {urlMode ? <Link2 size={18} className="text-primary" /> : <Upload size={18} className="text-primary" />}
+                <h2 className="text-base font-bold text-gray-900">{urlMode ? 'Guardar Enlace' : 'Subir Documento'}</h2>
               </div>
               <button
-                onClick={() => !uploading && setUploadModalOpen(false)}
+                onClick={() => { if (!uploading && !savingUrl) { setUploadModalOpen(false); setUrlMode(false) } }}
                 className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
                 aria-label="Cerrar"
               >
@@ -707,6 +1042,102 @@ export default function Documentos() {
               </button>
             </div>
 
+            {/* Banner: saving from patient's shared folder */}
+            {currentFolder.id?.startsWith('shared-') && (
+              <div className="mx-5 mt-4 flex items-start gap-2 bg-primary/10 text-primary rounded-xl px-3.5 py-2.5 text-xs">
+                <Share2 size={14} className="shrink-0 mt-0.5" />
+                <span>Este documento se guardará en tu biblioteca y se compartirá automáticamente con <strong>{currentFolder.name}</strong>.</span>
+              </div>
+            )}
+
+            {/* Toggle: Archivo / Enlace externo */}
+            <div className="px-5 pt-4">
+              <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+                <button
+                  type="button"
+                  onClick={() => setUrlMode(false)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-semibold transition-all ${!urlMode ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  <Upload size={14} />
+                  Archivo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUrlMode(true)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-semibold transition-all ${urlMode ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  <Link2 size={14} />
+                  Enlace externo
+                </button>
+              </div>
+            </div>
+
+            {urlMode ? (
+              <form onSubmit={handleSaveUrl} className="p-5 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">URL del estudio *</label>
+                  <input
+                    type="url"
+                    value={urlForm.url}
+                    onChange={e => setUrlForm(prev => ({ ...prev, url: e.target.value }))}
+                    placeholder="https://radiologia.com/estudio/12345"
+                    required
+                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm transition-all"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Liga de radiología, portal de laboratorio u otro enlace médico.</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Título *</label>
+                  <input
+                    type="text"
+                    value={urlForm.title}
+                    onChange={e => setUrlForm(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="Ej: TAC de oídos — Abril 2026"
+                    required
+                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Categoría *</label>
+                  <select
+                    value={urlForm.category}
+                    onChange={e => setUrlForm(prev => ({ ...prev, category: e.target.value as DocCategory }))}
+                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white text-sm transition-all"
+                    required
+                  >
+                    {CATEGORIES.filter(c => c.value !== 'all').map(cat => (
+                      <option key={cat.value} value={cat.value}>{cat.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Notas <span className="text-gray-400 font-normal">(opcional)</span></label>
+                  <textarea
+                    value={urlForm.notes}
+                    onChange={e => setUrlForm(prev => ({ ...prev, notes: e.target.value }))}
+                    placeholder="Ej: Resultados normales, sin hallazgos relevantes"
+                    rows={2}
+                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm transition-all resize-none"
+                  />
+                </div>
+                <div className="flex gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => { setUploadModalOpen(false); setUrlMode(false) }}
+                    className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-colors font-medium text-sm cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingUrl}
+                    className="flex-1 px-4 py-2.5 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm cursor-pointer"
+                  >
+                    {savingUrl ? <><Loader2 size={16} className="animate-spin" />Guardando…</> : <><Link2 size={16} />Guardar Enlace</>}
+                  </button>
+                </div>
+              </form>
+            ) : (
             <form onSubmit={handleUpload} className="p-5 space-y-4">
               {/* Drop zone */}
               <div>
@@ -738,7 +1169,7 @@ export default function Documentos() {
                   <input
                     type="file"
                     onChange={handleFileSelect}
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.webp,.gif,.tiff,.heic,.heif,.bmp,.mp4,.mov,.avi,.webm,.mp3,.wav,.m4a,.ogg,.txt,.csv,.dcm"
                     className="hidden"
                     id="file-upload"
                     required
@@ -759,7 +1190,7 @@ export default function Documentos() {
                         <Upload size={22} className="text-gray-400" />
                       </div>
                       <p className="text-sm font-medium text-gray-700">Arrastra un archivo o haz clic para seleccionar</p>
-                      <p className="text-xs text-gray-400 mt-1">PDF, DOC, JPG, PNG · Máx. 10 MB</p>
+                      <p className="text-xs text-gray-400 mt-1">PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, MP4, MP3 y más · Máx. 50 MB</p>
                     </>
                   )}
                 </div>
@@ -843,6 +1274,7 @@ export default function Documentos() {
                 </button>
               </div>
             </form>
+            )}
           </div>
         </div>
       )}
@@ -877,8 +1309,15 @@ export default function Documentos() {
                 </div>
                 <p className="text-xs text-gray-400">El enlace expira en 7 días.</p>
                 <button
+                  onClick={handleShareViaWhatsApp}
+                  className="w-full py-2.5 text-sm font-semibold text-white bg-[#25D366] hover:bg-[#20bc5a] rounded-lg transition-colors flex items-center justify-center gap-2"
+                >
+                  <MessageCircle size={16} />
+                  Enviar por WhatsApp
+                </button>
+                <button
                   onClick={resetDocReqModal}
-                  className="w-full py-2.5 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors"
+                  className="w-full py-2.5 text-sm font-semibold text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Listo
                 </button>

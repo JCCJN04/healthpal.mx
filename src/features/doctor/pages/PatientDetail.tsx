@@ -366,89 +366,76 @@ export default function PatientDetail() {
                 </button>
 
                 {/* Header Card */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                     {/* Banner */}
-                    <div className="h-28 bg-gradient-to-r from-teal-500 via-primary to-cyan-500 relative rounded-t-2xl overflow-hidden">
-                        <div className="absolute inset-0 opacity-10" style={{backgroundImage:'radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)', backgroundSize:'30px 30px'}} />
+                    <div className="h-24 bg-gradient-to-r from-teal-600 via-primary to-cyan-500 relative">
+                        <div className="absolute inset-0 opacity-[0.07]" style={{backgroundImage:'radial-gradient(circle, white 1.5px, transparent 1.5px)', backgroundSize:'20px 20px'}} />
+                        {/* Vitals inline en el banner — visibles sin scroll */}
+                        <div className="absolute bottom-3 right-4 flex items-center gap-2">
+                            <span className="text-[11px] font-bold text-white/80 bg-white/15 backdrop-blur-sm px-2.5 py-1 rounded-full border border-white/20">
+                                {calculateAge(patient.birthdate)} años
+                            </span>
+                            <span className="text-[11px] font-bold text-white/80 bg-white/15 backdrop-blur-sm px-2.5 py-1 rounded-full border border-white/20">
+                                {patient.sex === 'male' ? '♂ Hombre' : patient.sex === 'female' ? '♀ Mujer' : 'Otro'}
+                            </span>
+                            {(medProfile?.blood_type || pProfile.blood_type) && (
+                                <span className="text-[11px] font-bold text-white/80 bg-red-500/70 backdrop-blur-sm px-2.5 py-1 rounded-full border border-white/20">
+                                    🩸 {medProfile?.blood_type || pProfile.blood_type}
+                                </span>
+                            )}
+                        </div>
                     </div>
-                    <div className="px-6 pb-5">
-                        <div className="flex flex-col md:flex-row gap-5 -mt-10">
+                    <div className="px-5 pb-4">
+                        <div className="flex flex-col md:flex-row gap-4 -mt-9">
                             {/* Avatar */}
-                            <div className="relative z-10 w-20 h-20 md:w-24 md:h-24 rounded-2xl ring-4 ring-white shadow-lg flex-shrink-0 overflow-hidden bg-primary/10">
+                            <div className="relative z-10 w-[72px] h-[72px] rounded-xl ring-4 ring-white shadow-md flex-shrink-0 overflow-hidden bg-primary/10">
                                 {patient.avatar_url ? (
                                     <img src={patient.avatar_url} alt="" className="w-full h-full object-cover" />
                                 ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-primary text-3xl font-bold uppercase">
+                                    <div className="w-full h-full flex items-center justify-center text-primary text-2xl font-bold uppercase">
                                         {patient.full_name?.charAt(0) || 'P'}
                                     </div>
                                 )}
                             </div>
-                            <div className="flex-1 pt-2 md:pt-12">
-                                <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-3">
+                            <div className="flex-1 pt-1 md:pt-10">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                     <div>
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                            <h1 className="text-xl md:text-2xl font-bold text-gray-900">{patient.full_name || 'Paciente'}</h1>
-                                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">
-                                                <ShieldCheck size={10} />
-                                                Acceso concedido
-                                            </span>
-                                        </div>
-                                        <div className="flex flex-wrap items-center gap-3 mt-1.5">
+                                        <h1 className="text-lg md:text-xl font-bold text-gray-900 leading-tight">{patient.full_name || 'Paciente'}</h1>
+                                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
                                             {scopes.share_contact && contactInfo?.email && (
                                                 <span className="flex items-center gap-1 text-xs text-gray-500">
-                                                    <Mail size={12} className="text-gray-400" />
-                                                    {contactInfo.email}
+                                                    <Mail size={11} className="text-gray-400" />{contactInfo.email}
                                                 </span>
                                             )}
                                             {scopes.share_contact && contactInfo?.phone && (
                                                 <a href={`tel:${contactInfo.phone}`} className="flex items-center gap-1 text-xs text-gray-500 hover:text-primary transition-colors">
-                                                    <Phone size={12} className="text-gray-400" />
-                                                    {contactInfo.phone}
+                                                    <Phone size={11} className="text-gray-400" />{contactInfo.phone}
                                                 </a>
                                             )}
-                                            {!scopes.share_contact && (
-                                                <span className="flex items-center gap-1 text-xs text-gray-400 italic">
-                                                    <Lock size={11} /> Contacto no compartido
-                                                </span>
-                                            )}
-                                        </div>
-                                        {/* Quick stats pills */}
-                                        <div className="flex flex-wrap gap-2 mt-3">
-                                            <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100 px-2.5 py-1 rounded-full">
-                                                <Activity size={11} /> {calculateAge(patient.birthdate)} años
-                                            </span>
-                                            <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-100 px-2.5 py-1 rounded-full">
-                                                {patient.sex === 'male' ? '♂' : patient.sex === 'female' ? '♀' : '⚥'} {patient.sex === 'male' ? 'Hombre' : patient.sex === 'female' ? 'Mujer' : 'Otro'}
-                                            </span>
-                                            {(medProfile?.blood_type || pProfile.blood_type) && (
-                                                <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-red-50 text-red-700 border border-red-100 px-2.5 py-1 rounded-full">
-                                                    🩸 {medProfile?.blood_type || pProfile.blood_type}
-                                                </span>
-                                            )}
                                             {scopes.share_medical_notes && (medProfile?.insurance_provider || pProfile.insurance_provider) && (
-                                                <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-teal-50 text-teal-700 border border-teal-100 px-2.5 py-1 rounded-full">
+                                                <span className="flex items-center gap-1 text-xs text-teal-600 font-medium">
                                                     🏥 {medProfile?.insurance_provider || pProfile.insurance_provider}
                                                 </span>
                                             )}
                                         </div>
                                     </div>
-                                    <div className="flex flex-wrap gap-2 lg:flex-shrink-0">
-                                        {scopes.share_contact && (
-                                            <button
-                                                onClick={() => navigate(mapDashboardPath(`/dashboard/mensajes?with=${patient.id}`))}
-                                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-teal-600 shadow-sm transition-all min-h-[44px]"
-                                            >
-                                                <MessageSquare size={15} />
-                                                Mensaje
-                                            </button>
-                                        )}
+                                    <div className="flex items-center gap-2">
                                         {scopes.share_medical_notes && (
                                             <button
                                                 onClick={() => setActiveTab('notes')}
-                                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-50 hover:border-primary/30 transition-all min-h-[44px]"
+                                                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-gray-100 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-200 transition-all"
                                             >
-                                                <StickyNote size={15} />
+                                                <StickyNote size={14} />
                                                 Nueva nota
+                                            </button>
+                                        )}
+                                        {scopes.share_contact && (
+                                            <button
+                                                onClick={() => navigate(mapDashboardPath(`/dashboard/mensajes?with=${patient.id}`))}
+                                                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-teal-600 shadow-sm transition-all"
+                                            >
+                                                <MessageSquare size={14} />
+                                                Mensaje
                                             </button>
                                         )}
                                     </div>
@@ -458,29 +445,36 @@ export default function PatientDetail() {
                     </div>
                 </div>
 
-                {/* Mobile quick stats — shown only below lg, replaces sidebar stats */}
-                <div className="lg:hidden flex items-center gap-2 overflow-x-auto pb-0.5">
-                    {[
-                        { icon: StickyNote, label: 'notas', value: notes.length, color: 'text-primary bg-primary/10', enabled: scopes.share_medical_notes, onClick: () => setActiveTab('notes') },
-                        { icon: FileText, label: 'documentos', value: documents.length + doctorDocs.length + patientSharedDocs.length, color: 'text-blue-600 bg-blue-50', enabled: scopes.share_documents, onClick: () => setActiveTab('expediente') },
-                        { icon: Calendar, label: 'consultas', value: appointments.length, color: 'text-purple-600 bg-purple-50', enabled: scopes.share_appointments, onClick: null },
-                    ].filter(s => s.enabled).map((s, i) => (
-                        <button
-                            key={i}
-                            onClick={s.onClick ?? undefined}
-                            disabled={!s.onClick}
-                            className="flex-shrink-0 flex items-center gap-2.5 px-3 py-2.5 bg-white border border-gray-100 rounded-xl hover:border-primary/30 transition-all disabled:cursor-default"
-                        >
-                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${s.color}`}>
-                                <s.icon size={15} />
-                            </div>
-                            <div className="text-left">
-                                <p className="text-base font-bold text-gray-900 leading-none">{s.value}</p>
-                                <p className="text-[10px] text-gray-500 mt-0.5">{s.label}</p>
-                            </div>
-                        </button>
-                    ))}
-                </div>
+                {/* Alerta clínica rápida — aparece solo si hay alergias o condiciones */}
+                {(() => {
+                    const allergies = (medProfile?.allergies ?? pProfile?.allergies ?? '').trim()
+                    const conditions = (medProfile?.chronic_conditions ?? pProfile?.chronic_conditions ?? '').trim()
+                    const hasAlert = (allergies && !['ninguna','no','n/a'].includes(allergies.toLowerCase())) ||
+                                     (conditions && !['ninguna','no','n/a'].includes(conditions.toLowerCase()))
+                    if (!hasAlert) return null
+                    return (
+                        <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 flex flex-wrap gap-4">
+                            {allergies && !['ninguna','no','n/a'].includes(allergies.toLowerCase()) && (
+                                <div className="flex items-center gap-2">
+                                    <span className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center text-sm flex-shrink-0">⚠️</span>
+                                    <div>
+                                        <p className="text-[10px] font-black uppercase tracking-wider text-red-600">Alergia</p>
+                                        <p className="text-sm font-semibold text-red-900">{allergies}</p>
+                                    </div>
+                                </div>
+                            )}
+                            {conditions && !['ninguna','no','n/a'].includes(conditions.toLowerCase()) && (
+                                <div className="flex items-center gap-2">
+                                    <span className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center text-sm flex-shrink-0">🫀</span>
+                                    <div>
+                                        <p className="text-[10px] font-black uppercase tracking-wider text-orange-600">Condición Crónica</p>
+                                        <p className="text-sm font-semibold text-orange-900">{conditions}</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )
+                })()}
 
                 {/* Info Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -512,12 +506,11 @@ export default function PatientDetail() {
                             {activeTab === 'summary' && (
                                 <div className="space-y-6 animate-in fade-in duration-300">
                                     {/* Vital stats row */}
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    <div className="grid grid-cols-3 gap-3">
                                         {[
                                             { label: 'Edad', value: `${calculateAge(patient.birthdate)} años`, icon: '🎂', bg: 'bg-blue-50', border: 'border-blue-100', text: 'text-blue-700' },
                                             { label: 'Sexo', value: patient.sex === 'male' ? 'Hombre' : patient.sex === 'female' ? 'Mujer' : 'Otro', icon: patient.sex === 'male' ? '♂' : '♀', bg: 'bg-purple-50', border: 'border-purple-100', text: 'text-purple-700' },
                                             { label: 'Tipo de Sangre', value: medProfile?.blood_type || pProfile.blood_type || '—', icon: '🩸', bg: 'bg-red-50', border: 'border-red-100', text: 'text-red-700' },
-                                            { label: 'Idioma', value: (medProfile?.preferred_language || pProfile.preferred_language || 'ES').toUpperCase(), icon: '🌐', bg: 'bg-teal-50', border: 'border-teal-100', text: 'text-teal-700' },
                                         ].map((s, i) => (
                                             <div key={i} className={`${s.bg} border ${s.border} rounded-xl p-3.5`}>
                                                 <div className="flex items-center justify-between mb-2">
@@ -869,44 +862,40 @@ export default function PatientDetail() {
                         </div>
                     </div>
 
-                    {/* Right Column: Actions and Highlights */}
+                    {/* Right Column */}
                     <div className="space-y-4">
-                        {/* Activity Stats — hidden on mobile (shown in quick stats row above) */}
-                        <div className="hidden lg:block bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Actividad del Expediente</p>
-                            <div className="space-y-3">
+                        {/* Combined stats + actions panel */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                            {/* Stats grid */}
+                            <div className="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100">
                                 {[
-                                    { icon: StickyNote, label: 'Notas clínicas', value: notes.length, color: 'text-primary bg-primary/10', onClick: () => setActiveTab('notes') },
-                                    { icon: FileText, label: 'Documentos', value: documents.length + doctorDocs.length + patientSharedDocs.length, color: 'text-blue-600 bg-blue-50', onClick: () => setActiveTab('expediente') },
-                                    { icon: Calendar, label: 'Consultas', value: appointments.length, color: 'text-purple-600 bg-purple-50', onClick: null },
+                                    { icon: StickyNote, label: 'Notas', value: notes.length, color: 'text-primary', bg: 'bg-primary/10', enabled: scopes.share_medical_notes, onClick: () => setActiveTab('notes') },
+                                    { icon: FileText, label: 'Docs', value: documents.length + doctorDocs.length + patientSharedDocs.length, color: 'text-blue-600', bg: 'bg-blue-50', enabled: scopes.share_documents, onClick: () => setActiveTab('expediente') },
+                                    { icon: Calendar, label: 'Consultas', value: appointments.length, color: 'text-purple-600', bg: 'bg-purple-50', enabled: scopes.share_appointments, onClick: null },
                                 ].map((s, i) => (
-                                    <div
+                                    <button
                                         key={i}
                                         onClick={s.onClick ?? undefined}
-                                        className={`flex items-center gap-3 p-3 rounded-xl border border-gray-100 ${s.onClick ? 'cursor-pointer hover:border-primary/30 hover:bg-gray-50 transition-all' : ''}`}
+                                        disabled={!s.onClick || !s.enabled}
+                                        className={`flex flex-col items-center gap-1.5 py-4 transition-all ${s.onClick && s.enabled ? 'hover:bg-gray-50 cursor-pointer' : 'cursor-default'}`}
                                     >
-                                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${s.color}`}>
+                                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${s.bg} ${s.color}`}>
                                             <s.icon size={16} />
                                         </div>
-                                        <div className="flex-1">
-                                            <p className="text-xs text-gray-500 font-medium">{s.label}</p>
-                                        </div>
-                                        <span className="text-lg font-bold text-gray-900">{s.value}</span>
-                                    </div>
+                                        <span className={`text-2xl font-black ${s.enabled ? 'text-gray-900' : 'text-gray-300'}`}>{s.enabled ? s.value : '—'}</span>
+                                        <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">{s.label}</span>
+                                    </button>
                                 ))}
                             </div>
-                            {notes.length > 0 && (
-                                <div className="mt-3 pt-3 border-t border-gray-50 flex items-center gap-1.5 text-[11px] text-gray-400">
+                            {/* Last note timestamp */}
+                            {scopes.share_medical_notes && notes.length > 0 && (
+                                <div className="px-4 py-2 flex items-center gap-1.5 text-[11px] text-gray-400 border-b border-gray-50 bg-gray-50/50">
                                     <Clock size={11} />
                                     Última nota: {new Date(notes[0].created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
                                 </div>
                             )}
-                        </div>
-
-                        {/* Quick Actions */}
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Acciones Rápidas</p>
-                            <div className="space-y-2">
+                            {/* Action buttons */}
+                            <div className="p-3 space-y-1.5">
                                 {scopes.share_contact && (
                                     <button
                                         onClick={() => navigate(mapDashboardPath(`/dashboard/mensajes?with=${patient.id}`))}
@@ -957,7 +946,6 @@ export default function PatientDetail() {
                                 </div>
                             </div>
                         )}
-
 
                         {/* Privacy badge */}
                         <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl">

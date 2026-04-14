@@ -59,11 +59,11 @@ export default function Sidebar({ onClose }: SidebarProps) {
   return (
     <aside className="w-64 bg-white border-r border-gray-200 h-full flex flex-col">
       {/* Mobile header with close button */}
-      <div className="lg:hidden flex items-center justify-between p-4 border-b border-gray-200">
-        <img src="/logo.png" alt="HealthPal.mx" className="h-48" />
+      <div className="lg:hidden flex items-center justify-between px-4 border-b border-gray-200 h-16 overflow-hidden">
+        <img src="/logo.png" alt="HealthPal.mx" className="h-40 w-auto object-contain" style={{ marginTop: '-2rem', marginBottom: '-2rem' }} />
         <button
           onClick={onClose}
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
         >
           <X size={20} className="text-gray-600" />
         </button>

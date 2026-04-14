@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Edit3, Sparkles, Loader2 } from 'lucide-react'
+import { Edit3, Sparkles, Loader2, StickyNote } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import type { Note } from '@/shared/mock/documentDetail'
 
@@ -8,9 +8,11 @@ interface NotesPanelProps {
   onAddNote?: (content: string) => void
   onAskAI?: () => Promise<void>
   isAskingAI?: boolean
+  /** When true, suppresses the outer card wrapper and header (used inside a tab panel) */
+  embedded?: boolean
 }
 
-export const NotesPanel = ({ notes, onAddNote, onAskAI, isAskingAI }: NotesPanelProps) => {
+export const NotesPanel = ({ notes, onAddNote, onAskAI, isAskingAI, embedded }: NotesPanelProps) => {
   const [isEditing, setIsEditing] = useState(false)
   const [newNote, setNewNote] = useState('')
 
@@ -27,6 +29,100 @@ export const NotesPanel = ({ notes, onAddNote, onAskAI, isAskingAI }: NotesPanel
   const handleCancel = () => {
     setNewNote('')
     setIsEditing(false)
+  }
+
+  if (embedded) {
+    return (
+      <div className="flex flex-col">
+        {/* Embedded AI + add toolbar */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50/60">
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            {notes.length} {notes.length === 1 ? 'nota' : 'notas'}
+          </span>
+          <div className="flex items-center gap-1.5">
+            {onAskAI && (
+              <button
+                onClick={onAskAI}
+                disabled={isAskingAI}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/20 transition-colors disabled:opacity-50"
+                title="Analizar con IA"
+              >
+                {isAskingAI ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                Analizar con IA
+              </button>
+            )}
+            <button
+              onClick={() => setIsEditing(!isEditing)}
+              className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+              title="Agregar nota"
+            >
+              <Edit3 className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+        <div className="p-4 space-y-3 max-h-[480px] overflow-y-auto">
+          {notes.length > 0 ? (
+            notes.map((note) => (
+              <div key={note.id} className="pb-3 border-b border-gray-100 last:border-0">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold flex-shrink-0">
+                    {note.authorInitial}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-900 text-xs truncate">{note.author}</p>
+                    <p className="text-xs text-gray-400">{note.timeAgo}</p>
+                  </div>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3 border border-gray-100 text-xs text-gray-700 leading-relaxed [&>p]:mb-1 [&>ul]:list-disc [&>ul]:pl-4 [&>strong]:font-semibold whitespace-pre-wrap">
+                  <ReactMarkdown>{note.content}</ReactMarkdown>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-10">
+              <StickyNote className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+              <p className="text-gray-400 text-sm">Sin notas todavía</p>
+              <p className="text-gray-400 text-xs mt-1">Usa el botón + para agregar</p>
+            </div>
+          )}
+          {isEditing && (
+            <div className="pt-2 border-t border-gray-100 space-y-2">
+              <textarea
+                value={newNote}
+                onChange={(e) => setNewNote(e.target.value)}
+                placeholder="Escribe tu nota aquí..."
+                rows={3}
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none text-sm"
+                autoFocus
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSaveNote}
+                  disabled={!newNote.trim()}
+                  className="flex-1 bg-primary text-white px-3 py-2 rounded-lg font-semibold text-xs hover:bg-primary/90 transition-colors disabled:opacity-40"
+                >
+                  Guardar
+                </button>
+                <button
+                  onClick={handleCancel}
+                  className="px-3 py-2 border border-gray-200 text-gray-600 rounded-lg text-xs hover:bg-gray-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
+          {!isEditing && (
+            <button
+              onClick={() => setIsEditing(true)}
+              className="w-full py-2.5 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 hover:border-primary hover:text-primary transition-colors text-xs font-medium"
+            >
+              + Agregar nota
+            </button>
+          )}
+        </div>
+      </div>
+    )
   }
 
   return (

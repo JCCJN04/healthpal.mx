@@ -15,11 +15,8 @@ import {
   ArrowRight,
   Stethoscope,
   Users,
-  ChevronRight,
-  MapPin,
-  Star,} from 'lucide-react'
+  ChevronRight,} from 'lucide-react'
 import Button from '@/shared/components/ui/Button'
-import { SPECIALTIES } from '@/shared/lib/specialties'
 
 /* ------------------------------------------------------------------ */
 /*  Landing Page – HealthPal.mx                                       */
@@ -54,9 +51,6 @@ export default function Landing() {
             <button onClick={() => scrollTo('beneficios')} className="hover:text-primary transition-colors">
               Beneficios
             </button>
-            <Link to="/directorio" className="hover:text-primary transition-colors">
-              Directorio
-            </Link>
           </nav>
 
           {/* Desktop CTA */}
@@ -84,35 +78,35 @@ export default function Landing() {
         </div>
 
         {/* Mobile menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden border-t border-gray-100 bg-white px-4 pb-4 pt-2 space-y-3 animate-in fade-in slide-in-from-top-2">
-            <button onClick={() => scrollTo('pacientes')} className="block w-full text-left py-2 text-sm text-gray-700 hover:text-primary">
+        <div
+          className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${
+            mobileMenuOpen ? 'max-h-80 opacity-100' : 'max-h-0 opacity-0'
+          }`}
+        >
+          <div className="border-t border-gray-100 bg-white px-4 pb-5 pt-2 space-y-1">
+            <button onClick={() => scrollTo('pacientes')} className="flex w-full items-center py-3 text-sm font-medium text-gray-700 hover:text-primary transition-colors">
               Para Pacientes
             </button>
-            <button onClick={() => scrollTo('doctores')} className="block w-full text-left py-2 text-sm text-gray-700 hover:text-primary">
+            <button onClick={() => scrollTo('doctores')} className="flex w-full items-center py-3 text-sm font-medium text-gray-700 hover:text-primary transition-colors">
               Para Doctores
             </button>
-            <button onClick={() => scrollTo('beneficios')} className="block w-full text-left py-2 text-sm text-gray-700 hover:text-primary">
+            <button onClick={() => scrollTo('beneficios')} className="flex w-full items-center py-3 text-sm font-medium text-gray-700 hover:text-primary transition-colors">
               Beneficios
             </button>
-            <Link to="/directorio" className="block w-full text-left py-2 text-sm text-gray-700 hover:text-primary">
-              Directorio
-            </Link>
-            <hr className="border-gray-100" />
-            <div className="flex gap-3 pt-1">
+            <div className="pt-2 flex gap-3">
               <Link to="/login" className="flex-1">
-                <Button variant="secondary" fullWidth className="text-sm py-2">
+                <Button variant="secondary" fullWidth className="text-sm py-2.5">
                   Iniciar Sesión
                 </Button>
               </Link>
               <Link to="/register" className="flex-1">
-                <Button variant="primary" fullWidth className="text-sm py-2">
+                <Button variant="primary" fullWidth className="text-sm py-2.5">
                   Regístrate
                 </Button>
               </Link>
             </div>
           </div>
-        )}
+        </div>
       </header>
 
       {/* ===== HERO ===== */}
@@ -193,91 +187,6 @@ export default function Landing() {
               title="Documentos en la nube"
               description="Sube y organiza estudios, recetas e imágenes. Comparte documentos con tus pacientes de forma segura."
             />
-          </div>
-        </div>
-      </section>
-
-      {/* ===== DIRECTORIO DE DOCTORES ===== */}
-      <section className="py-20 md:py-28 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="relative rounded-3xl bg-gradient-to-br from-primary/5 via-white to-primary/10 border border-primary/10 p-10 md:p-16 text-center overflow-hidden">
-            {/* Decorative blobs */}
-            <div className="absolute -top-16 -right-16 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
-
-            <div className="relative">
-              <span className="inline-flex items-center gap-2 text-xs font-semibold text-primary bg-primary/10 px-3 py-1 rounded-full uppercase tracking-wider mb-4">
-                <Search size={12} />
-                Directorio Médico
-              </span>
-              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-                Encuentra al especialista que necesitas
-              </h2>
-              <p className="text-gray-500 text-lg max-w-xl mx-auto mb-10">
-                Accede a nuestro directorio de médicos verificados. Filtra por especialidad,
-                ubicación y disponibilidad para agendar tu consulta.
-              </p>
-
-              {/* Specialty chips */}
-              <div className="flex flex-wrap justify-center gap-2.5 mb-10">
-                {[
-                  'medicina_general',
-                  'cardiologia',
-                  'pediatria',
-                  'ginecologia',
-                  'neurologia',
-                  'traumatologia',
-                  'dermatologia',
-                  'psiquiatria',
-                  'oftalmologia',
-                  'nutriologia_clinica',
-                  'endocrinologia',
-                  'oncologia_medica',
-                ].map((value) => {
-                  const spec = SPECIALTIES.find((s) => s.value === value)
-                  if (!spec) return null
-                  return (
-                    <Link
-                      key={value}
-                      to={`/directorio?especialidad=${encodeURIComponent(value)}`}
-                      className="px-4 py-1.5 rounded-full text-sm font-medium bg-white border border-gray-200 text-gray-700 hover:border-primary hover:text-primary hover:bg-primary/5 transition-all shadow-sm"
-                    >
-                      {spec.label}
-                    </Link>
-                  )
-                })}
-              </div>
-
-              {/* Stats row */}
-              <div className="flex flex-wrap justify-center gap-8 mb-10">
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Users size={15} className="text-primary" />
-                  </div>
-                  <span>Médicos verificados</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Star size={15} className="text-primary" />
-                  </div>
-                  <span>Reseñas de pacientes</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    <MapPin size={15} className="text-primary" />
-                  </div>
-                  <span>Búsqueda por ubicación</span>
-                </div>
-              </div>
-
-              <Link to="/directorio">
-                <Button variant="primary" className="px-8 py-3.5 text-base inline-flex items-center gap-2">
-                  <MapPin size={18} />
-                  Explorar Directorio
-                  <ArrowRight size={16} />
-                </Button>
-              </Link>
-            </div>
           </div>
         </div>
       </section>

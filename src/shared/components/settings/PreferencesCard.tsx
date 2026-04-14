@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bell, Mail, MessageSquare, Calendar, Loader2 } from 'lucide-react';
+import { Bell, Mail, MessageSquare, Loader2 } from 'lucide-react';
 import { logger } from '@/shared/lib/logger';
 
 interface Preferences {
@@ -141,37 +141,8 @@ const PreferencesCard = ({ initialPreferences, onSave, isLoading = false }: Pref
               />
             </div>
 
-            <div className="border-t border-gray-100"></div>
-
-            {/* Appointment Reminders */}
-            <div className="flex items-start justify-between py-3">
-              <div className="flex items-start gap-3 flex-1">
-                <div className="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center flex-shrink-0">
-                  <Calendar className="w-5 h-5 text-teal-600" />
-                </div>
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-1">Recordatorios de citas</h4>
-                  <p className="text-sm text-gray-600">
-                    Te avisamos antes de tus citas médicas programadas
-                  </p>
-                </div>
-              </div>
-              <Toggle
-                enabled={preferences.appointmentReminders}
-                onChange={() => handleToggle('appointmentReminders')}
-                isUpdating={updatingKey === 'appointmentReminders'}
-              />
-            </div>
           </>
         )}
-      </div>
-
-      {/* Footer Info */}
-      <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
-        <p className="text-xs text-gray-600">
-          <span className="font-semibold">Nota:</span> Las notificaciones críticas relacionadas con tu
-          salud siempre serán enviadas, independientemente de tu configuración.
-        </p>
       </div>
     </div>
   );
