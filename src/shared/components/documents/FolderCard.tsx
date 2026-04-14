@@ -1,4 +1,4 @@
-import { MoreVertical, Folder, Trash2, Edit, Share2, UserCircle, ChevronRight, FileText } from 'lucide-react'
+import { MoreVertical, Folder, Trash2, Edit, Share2, ChevronRight, FileText } from 'lucide-react'
 import { useState } from 'react'
 
 interface FolderCardProps {
@@ -19,29 +19,12 @@ interface FolderCardProps {
     onShare?: (folderId: string, folderName: string) => void
 }
 
-// Subtle pastel accent per folder — cycles through a small palette based on name
-const CARD_ACCENTS = [
-    { bg: 'from-teal-50 to-cyan-50', ring: 'ring-teal-200', pill: 'bg-teal-100 text-teal-700' },
-    { bg: 'from-violet-50 to-purple-50', ring: 'ring-violet-200', pill: 'bg-violet-100 text-violet-700' },
-    { bg: 'from-rose-50 to-pink-50', ring: 'ring-rose-200', pill: 'bg-rose-100 text-rose-700' },
-    { bg: 'from-amber-50 to-orange-50', ring: 'ring-amber-200', pill: 'bg-amber-100 text-amber-700' },
-    { bg: 'from-sky-50 to-blue-50', ring: 'ring-sky-200', pill: 'bg-sky-100 text-sky-700' },
-    { bg: 'from-emerald-50 to-green-50', ring: 'ring-emerald-200', pill: 'bg-emerald-100 text-emerald-700' },
-]
-
-function accentFor(name: string) {
-    let hash = 0
-    for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
-    return CARD_ACCENTS[Math.abs(hash) % CARD_ACCENTS.length]
-}
 
 export const FolderCard = ({ folder, onClick, onDelete, onRename, onDropDocument, onShare }: FolderCardProps) => {
     const [menuOpen, setMenuOpen] = useState(false)
     const [isDragOver, setIsDragOver] = useState(false)
     const [imgError, setImgError] = useState(false)
     const isShared = folder.id.startsWith('shared-')
-    const accent = accentFor(folder.name)
-
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault()
         e.stopPropagation()
