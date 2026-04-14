@@ -8,6 +8,10 @@ type Folder = {
   name: string
   color: string
   created_at: string
+  avatarUrl?: string | null
+  subtitle?: string | null
+  docCount?: number
+  hasNew?: boolean
 }
 
 interface DocumentGridProps {
@@ -21,6 +25,7 @@ interface DocumentGridProps {
   movingDocId?: string | null
   onShareDocument?: (docId: string, title: string) => void
   onShareFolder?: (folderId: string, folderName: string) => void
+  onPreviewDocument?: (document: Document) => void
 }
 
 export const DocumentGrid = ({
@@ -34,6 +39,7 @@ export const DocumentGrid = ({
   movingDocId,
   onShareDocument,
   onShareFolder,
+  onPreviewDocument,
 }: DocumentGridProps) => {
   if (documents.length === 0 && folders.length === 0) {
     return (
@@ -43,14 +49,19 @@ export const DocumentGrid = ({
     )
   }
 
+  const sharedFolders = folders.filter(f => f.id.startsWith('shared-'))
+  const ownFolders = folders.filter(f => !f.id.startsWith('shared-'))
+
   return (
     <div className="space-y-8">
-      {/* Folders Section */}
-      {folders.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">Carpetas</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {folders.map((folder) => (
+      {/* Shared (doctor/patient) folders — vertical profile cards */}
+      {sharedFolders.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">
+            {sharedFolders.some(f => f.subtitle) ? 'Mis Médicos' : 'Mis Pacientes'}
+          </h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 pt-2">
+            {sharedFolders.map((folder) => (
               <FolderCard
                 key={folder.id}
                 folder={folder}
@@ -65,9 +76,29 @@ export const DocumentGrid = ({
         </div>
       )}
 
-      {/* Documents Section */}
+      {/* Own folders — horizontal cards */}
+      {ownFolders.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">Carpetas</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {ownFolders.map((folder) => (
+              <FolderCard
+                key={folder.id}
+                folder={folder}
+                onClick={onFolderClick}
+                onDelete={onDeleteFolder}
+                onRename={onRenameFolder}
+                onDropDocument={onMoveDocument ? (docId) => onMoveDocument(docId, folder.id) : undefined}
+                onShare={onShareFolder}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Documents */}
       {documents.length > 0 && (
-        <div className="space-y-4">
+        <div className="space-y-3">
           <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">Documentos</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {documents.map((document) => (
@@ -82,6 +113,7 @@ export const DocumentGrid = ({
                 } : undefined}
                 isMoving={movingDocId === document.id}
                 onShare={onShareDocument}
+                onPreview={onPreviewDocument}
               />
             ))}
           </div>

@@ -270,7 +270,10 @@ export async function getDocumentsSharedWithMe(userId: string) {
         shared_with,
         document_id,
         document:documents (*),
-        sender:profiles!document_shares_shared_by_fkey (id, full_name, email)
+        sender:profiles!document_shares_shared_by_fkey (
+          id, full_name, email, avatar_url, role,
+          doctor_profile:doctor_profiles(specialty)
+        )
       `)
       .eq('shared_with', userId)
       .order('created_at', { ascending: false })
@@ -288,6 +291,42 @@ export async function getDocumentsSharedWithMe(userId: string) {
 }
 
 /**
+ * Get documents the current user shared with a specific user (outbound shares).
+ * Used to show doctor-uploaded docs inside a patient's folder view.
+ */
+export async function getDocumentsSharedByMeWith(myUserId: string, targetUserId: string) {
+  if (useInMemoryDemoDocuments()) {
+    return []
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('document_shares')
+      .select(`
+        id,
+        created_at,
+        shared_by,
+        shared_with,
+        document_id,
+        document:documents (*)
+      `)
+      .eq('shared_by', myUserId)
+      .eq('shared_with', targetUserId)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      logger.error('getDocumentsSharedByMeWith', error)
+      return []
+    }
+
+    return data || []
+  } catch (err) {
+    logger.error('getDocumentsSharedByMeWith', err)
+    return []
+  }
+}
+
+/**
  * Upload document to Supabase Storage
  */
 export async function uploadDocument(
@@ -298,6 +337,7 @@ export async function uploadDocument(
     category: Database['public']['Enums']['doc_category']
     notes?: string
     folderId?: string | null
+    patientId?: string | null
   }
 ): Promise<{ success: boolean; documentId?: string; error?: string }> {
   if (useInMemoryDemoDocuments()) {
@@ -359,7 +399,7 @@ export async function uploadDocument(
       .insert({
         id: documentId,
         owner_id: ownerId,
-        patient_id: ownerId,
+        patient_id: metadata.patientId || ownerId,
         uploaded_by: ownerId,
         title: metadata.title || file.name,
         category: metadata.category,
@@ -380,6 +420,51 @@ export async function uploadDocument(
   } catch (err) {
     logger.error('uploadDocument', err)
     return { success: false, error: 'Error inesperado al subir el documento' }
+  }
+}
+
+/**
+ * Save an external URL as a document record (no file upload)
+ * Used for radiology links, lab result portals, etc.
+ */
+export async function saveExternalUrlDocument(
+  userId: string,
+  metadata: {
+    title: string
+    category: Database['public']['Enums']['doc_category']
+    external_url: string
+    notes?: string
+    folderId?: string | null
+    patientId?: string | null
+  }
+): Promise<{ success: boolean; documentId?: string; error?: string }> {
+  try {
+    const { data, error } = await supabase
+      .from('documents')
+      .insert({
+        owner_id: userId,
+        patient_id: metadata.patientId || userId,
+        uploaded_by: userId,
+        title: metadata.title,
+        category: metadata.category,
+        external_url: metadata.external_url,
+        notes: metadata.notes || null,
+        folder_id: metadata.folderId || null,
+        mime_type: null,
+        file_size: null,
+      })
+      .select('id')
+      .single()
+
+    if (error) {
+      logger.error('saveExternalUrlDocument', error)
+      return { success: false, error: 'No se pudo guardar el enlace' }
+    }
+
+    return { success: true, documentId: data.id }
+  } catch (err) {
+    logger.error('saveExternalUrlDocument', err)
+    return { success: false, error: 'Error inesperado al guardar el enlace' }
   }
 }
 
@@ -1125,6 +1210,11 @@ export async function downloadDocumentFile(pathOrDocument: DocumentPathInput, fi
  * Get download URL for document (for preview/viewing)
  */
 export async function getDocumentDownloadUrl(pathOrDocument: DocumentPathInput): Promise<string | null> {
+  // External URL documents have no storage file — return the URL directly
+  if (pathOrDocument && typeof pathOrDocument === 'object' && (pathOrDocument as any).external_url) {
+    return (pathOrDocument as any).external_url as string
+  }
+
   if (useInMemoryDemoDocuments()) {
     if (typeof pathOrDocument === 'string') {
       return pathOrDocument.startsWith('data:') ? pathOrDocument : null

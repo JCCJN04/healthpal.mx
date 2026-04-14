@@ -214,6 +214,7 @@ export interface Database {
           mime_type: string | null
           file_size: number | null
           notes: string | null
+          external_url: string | null
           created_at: string
           updated_at: string
         }
@@ -228,6 +229,7 @@ export interface Database {
           mime_type?: string | null
           file_size?: number | null
           notes?: string | null
+          external_url?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -242,6 +244,7 @@ export interface Database {
           mime_type?: string | null
           file_size?: number | null
           notes?: string | null
+          external_url?: string | null
           created_at?: string
           updated_at?: string
         }

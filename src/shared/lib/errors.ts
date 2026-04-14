@@ -68,17 +68,48 @@ function isSupabaseError(error: unknown): boolean {
  * File validation constants
  */
 export const FILE_LIMITS = {
-  /** Max document size: 10 MB */
+  /** Max document size: 10 MB (matches Supabase Storage bucket limit) */
   MAX_DOCUMENT_SIZE: 10 * 1024 * 1024,
   /** Max avatar size before compression: 15 MB (will be compressed to ~200KB) */
   MAX_AVATAR_SIZE: 15 * 1024 * 1024,
   /** Allowed document MIME types */
   ALLOWED_DOCUMENT_TYPES: [
+    // PDF
     'application/pdf',
+    // Word
     'application/msword',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    // Excel
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    // PowerPoint
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    // Images
     'image/jpeg',
     'image/png',
+    'image/webp',
+    'image/gif',
+    'image/tiff',
+    'image/heic',
+    'image/heif',
+    'image/bmp',
+    // Video
+    'video/mp4',
+    'video/quicktime',
+    'video/x-msvideo',
+    'video/webm',
+    // Audio
+    'audio/mpeg',
+    'audio/wav',
+    'audio/mp4',
+    'audio/ogg',
+    // Text / Data
+    'text/plain',
+    'text/csv',
+    'application/csv',
+    // DICOM (medical imaging)
+    'application/dicom',
   ],
   /** Allowed avatar MIME types */
   ALLOWED_AVATAR_TYPES: [

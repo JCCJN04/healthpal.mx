@@ -8,7 +8,20 @@ import {
   FolderOpen,
   Edit,
   Trash2,
-  Loader2
+  Loader2,
+  CalendarDays,
+  HardDrive,
+  Tag,
+  FileText,
+  Clock,
+  Info,
+  StickyNote,
+  AlertTriangle,
+  RefreshCw,
+  ExternalLink,
+  Link2,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import { DocumentViewer } from '@/shared/components/documents/DocumentViewer'
@@ -35,6 +48,8 @@ export default function DocumentDetail() {
   const [fileUrl, setFileUrl] = useState<string | null>(null)
   const [loadError, setLoadError] = useState(false)
   const [isAskingAI, setIsAskingAI] = useState(false)
+  const [activeTab, setActiveTab] = useState<'info' | 'notas'>('info')
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => {
     if (id) {
@@ -49,11 +64,15 @@ export default function DocumentDetail() {
       const doc = await getDocumentById(docId)
       if (doc) {
         setDocument(doc)
-        const url = await getDocumentDownloadUrl(doc)
-        if (url) {
-          setFileUrl(url)
+        if (doc.external_url) {
+          setFileUrl(doc.external_url)
         } else {
-          setLoadError(true)
+          const url = await getDocumentDownloadUrl(doc)
+          if (url) {
+            setFileUrl(url)
+          } else {
+            setLoadError(true)
+          }
         }
       }
     } catch (err) {
@@ -68,8 +87,17 @@ export default function DocumentDetail() {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <div className="flex flex-col items-center justify-center min-h-[500px] gap-4">
+          <div className="relative">
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+              <FileText className="w-8 h-8 text-primary" />
+            </div>
+            <Loader2 className="w-6 h-6 text-primary animate-spin absolute -bottom-1 -right-1" />
+          </div>
+          <div className="text-center">
+            <p className="font-semibold text-gray-900">Cargando documento</p>
+            <p className="text-sm text-gray-500 mt-1">Generando enlace seguro...</p>
+          </div>
         </div>
       </DashboardLayout>
     )
@@ -78,17 +106,16 @@ export default function DocumentDetail() {
   if (!document) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              Documento no encontrado
-            </h2>
-            <p className="text-gray-600 mb-6">
-              El documento que buscas no existe o ha sido eliminado.
-            </p>
+        <div className="flex items-center justify-center min-h-[500px]">
+          <div className="text-center max-w-sm">
+            <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <FileText className="w-8 h-8 text-gray-400" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Documento no encontrado</h2>
+            <p className="text-gray-500 mb-6">El documento que buscas no existe o fue eliminado.</p>
             <button
               onClick={() => navigate('/dashboard/documentos')}
-              className="text-[#33C7BE] font-semibold hover:underline"
+              className="px-5 py-2.5 bg-primary text-white rounded-xl font-semibold hover:bg-primary/90 transition-colors"
             >
               Volver a documentos
             </button>
@@ -256,14 +283,45 @@ export default function DocumentDetail() {
 
   const getCategoryColor = (category: string) => {
     switch (category) {
-      case 'prescription':
-        return 'bg-purple-100 text-purple-700'
-      case 'radiology':
-        return 'bg-blue-100 text-blue-700'
-      case 'lab':
-        return 'bg-green-100 text-green-700'
-      default:
-        return 'bg-gray-100 text-gray-700'
+      case 'prescription': return 'bg-purple-100 text-purple-700'
+      case 'radiology':    return 'bg-blue-100 text-blue-700'
+      case 'lab':          return 'bg-green-100 text-green-700'
+      case 'history':      return 'bg-orange-100 text-orange-700'
+      case 'insurance':    return 'bg-teal-100 text-teal-700'
+      default:             return 'bg-gray-100 text-gray-600'
+    }
+  }
+
+  const getCategoryBg = (category: string) => {
+    switch (category) {
+      case 'prescription': return 'bg-purple-50'
+      case 'radiology':    return 'bg-blue-50'
+      case 'lab':          return 'bg-green-50'
+      case 'history':      return 'bg-orange-50'
+      case 'insurance':    return 'bg-teal-50'
+      default:             return 'bg-gray-50'
+    }
+  }
+
+  const getCategoryText = (category: string) => {
+    switch (category) {
+      case 'prescription': return 'text-purple-600'
+      case 'radiology':    return 'text-blue-600'
+      case 'lab':          return 'text-green-600'
+      case 'history':      return 'text-orange-600'
+      case 'insurance':    return 'text-teal-600'
+      default:             return 'text-gray-500'
+    }
+  }
+
+  const getCategoryAccent = (category: string) => {
+    switch (category) {
+      case 'prescription': return 'bg-gradient-to-r from-purple-400 to-purple-600'
+      case 'radiology':    return 'bg-gradient-to-r from-blue-400 to-blue-600'
+      case 'lab':          return 'bg-gradient-to-r from-green-400 to-green-600'
+      case 'history':      return 'bg-gradient-to-r from-orange-400 to-orange-500'
+      case 'insurance':    return 'bg-gradient-to-r from-teal-400 to-teal-600'
+      default:             return 'bg-gradient-to-r from-[#33C7BE] to-teal-500'
     }
   }
 
@@ -287,162 +345,377 @@ export default function DocumentDetail() {
     })
   }
 
-  const getFileType = (mimeType: string | null): 'pdf' | 'image' => {
-    if (mimeType?.includes('pdf')) return 'pdf'
-    return 'image'
+  const getMimeLabel = (mimeType: string | null): string => {
+    if (!mimeType) return 'ARCHIVO'
+    const mimeLabels: Record<string, string> = {
+      'application/pdf': 'PDF',
+      'application/msword': 'DOC',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'DOCX',
+      'application/vnd.ms-excel': 'XLS',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'XLSX',
+      'application/vnd.ms-powerpoint': 'PPT',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'PPTX',
+      'image/jpeg': 'JPG',
+      'image/png': 'PNG',
+      'image/webp': 'WEBP',
+      'image/gif': 'GIF',
+      'image/tiff': 'TIFF',
+      'image/heic': 'HEIC',
+      'image/heif': 'HEIF',
+      'image/bmp': 'BMP',
+      'video/mp4': 'MP4',
+      'video/quicktime': 'MOV',
+      'video/x-msvideo': 'AVI',
+      'video/webm': 'WEBM',
+      'audio/mpeg': 'MP3',
+      'audio/wav': 'WAV',
+      'audio/mp4': 'M4A',
+      'audio/ogg': 'OGG',
+      'text/plain': 'TXT',
+      'text/csv': 'CSV',
+      'application/csv': 'CSV',
+      'application/dicom': 'DICOM',
+    }
+    return mimeLabels[mimeType] ?? mimeType.split('/')[1]?.toUpperCase() ?? 'ARCHIVO'
   }
+
+  const getFileType = (mimeType: string | null): 'pdf' | 'image' | 'video' | 'audio' | 'office' | 'text' | 'dicom' | 'other' => {
+    if (!mimeType) return 'other'
+    if (mimeType.includes('pdf')) return 'pdf'
+    if (mimeType === 'application/dicom') return 'dicom'
+    // Some browsers report .dcm as octet-stream; detect by stored filename extension
+    if (mimeType === 'application/octet-stream' && document.title?.toLowerCase().endsWith('.dcm')) return 'dicom'
+    if (mimeType.startsWith('image/')) return 'image'
+    if (mimeType.startsWith('video/')) return 'video'
+    if (mimeType.startsWith('audio/')) return 'audio'
+    if (
+      mimeType.includes('msword') ||
+      mimeType.includes('wordprocessingml') ||
+      mimeType.includes('ms-excel') ||
+      mimeType.includes('spreadsheetml') ||
+      mimeType.includes('ms-powerpoint') ||
+      mimeType.includes('presentationml')
+    ) return 'office'
+    if (mimeType.startsWith('text/') || mimeType.includes('csv')) return 'text'
+    return 'other'
+  }
+
+  const formatFileSize = (bytes: number | null): string => {
+    if (!bytes) return '—'
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
+  }
+
+  const getCategoryIcon = (category: string) => {
+    const cls = 'w-5 h-5'
+    switch (category) {
+      case 'radiology':    return <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18" /></svg>
+      case 'prescription': return <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+      case 'history':      return <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+      case 'lab':          return <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+      case 'insurance':    return <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+      default:             return <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+    }
+  }
+
+  const notesList = parseNotes(document.notes)
+  const fileType  = getFileType(document.mime_type)
 
   return (
     <DashboardLayout>
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Page Header */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          {/* Top Row: Back + Actions */}
-          <div className="flex items-center justify-between mb-6">
-            {/* Back Button */}
+      <div className="max-w-7xl mx-auto flex flex-col gap-3 sm:gap-4">
+
+        {/* ══ HEADER ═══════════════════════════════════════════ */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
+          <div className={`h-1 w-full rounded-t-2xl ${getCategoryAccent(document.category)}`} />
+
+          <div className="px-4 sm:px-6 pt-4 pb-4 sm:pb-5">
+            {/* Back */}
             <button
               onClick={handleBack}
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 font-medium transition-colors group"
+              className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 transition-colors mb-3 group"
             >
-              <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-              <span>Volver a Documentos</span>
+              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+              Documentos
             </button>
 
-            {/* Action Buttons */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleDownload}
-                className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors group"
-                title="Descargar"
-              >
-                <Download className="w-5 h-5 text-gray-600 group-hover:text-[#33C7BE]" />
-              </button>
+            {/* Title row */}
+            <div className="flex items-start gap-3 sm:gap-4">
+              {/* Category icon */}
+              <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${getCategoryBg(document.category)}`}>
+                <span className={`[&>svg]:w-5 [&>svg]:h-5 ${getCategoryText(document.category)}`}>
+                  {getCategoryIcon(document.category)}
+                </span>
+              </div>
+
+              {/* Title + chips + actions */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-3">
+                  <h1 className="text-base sm:text-xl font-bold text-gray-900 leading-snug line-clamp-2">
+                    {document.title}
+                  </h1>
+
+                  {/* Actions — desktop only (icons + label) */}
+                  <div className="hidden sm:flex items-center gap-2 flex-shrink-0 mt-0.5">
+                    {document.external_url ? (
+                      <a
+                        href={document.external_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary/90 active:scale-95 transition-all shadow-sm shadow-primary/20"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        Abrir enlace
+                      </a>
+                    ) : (
+                    <button
+                      onClick={handleDownload}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary/90 active:scale-95 transition-all shadow-sm shadow-primary/20"
+                    >
+                      <Download className="w-4 h-4" />
+                      Descargar
+                    </button>
+                    )}
+                    <button
+                      onClick={handleShare}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-50 transition-colors"
+                    >
+                      <Share2 className="w-4 h-4" />
+                      Compartir
+                    </button>
+                    <div className="relative">
+                      <button
+                        onClick={() => setMenuOpen(!menuOpen)}
+                        className="p-2 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-colors"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+                      <DropdownMenu open={menuOpen} onClose={() => setMenuOpen(false)} onAction={handleMenuAction} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Meta chips */}
+                <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${getCategoryColor(document.category)}`}>
+                    {getCategoryLabel(document.category)}
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 text-xs font-medium">
+                    {document.external_url ? <Link2 className="w-3 h-3" /> : <FileText className="w-3 h-3" />}
+                    {document.external_url ? 'ENLACE' : getMimeLabel(document.mime_type)}
+                  </span>
+                  {document.file_size && (
+                    <span className="text-xs text-gray-400 flex items-center gap-1">
+                      <HardDrive className="w-3 h-3" />
+                      {formatFileSize(document.file_size)}
+                    </span>
+                  )}
+                  <span className="text-xs text-gray-400 flex items-center gap-1 hidden sm:flex">
+                    <CalendarDays className="w-3 h-3" />
+                    {formatDate(document.created_at)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions — mobile only (full-width row) */}
+            <div className="flex sm:hidden items-center gap-2 mt-3 pt-3 border-t border-gray-100">
+              {document.external_url ? (
+                <a
+                  href={document.external_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary/90 active:scale-95 transition-all"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Abrir enlace
+                </a>
+              ) : (
+                <button
+                  onClick={handleDownload}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary/90 active:scale-95 transition-all"
+                >
+                  <Download className="w-4 h-4" />
+                  Descargar
+                </button>
+              )}
               <button
                 onClick={handleShare}
-                className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors group"
-                title="Compartir"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-50 transition-colors"
               >
-                <Share2 className="w-5 h-5 text-gray-600 group-hover:text-[#33C7BE]" />
+                <Share2 className="w-4 h-4" />
+                Compartir
               </button>
-
-              {/* More Menu */}
               <div className="relative">
                 <button
                   onClick={() => setMenuOpen(!menuOpen)}
-                  className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors"
-                  title="Más opciones"
+                  className="p-2.5 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-colors"
                 >
-                  <MoreVertical className="w-5 h-5 text-gray-600" />
+                  <MoreVertical className="w-4 h-4" />
                 </button>
-
-                {menuOpen && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-10"
-                      onClick={() => setMenuOpen(false)}
-                    />
-                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-20">
-                      <button
-                        onClick={() => handleMenuAction('Renombrar')}
-                        className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-3"
-                      >
-                        <Edit className="w-4 h-4" />
-                        Renombrar
-                      </button>
-                      <button
-                        onClick={() => handleMenuAction('Mover a carpeta')}
-                        className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-3"
-                      >
-                        <FolderOpen className="w-4 h-4" />
-                        Mover a carpeta
-                      </button>
-                      <div className="border-t border-gray-200 my-2"></div>
-                      <button
-                        onClick={() => handleMenuAction('Eliminar')}
-                        className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-3"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Eliminar
-                      </button>
-                    </div>
-                  </>
-                )}
+                <DropdownMenu open={menuOpen} onClose={() => setMenuOpen(false)} onAction={handleMenuAction} />
               </div>
-            </div>
-          </div>
-
-          {/* Document Info */}
-          <div className="space-y-3">
-            <h1 className="text-3xl font-bold text-gray-900">
-              {document.title}
-            </h1>
-
-            {/* Metadata Row */}
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Category Chip */}
-              <span
-                className={`px-3 py-1.5 rounded-full text-sm font-semibold uppercase tracking-wider ${getCategoryColor(
-                  document.category
-                )}`}
-              >
-                {getCategoryLabel(document.category)}
-              </span>
-
-              {/* Date */}
-              <span className="text-sm text-gray-600 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-                {formatDate(document.created_at)}
-              </span>
-
-              {/* File Info */}
-              <span className="text-sm text-gray-600 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-                {document.mime_type?.split('/')[1].toUpperCase()}
-              </span>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Left: Document Viewer (75%) */}
-          <div className="lg:col-span-3">
-            {fileUrl ? (
+        {/* ══ CONTENT GRID ══════════════════════════════════════ */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 sm:gap-4 items-start">
+
+          {/* Viewer — 3 cols (desktop) / full width (mobile, shown first) */}
+          <div className="lg:col-span-3 order-1 lg:order-1">
+            {document.external_url ? (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center gap-5 py-20 px-8 text-center">
+                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+                  <Link2 className="w-8 h-8 text-primary" />
+                </div>
+                <div>
+                  <p className="font-bold text-gray-900 mb-1">Estudio en plataforma externa</p>
+                  <p className="text-sm text-gray-500 max-w-xs break-all">{document.external_url}</p>
+                </div>
+                <a
+                  href={document.external_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white font-semibold rounded-xl hover:bg-primary/90 transition-colors shadow-sm"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Abrir estudio
+                </a>
+              </div>
+            ) : fileUrl ? (
               <DocumentViewer
                 fileUrl={fileUrl}
-                fileType={getFileType(document.mime_type)}
+                fileType={fileType}
                 title={document.title}
+                mimeType={document.mime_type ?? undefined}
               />
             ) : loadError ? (
-              <div className="bg-white rounded-xl shadow-sm p-12 text-center border-2 border-dashed border-red-100 min-h-[600px] flex flex-col items-center justify-center">
-                <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4">
-                  <span className="text-red-500 text-2xl">⚠️</span>
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center gap-4 py-20 px-8 text-center">
+                <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center">
+                  <AlertTriangle className="w-7 h-7 text-red-400" />
                 </div>
-                <p className="text-gray-900 font-bold text-lg mb-2">Error al cargar el documento</p>
-                <p className="text-gray-500 mb-6">No se pudo generar el enlace seguro o no tienes los permisos necesarios.</p>
+                <div>
+                  <p className="font-bold text-gray-900 mb-1">No se pudo cargar el documento</p>
+                  <p className="text-sm text-gray-500">El enlace seguro expiró o no tienes permisos.</p>
+                </div>
                 <button
                   onClick={() => loadDocumentData(id!)}
-                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary/90 transition-colors"
                 >
+                  <RefreshCw className="w-4 h-4" />
                   Reintentar
                 </button>
               </div>
             ) : (
-              <div className="bg-white rounded-xl shadow-sm p-12 text-center border-2 border-dashed border-gray-100 min-h-[600px] flex flex-col items-center justify-center">
-                <Loader2 className="w-12 h-12 text-primary mx-auto mb-4 animate-spin" />
-                <p className="text-gray-900 font-bold text-lg">Cargando documento...</p>
-                <p className="text-gray-500">Generando enlace seguro...</p>
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center gap-3 py-20">
+                <Loader2 className="w-10 h-10 text-primary animate-spin" />
+                <p className="font-semibold text-gray-900 text-sm">Cargando documento...</p>
               </div>
             )}
           </div>
 
-          {/* Right: Notes Panel (25%) */}
-          <div className="lg:col-span-1">
-            <NotesPanel notes={parseNotes(document.notes)} onAddNote={handleAddNote} onAskAI={handleAskAI} isAskingAI={isAskingAI} />
+          {/* Sidebar — 1 col (desktop: sticky right; mobile: collapsible below viewer) */}
+          <div className="lg:col-span-1 order-2 lg:order-2 lg:sticky lg:top-4">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+
+              {/* Mobile collapse toggle */}
+              <button
+                className="lg:hidden w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                onClick={() => setSidebarOpen(v => !v)}
+              >
+                <span className="flex items-center gap-2">
+                  <Info className="w-4 h-4 text-primary" />
+                  Información y notas
+                  {notesList.length > 0 && (
+                    <span className="w-4 h-4 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center">
+                      {notesList.length}
+                    </span>
+                  )}
+                </span>
+                {sidebarOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+              </button>
+
+              {/* Content: always visible on desktop, collapsible on mobile */}
+              <div className={`${sidebarOpen ? 'block' : 'hidden'} lg:block`}>
+                {/* Tabs */}
+                <div className="flex border-b border-gray-100">
+                  <TabBtn active={activeTab === 'info'} onClick={() => setActiveTab('info')} icon={<Info className="w-4 h-4" />}>
+                    Información
+                  </TabBtn>
+                  <TabBtn active={activeTab === 'notas'} onClick={() => setActiveTab('notas')} icon={<StickyNote className="w-4 h-4" />}>
+                    Notas
+                    {notesList.length > 0 && (
+                      <span className="w-4 h-4 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center">
+                        {notesList.length}
+                      </span>
+                    )}
+                  </TabBtn>
+                </div>
+
+                {/* Info panel */}
+                {activeTab === 'info' && (
+                  <div className="p-4 sm:p-5">
+                    <div className="space-y-3.5">
+                      <MetaRow icon={<Tag className="w-4 h-4" />} label="Categoría">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${getCategoryColor(document.category)}`}>
+                          {getCategoryLabel(document.category)}
+                        </span>
+                      </MetaRow>
+                      <MetaRow icon={<FileText className="w-4 h-4" />} label="Formato">
+                        <span className="text-sm font-medium text-gray-900">{getMimeLabel(document.mime_type)}</span>
+                      </MetaRow>
+                      <MetaRow icon={<HardDrive className="w-4 h-4" />} label="Tamaño">
+                        <span className="text-sm text-gray-700">{formatFileSize(document.file_size)}</span>
+                      </MetaRow>
+                      <div className="h-px bg-gray-100" />
+                      <MetaRow icon={<CalendarDays className="w-4 h-4" />} label="Subido el">
+                        <span className="text-sm text-gray-700">{formatDate(document.created_at)}</span>
+                      </MetaRow>
+                      <MetaRow icon={<Clock className="w-4 h-4" />} label="Actualizado">
+                        <span className="text-sm text-gray-700">{formatDate(document.updated_at)}</span>
+                      </MetaRow>
+                      <MetaRow icon={<FolderOpen className="w-4 h-4" />} label="Carpeta">
+                        {document.folder_id
+                          ? <span className="text-sm text-primary font-medium cursor-pointer">Ver carpeta</span>
+                          : <span className="text-sm text-gray-400 italic">Sin carpeta</span>
+                        }
+                      </MetaRow>
+                    </div>
+
+                    {/* Quick actions */}
+                    <div className="mt-5 pt-4 border-t border-gray-100 space-y-0.5">
+                      <QuickAction icon={<Edit className="w-4 h-4" />} onClick={() => handleMenuAction('Renombrar')}>
+                        Renombrar
+                      </QuickAction>
+                      <QuickAction icon={<FolderOpen className="w-4 h-4" />} onClick={() => handleMenuAction('Mover a carpeta')}>
+                        Mover a carpeta
+                      </QuickAction>
+                      <QuickAction icon={<Trash2 className="w-4 h-4" />} onClick={() => handleMenuAction('Eliminar')} danger>
+                        Eliminar documento
+                      </QuickAction>
+                    </div>
+                  </div>
+                )}
+
+                {/* Notes panel */}
+                {activeTab === 'notas' && (
+                  <NotesPanel
+                    notes={notesList}
+                    onAddNote={handleAddNote}
+                    onAskAI={handleAskAI}
+                    isAskingAI={isAskingAI}
+                    embedded
+                  />
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Share Modal */}
+      {/* Modals */}
       <ShareModal
         isOpen={shareModalOpen}
         onClose={() => setShareModalOpen(false)}
@@ -451,8 +724,6 @@ export default function DocumentDetail() {
         documentId={document.id}
         onShare={handleShareSubmit}
       />
-
-      {/* Rename Modal */}
       {user && (
         <RenameDocumentModal
           isOpen={renameModalOpen}
@@ -463,8 +734,6 @@ export default function DocumentDetail() {
           onSuccess={(newTitle) => setDocument({ ...document, title: newTitle })}
         />
       )}
-
-      {/* Move Modal */}
       {user && (
         <MoveDocumentModal
           isOpen={moveModalOpen}
@@ -476,5 +745,72 @@ export default function DocumentDetail() {
         />
       )}
     </DashboardLayout>
+  )
+}
+
+// ── Sub-components ──────────────────────────────────────────
+
+function DropdownMenu({ open, onClose, onAction }: { open: boolean; onClose: () => void; onAction: (a: string) => void }) {
+  if (!open) return null
+  return (
+    <>
+      <div className="fixed inset-0 z-30" onClick={onClose} />
+      <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 z-40">
+        <MenuItem icon={<Edit className="w-4 h-4 text-gray-400" />} onClick={() => onAction('Renombrar')}>Renombrar</MenuItem>
+        <MenuItem icon={<FolderOpen className="w-4 h-4 text-gray-400" />} onClick={() => onAction('Mover a carpeta')}>Mover a carpeta</MenuItem>
+        <div className="h-px bg-gray-100 my-1 mx-3" />
+        <MenuItem icon={<Trash2 className="w-4 h-4" />} onClick={() => onAction('Eliminar')} danger>Eliminar documento</MenuItem>
+      </div>
+    </>
+  )
+}
+
+function MenuItem({ icon, onClick, danger, children }: { icon: React.ReactNode; onClick: () => void; danger?: boolean; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full px-4 py-2.5 text-left text-sm flex items-center gap-3 transition-colors ${danger ? 'text-red-600 hover:bg-red-50' : 'text-gray-700 hover:bg-gray-50'}`}
+    >
+      {icon}{children}
+    </button>
+  )
+}
+
+function TabBtn({ active, onClick, icon, children }: { active: boolean; onClick: () => void; icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-semibold transition-colors ${
+        active ? 'text-primary border-b-2 border-primary bg-primary/5' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-50'
+      }`}
+    >
+      {icon}{children}
+    </button>
+  )
+}
+
+function MetaRow({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-start gap-3">
+      <span className="text-gray-300 mt-0.5 flex-shrink-0">{icon}</span>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs text-gray-400 mb-0.5">{label}</p>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function QuickAction({ icon, onClick, danger, children }: { icon: React.ReactNode; onClick: () => void; danger?: boolean; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full flex items-center gap-3 px-2 py-2.5 rounded-xl text-sm transition-colors ${
+        danger ? 'text-red-500 hover:bg-red-50' : 'text-gray-600 hover:bg-gray-50'
+      }`}
+    >
+      <span className={danger ? 'text-red-400' : 'text-gray-300'}>{icon}</span>
+      {children}
+    </button>
   )
 }
