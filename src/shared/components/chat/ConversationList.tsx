@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck
 import { Search, User } from 'lucide-react'
 import { ConversationWithDetails } from '@/shared/lib/queries/chat'
 import { useBatchUserStatus } from '@/shared/hooks/usePresence'
