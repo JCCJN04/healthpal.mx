@@ -54,3 +54,7 @@ CHANGELOG.md.tmp
 
 # Build artifacts
 *.tgz
+
+# Claude Code local settings
+.claude/settings.local.json
+.claude/commands/
