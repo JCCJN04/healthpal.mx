@@ -22,6 +22,7 @@ import type { Database } from '@/shared/types/database'
 type AppointmentStatus = Database['public']['Enums']['appointment_status']
 type VisitMode = Database['public']['Enums']['visit_mode']
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const statusConfig: Record<AppointmentStatus, { label: string; icon: any; color: string; bg: string }> = {
   confirmed: { label: 'Confirmada', icon: CheckCircle, color: 'text-green-700', bg: 'bg-green-50 border-green-200' },
   requested: { label: 'Pendiente', icon: AlertCircle, color: 'text-yellow-700', bg: 'bg-yellow-50 border-yellow-200' },
@@ -31,6 +32,7 @@ const statusConfig: Record<AppointmentStatus, { label: string; icon: any; color:
   no_show: { label: 'No asistió', icon: XCircle, color: 'text-gray-700', bg: 'bg-gray-50 border-gray-200' },
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const modeConfig: Record<VisitMode, { label: string; icon: any; color: string }> = {
   in_person: { label: 'Presencial', icon: MapPin, color: 'text-blue-600' },
   video: { label: 'Video', icon: Video, color: 'text-purple-600' },
@@ -52,6 +54,7 @@ export default function Consultas() {
 
   useEffect(() => {
     loadAppointments()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, profile])
 
   const loadAppointments = async () => {

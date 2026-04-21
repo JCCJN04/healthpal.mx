@@ -52,6 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshProfile = async () => {
     if (isDemoMode()) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       setProfile(demoDoctorProfile as any)
       return
     }
@@ -198,6 +199,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           setSession(demoSession ?? null)
           setUser((demoSession?.user as User) || (demoDoctorUser as unknown as User))
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           setProfile(demoDoctorProfile as any)
         } catch (err) {
           logger.error('demo:bootstrapAuth', err)
@@ -206,6 +208,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Fallback to local demo identity when auth bootstrap is unavailable.
           setSession(null)
           setUser(demoDoctorUser as unknown as User)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           setProfile(demoDoctorProfile as any)
         } finally {
           if (mounted) {
@@ -252,6 +255,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (mounted) {
           setLoading(false)
         }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (err: any) {
         logger.error('initAuth', err)
         if (mounted) {

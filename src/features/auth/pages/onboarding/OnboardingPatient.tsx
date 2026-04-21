@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import OnboardingLayout from './OnboardingLayout'
@@ -67,9 +66,9 @@ export default function OnboardingPatient() {
       await new Promise(resolve => setTimeout(resolve, 50))
 
       navigate('/onboarding/done')
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error saving patient profile:', error)
-      showToast(error.message || 'Error al guardar perfil', 'error')
+      showToast((error as Error).message || 'Error al guardar perfil', 'error')
     } finally {
       setLoading(false)
     }

@@ -101,6 +101,7 @@ export default function Register() {
           navigate('/verify-email', { state: { email }, replace: true })
         }
       }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       logger.error('register', error)
       showToast('Error inesperado al registrarse. Por favor intenta de nuevo.', 'error')

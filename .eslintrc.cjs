@@ -14,5 +14,19 @@ module.exports = {
       'warn',
       { allowConstantExport: true },
     ],
+    '@typescript-eslint/no-unused-vars': [
+      'error',
+      { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+    ],
   },
+  overrides: [
+    {
+      files: ['src/app/providers/**', 'src/context/**'],
+      rules: { 'react-refresh/only-export-components': 'off' },
+    },
+    {
+      files: ['src/shared/components/ui/Toast.tsx', 'src/features/public/components/DirectorioFilters.tsx'],
+      rules: { 'react-refresh/only-export-components': 'off' },
+    },
+  ],
 }

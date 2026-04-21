@@ -34,6 +34,7 @@ export default function RequireOnboarding({ children }: RequireOnboardingProps) 
 
   useEffect(() => {
     checkOnboarding()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, profile, profileTimedOut])
 
   const checkOnboarding = async () => {

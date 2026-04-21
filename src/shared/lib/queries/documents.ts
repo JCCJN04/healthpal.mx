@@ -1,5 +1,4 @@
-﻿// @ts-nocheck
-import { supabase } from '@/shared/lib/supabase'
+﻿import { supabase } from '@/shared/lib/supabase'
 import { logger } from '@/shared/lib/logger'
 import type { Database } from '@/shared/types/database'
 import { isDemoMode } from '@/context/DemoContext'
@@ -12,7 +11,7 @@ const DEMO_DOCUMENTS_IN_MEMORY = (import.meta.env.VITE_DEMO_DOCUMENTS_IN_MEMORY 
 const DEFAULT_DEMO_DOCTOR_EMAIL = 'demo@healthpal.mx'
 const DEFAULT_DEMO_DOCTOR_PASSWORD = 'DemoDoctor#2026'
 
-function useInMemoryDemoDocuments(): boolean {
+function checkInMemoryDemoDocuments(): boolean {
   return isDemoMode() && DEMO_DOCUMENTS_IN_MEMORY
 }
 
@@ -50,9 +49,9 @@ async function getAuthenticatedUserIdForWrite(): Promise<{ userId: string | null
     }
 
     return { userId: null, authError: lastErrorMessage }
-  } catch (err: any) {
+  } catch (err: unknown) {
     logger.error('demo:documents:getAuthenticatedUserIdForWrite', err)
-    return { userId: null, authError: err?.message || 'No se pudo autenticar la sesion de demo' }
+    return { userId: null, authError: (err as Error)?.message || 'No se pudo autenticar la sesion de demo' }
   }
 }
 
@@ -69,7 +68,7 @@ type Folder = {
 }
 
 type Profile = Database['public']['Tables']['profiles']['Row']
-type DocumentShare = Database['public']['Tables']['document_shares']['Row']
+// DocumentShare type reserved for future use
 
 type DocumentPathInput =
   | string
@@ -179,7 +178,7 @@ async function resolveDocumentStoragePath(input: DocumentPathInput): Promise<str
  * Get documents for current user
  */
 export async function getUserDocuments(userId: string, folderId: string | null = null, allFolders = false): Promise<Document[]> {
-  if (useInMemoryDemoDocuments()) {
+  if (checkInMemoryDemoDocuments()) {
     return getDemoDocumentsState()
       .filter((doc) => doc.owner_id === userId)
       .filter((doc) => allFolders ? true : (folderId ? doc.folder_id === folderId : doc.folder_id === null)) as Document[]
@@ -228,7 +227,7 @@ export async function getUserDocuments(userId: string, folderId: string | null =
  * Get document by ID
  */
 export async function getDocumentById(documentId: string): Promise<Document | null> {
-  if (useInMemoryDemoDocuments()) {
+  if (checkInMemoryDemoDocuments()) {
     const found = getDemoDocumentsState().find((doc) => doc.id === documentId)
     return (found || null) as Document | null
   }
@@ -256,7 +255,7 @@ export async function getDocumentById(documentId: string): Promise<Document | nu
  * List incoming shares for a user with minimal profile info of sender and document payload.
  */
 export async function getDocumentsSharedWithMe(userId: string) {
-  if (useInMemoryDemoDocuments()) {
+  if (checkInMemoryDemoDocuments()) {
     return []
   }
 
@@ -295,7 +294,7 @@ export async function getDocumentsSharedWithMe(userId: string) {
  * Used to show doctor-uploaded docs inside a patient's folder view.
  */
 export async function getDocumentsSharedByMeWith(myUserId: string, targetUserId: string) {
-  if (useInMemoryDemoDocuments()) {
+  if (checkInMemoryDemoDocuments()) {
     return []
   }
 
@@ -340,7 +339,7 @@ export async function uploadDocument(
     patientId?: string | null
   }
 ): Promise<{ success: boolean; documentId?: string; error?: string }> {
-  if (useInMemoryDemoDocuments()) {
+  if (checkInMemoryDemoDocuments()) {
     const id = `demo-doc-${Date.now()}`
     const createdAt = new Date().toISOString()
     const demoPreviewUrl = await readFileAsDataUrl(file)
@@ -475,7 +474,7 @@ export async function deleteDocument(
   documentId: string,
   userId: string
 ): Promise<{ success: boolean; error?: string }> {
-  if (useInMemoryDemoDocuments()) {
+  if (checkInMemoryDemoDocuments()) {
     const docs = getDemoDocumentsState()
     setDemoDocumentsState(docs.filter((doc) => !(doc.id === documentId && doc.owner_id === userId)))
     logger.info('demo:deleteDocument', { documentId, userId })
@@ -538,7 +537,7 @@ export async function deleteDocument(
  * Get folders for current user
  */
 export async function getFolders(userId: string, parentId: string | null = null): Promise<Folder[]> {
-  if (useInMemoryDemoDocuments()) {
+  if (checkInMemoryDemoDocuments()) {
     return getDemoFoldersState()
       .filter((folder) => folder.owner_id === userId)
       .filter((folder) => folder.parent_id === parentId)
@@ -578,7 +577,7 @@ export async function createFolder(
   userId: string,
   parentId: string | null = null
 ): Promise<{ success: boolean; folderId?: string; error?: string }> {
-  if (useInMemoryDemoDocuments()) {
+  if (checkInMemoryDemoDocuments()) {
     const id = `demo-folder-${Date.now()}`
     const now = new Date().toISOString()
     const folder: Folder = {
@@ -626,7 +625,7 @@ export async function createFolder(
  * Delete a folder
  */
 export async function deleteFolder(folderId: string, userId: string): Promise<{ success: boolean; error?: string }> {
-  if (useInMemoryDemoDocuments()) {
+  if (checkInMemoryDemoDocuments()) {
     const folders = getDemoFoldersState()
     const remainingFolders = folders.filter((folder) => !(folder.id === folderId && folder.owner_id === userId))
     setDemoFoldersState(remainingFolders)
@@ -709,7 +708,7 @@ export async function updateFolder(
   userId: string,
   data: { name?: string; color?: string }
 ): Promise<{ success: boolean; error?: string }> {
-  if (useInMemoryDemoDocuments()) {
+  if (checkInMemoryDemoDocuments()) {
     const folders = getDemoFoldersState()
     const next = folders.map((folder) => {
       if (folder.id !== folderId || folder.owner_id !== userId) return folder
@@ -752,7 +751,7 @@ export async function updateDocument(
   userId: string,
   data: { title?: string; notes?: string; folder_id?: string | null }
 ): Promise<{ success: boolean; error?: string }> {
-  if (useInMemoryDemoDocuments()) {
+  if (checkInMemoryDemoDocuments()) {
     const docs = getDemoDocumentsState()
     const next = docs.map((doc) => {
       if (doc.id !== documentId || doc.owner_id !== userId) return doc
@@ -835,7 +834,7 @@ export async function importSharedDocument(
   share: { document: Document; sender: { id: string; full_name?: string | null; email?: string | null } },
   recipientId: string
 ): Promise<{ success: boolean; created?: boolean; documentId?: string; error?: string }> {
-  if (useInMemoryDemoDocuments()) {
+  if (checkInMemoryDemoDocuments()) {
     return { success: true, created: true, documentId: `demo-import-${Date.now()}` }
   }
 
@@ -926,7 +925,8 @@ export async function importSharedDocument(
 /**
  * Process all shares for a user, importing them into their library if missing.
  */
-export async function syncSharedDocumentsIntoLibrary(userId: string) {
+ 
+export async function syncSharedDocumentsIntoLibrary(_userId: string) {
   // Copy-based import disabled for "just shared" model. Keep for backward compatibility return shape.
   return []
 }
@@ -935,7 +935,7 @@ export async function syncSharedDocumentsIntoLibrary(userId: string) {
  * Find a profile by email (case-insensitive). Returns first match.
  */
 export async function findProfileByEmail(email: string): Promise<Profile | null> {
-  if (useInMemoryDemoDocuments()) {
+  if (checkInMemoryDemoDocuments()) {
     return {
       id: DEMO_PATIENT_IDS.ana,
       email,
@@ -972,9 +972,10 @@ export async function shareDocumentWithUser(
   documentId: string,
   sharedById: string,
   target: { userId?: string; email?: string },
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   opts?: { document?: Document; senderProfile?: { full_name?: string | null; email?: string | null } }
 ): Promise<{ success: boolean; error?: string }> {
-  if (useInMemoryDemoDocuments()) {
+  if (checkInMemoryDemoDocuments()) {
     logger.info('demo:shareDocumentWithUser', { documentId, sharedById, target })
     return { success: true }
   }
@@ -1022,13 +1023,6 @@ export async function shareDocumentWithUser(
       return { success: false, error: error.message }
     }
 
-    // Try to import immediately into recipient library (copy path)
-    const senderMeta = {
-      id: sharedById,
-      full_name: opts?.senderProfile?.full_name,
-      email: opts?.senderProfile?.email,
-    }
-
     logger.debug('shareDocumentWithUser: success')
     return { success: true }
   } catch (err) {
@@ -1045,7 +1039,7 @@ export async function revokeDocumentShare(
   sharedById: string,
   sharedWithId: string
 ): Promise<{ success: boolean; error?: string }> {
-  if (useInMemoryDemoDocuments()) {
+  if (checkInMemoryDemoDocuments()) {
     logger.info('demo:revokeDocumentShare', { documentId, sharedById, sharedWithId })
     return { success: true }
   }
@@ -1078,7 +1072,7 @@ export async function revokeDocumentShare(
  * List users a document is shared with
  */
 export async function listDocumentShares(documentId: string) {
-  if (useInMemoryDemoDocuments()) {
+  if (checkInMemoryDemoDocuments()) {
     return []
   }
 
@@ -1113,7 +1107,9 @@ export async function searchDocuments(term: string, userId: string, limit = 30):
       getDocumentsSharedWithMe(userId)
     ])
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sharedDocs = (sharedRaw as any[])
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .map((s) => (s as any).document as Document)
       .filter(Boolean)
 
@@ -1146,7 +1142,7 @@ export async function searchDocuments(term: string, userId: string, limit = 30):
  * Download document file directly (forces download)
  */
 export async function downloadDocumentFile(pathOrDocument: DocumentPathInput, fileName: string): Promise<{ success: boolean; error?: string }> {
-  if (useInMemoryDemoDocuments()) {
+  if (checkInMemoryDemoDocuments()) {
     try {
       const demoUrl =
         (typeof pathOrDocument === 'string' && pathOrDocument.startsWith('data:') ? pathOrDocument : null) ||
@@ -1211,11 +1207,13 @@ export async function downloadDocumentFile(pathOrDocument: DocumentPathInput, fi
  */
 export async function getDocumentDownloadUrl(pathOrDocument: DocumentPathInput): Promise<string | null> {
   // External URL documents have no storage file — return the URL directly
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   if (pathOrDocument && typeof pathOrDocument === 'object' && (pathOrDocument as any).external_url) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (pathOrDocument as any).external_url as string
   }
 
-  if (useInMemoryDemoDocuments()) {
+  if (checkInMemoryDemoDocuments()) {
     if (typeof pathOrDocument === 'string') {
       return pathOrDocument.startsWith('data:') ? pathOrDocument : null
     }
@@ -1360,7 +1358,7 @@ export async function getAllSharesByOwner(ownerId: string): Promise<Array<{
   shared_with_avatar: string | null
   created_at: string
 }>> {
-  if (useInMemoryDemoDocuments()) return []
+  if (checkInMemoryDemoDocuments()) return []
 
   try {
     const { data, error } = await supabase
@@ -1381,6 +1379,7 @@ export async function getAllSharesByOwner(ownerId: string): Promise<Array<{
       return []
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (data || []).map((row: any) => ({
       id: row.id,
       document_id: row.document_id,
@@ -1415,7 +1414,9 @@ export async function getDocumentsSharedByPatientWithDoctor(
       return []
     }
 
+     
     return (data || [])
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .map((row: any) => row.document as Document)
       .filter(Boolean)
   } catch (err) {

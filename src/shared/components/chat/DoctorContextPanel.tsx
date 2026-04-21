@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useNavigate } from 'react-router-dom'
 import { User, Calendar, ExternalLink, ShieldCheck } from 'lucide-react'
 import { ConversationWithDetails } from '@/shared/lib/queries/chat'

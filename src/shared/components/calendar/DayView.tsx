@@ -21,6 +21,7 @@ export const DayView = ({ date, appointments, onTimeSlotClick, onEventClick, isL
     const dayStart = startOfDay(start)
 
     // Minutes from 7 AM
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const startOffset = differenceInMinutes(start, addDays(dayStart, 0).setHours(7, 0, 0, 0) as any)
     const duration = differenceInMinutes(end, start)
 

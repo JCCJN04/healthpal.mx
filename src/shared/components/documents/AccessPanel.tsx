@@ -61,6 +61,7 @@ export function AccessPanel({ isOpen, onClose, ownerId }: AccessPanelProps) {
 
   useEffect(() => {
     if (isOpen) loadShares()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, ownerId])
 
   async function loadShares() {

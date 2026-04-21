@@ -42,6 +42,7 @@ export async function getMySettings(): Promise<UserSettings> {
     .from('user_settings')
     .select('*')
     .eq('user_id', user.id)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .single() as { data: UserSettings | null; error: any }
 
   // If settings don't exist, create them with defaults
@@ -57,8 +58,10 @@ export async function getMySettings(): Promise<UserSettings> {
       .insert({
         user_id: user.id,
         ...defaultSettings,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
       .select()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .single() as { data: UserSettings | null; error: any }
 
     if (createError) {
@@ -100,10 +103,11 @@ export async function updateMySettings(updates: UserSettingsUpdate): Promise<Use
 
   const { data, error } = await supabase
     .from('user_settings')
-    // @ts-ignore - user_settings table will exist after migration is applied
+    // @ts-expect-error - user_settings table will exist after migration is applied
     .update(updates)
     .eq('user_id', user.id)
     .select()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .single() as { data: UserSettings | null; error: any }
 
   if (error) {
@@ -141,8 +145,10 @@ export async function upsertMySettings(updates: UserSettingsUpdate): Promise<Use
     .upsert({
       user_id: user.id,
       ...updates,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any)
     .select()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .single() as { data: UserSettings | null; error: any }
 
   if (error) {

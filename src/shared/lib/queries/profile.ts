@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { supabase } from '@/shared/lib/supabase'
 import { logger } from '@/shared/lib/logger'
 import type { Database } from '@/shared/types/database'
@@ -64,11 +63,15 @@ export async function getMyProfile(): Promise<Profile> {
       .insert({
         id: user.id,
         email: user.email,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         full_name: (user.user_metadata as any)?.full_name || null,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         phone: (user.user_metadata as any)?.phone || null,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         role: (user.user_metadata as any)?.role || 'patient',
         onboarding_completed: false,
         onboarding_step: 'role',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
       .select('*')
       .single()
@@ -99,10 +102,14 @@ export async function getMyProfile(): Promise<Profile> {
  * If the profile is missing full_name but user_metadata has it,
  * automatically update the profiles table to sync the data.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function syncProfileFromMetadata(profile: any, user: any): Promise<any> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const metaName = (user.user_metadata as any)?.full_name
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const metaPhone = (user.user_metadata as any)?.phone
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updates: Record<string, any> = {}
 
   if (!profile.full_name && metaName) {
@@ -118,6 +125,7 @@ async function syncProfileFromMetadata(profile: any, user: any): Promise<any> {
 
   const { data: updated, error } = await supabase
     .from('profiles')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .update(updates as any)
     .eq('id', profile.id)
     .select('*')
@@ -200,6 +208,7 @@ export async function updateMyProfile(updates: ProfileUpdate) {
 
   const { data, error } = await supabase
     .from('profiles')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .update(updates as any)
     .eq('id', user.id)
     .select()
@@ -233,6 +242,7 @@ export async function saveOnboardingStep(step: OnboardingStep) {
 
   const { data, error } = await supabase
     .from('profiles')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .update({ onboarding_step: step } as any)
     .eq('id', user.id)
     .select('id, onboarding_step, onboarding_completed')
@@ -265,6 +275,7 @@ export async function upsertDoctorProfile(
     .upsert({
       doctor_id: doctorId,
       ...doctorData,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any)
     .select()
     .single()
@@ -296,6 +307,7 @@ export async function upsertPatientProfile(
     .upsert({
       patient_id: patientId,
       ...patientData,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any)
     .select()
     .single()
@@ -331,6 +343,7 @@ export async function completeOnboarding() {
     .update({
       onboarding_completed: true,
       onboarding_step: null,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any)
     .eq('id', user.id)
     .select()
@@ -389,6 +402,7 @@ export async function uploadAvatar(userId: string, file: File) {
     })
 
   if (uploadError) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     logger.error('uploadAvatar:upload', { message: uploadError.message, name: (uploadError as any).name, statusCode: (uploadError as any).statusCode })
     throw uploadError
   }

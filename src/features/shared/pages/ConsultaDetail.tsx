@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
@@ -97,6 +96,7 @@ export default function ConsultaDetail() {
 
   useEffect(() => {
     loadAppointment();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const loadAppointment = async () => {

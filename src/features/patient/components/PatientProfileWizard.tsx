@@ -9,14 +9,13 @@ interface PatientProfileWizardProps {
     initialData: PatientProfile | null;
     isOpen: boolean;
     onClose: () => void;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onSave: (data: any) => Promise<void>;
 }
 
 type Step = 'metrics' | 'insurance';
 
 const PatientProfileWizard = ({ initialData, isOpen, onClose, onSave }: PatientProfileWizardProps) => {
-    if (!isOpen) return null;
-
     const [currentStep, setCurrentStep] = useState<Step>('metrics');
     const [isSaving, setIsSaving] = useState(false);
     const [formData, setFormData] = useState({
@@ -27,6 +26,8 @@ const PatientProfileWizard = ({ initialData, isOpen, onClose, onSave }: PatientP
         insurance_provider: initialData?.insurance_provider || '',
         preferred_language: initialData?.preferred_language || 'Español',
     });
+
+    if (!isOpen) return null;
 
     const steps: { id: Step; label: string; description: string }[] = [
         { id: 'metrics', label: 'Datos', description: 'Peso, altura, sangre' },
@@ -39,12 +40,13 @@ const PatientProfileWizard = ({ initialData, isOpen, onClose, onSave }: PatientP
 
     const validateStep = (step: Step): boolean => {
         switch (step) {
-            case 'metrics':
+            case 'metrics': {
                 const h = Number(formData.height_cm);
                 const w = Number(formData.weight_kg);
                 if (formData.height_cm && (h < 50 || h > 250)) return false;
                 if (formData.weight_kg && (w < 2 || w > 350)) return false;
                 return true;
+            }
             default:
                 return true;
         }

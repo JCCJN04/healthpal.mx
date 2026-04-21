@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { supabase } from '@/shared/lib/supabase'
 import { logger } from '@/shared/lib/logger'
 import type { Database } from '@/shared/types/database'
@@ -8,8 +7,6 @@ import { DEMO_DOCTOR_ID, DEMO_PATIENT_IDS } from '@/data/demoConfig'
 import { createNotification } from '@/shared/lib/queries/notifications'
 
 type Conversation = Database['public']['Tables']['conversations']['Row']
-type Participant = Database['public']['Tables']['conversation_participants']['Row']
-type Message = Database['public']['Tables']['messages']['Row']
 
 export interface ConversationWithDetails extends Conversation {
     other_participant: {
@@ -192,7 +189,9 @@ export async function listMyConversations(userId: string): Promise<ConversationW
     // We do this in a loop or with a clever join, but for simplicity/robustness in MVP:
     const conversationsWithUnread = await Promise.all((data || []).map(async (conv) => {
         const participants = conv.participants || []
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const myPart = participants.find((p: any) => p.user_id === userId)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const otherPart = participants.find((p: any) => p.user_id !== userId)
 
         const { count, error: countError } = await supabase

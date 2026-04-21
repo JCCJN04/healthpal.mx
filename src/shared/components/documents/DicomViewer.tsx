@@ -10,6 +10,7 @@ type DicomTool = 'WindowLevel' | 'ZoomAndPan' | 'Scroll'
 
 export const DicomViewer = ({ fileUrl, title }: DicomViewerProps) => {
   const containerRef = useRef<HTMLDivElement>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const appRef = useRef<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -41,6 +42,7 @@ export const DicomViewer = ({ fileUrl, title }: DicomViewerProps) => {
           setLoading(false)
           // Check if multi-frame (e.g. CT/MRI series)
           try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const vc = (app as any).getViewController?.(containerId)
             const nFrames = vc?.getNumberOfFrames?.() ?? 1
             if (nFrames > 1) setTotalFrames(nFrames)
@@ -49,6 +51,7 @@ export const DicomViewer = ({ fileUrl, title }: DicomViewerProps) => {
           }
         })
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         app.addEventListener('error', (e: any) => {
           if (!mounted) return
           setLoading(false)
@@ -56,6 +59,7 @@ export const DicomViewer = ({ fileUrl, title }: DicomViewerProps) => {
         })
 
         app.loadURLs([fileUrl])
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (err: any) {
         if (mounted) {
           setLoading(false)
@@ -81,6 +85,7 @@ export const DicomViewer = ({ fileUrl, title }: DicomViewerProps) => {
     const clamped = Math.max(1, Math.min(next, totalFrames))
     setFrame(clamped)
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const vc = (appRef.current as any)?.getViewController?.('dwv-layer-group')
       vc?.setCurrentFrame?.(clamped - 1)
     } catch { /* ignore */ }

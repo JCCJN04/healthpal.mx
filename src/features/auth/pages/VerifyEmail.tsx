@@ -30,6 +30,7 @@ export default function VerifyEmail() {
       if (error) throw error
       setResent(true)
       showToast('Correo reenviado. Revisa tu bandeja de entrada.', 'success')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       showToast(err.message || 'No se pudo reenviar el correo. Intenta más tarde.', 'error')
     } finally {

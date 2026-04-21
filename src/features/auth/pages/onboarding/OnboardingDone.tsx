@@ -28,6 +28,7 @@ export default function OnboardingDone() {
       await new Promise(resolve => setTimeout(resolve, 50))
       
       navigate('/dashboard')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       logger.error('Error completing onboarding:', error)
       showToast(error.message || 'Error al completar onboarding', 'error')

@@ -140,6 +140,7 @@ export function MoveDocumentModal({
     userId,
     onSuccess
 }: MoveDocumentModalProps) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [folders, setFolders] = useState<any[]>([])
     const [loading, setLoading] = useState(false)
     const [selectedFolderId, setSelectedFolderId] = useState<string | null>(currentFolderId)
@@ -150,6 +151,7 @@ export function MoveDocumentModal({
             loadFolders()
             setSelectedFolderId(currentFolderId)
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, currentFolderId])
 
     const loadFolders = async () => {

@@ -1,7 +1,6 @@
-// @ts-nocheck
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { MessageSquare, AlertCircle, Loader2, Eye, EyeOff, User } from 'lucide-react'
+import { MessageSquare, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react'
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import ConversationList from '@/shared/components/chat/ConversationList'
 import ChatWindow from '@/shared/components/chat/ChatWindow'
@@ -28,6 +27,7 @@ export default function Mensajes() {
   // State
   const [conversations, setConversations] = useState<ConversationWithDetails[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [messages, setMessages] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -47,6 +47,7 @@ export default function Mensajes() {
       logger.debug('[Mensajes] Loading inbox')
       loadConversations()
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
   const loadConversations = async (selectId?: string) => {
@@ -63,6 +64,7 @@ export default function Mensajes() {
         logger.debug('[Mensajes] Auto-selecting target conversation')
         setActiveId(selectId)
       }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       logger.error('Mensajes:loadConversations', err)
       setError('Error al cargar las conversaciones')
@@ -88,6 +90,7 @@ export default function Mensajes() {
     }
 
     handleStartConversation(withUserId)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, authLoading, searchParams])
 
   const handleStartConversation = async (otherUserId: string) => {
@@ -127,6 +130,7 @@ export default function Mensajes() {
     } else {
       setMessages([])
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId])
 
   const loadMessages = async () => {
@@ -199,6 +203,7 @@ export default function Mensajes() {
     return () => {
       supabase.removeChannel(channel)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId, user])
 
   const handleSendMessage = async (body: string) => {

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Consent service — manages doctor↔patient access requests and granular scopes.
  *

@@ -39,41 +39,26 @@ export function logPerformanceSummary(): PerformanceMetrics | null {
     }
 
     if (import.meta.env.DEV) {
-      // eslint-disable-next-line no-console
       console.log('\n' + '='.repeat(60))
-      // eslint-disable-next-line no-console
       console.log('📊 PERFORMANCE SUMMARY (Login → Dashboard)')
-      // eslint-disable-next-line no-console
       console.log('='.repeat(60))
-      // eslint-disable-next-line no-console
       console.log(`  Auth Init:           ${metrics.authInit}ms`)
-      // eslint-disable-next-line no-console
       console.log(`    ├─ Session Fetch:  ${metrics.sessionFetch}ms`)
-      // eslint-disable-next-line no-console
       console.log(`    └─ Profile Fetch:  ${metrics.profileFetch}ms`)
-      // eslint-disable-next-line no-console
       console.log(`  Onboarding Check:    ${metrics.onboardingCheck}ms`)
-      // eslint-disable-next-line no-console
       console.log(`  Appointments Fetch:  ${metrics.appointmentsFetch}ms`)
-      // eslint-disable-next-line no-console
       console.log('─'.repeat(60))
-      // eslint-disable-next-line no-console
       console.log(`  🎯 TOTAL TIME:       ${metrics.totalToInteractive}ms`)
-      // eslint-disable-next-line no-console
       console.log('='.repeat(60) + '\n')
 
       // Performance evaluation
       if (metrics.totalToInteractive < 1000) {
-        // eslint-disable-next-line no-console
         console.log('✅ EXCELLENT performance (< 1s)')
       } else if (metrics.totalToInteractive < 2000) {
-        // eslint-disable-next-line no-console
         console.log('✓ GOOD performance (< 2s)')
       } else if (metrics.totalToInteractive < 3000) {
-        // eslint-disable-next-line no-console
         console.log('⚠️ MODERATE performance (< 3s) - room for improvement')
       } else {
-        // eslint-disable-next-line no-console
         console.log('❌ SLOW performance (> 3s) - needs optimization')
       }
     }

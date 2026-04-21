@@ -40,10 +40,12 @@ export function getUserMessage(error: unknown, fallbackKey = 'default'): string 
 
   // Check for Supabase auth errors
   if (isSupabaseError(error)) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const status = (error as any).status || (error as any).code
     if (status === 401 || status === 403) {
       return USER_MESSAGES['permission-denied']
     }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (status === 404 || (error as any).code === 'PGRST116') {
       return USER_MESSAGES['not-found']
     }
@@ -139,6 +141,7 @@ export function validateFile(
     return `El archivo excede el tamaño máximo permitido (${maxMB} MB).`
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   if (!allowedTypes.includes(file.type as any)) {
     return `Tipo de archivo no permitido. Formatos aceptados: ${allowedTypes
       .map((t) => t.split('/')[1]?.toUpperCase())

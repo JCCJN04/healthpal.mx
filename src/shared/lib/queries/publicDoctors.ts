@@ -178,7 +178,7 @@ export async function searchPublicDoctors(
     const totalCount = rows.length > 0 ? Number(rows[0].total_count) : 0;
 
     const doctors: PublicDoctor[] = rows.map(
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+       
       ({ total_count: _tc, ...rest }) => rest,
     );
 
@@ -246,7 +246,7 @@ export async function getPublicDoctorReviews(
     const totalCount = rows.length > 0 ? Number(rows[0].total_count) : 0;
 
     const reviews: PublicDoctorReview[] = rows.map(
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+       
       ({ total_count: _tc, ...rest }) => rest,
     );
 
@@ -332,6 +332,7 @@ async function getPublicDoctorReviewsDirect(
     }
 
     // Resolve reviewer names for non-anonymous reviews
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const patientIds = [...new Set((rows as any[]).filter((r: any) => !r.is_anonymous).map((r: any) => r.patient_id))];
     const nameMap = new Map<string, string>();
     if (patientIds.length > 0) {
@@ -339,11 +340,13 @@ async function getPublicDoctorReviewsDirect(
         .from('profiles')
         .select('id, full_name')
         .in('id', patientIds);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       for (const p of ((profiles ?? []) as any[])) {
         nameMap.set(p.id, p.full_name ?? 'Paciente');
       }
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const reviews: PublicDoctorReview[] = (rows as any[]).map((r: any) => ({
       id: r.id,
       rating: r.rating,
@@ -437,7 +440,7 @@ export async function searchDoctorsAdvanced(
     const totalCount = rows.length > 0 ? Number(rows[0].total_count) : 0;
 
     const doctors: PublicDoctor[] = rows.map(
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+       
       ({ total_count: _tc, ...rest }) => rest,
     );
 
@@ -565,6 +568,7 @@ export async function getDoctorAvailability(
     }
 
     const { data, error } = await rpc('get_doctor_availability', {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       p_doctor_id: (profile as any).doctor_id,
       p_start_date: resolvedStart,
       p_end_date: resolvedEnd,
@@ -631,7 +635,7 @@ export async function searchDoctorsSeo(
 
     const rows = (data ?? []) as (PublicDoctor & { total_count: number })[];
     const totalCount = rows.length > 0 ? Number(rows[0].total_count) : 0;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     
     const doctors: PublicDoctor[] = rows.map(({ total_count: _tc, ...rest }) => rest);
     return { data: doctors, totalCount, page, pageSize, totalPages: Math.ceil(totalCount / pageSize) };
   } catch (err) {

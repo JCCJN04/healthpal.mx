@@ -17,6 +17,7 @@ export default function OnlyOnboarding({ children }: OnlyOnboardingProps) {
 
   useEffect(() => {
     checkOnboardingStatus()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, profile])
 
   const checkOnboardingStatus = async () => {
