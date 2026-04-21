@@ -33,7 +33,9 @@ import { showToast } from '@/shared/components/ui/Toast'
 import { extractDocumentInfo } from '@/shared/lib/gemini'
 import { useAuth } from '@/app/providers/AuthContext'
 import { logger } from '@/shared/lib/logger'
+import type { Database } from '@/shared/types/database'
 
+type Document = Database['public']['Tables']['documents']['Row']
 
 export default function DocumentDetail() {
   const { id } = useParams<{ id: string }>()
@@ -43,7 +45,7 @@ export default function DocumentDetail() {
   const [shareModalOpen, setShareModalOpen] = useState(false)
   const [renameModalOpen, setRenameModalOpen] = useState(false)
   const [moveModalOpen, setMoveModalOpen] = useState(false)
-  const [document, setDocument] = useState<any>(null)
+  const [document, setDocument] = useState<Document | null>(null)
   const [loading, setLoading] = useState(true)
   const [fileUrl, setFileUrl] = useState<string | null>(null)
   const [loadError, setLoadError] = useState(false)
@@ -147,7 +149,7 @@ export default function DocumentDetail() {
       } else {
         showToast(result_ai.error || 'La IA no pudo procesar el documento.', 'warning')
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Error during Ask AI', err)
       showToast('Ocurrió un error inesperado con la IA.', 'error')
     } finally {
@@ -314,17 +316,6 @@ export default function DocumentDetail() {
     }
   }
 
-  const getCategoryAccent = (category: string) => {
-    switch (category) {
-      case 'prescription': return 'bg-gradient-to-r from-purple-400 to-purple-600'
-      case 'radiology':    return 'bg-gradient-to-r from-blue-400 to-blue-600'
-      case 'lab':          return 'bg-gradient-to-r from-green-400 to-green-600'
-      case 'history':      return 'bg-gradient-to-r from-orange-400 to-orange-500'
-      case 'insurance':    return 'bg-gradient-to-r from-teal-400 to-teal-600'
-      default:             return 'bg-gradient-to-r from-[#33C7BE] to-teal-500'
-    }
-  }
-
   const getCategoryLabel = (category: string) => {
     const labels: Record<string, string> = {
       radiology: 'Radiología',
@@ -427,81 +418,33 @@ export default function DocumentDetail() {
       <div className="max-w-7xl mx-auto flex flex-col gap-3 sm:gap-4">
 
         {/* ══ HEADER ═══════════════════════════════════════════ */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
-          <div className={`h-1 w-full rounded-t-2xl ${getCategoryAccent(document.category)}`} />
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 px-5 sm:px-7 pt-5 pb-5 sm:pb-6">
+          {/* Back */}
+          <button
+            onClick={handleBack}
+            className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-primary transition-colors mb-4 group"
+          >
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+            Documentos
+          </button>
 
-          <div className="px-4 sm:px-6 pt-4 pb-4 sm:pb-5">
-            {/* Back */}
-            <button
-              onClick={handleBack}
-              className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 transition-colors mb-3 group"
-            >
-              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-              Documentos
-            </button>
-
-            {/* Title row */}
-            <div className="flex items-start gap-3 sm:gap-4">
-              {/* Category icon */}
-              <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${getCategoryBg(document.category)}`}>
+          <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+            {/* Left: icon + title + badges */}
+            <div className="flex items-start gap-4 flex-1 min-w-0">
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${getCategoryBg(document.category)}`}>
                 <span className={`[&>svg]:w-5 [&>svg]:h-5 ${getCategoryText(document.category)}`}>
                   {getCategoryIcon(document.category)}
                 </span>
               </div>
-
-              {/* Title + chips + actions */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-3">
-                  <h1 className="text-base sm:text-xl font-bold text-gray-900 leading-snug line-clamp-2">
-                    {document.title}
-                  </h1>
-
-                  {/* Actions — desktop only (icons + label) */}
-                  <div className="hidden sm:flex items-center gap-2 flex-shrink-0 mt-0.5">
-                    {document.external_url ? (
-                      <a
-                        href={document.external_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary/90 active:scale-95 transition-all shadow-sm shadow-primary/20"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                        Abrir enlace
-                      </a>
-                    ) : (
-                    <button
-                      onClick={handleDownload}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary/90 active:scale-95 transition-all shadow-sm shadow-primary/20"
-                    >
-                      <Download className="w-4 h-4" />
-                      Descargar
-                    </button>
-                    )}
-                    <button
-                      onClick={handleShare}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-50 transition-colors"
-                    >
-                      <Share2 className="w-4 h-4" />
-                      Compartir
-                    </button>
-                    <div className="relative">
-                      <button
-                        onClick={() => setMenuOpen(!menuOpen)}
-                        className="p-2 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-colors"
-                      >
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
-                      <DropdownMenu open={menuOpen} onClose={() => setMenuOpen(false)} onAction={handleMenuAction} />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Meta chips */}
-                <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${getCategoryColor(document.category)}`}>
+              <div className="min-w-0 flex-1">
+                <h1 className="text-xl sm:text-3xl font-extrabold text-gray-900 leading-tight tracking-tight line-clamp-2 mb-2">
+                  {document.title}
+                </h1>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest ${getCategoryColor(document.category)}`}>
                     {getCategoryLabel(document.category)}
                   </span>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 text-xs font-medium">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-500 text-[10px] font-bold uppercase tracking-widest">
                     {document.external_url ? <Link2 className="w-3 h-3" /> : <FileText className="w-3 h-3" />}
                     {document.external_url ? 'ENLACE' : getMimeLabel(document.mime_type)}
                   </span>
@@ -511,7 +454,7 @@ export default function DocumentDetail() {
                       {formatFileSize(document.file_size)}
                     </span>
                   )}
-                  <span className="text-xs text-gray-400 flex items-center gap-1 hidden sm:flex">
+                  <span className="text-xs text-gray-400 flex items-center gap-1">
                     <CalendarDays className="w-3 h-3" />
                     {formatDate(document.created_at)}
                   </span>
@@ -519,14 +462,21 @@ export default function DocumentDetail() {
               </div>
             </div>
 
-            {/* Actions — mobile only (full-width row) */}
-            <div className="flex sm:hidden items-center gap-2 mt-3 pt-3 border-t border-gray-100">
+            {/* Right: actions */}
+            <div className="flex items-center gap-2.5 flex-wrap md:flex-nowrap md:flex-shrink-0">
+              <button
+                onClick={handleShare}
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gray-50 text-primary font-semibold hover:bg-gray-100 transition-colors text-sm"
+              >
+                <Share2 className="w-4 h-4" />
+                <span className="hidden sm:inline">Compartir</span>
+              </button>
               {document.external_url ? (
                 <a
                   href={document.external_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary/90 active:scale-95 transition-all"
+                  className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-primary to-teal-400 text-white font-semibold shadow-sm shadow-primary/20 hover:opacity-90 active:scale-95 transition-all text-sm"
                 >
                   <ExternalLink className="w-4 h-4" />
                   Abrir enlace
@@ -534,23 +484,16 @@ export default function DocumentDetail() {
               ) : (
                 <button
                   onClick={handleDownload}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary/90 active:scale-95 transition-all"
+                  className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-primary to-teal-400 text-white font-semibold shadow-sm shadow-primary/20 hover:opacity-90 active:scale-95 transition-all text-sm"
                 >
                   <Download className="w-4 h-4" />
                   Descargar
                 </button>
               )}
-              <button
-                onClick={handleShare}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-50 transition-colors"
-              >
-                <Share2 className="w-4 h-4" />
-                Compartir
-              </button>
               <div className="relative">
                 <button
                   onClick={() => setMenuOpen(!menuOpen)}
-                  className="p-2.5 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-colors"
+                  className="p-2.5 rounded-xl bg-gray-50 text-gray-500 hover:bg-gray-100 transition-colors"
                 >
                   <MoreVertical className="w-4 h-4" />
                 </button>
@@ -566,7 +509,8 @@ export default function DocumentDetail() {
           {/* Viewer — 3 cols (desktop) / full width (mobile, shown first) */}
           <div className="lg:col-span-3 order-1 lg:order-1">
             {document.external_url ? (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center gap-5 py-20 px-8 text-center">
+              <div className="relative overflow-hidden bg-gray-50 rounded-3xl flex flex-col items-center justify-center gap-5 py-20 px-8 text-center">
+                <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_top_right,_#33C7BE,_transparent)] pointer-events-none" />
                 <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
                   <Link2 className="w-8 h-8 text-primary" />
                 </div>
@@ -592,8 +536,9 @@ export default function DocumentDetail() {
                 mimeType={document.mime_type ?? undefined}
               />
             ) : loadError ? (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center gap-4 py-20 px-8 text-center">
-                <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center">
+              <div className="relative overflow-hidden bg-gray-50 rounded-3xl flex flex-col items-center justify-center gap-4 py-20 px-8 text-center">
+                <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_top_right,_#33C7BE,_transparent)] pointer-events-none" />
+                <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center relative z-10">
                   <AlertTriangle className="w-7 h-7 text-red-400" />
                 </div>
                 <div>
@@ -609,16 +554,17 @@ export default function DocumentDetail() {
                 </button>
               </div>
             ) : (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center gap-3 py-20">
-                <Loader2 className="w-10 h-10 text-primary animate-spin" />
-                <p className="font-semibold text-gray-900 text-sm">Cargando documento...</p>
+              <div className="relative overflow-hidden bg-gray-50 rounded-3xl flex flex-col items-center justify-center gap-3 py-20">
+                <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_top_right,_#33C7BE,_transparent)] pointer-events-none" />
+                <Loader2 className="w-10 h-10 text-primary animate-spin relative z-10" />
+                <p className="font-semibold text-gray-900 text-sm relative z-10">Cargando documento...</p>
               </div>
             )}
           </div>
 
           {/* Sidebar — 1 col (desktop: sticky right; mobile: collapsible below viewer) */}
           <div className="lg:col-span-1 order-2 lg:order-2 lg:sticky lg:top-4">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
 
               {/* Mobile collapse toggle */}
               <button
@@ -656,36 +602,40 @@ export default function DocumentDetail() {
 
                 {/* Info panel */}
                 {activeTab === 'info' && (
-                  <div className="p-4 sm:p-5">
-                    <div className="space-y-3.5">
-                      <MetaRow icon={<Tag className="w-4 h-4" />} label="Categoría">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${getCategoryColor(document.category)}`}>
-                          {getCategoryLabel(document.category)}
-                        </span>
-                      </MetaRow>
-                      <MetaRow icon={<FileText className="w-4 h-4" />} label="Formato">
-                        <span className="text-sm font-medium text-gray-900">{getMimeLabel(document.mime_type)}</span>
-                      </MetaRow>
-                      <MetaRow icon={<HardDrive className="w-4 h-4" />} label="Tamaño">
-                        <span className="text-sm text-gray-700">{formatFileSize(document.file_size)}</span>
-                      </MetaRow>
-                      <div className="h-px bg-gray-100" />
-                      <MetaRow icon={<CalendarDays className="w-4 h-4" />} label="Subido el">
-                        <span className="text-sm text-gray-700">{formatDate(document.created_at)}</span>
-                      </MetaRow>
-                      <MetaRow icon={<Clock className="w-4 h-4" />} label="Actualizado">
-                        <span className="text-sm text-gray-700">{formatDate(document.updated_at)}</span>
-                      </MetaRow>
-                      <MetaRow icon={<FolderOpen className="w-4 h-4" />} label="Carpeta">
-                        {document.folder_id
-                          ? <span className="text-sm text-primary font-medium cursor-pointer">Ver carpeta</span>
-                          : <span className="text-sm text-gray-400 italic">Sin carpeta</span>
-                        }
-                      </MetaRow>
+                  <div className="p-5 sm:p-6 space-y-8">
+                    {/* Document Details */}
+                    <div>
+                      <h3 className="font-bold text-gray-900 text-base mb-5">Detalles del documento</h3>
+                      <div className="space-y-5">
+                        <MetaRow icon={<Tag className="w-4 h-4" />} label="Categoría">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${getCategoryColor(document.category)}`}>
+                            {getCategoryLabel(document.category)}
+                          </span>
+                        </MetaRow>
+                        <MetaRow icon={<FileText className="w-4 h-4" />} label="Formato">
+                          <span className="text-sm font-semibold text-gray-900">{getMimeLabel(document.mime_type)}</span>
+                        </MetaRow>
+                        <MetaRow icon={<HardDrive className="w-4 h-4" />} label="Tamaño">
+                          <span className="text-sm font-semibold text-gray-900">{formatFileSize(document.file_size)}</span>
+                        </MetaRow>
+                        <MetaRow icon={<CalendarDays className="w-4 h-4" />} label="Fecha de subida">
+                          <span className="text-sm font-semibold text-gray-900">{formatDate(document.created_at)}</span>
+                        </MetaRow>
+                        <MetaRow icon={<Clock className="w-4 h-4" />} label="Última modificación">
+                          <span className="text-sm font-semibold text-gray-900">{formatDate(document.updated_at)}</span>
+                        </MetaRow>
+                        <MetaRow icon={<FolderOpen className="w-4 h-4" />} label="Carpeta">
+                          {document.folder_id
+                            ? <span className="text-sm text-primary font-semibold cursor-pointer hover:underline">Ver carpeta</span>
+                            : <span className="text-sm text-gray-400">Sin carpeta</span>
+                          }
+                        </MetaRow>
+                      </div>
                     </div>
 
                     {/* Quick actions */}
-                    <div className="mt-5 pt-4 border-t border-gray-100 space-y-0.5">
+                    <div className="pt-5 border-t border-gray-100 space-y-0.5">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Acciones</p>
                       <QuickAction icon={<Edit className="w-4 h-4" />} onClick={() => handleMenuAction('Renombrar')}>
                         Renombrar
                       </QuickAction>
@@ -780,8 +730,10 @@ function TabBtn({ active, onClick, icon, children }: { active: boolean; onClick:
   return (
     <button
       onClick={onClick}
-      className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-semibold transition-colors ${
-        active ? 'text-primary border-b-2 border-primary bg-primary/5' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-50'
+      className={`flex-1 flex items-center justify-center gap-1.5 py-3.5 text-sm font-semibold transition-all ${
+        active
+          ? 'text-primary border-b-2 border-primary bg-primary/5'
+          : 'text-gray-400 hover:text-gray-700 hover:bg-gray-50 border-b-2 border-transparent'
       }`}
     >
       {icon}{children}
@@ -791,10 +743,12 @@ function TabBtn({ active, onClick, icon, children }: { active: boolean; onClick:
 
 function MetaRow({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-3">
-      <span className="text-gray-300 mt-0.5 flex-shrink-0">{icon}</span>
-      <div className="flex-1 min-w-0">
-        <p className="text-xs text-gray-400 mb-0.5">{label}</p>
+    <div className="flex items-start gap-3.5">
+      <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center shrink-0 text-primary/70">
+        {icon}
+      </div>
+      <div className="flex-1 min-w-0 pt-0.5">
+        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-0.5">{label}</p>
         {children}
       </div>
     </div>

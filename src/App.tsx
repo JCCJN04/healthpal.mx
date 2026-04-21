@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { Suspense, lazy } from 'react'
 import { Analytics } from '@vercel/analytics/react'
 import { AuthProvider } from '@/app/providers/AuthContext'
@@ -34,10 +34,6 @@ const PatientDetail = lazy(() => import('@/features/doctor/pages/PatientDetail')
 const Busqueda = lazy(() => import('@/features/shared/pages/Busqueda'))
 
 // Public pages (no auth required)
-const DirectorioDoctores = lazy(() => import('@/features/public/pages/DirectorioDoctores'))
-const PerfilDoctor = lazy(() => import('@/features/public/pages/PerfilDoctor'))
-const SeoLanding = lazy(() => import('@/features/public/pages/SeoLanding'))
-const AgendarCita = lazy(() => import('@/features/public/pages/AgendarCita'))
 const SolicitudDocumento = lazy(() => import('@/features/public/pages/SolicitudDocumento'))
 
 // Phase 2: Patient reviews & Doctor management
@@ -83,12 +79,12 @@ function App() {
         {/* Demo doctor route (direct URL access only) */}
         <Route path="/demo/doctor/*" element={<Suspense fallback={<PageLoader />}><DemoDoctor /></Suspense>} />
 
-        {/* Public Directory (no auth required) */}
-        <Route path="/directorio" element={<Suspense fallback={<PageLoader />}><DirectorioDoctores /></Suspense>} />
-        <Route path="/directorio/:slug" element={<Suspense fallback={<PageLoader />}><PerfilDoctor /></Suspense>} />
-        <Route path="/agendar/:slug" element={<Suspense fallback={<PageLoader />}><AgendarCita /></Suspense>} />
-        <Route path="/especialistas/:specialty" element={<Suspense fallback={<PageLoader />}><SeoLanding /></Suspense>} />
-        <Route path="/especialistas/:specialty/:city" element={<Suspense fallback={<PageLoader />}><SeoLanding /></Suspense>} />
+        {/* Public Directory — temporarily disabled */}
+        <Route path="/directorio" element={<Navigate to="/" replace />} />
+        <Route path="/directorio/:slug" element={<Navigate to="/" replace />} />
+        <Route path="/agendar/:slug" element={<Navigate to="/" replace />} />
+        <Route path="/especialistas/:specialty" element={<Navigate to="/" replace />} />
+        <Route path="/especialistas/:specialty/:city" element={<Navigate to="/" replace />} />
         <Route path="/solicitud/:token" element={<Suspense fallback={<PageLoader />}><SolicitudDocumento /></Suspense>} />
 
         {/* Onboarding Routes - Lazy loaded with Suspense */}

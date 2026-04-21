@@ -79,8 +79,8 @@ export const DocumentViewer = ({ fileUrl, fileType = 'pdf', title }: DocumentVie
     setPdfLoading(false)
   }
 
-  // Compute PDF page scale to fit container width
-  const pdfScale = containerWidth > 0 ? Math.min((containerWidth - 32) / 595, zoom / 100) : zoom / 100
+  // Compute PDF page scale to fit container width (16px total padding at p-2)
+  const pdfScale = containerWidth > 0 ? Math.min((containerWidth - 16) / 595, zoom / 100) : zoom / 100
 
   const zoomIn  = () => setZoom(p => Math.min(p + 25, 200))
   const zoomOut = () => setZoom(p => Math.max(p - 25, 25))
@@ -149,8 +149,7 @@ export const DocumentViewer = ({ fileUrl, fileType = 'pdf', title }: DocumentVie
       {/* ── Viewer area ─────────────────────────────────────── */}
       <div
         ref={containerRef}
-        className="bg-[#f0f2f5] overflow-auto flex items-start justify-center p-3 sm:p-6"
-        style={{ minHeight: 'clamp(260px, 60vh, 900px)' }}
+        className="bg-[#f0f2f5] overflow-auto flex items-start justify-center p-2"
       >
         {!fileUrl ? (
           <EmptyState onReload={() => window.location.reload()} />
@@ -176,7 +175,7 @@ export const DocumentViewer = ({ fileUrl, fileType = 'pdf', title }: DocumentVie
                       <p className="text-sm font-medium">No se pudo cargar el PDF</p>
                     </div>
                   }
-                  className={pdfLoading ? 'opacity-0 h-0 overflow-hidden' : 'shadow-xl'}
+                  className={pdfLoading ? 'opacity-0 h-0 overflow-hidden' : ''}
                 >
                   <Page
                     pageNumber={currentPage}
@@ -184,7 +183,7 @@ export const DocumentViewer = ({ fileUrl, fileType = 'pdf', title }: DocumentVie
                     rotate={rotation}
                     renderTextLayer
                     renderAnnotationLayer
-                    className="rounded-sm overflow-hidden"
+                    className="overflow-hidden"
                   />
                 </Document>
               </div>
@@ -193,14 +192,13 @@ export const DocumentViewer = ({ fileUrl, fileType = 'pdf', title }: DocumentVie
             {/* Image */}
             {fileType === 'image' && (
               <div
-                className="transition-transform duration-300 ease-out origin-top flex justify-center"
+                className="w-full transition-transform duration-300 ease-out origin-top"
                 style={{ transform: `scale(${zoom / 100}) rotate(${rotation}deg)` }}
               >
                 <img
                   src={fileUrl}
                   alt={title || 'Documento'}
-                  className="max-w-full h-auto rounded-lg shadow-xl object-contain"
-                  style={{ maxHeight: 'clamp(300px, 70vh, 900px)' }}
+                  className="w-full h-auto block shadow-xl object-contain"
                   draggable={false}
                 />
               </div>

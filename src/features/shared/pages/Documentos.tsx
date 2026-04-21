@@ -29,6 +29,19 @@ type Folder = {
   hasNew?: boolean
 }
 
+type SharedEntry = {
+  id: string
+  document?: Document | null
+  sender?: {
+    id: string
+    full_name: string | null
+    email: string | null
+    avatar_url: string | null
+    role: string | null
+    doctor_profile?: { specialty: string | null } | null
+  } | null
+}
+
 const CATEGORIES = [
   { value: 'all', label: 'Todos' },
   { value: 'radiology', label: 'Radiología' },
@@ -68,7 +81,7 @@ export default function Documentos() {
   const [navHistory, setNavHistory] = useState<{ id: string | null; name: string }[]>([])
   const [currentFolderInfo, setCurrentFolderInfo] = useState<{ avatarUrl?: string | null; subtitle?: string | null } | null>(null)
   const [sharedDocs, setSharedDocs] = useState<Array<{ doc: Document; senderId: string }>>([])
-  const [_sharedFolders, setSharedFolders] = useState<Folder[]>([])
+  const [, setSharedFolders] = useState<Folder[]>([])
   const [movingDocId, setMovingDocId] = useState<string | null>(null)
   const [senderEmailMap, setSenderEmailMap] = useState<Map<string, string>>(new Map())
 
@@ -120,10 +133,12 @@ export default function Documentos() {
 
   useEffect(() => {
     loadContent(currentFolder.id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, currentFolder.id])
 
   useEffect(() => {
     filterContent()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documents, folders, searchQuery, selectedCategory, currentFolder.id, sortBy])
 
   // Load known doctors for patient quick-select in ShareModal
@@ -131,12 +146,12 @@ export default function Documentos() {
     if (!user || profile?.role !== 'patient') return
     getPatientDoctorAccess(user.id).then(consents => {
       const doctors: KnownDoctor[] = consents
-        .filter(c => c.status === 'accepted' && (c as any).doctor)
+        .filter(c => c.status === 'accepted' && c.doctor)
         .map(c => ({
-          id: (c as any).doctor.id,
-          full_name: (c as any).doctor.full_name,
-          email: (c as any).doctor.email,
-          avatar_url: (c as any).doctor.avatar_url,
+          id: c.doctor!.id,
+          full_name: c.doctor!.full_name,
+          email: c.doctor!.email,
+          avatar_url: c.doctor!.avatar_url,
         }))
       setKnownDoctors(doctors)
     })
@@ -161,15 +176,15 @@ export default function Documentos() {
       (!doc.patient_id || doc.patient_id === user.id)
     )
 
-    const sharedEntries = (shared as any[]) // document payload comes from join
+    const sharedEntries = (shared as SharedEntry[])
       .map((s) => ({
-        doc: (s as any).document as Document,
-        senderId: (s as any).sender?.id || 'shared',
-        senderName: (s as any).sender?.full_name || (s as any).sender?.email || 'Compartido',
-        senderEmail: (s as any).sender?.email || '',
-        senderAvatarUrl: (s as any).sender?.avatar_url || null,
-        senderRole: (s as any).sender?.role || null,
-        senderSpecialty: (s as any).sender?.doctor_profile?.specialty || null,
+        doc: s.document as Document,
+        senderId: s.sender?.id || 'shared',
+        senderName: s.sender?.full_name || s.sender?.email || 'Compartido',
+        senderEmail: s.sender?.email || '',
+        senderAvatarUrl: s.sender?.avatar_url || null,
+        senderRole: s.sender?.role || null,
+        senderSpecialty: s.sender?.doctor_profile?.specialty || null,
       }))
       .filter(entry => !!entry.doc)
 
@@ -260,8 +275,8 @@ export default function Documentos() {
         .map(e => e.doc)
 
       const outbound = await getDocumentsSharedByMeWith(user.id, targetSenderId)
-      const doctorToPatientDocs = (outbound as any[])
-        .map(s => (s as any).document as Document)
+      const doctorToPatientDocs = (outbound as SharedEntry[])
+        .map(s => s.document as Document)
         .filter(Boolean)
 
       // Merge and deduplicate by doc ID
@@ -502,7 +517,7 @@ export default function Documentos() {
     if (!user) return
     setDocReqLoading(true)
     try {
-      const { data, error } = await (createDocumentRequest as any)(user.id, docReqEmail, docReqType, docReqDesc)
+      const { data, error } = await createDocumentRequest(user.id, docReqEmail, docReqType, docReqDesc)
       if (error || !data) {
         showToast(error || 'Error al crear la solicitud', 'error')
         return
@@ -644,51 +659,52 @@ export default function Documentos() {
 
         {/* Header */}
         {profile?.role === 'patient' && !currentFolder.id ? (
-          /* ── Patient root: Duolingo-style hero ── */
-          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-teal-500 to-cyan-500 p-5 md:p-6 text-white shadow-lg">
-            <div className="absolute inset-0 opacity-10 pointer-events-none"
-              style={{ background: 'radial-gradient(circle at 80% 20%, white 1px, transparent 1px)', backgroundSize: '18px 18px' }} />
-            <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          /* ── Patient root: clean Stitch-style header ── */
+          <div>
+            <div className="flex items-start justify-between flex-wrap gap-4 mb-5">
               <div>
-                <p className="text-white/70 text-sm font-medium mb-0.5">Bienvenido</p>
-                <h1 className="text-2xl md:text-3xl font-black leading-tight tracking-tight">
-                  {profile?.full_name?.split(' ')[0] ?? 'Mis Documentos'}
+                <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight">
+                  Documentos
                 </h1>
-                <p className="text-white/75 text-sm mt-1">Tus documentos y los de tus médicos</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  {profile?.full_name?.split(' ')[0]
+                    ? `Hola, ${profile.full_name.split(' ')[0]} — aquí están tus archivos médicos`
+                    : 'Tus archivos médicos y los de tus médicos'}
+                </p>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-4 py-2.5 border border-white/10 text-center">
-                  <p className="text-2xl font-black">{documents.length}</p>
-                  <p className="text-[10px] text-white/70 font-semibold uppercase tracking-wide">Archivos</p>
-                </div>
-                <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-4 py-2.5 border border-white/10 text-center">
-                  <p className="text-2xl font-black">{folders.filter(f => f.id.startsWith('shared-')).length}</p>
-                  <p className="text-[10px] text-white/70 font-semibold uppercase tracking-wide">Médicos</p>
-                </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={() => setUploadModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-5 py-2 bg-primary text-white text-sm font-bold rounded-full hover:bg-primary/90 transition-all shadow-sm shadow-primary/20"
+                >
+                  <Upload size={14} />
+                  Subir
+                </button>
+                <button
+                  onClick={() => setAccessPanelOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-100 text-gray-700 text-sm font-semibold rounded-full hover:bg-gray-200 transition-all"
+                >
+                  <Users size={14} />
+                  Accesos
+                </button>
+                <button
+                  onClick={() => setFolderModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-100 text-gray-700 text-sm font-semibold rounded-full hover:bg-gray-200 transition-all"
+                >
+                  <Plus size={14} />
+                  Carpeta
+                </button>
               </div>
             </div>
-            <div className="relative z-10 flex items-center gap-2 mt-4 flex-wrap">
-              <button
-                onClick={() => setUploadModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-white text-primary text-sm font-black rounded-xl hover:bg-white/90 transition-all shadow-md"
-              >
-                <Upload size={15} />
-                Subir documento
-              </button>
-              <button
-                onClick={() => setAccessPanelOpen(true)}
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-white/20 hover:bg-white/30 border border-white/20 text-white text-sm font-semibold rounded-xl transition-all"
-              >
-                <Users size={15} />
-                Ver accesos
-              </button>
-              <button
-                onClick={() => setFolderModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-white/20 hover:bg-white/30 border border-white/20 text-white text-sm font-semibold rounded-xl transition-all"
-              >
-                <Plus size={15} />
-                Nueva carpeta
-              </button>
+            <div className="flex gap-3">
+              <div className="bg-primary/10 rounded-2xl px-4 py-2.5 text-center border border-primary/10">
+                <p className="text-2xl font-black text-gray-900">{documents.length}</p>
+                <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">Archivos</p>
+              </div>
+              <div className="bg-primary/10 rounded-2xl px-4 py-2.5 text-center border border-primary/10">
+                <p className="text-2xl font-black text-gray-900">{folders.filter(f => f.id.startsWith('shared-')).length}</p>
+                <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">Médicos</p>
+              </div>
             </div>
           </div>
 
@@ -808,10 +824,10 @@ export default function Documentos() {
         )}
 
         {/* Search + Filter row */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 space-y-2.5">
+        <div className="space-y-2.5">
           {/* Row 1: Search */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
             <input
               type="text"
               placeholder={
@@ -823,7 +839,7 @@ export default function Documentos() {
               }
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary text-sm transition-all"
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary text-sm transition-all shadow-sm"
             />
           </div>
           {/* Row 2: Filters + ViewToggle */}
@@ -831,16 +847,16 @@ export default function Documentos() {
             <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar">
               {/* Root: sort pills */}
               {!currentFolder.id && (
-                <div className="inline-flex items-center gap-1 bg-gray-50 rounded-xl p-1 border border-gray-100">
+                <div className="flex items-center gap-2">
                   <button
                     onClick={() => setSortBy('date')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${sortBy === 'date' ? 'bg-primary text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-white'}`}
+                    className={`px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${sortBy === 'date' ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                   >
                     Más reciente
                   </button>
                   <button
                     onClick={() => setSortBy('name')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${sortBy === 'name' ? 'bg-primary text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-white'}`}
+                    className={`px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${sortBy === 'name' ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                   >
                     Nombre A–Z
                   </button>
@@ -848,15 +864,15 @@ export default function Documentos() {
               )}
               {/* Inside any folder: category filters */}
               {currentFolder.id && (
-                <div className="inline-flex items-center gap-1 bg-gray-50 rounded-xl p-1 border border-gray-100">
+                <div className="flex items-center gap-2 flex-wrap">
                   {CATEGORIES.map(cat => (
                     <button
                       key={cat.value}
                       onClick={() => setSelectedCategory(cat.value)}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                      className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                         selectedCategory === cat.value
-                          ? 'bg-primary text-white shadow-sm'
-                          : 'text-gray-500 hover:text-gray-700 hover:bg-white'
+                          ? 'bg-primary text-white shadow-sm shadow-primary/20'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                       }`}
                     >
                       {getCategoryIcon(cat.value)}

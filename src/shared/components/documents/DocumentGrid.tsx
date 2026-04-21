@@ -1,3 +1,4 @@
+import { ShieldCheck } from 'lucide-react'
 import { DocumentCard } from './DocumentCard'
 import { FolderCard } from './FolderCard'
 import type { Database } from '@/shared/types/database'
@@ -101,21 +102,38 @@ export const DocumentGrid = ({
         <div className="space-y-3">
           <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">Documentos</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {documents.map((document) => (
-              <DocumentCard
+            {documents.map((document, index) => (
+              <div
                 key={document.id}
-                document={document}
-                onDelete={onDeleteDocument}
-                onDragStart={onMoveDocument ? (docId, e) => {
-                  const payload = JSON.stringify({ docId })
-                  e.dataTransfer.setData('application/healthpal-doc', payload)
-                  e.dataTransfer.setData('text/plain', payload)
-                } : undefined}
-                isMoving={movingDocId === document.id}
-                onShare={onShareDocument}
-                onPreview={onPreviewDocument}
-              />
+                className={index === 0 && documents.length > 1 ? 'sm:col-span-2 lg:col-span-2' : ''}
+              >
+                <DocumentCard
+                  document={document}
+                  onDelete={onDeleteDocument}
+                  onDragStart={onMoveDocument ? (docId, e) => {
+                    const payload = JSON.stringify({ docId })
+                    e.dataTransfer.setData('application/healthpal-doc', payload)
+                    e.dataTransfer.setData('text/plain', payload)
+                  } : undefined}
+                  isMoving={movingDocId === document.id}
+                  onShare={onShareDocument}
+                  onPreview={onPreviewDocument}
+                />
+              </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Security footer */}
+      {(documents.length > 0 || folders.length > 0) && (
+        <div className="mt-6 p-5 rounded-3xl bg-primary/5 flex flex-col sm:flex-row items-center gap-4 border border-primary/10">
+          <div className="w-11 h-11 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+            <ShieldCheck size={20} className="text-primary" />
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-gray-900">Tus datos médicos están encriptados</h4>
+            <p className="text-xs text-gray-500 mt-0.5 max-w-2xl">HealthPal usa encriptación AES-256 para asegurar que tus expedientes de salud sean privados y accesibles solo para ti y tu personal médico autorizado.</p>
           </div>
         </div>
       )}

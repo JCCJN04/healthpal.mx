@@ -1,0 +1,85 @@
+name: Bug Report
+description: Reportar un error en HealthPal.mx
+title: "fix: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gracias por reportar este bug. Por favor completa todos los campos para acelerar el diagnóstico.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área afectada
+      options:
+        - Autenticación / Login
+        - Registro / Onboarding
+        - Citas (agendar, cancelar, ver)
+        - Mensajes / Chat
+        - Documentos
+        - Perfil del doctor
+        - Directorio público
+        - Calendario
+        - Notificaciones
+        - Demo mode
+        - Otro
+    validations:
+      required: true
+
+  - type: dropdown
+    id: role
+    attributes:
+      label: Rol del usuario afectado
+      options:
+        - Paciente
+        - Doctor
+        - Visitante (no autenticado)
+        - Ambos
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Descripción del bug
+      placeholder: ¿Qué pasó? ¿Qué esperabas que pasara?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Pasos para reproducir
+      placeholder: |
+        1. Ir a ...
+        2. Hacer clic en ...
+        3. Ver error
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Entorno
+      placeholder: |
+        - Browser: Chrome 123 / Safari 17
+        - OS: macOS 14 / Windows 11
+        - Dispositivo: Desktop / iPhone 15
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Errores en consola (si aplica)
+      render: text
+      placeholder: Pega aquí cualquier error de la consola del navegador
+
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Nota de privacidad
+      options:
+        - label: "Verifiqué que este reporte NO contiene datos reales de pacientes (nombres, RFC, diagnósticos)"
+          required: true

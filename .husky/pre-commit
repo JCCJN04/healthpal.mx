@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+# Ejecuta lint-staged en los archivos que van al commit
+# Solo verifica los archivos modificados — no el proyecto completo
+npx lint-staged

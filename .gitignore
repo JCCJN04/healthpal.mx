@@ -45,3 +45,16 @@ Desktop.ini
 # Coverage / test output
 coverage/
 *.lcov
+
+# semantic-release
+CHANGELOG.md.tmp
+
+# Husky
+.husky/_
+
+# Build artifacts
+*.tgz
+
+# Claude Code local settings
+.claude/settings.local.json
+.claude/commands/

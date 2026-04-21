@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+# Valida que el mensaje de commit siga Conventional Commits
+# Ejemplos válidos:
+#   feat: agregar filtro por especialidad en directorio
+#   fix: corregir error de RLS en chat entre doctor y paciente
+#   security: sanitizar nombre de archivo en carga de documentos
+npx --no-install commitlint --edit "$1"
