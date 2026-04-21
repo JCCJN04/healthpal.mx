@@ -10,6 +10,33 @@ body {
   background-color: #F8F9FB;
 }
 
+/* ── Landing page: dot grid hero background ── */
+.landing-dot-bg {
+  background-color: #ffffff;
+  background-image: radial-gradient(circle, #d1faf8 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* ── Landing page: floating animations ── */
+@keyframes lp-float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-10px); }
+}
+@keyframes lp-float-alt {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50%       { transform: translateY(-7px) rotate(1.5deg); }
+}
+@keyframes lp-float-rev {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50%       { transform: translateY(-6px) rotate(-1.5deg); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .lp-float     { animation: lp-float     6s  ease-in-out infinite; }
+  .lp-float-alt { animation: lp-float-alt 5s  ease-in-out infinite; }
+  .lp-float-rev { animation: lp-float-rev 5.5s ease-in-out infinite 0.8s; }
+}
+
 * {
   box-sizing: border-box;
 }
