@@ -1,5 +1,5 @@
 import React from 'react'
-import { Calendar, FileText, MessageSquare, AlertCircle, ChevronRight, Users } from 'lucide-react'
+import { FileText, ChevronRight, Users, Share2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Skeleton } from '@/shared/components/ui/Skeleton'
 import type { UserRole } from '@/shared/types/database'
@@ -13,6 +13,7 @@ interface SummaryData {
     documentCount: number;
     unreadMessages: number;
     activePatients?: number;
+    sharedDocumentCount?: number;
     alerts: {
         type: 'profile' | 'appointment' | 'document';
         message: string;
@@ -36,26 +37,21 @@ export const DashboardSummary: React.FC<DashboardSummaryProps> = ({
 }) => {
     const navigate = useNavigate()
 
-    const getInitials = (name: string) => {
-        return name
-            .split(' ')
-            .map((n) => n[0])
-            .join('')
-            .toUpperCase()
-            .substring(0, 2)
-    }
+    const getInitials = (name: string) =>
+        name.split(' ').map((n) => n[0]).join('').toUpperCase().substring(0, 2)
 
     if (loading) {
         return (
             <div className="space-y-6">
                 <div className="flex items-center gap-4">
                     <Skeleton className="w-12 h-12 rounded-full" />
-                    <Skeleton className="h-8 w-48" />
+                    <div className="space-y-2">
+                        <Skeleton className="h-7 w-48" />
+                        <Skeleton className="h-4 w-32" />
+                    </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {[1, 2, 3, 4].map((i) => (
-                        <Skeleton key={i} className="h-32 rounded-xl" />
-                    ))}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {[1, 2].map((i) => <Skeleton key={i} className="h-32 rounded-xl" />)}
                 </div>
             </div>
         )
@@ -63,9 +59,9 @@ export const DashboardSummary: React.FC<DashboardSummaryProps> = ({
 
     return (
         <div className="space-y-6">
-            {/* Header Section */}
+            {/* Header */}
             <div className="flex items-center gap-4">
-                <div className="relative">
+                <div className="flex-shrink-0">
                     {avatarUrl ? (
                         <img src={avatarUrl} alt={userName} className="w-12 h-12 rounded-full object-cover border-2 border-primary/20" />
                     ) : (
@@ -74,77 +70,51 @@ export const DashboardSummary: React.FC<DashboardSummaryProps> = ({
                         </div>
                     )}
                 </div>
-                <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-                    Bienvenido, <span className="text-primary">{userName.split(' ')[0]}</span>
-                </h1>
+                <div>
+                    <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+                        Bienvenido, <span className="text-primary">{userName.split(' ')[0]}</span>
+                    </h1>
+                    <p className="text-sm text-gray-500 mt-0.5">
+                        {role === 'doctor'
+                            ? 'Gestión de expedientes de tus pacientes'
+                            : 'Tu expediente de salud centralizado'}
+                    </p>
+                </div>
             </div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* Next Appointment Card */}
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between">
-                    <div>
-                        <div className="flex items-center gap-2 text-gray-500 mb-2">
-                            <Calendar size={18} className="text-primary" />
-                            <span className="text-xs font-semibold uppercase tracking-wider">Próxima Consulta</span>
-                        </div>
-                        {data.nextAppointment ? (
-                            <div className="mt-1">
-                                <p className="text-sm font-bold text-gray-900">{data.nextAppointment.date}</p>
-                                <p className="text-xs text-gray-600 line-clamp-1">{data.nextAppointment.time} - {data.nextAppointment.doctor}</p>
-                            </div>
-                        ) : (
-                            <p className="text-sm text-gray-500 mt-1 italic">No tienes consultas próximas</p>
-                        )}
-                    </div>
-                    <button
-                        onClick={() => navigate(data.nextAppointment ? '/dashboard/consultas' : '/dashboard/doctores')}
-                        className="mt-4 flex items-center justify-between text-primary text-xs font-bold group"
-                    >
-                        {data.nextAppointment ? 'VER DETALLES' : 'AGENDAR AHORA'}
-                        <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
-                    </button>
-                </div>
+            {/* 3 stats cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                {/* Documents Card */}
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between">
+                {/* 1. Documentos — protagonista */}
+                <div className="bg-white p-4 rounded-xl shadow-sm border-2 border-primary/20 flex flex-col justify-between">
                     <div>
                         <div className="flex items-center gap-2 text-gray-500 mb-2">
                             <FileText size={18} className="text-primary" />
-                            <span className="text-xs font-semibold uppercase tracking-wider">Mis Documentos</span>
+                            <span className="text-xs font-semibold uppercase tracking-wider">
+                                {role === 'doctor' ? 'Documentos' : 'Mis Documentos'}
+                            </span>
                         </div>
-                        <p className="text-2xl font-bold text-gray-900 mt-1">{data.documentCount}</p>
-                        <p className="text-xs text-gray-500">Documentos médicos</p>
+                        <p className="text-3xl font-bold text-gray-900 mt-1">{data.documentCount}</p>
+                        {role === 'doctor' ? (
+                            <p className="text-xs text-gray-500">Subidos para pacientes</p>
+                        ) : (
+                            <p className="text-xs text-gray-500">
+                                {(data.sharedDocumentCount ?? 0) > 0
+                                    ? `+ ${data.sharedDocumentCount} recibidos de tu médico`
+                                    : 'En tu historial médico'}
+                            </p>
+                        )}
                     </div>
                     <button
                         onClick={() => navigate('/dashboard/documentos')}
                         className="mt-4 flex items-center justify-between text-primary text-xs font-bold group"
                     >
-                        VER DOCUMENTOS
+                        VER EXPEDIENTE
                         <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
                     </button>
                 </div>
 
-                {/* Messages Card */}
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between">
-                    <div>
-                        <div className="flex items-center gap-2 text-gray-500 mb-2">
-                            <MessageSquare size={18} className="text-primary" />
-                            <span className="text-xs font-semibold uppercase tracking-wider">Mensajes</span>
-                        </div>
-                        <p className="text-2xl font-bold text-gray-900 mt-1">{data.unreadMessages}</p>
-                        <p className="text-xs text-gray-500">Mensajes sin leer</p>
-                    </div>
-                    <button
-                        onClick={() => navigate('/dashboard/mensajes')}
-                        className="mt-4 flex items-center justify-between text-primary text-xs font-bold group"
-                    >
-                        IR A MENSAJES
-                        <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
-                    </button>
-                </div>
-
-                {/* Alerts / Patients Card */}
+                {/* 2. Compartidos (paciente) / Pacientes activos (doctor) */}
                 {role === 'doctor' ? (
                     <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between">
                         <div>
@@ -153,13 +123,13 @@ export const DashboardSummary: React.FC<DashboardSummaryProps> = ({
                                 <span className="text-xs font-semibold uppercase tracking-wider">Pacientes Activos</span>
                             </div>
                             <p className="text-2xl font-bold text-gray-900 mt-1">{data.activePatients ?? 0}</p>
-                            <p className="text-xs text-gray-500">Con citas o seguimiento</p>
+                            <p className="text-xs text-gray-500">Con historial activo</p>
                         </div>
                         <button
                             onClick={() => navigate('/dashboard/consultas')}
                             className="mt-4 flex items-center justify-between text-primary text-xs font-bold group"
                         >
-                            VER CONSULTAS
+                            VER PACIENTES
                             <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
                         </button>
                     </div>
@@ -167,30 +137,22 @@ export const DashboardSummary: React.FC<DashboardSummaryProps> = ({
                     <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between">
                         <div>
                             <div className="flex items-center gap-2 text-gray-500 mb-2">
-                                <AlertCircle size={18} className="text-primary" />
-                                <span className="text-xs font-semibold uppercase tracking-wider">Estado de Cuenta</span>
+                                <Share2 size={18} className="text-primary" />
+                                <span className="text-xs font-semibold uppercase tracking-wider">Compartidos</span>
                             </div>
-                            <div className="mt-1 space-y-2">
-                                {data.alerts.length > 0 ? (
-                                    data.alerts.slice(0, 1).map((alert, i) => (
-                                        <p key={i} className="text-sm font-medium text-amber-600 line-clamp-2">
-                                            {alert.message}
-                                        </p>
-                                    ))
-                                ) : (
-                                    <p className="text-sm text-green-600 font-medium">✓ Perfil al día</p>
-                                )}
-                            </div>
+                            <p className="text-2xl font-bold text-gray-900 mt-1">{data.sharedDocumentCount ?? 0}</p>
+                            <p className="text-xs text-gray-500">De tu médico</p>
                         </div>
                         <button
-                            onClick={() => navigate('/dashboard/configuracion')}
+                            onClick={() => navigate('/dashboard/documentos')}
                             className="mt-4 flex items-center justify-between text-primary text-xs font-bold group"
                         >
-                            COMPLETAR PERFIL
+                            VER COMPARTIDOS
                             <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
                         </button>
                     </div>
                 )}
+
             </div>
         </div>
     )
