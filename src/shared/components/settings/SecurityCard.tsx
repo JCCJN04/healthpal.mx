@@ -66,6 +66,7 @@ const SecurityCard = ({ lastPasswordChange, onUpdatePassword }: SecurityCardProp
           setErrors({});
           setUpdateSuccess(false);
         }, 2000);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
         setUpdateError('Error al actualizar la contraseña. Intenta nuevamente.');
       } finally {

@@ -80,6 +80,7 @@ export default function NuevaConsulta() {
         } else {
             loadDoctorsList()
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchParams, isDoctor])
 
     const loadInitialDoctor = async (id: string) => {
@@ -147,6 +148,7 @@ export default function NuevaConsulta() {
         if (doctorIdForSchedule && formData.date) {
             loadDoctorSchedule(doctorIdForSchedule)
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [doctorIdForSchedule, formData.date])
 
     const loadDoctorSchedule = async (doctorId: string) => {

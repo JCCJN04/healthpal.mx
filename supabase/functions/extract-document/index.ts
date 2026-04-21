@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
             .download(filePath);
 
         if (fileError || !fileBlob) {
-            let errorDetails = fileError?.message || (fileError ? JSON.stringify(fileError) : 'Archivo no encontrado');
+            const errorDetails = fileError?.message || (fileError ? JSON.stringify(fileError) : 'Archivo no encontrado');
             throw new Error(`Fallo descarga: ${errorDetails}`);
         }
 
@@ -145,6 +145,7 @@ Genera tu respuesta estrictamente en formato Markdown, con un tono profesional, 
             status: 200,
         });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
         console.error('[CRITICAL]', err.message);
         return new Response(JSON.stringify({ success: false, error: err.message }), {

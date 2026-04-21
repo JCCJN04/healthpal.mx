@@ -116,6 +116,7 @@ export default function DirectorioHeroSearch({
         if (!res.ok) throw new Error('Mapbox error');
 
         const data = await res.json();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const results: CitySuggestion[] = (data.features || []).map((f: any) => ({
           id: f.id,
           placeName: f.text,

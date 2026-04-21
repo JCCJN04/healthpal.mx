@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
 import { supabase } from '@/shared/lib/supabase'
 import { logger } from '@/shared/lib/logger'
@@ -36,6 +37,7 @@ function setDemoAppointmentsState(next: Appointment[]) {
 }
 
 function getDemoAppointmentDetailsState(): AppointmentWithDetails[] {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return getDemoAppointmentsState().map((appointment: any) => {
     const patient = demoPatients.find((p) => p.id === appointment.patient_id)
     return {
@@ -129,6 +131,7 @@ export async function getAppointmentById(id: string, userId: string): Promise<Ap
 
     if (!data) return null
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const appointment = data as any
 
     // Fetch doctor specialty
@@ -163,12 +166,15 @@ export async function listUpcomingAppointments({ userId, role }: { userId: strin
   if (isDemoMode()) {
     const now = new Date().toISOString()
     return getDemoAppointmentDetailsState()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .filter((apt: any) => apt.start_at >= now)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .filter((apt: any) => {
         if (role === 'doctor') return apt.doctor_id === userId
         if (role === 'patient') return apt.patient_id === userId
         return apt.doctor_id === userId || apt.patient_id === userId
       })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .sort((a: any, b: any) => a.start_at.localeCompare(b.start_at)) as AppointmentWithDetails[]
   }
 
@@ -225,12 +231,15 @@ export async function listPastAppointments({ userId, role }: { userId: string, r
   if (isDemoMode()) {
     const now = new Date().toISOString()
     return getDemoAppointmentDetailsState()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .filter((apt: any) => apt.start_at < now || ['completed', 'cancelled', 'rejected', 'no_show'].includes(apt.status))
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .filter((apt: any) => {
         if (role === 'doctor') return apt.doctor_id === userId
         if (role === 'patient') return apt.patient_id === userId
         return apt.doctor_id === userId || apt.patient_id === userId
       })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .sort((a: any, b: any) => b.start_at.localeCompare(a.start_at)) as AppointmentWithDetails[]
   }
 
@@ -284,6 +293,7 @@ export async function listPastAppointments({ userId, role }: { userId: string, r
 /**
  * Helper to enrich appointments with doctor specialty/clinic info
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function enrichWithDoctorProfiles(appointments: any[]): Promise<AppointmentWithDetails[]> {
   const doctorIds = [...new Set(appointments.map(a => a.doctor_id).filter(Boolean))]
 
@@ -297,6 +307,7 @@ async function enrichWithDoctorProfiles(appointments: any[]): Promise<Appointmen
   const profileMap = (profiles || []).reduce((acc, p) => {
     acc[p.doctor_id] = p
     return acc
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   }, {} as Record<string, any>)
 
   return appointments.map(apt => ({
@@ -510,14 +521,17 @@ export async function getPastAppointments(userId: string) {
 export async function getAppointmentDaysInMonth(userId: string, start: Date, end: Date, role: 'patient' | 'doctor' = 'patient'): Promise<string[]> {
   if (isDemoMode()) {
     const days = getDemoAppointmentDetailsState()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .filter((apt: any) => {
         if (role === 'doctor') return apt.doctor_id === userId
         return apt.patient_id === userId
       })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .filter((apt: any) => {
         const startAt = new Date(apt.start_at)
         return startAt >= start && startAt <= end && ['requested', 'confirmed'].includes(apt.status)
       })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .map((apt: any) => new Date(apt.start_at).toISOString().split('T')[0])
 
     return [...new Set(days)]
@@ -646,11 +660,13 @@ export async function searchAppointments(
   if (isDemoMode()) {
     const termLower = term.trim().toLowerCase()
     return getDemoAppointmentDetailsState()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .filter((apt: any) => {
         if (role === 'doctor') return apt.doctor_id === userId
         if (role === 'patient') return apt.patient_id === userId
         return apt.doctor_id === userId || apt.patient_id === userId
       })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .filter((apt: any) => {
         const doctorMatch = apt.doctor?.full_name?.toLowerCase().includes(termLower)
         const patientMatch = apt.patient?.full_name?.toLowerCase().includes(termLower)

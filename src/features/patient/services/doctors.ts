@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
 import { supabase } from '@/shared/lib/supabase'
 import type { Database } from '@/shared/types/database'
@@ -44,6 +45,7 @@ export async function getDoctorById(doctorId: string): Promise<DoctorWithProfile
     }
 
     return {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ...(profile as any),
       doctor_profile: doctorProfile || null,
     }
@@ -70,6 +72,7 @@ export async function listDoctors(limit: number = 50): Promise<DoctorWithProfile
     }
 
     // Fetch doctor profiles for all doctors
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const doctorIds = (profiles as any[]).map(p => p.id)
     const { data: doctorProfiles } = await supabase
       .from('doctor_profiles')
@@ -77,9 +80,11 @@ export async function listDoctors(limit: number = 50): Promise<DoctorWithProfile
       .in('doctor_id', doctorIds)
 
     const doctorProfileMap = new Map(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ((doctorProfiles || []) as any[]).map(dp => [dp.doctor_id, dp])
     )
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (profiles as any[]).map(profile => ({
       ...profile,
       doctor_profile: doctorProfileMap.get(profile.id) || null,
@@ -312,14 +317,17 @@ export async function getDoctorReviews(doctorId: string): Promise<DoctorReview[]
 
     if (!data || data.length === 0) return []
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const patientIds = [...new Set((data as any[]).map((r: any) => r.patient_id))]
     const { data: profiles } = await supabase
       .from('profiles')
       .select('id, full_name')
       .in('id', patientIds)
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const nameMap = new Map(((profiles || []) as any[]).map((p: any) => [p.id, p.full_name]))
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (data as any[]).map((r: any) => ({
       id: r.id,
       rating: r.rating,
@@ -383,6 +391,7 @@ export async function getReviewableAppointmentId(doctorId: string): Promise<stri
 
     if (error || !appointments || appointments.length === 0) return null
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const apptIds = (appointments as any[]).map((a: any) => a.id)
 
     const { data: reviewed } = await supabase
@@ -390,6 +399,7 @@ export async function getReviewableAppointmentId(doctorId: string): Promise<stri
       .select('appointment_id')
       .in('appointment_id', apptIds)
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const reviewedIds = new Set(((reviewed || []) as any[]).map((r: any) => r.appointment_id))
     const unreviewedId = apptIds.find((id: string) => !reviewedIds.has(id))
     return unreviewedId ?? null

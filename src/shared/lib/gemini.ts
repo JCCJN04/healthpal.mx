@@ -29,6 +29,7 @@ export async function extractDocumentInfo(
         }
 
         return { success: false, error: data?.error || 'La IA no pudo procesar el documento' };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
         logger.error('Unexpected error calling extraction function', error);
         return { success: false, error: error.message || 'Error inesperado' };

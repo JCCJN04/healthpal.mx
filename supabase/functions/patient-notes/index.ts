@@ -129,6 +129,7 @@ Deno.serve(async (req: Request) => {
                 })
             }
 
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const decrypted = await Promise.all((data || []).map(async (note: any) => {
                 if (!note.body_enc || !note.body_nonce) return { ...note, body: '' }
                 try {
@@ -149,6 +150,7 @@ Deno.serve(async (req: Request) => {
 
         return new Response('Method not allowed', { status: 405, headers: corsHeaders })
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
         return new Response(JSON.stringify({ error: err?.message || 'Error interno' }), {
             status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }

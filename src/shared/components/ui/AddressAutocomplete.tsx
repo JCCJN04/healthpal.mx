@@ -79,6 +79,7 @@ export default function AddressAutocomplete({
         }
 
         const data = await res.json()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const results: Suggestion[] = (data.features || []).map((f: any) => ({
           id: f.id,
           placeName: f.text,

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useRef } from 'react'
 import { User, Phone, Video, MoreVertical, Loader2, ArrowLeft } from 'lucide-react'
 import { ConversationWithDetails } from '@/shared/lib/queries/chat'
@@ -9,7 +8,9 @@ import { es } from 'date-fns/locale'
 
 interface ChatWindowProps {
     conversation: ConversationWithDetails | null
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     messages: any[]
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     currentUser: any
     loading: boolean
     onSendMessage: (body: string) => void

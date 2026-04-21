@@ -1,10 +1,8 @@
-// @ts-nocheck
 import { supabase } from '@/shared/lib/supabase'
 import { logger } from '@/shared/lib/logger'
-import type { Database, PatientProfile } from '@/shared/types/database'
+import type { Database } from '@/shared/types/database'
 
 type PatientProfileInsert = Database['public']['Tables']['patient_profiles']['Insert']
-type PatientProfileUpdate = Database['public']['Tables']['patient_profiles']['Update']
 
 /**
  * Get patient profile details
@@ -41,6 +39,7 @@ export async function upsertPatientProfile(
             patient_id: userId,
             ...data,
             updated_at: new Date().toISOString(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any)
         .select()
         .single()

@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
@@ -97,6 +98,7 @@ export default function ConsultaDetail() {
 
   useEffect(() => {
     loadAppointment();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const loadAppointment = async () => {

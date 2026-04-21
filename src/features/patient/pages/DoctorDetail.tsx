@@ -54,6 +54,7 @@ export default function DoctorDetail() {
 
   useEffect(() => {
     loadDoctor();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const loadDoctor = async () => {

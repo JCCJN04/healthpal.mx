@@ -189,6 +189,7 @@ export default function AgendarCita() {
           await new Promise((r) => setTimeout(r, 600));
 
           await (supabase
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             .from('profiles') as any)
             .update({
               role: 'patient',

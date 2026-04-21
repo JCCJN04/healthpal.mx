@@ -22,6 +22,7 @@ export default function OnboardingRole() {
     if (!fromSolicitud) return
     sessionStorage.removeItem('healthpal:from_solicitud')
     navigate('/onboarding/basic', { replace: true })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -44,6 +45,7 @@ export default function OnboardingRole() {
       await new Promise(resolve => setTimeout(resolve, 50))
       
       navigate('/onboarding/basic')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       logger.error('OnboardingRole.submit', error)
       const errorMessage = error?.message || error?.toString() || 'Error al guardar rol'

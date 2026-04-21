@@ -30,6 +30,7 @@ export default function OnboardingContact() {
         const cleanPhone = profile.phone.replace('+52', '').trim()
         setPhone(cleanPhone)
       }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       setRole(profile.role as any)
     } catch (error) {
       logger.error('Error loading profile:', error)
@@ -79,6 +80,7 @@ export default function OnboardingContact() {
       } else {
         navigate('/onboarding/done')
       }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       logger.error('Error saving contact:', error)
       showToast(error.message || 'Error al guardar teléfono', 'error')

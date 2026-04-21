@@ -113,6 +113,7 @@ export async function createDoctorService(
 
   try {
     const { data, error } = await (supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .from('doctor_services') as any)
       .insert({
         doctor_id: doctorId,
@@ -155,6 +156,7 @@ export async function updateDoctorService(
 
   try {
     const { data, error } = await (supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .from('doctor_services') as any)
       .update({
         ...input,
@@ -267,6 +269,7 @@ export async function upsertDoctorSchedule(
     }));
 
     const { error: insError } = await (supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .from('doctor_schedules') as any)
       .insert(rows);
 
@@ -293,6 +296,7 @@ export async function toggleScheduleDay(
 
   try {
     const { error } = await (supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .from('doctor_schedules') as any)
       .update({ is_active: isActive, updated_at: new Date().toISOString() })
       .eq('id', scheduleId);

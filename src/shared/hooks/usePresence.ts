@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect } from 'react'
 import { supabase } from '@/shared/lib/supabase'
 import { updateUserStatus, getUserStatuses } from '@/shared/lib/queries/chat'
@@ -143,6 +142,7 @@ export function useBatchUserStatus(userIds: string[]) {
                 const data = await getUserStatuses(userIds)
                 if (!mounted) return
 
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const newStatuses: Record<string, any> = {}
                 data.forEach(s => {
                     newStatuses[s.user_id] = { isOnline: false, lastSeen: s.last_seen_at }
@@ -207,6 +207,7 @@ export function useBatchUserStatus(userIds: string[]) {
             supabase.removeChannel(channel)
             supabase.removeChannel(dbChannel)
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userIdsStr])
 
     return statuses

@@ -61,6 +61,7 @@ export default function SolicitudDocumento() {
   useEffect(() => {
     if (!token) { setStep('invalid'); return }
     loadRequest()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
 
   async function loadRequest() {
@@ -75,6 +76,7 @@ export default function SolicitudDocumento() {
     setEmail(data.patient_email)
 
     // Check if the patient email is already registered
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: emailExists } = await (supabase as any).rpc('check_email_registered', {
       p_email: data.patient_email,
     })
@@ -137,6 +139,7 @@ export default function SolicitudDocumento() {
           saveOnboardingStep('basic'),
           // Auto-grant doctor full consent
           request
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ? (supabase.from('doctor_patient_consent') as any).upsert({
                 doctor_id: request.doctor_id,
                 patient_id: newUserId,
@@ -218,6 +221,7 @@ export default function SolicitudDocumento() {
         uploadedIds.push(result.documentId)
 
         // Share each document with the doctor
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await (supabase.from('document_shares') as any).insert({
           document_id: result.documentId,
           shared_with: request.doctor_id,

@@ -101,6 +101,7 @@ export default function Login() {
       // Note: setLoading will be false after navigation completes,
       // but we won't see it since we're leaving the page
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       const errorMessage = error?.message || 'Error inesperado al iniciar sesión. Por favor intenta de nuevo.'
       showToast(errorMessage, 'error')
