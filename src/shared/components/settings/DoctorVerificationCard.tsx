@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import {
   Stethoscope, BadgeCheck, Building2, MapPin, Clock,
-  DollarSign, FileText, Pencil, X, Save, Loader2, Shield, Eye, EyeOff
+  DollarSign, FileText, Pencil, X, Save, Loader2, Shield
 } from 'lucide-react'
-import { DoctorProfile } from '@/shared/types/database'
+import { DoctorProfile, Json } from '@/shared/types/database'
+
+type DoctorProfileExtended = DoctorProfile & { accepted_insurances?: string[] | null }
 import { upsertDoctorProfile } from '@/shared/lib/queries/profile'
 import { geocodeAddress } from '@/shared/lib/geocoding'
 import { logger } from '@/shared/lib/logger'
@@ -45,7 +47,7 @@ export default function DoctorVerificationCard({
     bio: doctorProfile?.bio ?? '',
     consultation_mode: doctorProfile?.consultation_mode ?? 'in-person',
     is_public: doctorProfile?.is_public ?? true,
-    accepted_insurances: (doctorProfile as any)?.accepted_insurances as string[] ?? [],
+    accepted_insurances: (doctorProfile as DoctorProfileExtended)?.accepted_insurances ?? [],
   })
 
   const startEdit = () => {
@@ -59,7 +61,7 @@ export default function DoctorVerificationCard({
       bio: doctorProfile?.bio ?? '',
       consultation_mode: doctorProfile?.consultation_mode ?? 'in-person',
       is_public: doctorProfile?.is_public ?? true,
-      accepted_insurances: (doctorProfile as any)?.accepted_insurances as string[] ?? [],
+      accepted_insurances: (doctorProfile as DoctorProfileExtended)?.accepted_insurances ?? [],
     })
     setSaveError(null)
     setEditing(true)
@@ -91,15 +93,15 @@ export default function DoctorVerificationCard({
         bio: form.bio.trim() || null,
         consultation_mode: form.consultation_mode,
         is_public: form.is_public,
-        location: location as any,
+        location: location as Json,
         accepted_insurances: form.accepted_insurances.length > 0
           ? form.accepted_insurances
           : null,
-      } as any)
+      } as Parameters<typeof upsertDoctorProfile>[1])
 
       onSaved?.(updated as unknown as DoctorProfile)
       setEditing(false)
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('DoctorVerificationCard:save', err)
       setSaveError('Error al guardar. Intenta de nuevo.')
     } finally {
@@ -180,27 +182,6 @@ export default function DoctorVerificationCard({
                 {saveError}
               </p>
             )}
-
-            {/* Public Visibility Toggle */}
-            <div className="flex items-center justify-between p-4 bg-gray-50 border border-gray-100 rounded-xl">
-              <div>
-                <h4 className="text-sm font-semibold text-gray-900 mb-0.5">Directorio público</h4>
-                <p className="text-xs text-gray-500">Permite que los pacientes encuentren tu perfil en la búsqueda.</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setForm(prev => ({ ...prev, is_public: !prev.is_public }))}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[#33C7BE] focus:ring-offset-2 ${
-                  form.is_public ? 'bg-[#33C7BE]' : 'bg-gray-300'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
-                    form.is_public ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
-            </div>
 
             <div className="grid sm:grid-cols-2 gap-4">
               {/* Specialty */}
@@ -369,19 +350,6 @@ export default function DoctorVerificationCard({
         ) : (
           /* ── READ-ONLY VIEW ── */
           <div className="space-y-5">
-            {/* Visibility Badge */}
-            <div className="mb-2">
-              {doctorProfile?.is_public !== false ? (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-green-50 text-green-700 rounded-full border border-green-200">
-                  <Eye className="w-3.5 h-3.5" /> Visible en directorio público
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded-full border border-gray-200">
-                  <EyeOff className="w-3.5 h-3.5" /> Oculto del directorio público
-                </span>
-              )}
-            </div>
-
             <div className="grid sm:grid-cols-2 gap-x-8 gap-y-4">
               {[
                 { icon: <BadgeCheck className="w-4 h-4 text-primary" />, label: 'Cédula profesional', value: doctorProfile?.professional_license },
@@ -423,9 +391,9 @@ export default function DoctorVerificationCard({
               <Shield className="w-4 h-4 text-primary mt-0.5 shrink-0" />
               <div className="flex-1">
                 <p className="text-xs text-gray-400 mb-1">Seguros aceptados</p>
-                {((doctorProfile as any)?.accepted_insurances as string[] | null)?.length ? (
+                {(doctorProfile as DoctorProfileExtended)?.accepted_insurances?.length ? (
                   <div className="flex flex-wrap gap-1.5">
-                    {((doctorProfile as any).accepted_insurances as string[]).map((ins: string) => (
+                    {((doctorProfile as DoctorProfileExtended).accepted_insurances as string[]).map((ins: string) => (
                       <span
                         key={ins}
                         className="inline-flex items-center gap-1 text-xs bg-green-50 text-green-700 px-2.5 py-1 rounded-full font-medium"

@@ -28,12 +28,6 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
             <Link to="/#doctores" className="hover:text-primary transition-colors">
               Para Doctores
             </Link>
-            <Link to="/#beneficios" className="hover:text-primary transition-colors">
-              Beneficios
-            </Link>
-            <Link to="/directorio" className="hover:text-primary transition-colors">
-              Directorio
-            </Link>
           </nav>
 
           {/* Desktop CTA */}
@@ -76,20 +70,6 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
               className="block w-full text-left py-2 text-sm text-gray-700 hover:text-primary"
             >
               Para Doctores
-            </Link>
-            <Link
-              to="/#beneficios"
-              onClick={() => setMobileMenuOpen(false)}
-              className="block w-full text-left py-2 text-sm text-gray-700 hover:text-primary"
-            >
-              Beneficios
-            </Link>
-            <Link
-              to="/directorio"
-              onClick={() => setMobileMenuOpen(false)}
-              className="block w-full text-left py-2 text-sm text-gray-700 hover:text-primary"
-            >
-              Directorio
             </Link>
             <hr className="border-gray-100" />
             <div className="flex gap-3 pt-1">
@@ -143,11 +123,6 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
                 <li>
                   <Link to="/#beneficios" className="hover:text-primary transition-colors">
                     Cómo Funciona
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/directorio" className="hover:text-primary transition-colors">
-                    Directorio de Doctores
                   </Link>
                 </li>
               </ul>
