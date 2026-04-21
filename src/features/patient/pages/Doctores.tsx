@@ -55,24 +55,24 @@ const Doctores: React.FC = () => {
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Page Header */}
         <div className="mb-8">
-          <div className="flex items-start justify-between mb-6">
+          <div className="flex items-end justify-between mb-6 flex-wrap gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-1">
+              <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight mb-1">
                 Tus Doctores
               </h1>
-              <p className="text-gray-500 text-sm">
-                Gestiona tu equipo de salud y agenda citas rápidamente
+              <p className="text-gray-500 font-medium">
+                Gestiona tu equipo de salud y agenda citas rápidamente.
               </p>
             </div>
 
-            {/* View Toggle */}
             <div className="flex items-center gap-3">
-              <div className="flex bg-white border border-gray-200 rounded-lg p-1 shadow-sm">
+              {/* View Toggle */}
+              <div className="flex bg-white border border-gray-200 rounded-xl p-1 shadow-sm">
                 <button
                   onClick={() => setViewMode('grid')}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1.5 ${
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-1.5 ${
                     viewMode === 'grid'
-                      ? 'bg-[#33C7BE] text-white shadow-sm'
+                      ? 'bg-primary text-white shadow-sm'
                       : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                   }`}
                 >
@@ -81,9 +81,9 @@ const Doctores: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setViewMode('list')}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1.5 ${
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-1.5 ${
                     viewMode === 'list'
-                      ? 'bg-[#33C7BE] text-white shadow-sm'
+                      ? 'bg-primary text-white shadow-sm'
                       : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                   }`}
                 >
@@ -91,36 +91,33 @@ const Doctores: React.FC = () => {
                   <span className="hidden sm:inline">Lista</span>
                 </button>
               </div>
+
+              {/* Add Doctor Button */}
+              <button
+                onClick={handleAddDoctor}
+                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-br from-primary to-teal-400 text-white text-sm font-semibold rounded-xl hover:opacity-90 active:scale-95 transition-all shadow-md shadow-primary/20"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span className="hidden sm:inline">Agregar doctor</span>
+              </button>
             </div>
           </div>
 
-          {/* Search and Add Doctor */}
-          <div className="flex items-center gap-3">
-            {/* Search */}
-            <div className="flex-1 relative max-w-lg">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Buscar por nombre o especialidad..."
-                className="w-full pl-12 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#33C7BE] focus:border-transparent shadow-sm"
-              />
-            </div>
-
-            {/* Add Doctor Button */}
-            <button
-              onClick={handleAddDoctor}
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#33C7BE] text-white text-sm font-semibold rounded-lg hover:bg-teal-600 transition-all duration-200 shadow-sm hover:shadow-md"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span className="hidden sm:inline">Agregar doctor</span>
-            </button>
+          {/* Search */}
+          <div className="relative max-w-xl">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Buscar por nombre, especialidad o clínica..."
+              className="w-full pl-11 pr-4 py-2.5 bg-white border border-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary shadow-sm transition-all"
+            />
           </div>
         </div>
 
         {/* Results Count */}
-        <div className="mb-4">
+        <div className="mb-5">
           <p className="text-sm text-gray-500">
             Mostrando{' '}
             <span className="font-semibold text-gray-800">
@@ -137,38 +134,34 @@ const Doctores: React.FC = () => {
             <p className="text-sm text-gray-400">Cargando doctores...</p>
           </div>
         ) : filteredDoctors.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-16 text-center">
-            <div className="max-w-sm mx-auto">
-              <div className="w-16 h-16 bg-gradient-to-br from-teal-50 to-blue-50 rounded-full flex items-center justify-center mx-auto mb-5">
-                <Stethoscope className="w-8 h-8 text-[#33C7BE]" />
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">
-                {searchQuery
-                  ? 'No se encontraron doctores'
-                  : 'Aún no tienes doctores agregados'}
-              </h3>
-              <p className="text-sm text-gray-500 mb-6">
-                {searchQuery
-                  ? 'Intenta buscar con otros términos.'
-                  : 'Comienza agregando doctores a tu lista para gestionar tus consultas.'}
-              </p>
-              {searchQuery ? (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="px-5 py-2.5 bg-[#33C7BE] text-white text-sm font-semibold rounded-lg hover:bg-teal-600 transition-colors shadow-sm"
-                >
-                  Limpiar búsqueda
-                </button>
-              ) : (
-                <button
-                  onClick={handleAddDoctor}
-                  className="px-5 py-2.5 bg-[#33C7BE] text-white text-sm font-semibold rounded-lg hover:bg-teal-600 transition-colors shadow-sm flex items-center gap-2 mx-auto"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  <span>Buscar doctores</span>
-                </button>
-              )}
+          <div className="mt-8 p-12 rounded-3xl bg-gray-50 flex flex-col items-center text-center border border-gray-100">
+            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-5">
+              <Stethoscope className="w-8 h-8 text-primary" />
             </div>
+            <h4 className="text-xl font-bold text-gray-900 mb-2">
+              {searchQuery ? 'No se encontraron doctores' : 'Aún no tienes doctores agregados'}
+            </h4>
+            <p className="text-gray-500 max-w-md mx-auto mb-7 text-sm">
+              {searchQuery
+                ? 'Intenta ajustar tu búsqueda para explorar más especialistas.'
+                : 'Comienza agregando doctores a tu lista para gestionar tus consultas y compartir documentos.'}
+            </p>
+            {searchQuery ? (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="text-primary font-bold text-sm hover:underline underline-offset-4"
+              >
+                Limpiar búsqueda
+              </button>
+            ) : (
+              <button
+                onClick={handleAddDoctor}
+                className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-br from-primary to-teal-400 text-white text-sm font-semibold rounded-xl hover:opacity-90 active:scale-95 transition-all shadow-md shadow-primary/20"
+              >
+                <UserPlus className="w-4 h-4" />
+                Buscar doctores
+              </button>
+            )}
           </div>
         ) : viewMode === 'grid' ? (
           <DoctorGrid doctors={filteredDoctors} onDoctorRemoved={loadDoctors} />

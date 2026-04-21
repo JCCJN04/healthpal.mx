@@ -233,6 +233,7 @@ export const DocumentCard = ({ document, onDelete, onDragStart, isMoving, onShar
     )
     observer.observe(el)
     return () => observer.disconnect()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [document.id, hasThumbnail, isExternal])
 
   const handleAbrir = (e?: React.MouseEvent) => {
@@ -264,8 +265,8 @@ export const DocumentCard = ({ document, onDelete, onDragStart, isMoving, onShar
   return (
     <div
       ref={cardRef}
-      className={`relative bg-white rounded-2xl border border-gray-100 overflow-hidden flex flex-col
-        shadow-sm hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 active:shadow-sm
+      className={`relative bg-white rounded-3xl border border-gray-100 overflow-hidden flex flex-col
+        shadow-sm hover:shadow-xl hover:shadow-gray-200/60 hover:-translate-y-0.5 active:translate-y-0 active:shadow-sm
         transition-all duration-200 cursor-pointer group
         ${isMoving ? 'opacity-50 pointer-events-none' : ''}`}
       draggable={!!onDragStart}
@@ -278,8 +279,8 @@ export const DocumentCard = ({ document, onDelete, onDragStart, isMoving, onShar
         </div>
       )}
 
-      {/* ── Thumbnail area (images & PDFs) ── */}
-      {hasThumbnail ? (
+      {/* ── Thumbnail area (only for image/pdf/video/audio/office) ── */}
+      {hasThumbnail && (
         <div className="relative h-40 overflow-hidden shrink-0 bg-gray-50">
           {thumbUrl ? (
             thumbType === 'image' ? (
@@ -294,7 +295,6 @@ export const DocumentCard = ({ document, onDelete, onDragStart, isMoving, onShar
               <IconThumb gradient={config.gradient} icon={<FileSpreadsheet className="w-5 h-5" />} />
             )
           ) : (
-            /* Placeholder while URL is loading */
             <div className={`w-full h-full bg-gradient-to-br ${config.gradient} opacity-[0.12] flex items-center justify-center`}>
               <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
             </div>
@@ -307,7 +307,6 @@ export const DocumentCard = ({ document, onDelete, onDragStart, isMoving, onShar
             </span>
           </div>
 
-          {/* Shared badge overlay */}
           {isSharedDoc && (
             <div className="absolute top-2 right-2">
               <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-orange-100 text-orange-600 shadow-sm">
@@ -316,48 +315,27 @@ export const DocumentCard = ({ document, onDelete, onDragStart, isMoving, onShar
             </div>
           )}
         </div>
-      ) : (
-        /* No thumbnail: just the gradient stripe */
-        <div className={`h-1.5 w-full bg-gradient-to-r ${config.gradient} shrink-0`} />
       )}
 
       <div className="p-4 flex flex-col flex-1">
 
-        {/* Icon + badges row (only for non-thumbnail cards) */}
-        {!hasThumbnail && (
-          <div className="flex items-start justify-between gap-2 mb-3">
-            <div className={`p-2.5 rounded-xl ${config.iconBg} shrink-0 ${config.textColor}`}>
-              {isExternal ? <Link2 className="w-5 h-5 text-gray-400" /> : config.icon}
-            </div>
-            <div className="flex flex-wrap gap-1 justify-end">
-              <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${config.badge}`}>
-                {config.label}
-              </span>
-              {isSharedDoc && (
-                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-orange-100 text-orange-600">
-                  Compartido
-                </span>
-              )}
-              {isExternal && (
-                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
-                  Enlace
-                </span>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* For thumbnail cards: small icon inline with title */}
-        {hasThumbnail && (
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <span className={config.textColor}>{config.icon}</span>
-            {isExternal && (
-              <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
-                Enlace
-              </span>
-            )}
-          </div>
-        )}
+        {/* Header row: icon + badges */}
+        <div className="flex items-center gap-1.5 mb-2">
+          <span className={`${config.textColor} shrink-0`}>{isExternal ? <Link2 className="w-4 h-4" /> : config.icon}</span>
+          <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${config.badge}`}>
+            {config.label}
+          </span>
+          {isSharedDoc && !hasThumbnail && (
+            <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-orange-100 text-orange-600">
+              Compartido
+            </span>
+          )}
+          {isExternal && (
+            <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
+              Enlace
+            </span>
+          )}
+        </div>
 
         {/* Title */}
         <h3 className="font-bold text-gray-900 text-sm leading-snug line-clamp-2 mb-1 flex-1">
@@ -384,6 +362,13 @@ export const DocumentCard = ({ document, onDelete, onDragStart, isMoving, onShar
           </button>
 
           <div className="flex items-center gap-0.5">
+            <button
+              onClick={handleDownload}
+              className="p-1.5 rounded-lg bg-gray-50 text-primary hover:bg-primary/10 transition-colors"
+              title="Descargar"
+            >
+              <Download size={13} />
+            </button>
             {onShare && (
               <button
                 onClick={(e) => { e.stopPropagation(); onShare(document.id, document.title) }}
