@@ -1,22 +1,24 @@
-name: Privacy Guards
+# Este workflow fue consolidado en ci.yml (job: privacy).
+# Se mantiene como alias por compatibilidad con branch protection rules existentes.
+# Si actualizas las branch protection rules en GitHub para requerir "CI / Privacy Checks",
+# puedes eliminar este archivo.
+name: Privacy Guards (legacy alias)
 
 on:
   push:
-    branches: ["main", "master"]
+    branches: ["main"]
   pull_request:
 
 jobs:
   privacy-checks:
+    name: Privacy Checks
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version-file: ".nvmrc"
           cache: "npm"
 
       - name: Install dependencies
@@ -27,6 +29,3 @@ jobs:
 
       - name: Verify Phase 4 readiness
         run: npm run privacy:phase4:readiness
-
-      - name: Build
-        run: npm run build

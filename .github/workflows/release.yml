@@ -1,0 +1,43 @@
+name: Release
+
+# Solo corre en push a main (después de que el PR fue aprobado y mergeado)
+on:
+  push:
+    branches: ["main"]
+
+# Permisos necesarios para que semantic-release escriba tags, releases y CHANGELOG
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  release:
+    name: Semantic Release
+    runs-on: ubuntu-latest
+    # Evita el loop infinito: semantic-release hace un commit "chore(release): vX.Y.Z [skip ci]"
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # fetch-depth 0 es requerido para que semantic-release lea todo el historial
+          fetch-depth: 0
+          # persist-credentials false para usar el token de GITHUB_TOKEN en lugar del default
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Semantic Release
+        # Lee .releaserc.json para determinar la versión next basada en los commits
+        # Solo crea release si hay commits de tipo feat/fix/perf/security desde el último tag
+        run: npx semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

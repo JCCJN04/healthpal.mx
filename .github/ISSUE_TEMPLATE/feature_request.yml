@@ -1,0 +1,47 @@
+name: Feature Request
+description: Proponer una nueva funcionalidad
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área
+      options:
+        - Paciente
+        - Doctor
+        - Admin / Backoffice
+        - Público / SEO
+        - Infraestructura / DevOps
+        - Seguridad / Privacidad
+        - Otro
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problema o necesidad
+      placeholder: ¿Qué problema resuelve esta feature? ¿A quién beneficia?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Solución propuesta
+      placeholder: Describe el comportamiento esperado con el mayor detalle posible
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativas consideradas
+      placeholder: ¿Hay otras formas de resolver el mismo problema?
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Contexto adicional
+      placeholder: Mockups, referencias, casos de uso específicos

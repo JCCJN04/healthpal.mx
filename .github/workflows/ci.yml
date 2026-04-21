@@ -1,0 +1,130 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "feature/**", "hotfix/**", "release/**"]
+  pull_request:
+    branches: ["main"]
+
+# Cancela runs previos del mismo branch para ahorrar minutos
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ─────────────────────────────────────────────
+  # 1. Lint y type-check (rápido, falla temprano)
+  # ─────────────────────────────────────────────
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: TypeScript (noEmit)
+        # Verifica tipos sin generar artefactos — más rápido que el build completo
+        run: npx tsc --noEmit
+
+  # ─────────────────────────────────────────────
+  # 2. Verificaciones de privacidad (HIPAA / datos sensibles)
+  # ─────────────────────────────────────────────
+  privacy:
+    name: Privacy Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify privacy controls
+        run: npm run privacy:verify
+
+      - name: Verify Phase 4 readiness
+        run: npm run privacy:phase4:readiness
+
+  # ─────────────────────────────────────────────
+  # 3. Auditoría de seguridad
+  # ─────────────────────────────────────────────
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # fetch-depth 0 para que gitleaks escanee el historial completo en PRs
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: npm audit (solo dependencias de producción)
+        # high+ en producción; las dev-deps con vulnerabilidades son ruido en este stack
+        run: npm audit --audit-level=high --omit=dev
+
+      - name: Secret scan (Gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # GITLEAKS_LICENSE requerida solo para repos privados en orgs de pago
+          # GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+  # ─────────────────────────────────────────────
+  # 4. Build (depende de lint + privacy; no de security para no bloquear por deps transitivas)
+  # ─────────────────────────────────────────────
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [lint, privacy]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          # Configura estos secretos en GitHub → Settings → Secrets → Actions
+          # Si no están presentes, Vite los embebe como string vacío (build válido para CI)
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_TOKEN }}
+          VITE_DEMO_DOCTOR_ID: ${{ secrets.VITE_DEMO_DOCTOR_ID }}
+          VITE_DEMO_DOCTOR_EMAIL: ${{ secrets.VITE_DEMO_DOCTOR_EMAIL }}
+          VITE_DEMO_DOCTOR_PASSWORD: ${{ secrets.VITE_DEMO_DOCTOR_PASSWORD }}
+
+      - name: Upload build artifact (solo en main)
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ github.sha }}
+          path: dist/
+          retention-days: 7
+          # Sirve como evidencia del build exacto que fue a producción vía Vercel
