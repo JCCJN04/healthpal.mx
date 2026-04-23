@@ -73,8 +73,9 @@ async function main() {
   const supabaseUrl = mergedEnv.VITE_SUPABASE_URL || mergedEnv.SUPABASE_URL
   const serviceRoleKey = mergedEnv.SUPABASE_SERVICE_ROLE_KEY
   const demoEmail = mergedEnv.DEMO_DOCTOR_EMAIL || 'demo@healthpal.mx'
-  const demoPassword = mergedEnv.DEMO_DOCTOR_PASSWORD || 'DemoDoctor#2026'
+  const demoPassword = mergedEnv.DEMO_DOCTOR_PASSWORD
 
+  if (!demoPassword) throw new Error('Falta DEMO_DOCTOR_PASSWORD en .env o variables de entorno')
   if (!supabaseUrl) throw new Error('Falta VITE_SUPABASE_URL en .env')
   if (!serviceRoleKey) throw new Error('Falta SUPABASE_SERVICE_ROLE_KEY en .env')
 
