@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
-  Calendar, Star, MoreVertical, MapPin, Stethoscope,
+  Star, MoreVertical, MapPin, Stethoscope,
   Clock, DollarSign, UserX, ShieldCheck,
 } from 'lucide-react';
 import { DoctorWithProfile, unlinkDoctorFromPatient } from '@/features/patient/services/doctors';
@@ -15,7 +14,6 @@ interface DoctorCardProps {
 }
 
 const DoctorCard: React.FC<DoctorCardProps> = ({ doctor, onRemoved }) => {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const [showMenu, setShowMenu] = useState(false);
   const profile = doctor.doctor_profile;
@@ -25,11 +23,7 @@ const DoctorCard: React.FC<DoctorCardProps> = ({ doctor, onRemoved }) => {
     ? doctor.full_name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()
     : 'DR';
 
-  const handleViewProfile = () => navigate(`/dashboard/doctores/${doctor.id}`);
-  const handleSchedule = () => navigate(`/dashboard/consultas/nueva?doctor=${doctor.id}`);
-
   const handleSendMessage = (e: React.MouseEvent) => {
-    e.preventDefault();
     e.stopPropagation();
     const phone = doctor.phone;
     if (!phone) {
@@ -59,7 +53,7 @@ const DoctorCard: React.FC<DoctorCardProps> = ({ doctor, onRemoved }) => {
 
   return (
     <div className="group relative bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden
-      hover:scale-[1.02] hover:shadow-[0_24px_48px_rgba(21,28,39,0.06)] transition-all duration-300 flex flex-col">
+      hover:shadow-[0_24px_48px_rgba(21,28,39,0.06)] transition-all duration-300 flex flex-col">
 
       {/* Decorative circle */}
       <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700 pointer-events-none" />
@@ -82,10 +76,7 @@ const DoctorCard: React.FC<DoctorCardProps> = ({ doctor, onRemoved }) => {
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-1">
               <div className="min-w-0">
-                <h3
-                  className="font-bold text-gray-900 text-lg leading-tight cursor-pointer hover:text-primary transition-colors truncate"
-                  onClick={handleViewProfile}
-                >
+                <h3 className="font-bold text-gray-900 text-lg leading-tight truncate">
                   {doctor.full_name || 'Doctor'}
                 </h3>
                 <p className="text-primary font-semibold text-sm mt-0.5 flex items-center gap-1 truncate">
@@ -106,13 +97,6 @@ const DoctorCard: React.FC<DoctorCardProps> = ({ doctor, onRemoved }) => {
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
                     <div className="absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-xl border border-gray-200 py-1.5 z-20">
-                      <button
-                        onClick={() => { handleViewProfile(); setShowMenu(false); }}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                      >
-                        Ver perfil completo
-                      </button>
-                      <div className="border-t border-gray-100 my-1" />
                       <button
                         onClick={handleRemove}
                         className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
@@ -171,20 +155,11 @@ const DoctorCard: React.FC<DoctorCardProps> = ({ doctor, onRemoved }) => {
           )}
         </div>
 
-        {/* CTAs */}
-        <div className="mt-auto grid grid-cols-2 gap-2.5 pt-4 border-t border-gray-100">
-          <button
-            onClick={handleSchedule}
-            className="bg-gradient-to-r from-primary to-teal-400 text-white py-2.5 rounded-xl font-bold text-sm
-              hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-1.5 shadow-sm shadow-primary/20"
-          >
-            <Calendar className="w-4 h-4" />
-            Agendar cita
-          </button>
-
+        {/* CTA */}
+        <div className="mt-auto pt-4 border-t border-gray-100">
           <button
             onClick={handleSendMessage}
-            className="bg-[#25D366]/10 text-[#075E54] py-2.5 rounded-xl font-bold text-sm
+            className="w-full bg-[#25D366]/10 text-[#075E54] py-2.5 rounded-xl font-bold text-sm
               flex items-center justify-center gap-1.5 hover:bg-[#25D366]/20 active:scale-95 transition-all"
           >
             <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">

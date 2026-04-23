@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   ArrowLeft,
   MapPin,
@@ -35,8 +35,10 @@ import { formatSpecialty } from '@/shared/lib/specialties';
 export default function DoctorDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [doctor, setDoctor] = useState<DoctorWithProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const location = useLocation();
+  const stateDoctor = (location.state as { doctor?: DoctorWithProfile } | null)?.doctor ?? null;
+  const [doctor, setDoctor] = useState<DoctorWithProfile | null>(stateDoctor);
+  const [loading, setLoading] = useState(!stateDoctor);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'info' | 'reviews' | 'schedule'>('info');
   const [geocodedCoords, setGeocodedCoords] = useState<DoctorLocation | null>(null);
@@ -53,18 +55,33 @@ export default function DoctorDetail() {
   const [reviewSuccess, setReviewSuccess] = useState(false);
 
   useEffect(() => {
+    if (!id) return;
+
+    // Always load secondary data (reviews, schedule)
+    setReviewsLoading(true);
+    setScheduleLoading(true);
+    getDoctorReviews(id).then(setReviews).finally(() => setReviewsLoading(false));
+    getDoctorSchedule(id).then(setSchedule).finally(() => setScheduleLoading(false));
+    getReviewableAppointmentId(id).then(setReviewableApptId);
+
+    // Load/refresh doctor profile in background
     loadDoctor();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const loadDoctor = async () => {
     if (!id) return;
-    setLoading(true);
+    // Only show full-page spinner if we have no data yet
+    if (!stateDoctor) {
+      setLoading(true);
+    }
     setError(null);
 
     const data = await getDoctorById(id);
     if (!data) {
-      setError('No se pudo cargar la información del doctor');
+      if (!stateDoctor) {
+        setError('No se pudo cargar la información del doctor');
+      }
       setLoading(false);
       return;
     }
@@ -72,13 +89,7 @@ export default function DoctorDetail() {
     setDoctor(data);
     setLoading(false);
 
-    // Load reviews, schedule, and reviewable appointment in parallel
-    setReviewsLoading(true);
-    setScheduleLoading(true);
-    getDoctorReviews(id).then(setReviews).finally(() => setReviewsLoading(false));
-    getDoctorSchedule(id).then(setSchedule).finally(() => setScheduleLoading(false));
-    getReviewableAppointmentId(id).then(setReviewableApptId);
-
+    // Start geocoding if needed
     const loc = data.doctor_profile?.location as DoctorLocation | null;
     const hasStoredCoords = loc && typeof loc.lat === 'number' && typeof loc.lng === 'number';
     if (!hasStoredCoords && data.doctor_profile?.address_text) {
@@ -155,6 +166,8 @@ export default function DoctorDetail() {
 
   const tabs = [
     { id: 'info' as const, label: 'Información', icon: FileText },
+    { id: 'reviews' as const, label: 'Reseñas', icon: Star },
+    { id: 'schedule' as const, label: 'Horario', icon: Clock },
   ];
 
   const specialtyLabel = formatSpecialty(profile?.specialty);
@@ -245,6 +258,13 @@ export default function DoctorDetail() {
               {/* CTA buttons — desktop: top-right, aligned to text top */}
               <div className="hidden sm:flex items-center gap-2.5 flex-shrink-0 mt-2">
                 <button
+                  onClick={() => navigate(`/dashboard/consultas/nueva?doctor=${doctor.id}`)}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary to-teal-400 text-white text-sm font-semibold rounded-xl hover:opacity-90 active:scale-[0.98] transition-all shadow-sm"
+                >
+                  <Clock className="w-4 h-4" />
+                  Agendar cita
+                </button>
+                <button
                   onClick={handleSendMessage}
                   className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#25D366] text-white text-sm font-semibold rounded-xl hover:bg-[#1ebe5d] active:scale-[0.98] transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25D366]"
                 >
@@ -265,7 +285,11 @@ export default function DoctorDetail() {
               />
               <StatCell
                 icon={<Star className="w-4 h-4 text-amber-400 fill-amber-400" />}
-                value="4.9"
+                value={doctor.review_stats && doctor.review_stats.avg_rating > 0
+                  ? doctor.review_stats.avg_rating.toFixed(1)
+                  : reviews.length > 0
+                    ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)
+                    : '—'}
                 label="Calificación"
               />
               <StatCell
@@ -281,6 +305,13 @@ export default function DoctorDetail() {
 
             {/* CTA buttons — mobile only */}
             <div className="sm:hidden flex flex-col gap-2.5">
+              <button
+                onClick={() => navigate(`/dashboard/consultas/nueva?doctor=${doctor.id}`)}
+                className="flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-primary to-teal-400 text-white font-semibold rounded-xl hover:opacity-90 active:scale-[0.99] transition-all text-sm"
+              >
+                <Clock className="w-4 h-4" />
+                Agendar cita
+              </button>
               <button
                 onClick={handleSendMessage}
                 className="flex items-center justify-center gap-2 w-full py-3 bg-[#25D366] text-white font-semibold rounded-xl hover:bg-[#1ebe5d] active:scale-[0.99] transition-all text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25D366]"
