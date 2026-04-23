@@ -615,13 +615,15 @@ export default function Documentos() {
 
     if (ids.length === 0) return { success: false, error: 'La carpeta está vacía' }
 
-    let lastError: string | undefined
-    for (const docId of ids) {
-      const result = await shareDocumentWithUser(docId, user.id, { email }, {
-        senderProfile: { full_name: profile?.full_name, email: user.email },
-      })
-      if (!result.success) lastError = result.error
-    }
+    const results = await Promise.all(
+      ids.map(docId =>
+        shareDocumentWithUser(docId, user.id, { email }, {
+          senderProfile: { full_name: profile?.full_name, email: user.email },
+        })
+      )
+    )
+
+    const lastError = [...results].reverse().find(r => !r.success)?.error
 
     if (!lastError) {
       showToast(
