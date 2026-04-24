@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { AlertTriangle, Trash2, CheckCircle, XCircle } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthContext';
 import { supabase } from '@/shared/lib/supabase';
-import { getMyProfile, updateMyProfile, uploadAvatar } from '@/shared/lib/queries/profile';
+import { getMyProfile, updateMyProfile, uploadAvatar, deleteMyAccount } from '@/shared/lib/queries/profile';
 import { getMySettings, updateMySettings } from '@/shared/lib/queries/settings';
 import DashboardLayout from '@/app/layout/DashboardLayout';
 import ProfileCard from '@/shared/components/settings/ProfileCard';
@@ -22,7 +22,7 @@ import { logger } from '@/shared/lib/logger';
 type TabType = 'general' | 'medical' | 'documents' | 'permissions';
 
 export default function Configuracion() {
-  const { user, profile: authProfile, refreshProfile } = useAuth();
+  const { user, profile: authProfile, refreshProfile, signOut } = useAuth();
   const isPatient = authProfile?.role === 'patient';
   const isDoctor = authProfile?.role === 'doctor';
   const [activeTab, setActiveTab] = useState<TabType>('general');
@@ -30,6 +30,7 @@ export default function Configuracion() {
 
   // Loading states
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
 
   // Profile data
@@ -211,11 +212,26 @@ export default function Configuracion() {
     }
   };
 
-  const handleDeleteAccount = () => {
-    // TODO: Implement account deletion
-    logger.debug('Account deletion not yet implemented');
-    setShowDeleteModal(false);
-    setToast({ message: 'Eliminación de cuenta: próximamente', type: 'error' });
+  const handleDeleteAccount = async () => {
+    try {
+      setIsDeletingAccount(true);
+      await deleteMyAccount();
+
+      setToast({ message: 'Cuenta eliminada exitosamente', type: 'success' });
+
+      // Delay to show toast before signing out and redirecting
+      setTimeout(async () => {
+        await signOut();
+        window.location.href = '/';
+      }, 2000);
+
+    } catch (error) {
+      logger.error('Configuracion:handleDeleteAccount', error);
+      setToast({ message: 'Error al eliminar la cuenta. Intenta nuevamente.', type: 'error' });
+    } finally {
+      setIsDeletingAccount(false);
+      setShowDeleteModal(false);
+    }
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -493,9 +509,17 @@ export default function Configuracion() {
                 </button>
                 <button
                   onClick={handleDeleteAccount}
-                  className="flex-1 px-5 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-colors"
+                  disabled={isDeletingAccount}
+                  className="flex-1 px-5 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  Sí, eliminar
+                  {isDeletingAccount ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Eliminando...</span>
+                    </>
+                  ) : (
+                    'Sí, eliminar'
+                  )}
                 </button>
               </div>
             </div>
