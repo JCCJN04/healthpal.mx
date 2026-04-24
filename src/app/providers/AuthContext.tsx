@@ -9,7 +9,6 @@ import { demoDoctorProfile } from '@/data/demoData'
 import { DEMO_DOCTOR_EMAIL, DEMO_DOCTOR_PASSWORD } from '@/data/demoConfig'
 
 const DEFAULT_DEMO_DOCTOR_EMAIL = 'demo@healthpal.mx'
-const DEFAULT_DEMO_DOCTOR_PASSWORD = 'DemoDoctor#2026'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
 
@@ -161,7 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             const emailCandidates = Array.from(new Set([DEMO_DOCTOR_EMAIL, DEFAULT_DEMO_DOCTOR_EMAIL]))
-            const passwordCandidates = Array.from(new Set([DEMO_DOCTOR_PASSWORD, DEFAULT_DEMO_DOCTOR_PASSWORD]))
+            const passwordCandidates = Array.from(new Set([DEMO_DOCTOR_PASSWORD]))
 
             let signedIn = false
             let lastError: Error | null = null

@@ -1,4 +1,4 @@
-import { describe, it } from 'node:test';
+import test, { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { formatSpecialty } from './specialties.ts';
 

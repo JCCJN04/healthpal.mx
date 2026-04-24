@@ -11,7 +11,6 @@ const DEMO_DOCUMENTS_KEY = 'healthpal:demo:documents'
 const DEMO_FOLDERS_KEY = 'healthpal:demo:folders'
 const DEMO_DOCUMENTS_IN_MEMORY = (import.meta.env.VITE_DEMO_DOCUMENTS_IN_MEMORY as string | undefined) === 'true'
 const DEFAULT_DEMO_DOCTOR_EMAIL = 'demo@healthpal.mx'
-const DEFAULT_DEMO_DOCTOR_PASSWORD = 'DemoDoctor#2026'
 
 function checkInMemoryDemoDocuments(): boolean {
   return isDemoMode() && DEMO_DOCUMENTS_IN_MEMORY
@@ -32,7 +31,7 @@ async function getAuthenticatedUserIdForWrite(): Promise<{ userId: string | null
     if (!isDemoMode()) return { userId: null }
 
     const emailCandidates = Array.from(new Set([DEMO_DOCTOR_EMAIL, DEFAULT_DEMO_DOCTOR_EMAIL].filter(Boolean)))
-    const passwordCandidates = Array.from(new Set([DEMO_DOCTOR_PASSWORD, DEFAULT_DEMO_DOCTOR_PASSWORD].filter(Boolean)))
+    const passwordCandidates = Array.from(new Set([DEMO_DOCTOR_PASSWORD].filter(Boolean)))
 
     let lastErrorMessage = 'No se pudo autenticar la sesion de demo'
 
