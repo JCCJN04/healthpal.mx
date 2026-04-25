@@ -419,3 +419,21 @@ export async function uploadAvatar(userId: string, file: File) {
   logger.info('uploadAvatar:publicUrl', data.publicUrl)
   return data.publicUrl
 }
+
+/**
+ * Permanently delete the current user's account and all associated data.
+ * This calls a SECURITY DEFINER function in the database to handle the deletion.
+ */
+export async function deleteMyAccount(): Promise<void> {
+  if (isDemoMode()) {
+    logger.info('demo:deleteMyAccount - Simulated account deletion')
+    return
+  }
+
+  const { error } = await supabase.rpc('delete_user_account')
+
+  if (error) {
+    logger.error('deleteMyAccount', error)
+    throw error
+  }
+}

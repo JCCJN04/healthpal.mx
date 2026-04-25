@@ -8,6 +8,9 @@ import { isDemoMode, demoDoctorUser, disableDemoMode } from '@/context/DemoConte
 import { demoDoctorProfile } from '@/data/demoData'
 import { DEMO_DOCTOR_EMAIL, DEMO_DOCTOR_PASSWORD } from '@/data/demoConfig'
 
+const DEFAULT_DEMO_DOCTOR_EMAIL = 'demo@healthpal.mx'
+
+
 type Profile = Database['public']['Tables']['profiles']['Row']
 
 interface AuthContextType {
@@ -189,8 +192,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               await supabase.auth.signOut()
             }
 
-            const emailCandidates = [DEMO_DOCTOR_EMAIL]
-            const passwordCandidates = [DEMO_DOCTOR_PASSWORD]
+            const emailCandidates = Array.from(new Set([DEMO_DOCTOR_EMAIL, DEFAULT_DEMO_DOCTOR_EMAIL]))
+            const passwordCandidates = Array.from(new Set([DEMO_DOCTOR_PASSWORD]))
 
             let signedIn = false
             let lastError: Error | null = null

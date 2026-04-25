@@ -7,8 +7,7 @@ export const DEMO_DOCTOR_EMAIL =
   'demo@healthpal.mx'
 
 export const DEMO_DOCTOR_PASSWORD =
-  (import.meta.env.VITE_DEMO_DOCTOR_PASSWORD as string | undefined) ||
-  'DemoDoctor#2026'
+  (import.meta.env.VITE_DEMO_DOCTOR_PASSWORD as string | undefined) || ''
 
 export const DEMO_PATIENT_IDS = {
   ana: '22222222-2222-4222-8222-222222222222',

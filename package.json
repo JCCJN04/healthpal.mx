@@ -22,7 +22,8 @@
     "privacy:backfill:stats": "node scripts/backfill-admin.mjs stats",
     "privacy:backfill:coverage": "node scripts/verify-backfill-coverage.mjs",
     "privacy:phase4:readiness": "node scripts/verify-phase4-readiness.mjs",
-    "demo:doctor:setup": "node scripts/create-demo-doctor.mjs"
+    "demo:doctor:setup": "node scripts/create-demo-doctor.mjs",
+    "test": "node --experimental-strip-types --test src/**/*.test.ts"
   },
   "dependencies": {
     "@google/genai": "^1.43.0",
