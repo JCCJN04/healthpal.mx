@@ -4,6 +4,29 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      Content Security Policy
+      - script-src 'self': only load JS from our own origin
+      - style-src 'self' 'unsafe-inline' fonts.googleapis.com: Tailwind needs inline styles; Google Fonts CSS
+      - font-src 'self' fonts.gstatic.com: Google Fonts files
+      - img-src *: avatars from Supabase Storage, Mapbox tiles, etc.
+      - connect-src 'self' *.supabase.co wss://*.supabase.co api.mapbox.com events.mapbox.com:
+          Supabase REST + Realtime (wss), Mapbox API
+      - frame-ancestors 'none': prevents clickjacking (equivalent of X-Frame-Options: DENY)
+      - object-src 'none': blocks Flash and other plugins
+      - base-uri 'self': prevents base-tag injection attacks
+    -->
+    <meta http-equiv="Content-Security-Policy" content="
+      default-src 'self';
+      script-src 'self';
+      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+      font-src 'self' https://fonts.gstatic.com;
+      img-src * data: blob:;
+      connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.mapbox.com https://events.mapbox.com;
+      frame-ancestors 'none';
+      object-src 'none';
+      base-uri 'self';
+    ">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">

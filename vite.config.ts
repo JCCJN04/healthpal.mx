@@ -21,7 +21,7 @@ export default defineConfig({
     minify: 'terser',
     terserOptions: {
       compress: {
-        drop_console: false, // We handle this via logger.ts (only logs in dev)
+        drop_console: true, // logger.ts already guards dev-only logs; strip any accidentals in prod
         drop_debugger: true,
       },
     },

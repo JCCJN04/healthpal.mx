@@ -41,7 +41,7 @@ export default function SolicitudDocumento() {
 
   const [step, setStep] = useState<Step>('loading')
   const [request, setRequest] = useState<DocumentRequestWithDoctor | null>(null)
-  const [authMode, setAuthMode] = useState<AuthMode>('register')
+  const [authMode, setAuthMode] = useState<AuthMode>('login')
   const [authLoading, setAuthLoading] = useState(false)
   const [authError, setAuthError] = useState('')
   const [wrongSession, setWrongSession] = useState(false)
@@ -74,13 +74,6 @@ export default function SolicitudDocumento() {
 
     // Pre-fill email from request
     setEmail(data.patient_email)
-
-    // Check if the patient email is already registered
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: emailExists } = await (supabase as any).rpc('check_email_registered', {
-      p_email: data.patient_email,
-    })
-    setAuthMode(emailExists ? 'login' : 'register')
 
     // Check if user is already logged in
     const { data: session } = await supabase.auth.getSession()
@@ -399,6 +392,29 @@ export default function SolicitudDocumento() {
             </button>
           </form>
 
+          <p className="text-center text-xs text-gray-500">
+            {authMode === 'login' ? (
+              <>¿No tienes cuenta?{' '}
+                <button
+                  type="button"
+                  onClick={() => { setAuthMode('register'); setAuthError('') }}
+                  className="text-primary font-medium hover:underline"
+                >
+                  Crea una gratis
+                </button>
+              </>
+            ) : (
+              <>¿Ya tienes cuenta?{' '}
+                <button
+                  type="button"
+                  onClick={() => { setAuthMode('login'); setAuthError('') }}
+                  className="text-primary font-medium hover:underline"
+                >
+                  Inicia sesión
+                </button>
+              </>
+            )}
+          </p>
           <p className="text-center text-xs text-gray-400">
             Tu información está protegida y solo será compartida con tu médico.
           </p>

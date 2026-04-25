@@ -18,6 +18,8 @@ export const supabase = createClient<Database>(
     auth: {
       persistSession: true,
       autoRefreshToken: true,
+      // Explicit storage key prevents session collisions if deployed on shared subdomains
+      storageKey: 'healthpal_auth',
     },
   }
 )

@@ -8,9 +8,6 @@ import { isDemoMode, demoDoctorUser, disableDemoMode } from '@/context/DemoConte
 import { demoDoctorProfile } from '@/data/demoData'
 import { DEMO_DOCTOR_EMAIL, DEMO_DOCTOR_PASSWORD } from '@/data/demoConfig'
 
-const DEFAULT_DEMO_DOCTOR_EMAIL = 'demo@healthpal.mx'
-const DEFAULT_DEMO_DOCTOR_PASSWORD = 'DemoDoctor#2026'
-
 type Profile = Database['public']['Tables']['profiles']['Row']
 
 interface AuthContextType {
@@ -30,6 +27,8 @@ export type { AuthContextType, Profile }
 const INACTIVITY_TIMEOUT = 15 * 60 * 1000
 // JWT refresh interval: 50 minutes (tokens expire in 60 minutes)
 const JWT_REFRESH_INTERVAL = 50 * 60 * 1000
+// localStorage key to persist the last-activity timestamp across device sleep/restart
+const LAST_ACTIVE_KEY = 'healthpal:session:last_active'
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -70,8 +69,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (user) {
+      // Persist timestamp to localStorage so we can detect idle time after device sleep/restart
+      try { localStorage.setItem(LAST_ACTIVE_KEY, Date.now().toString()) } catch { /* storage unavailable */ }
+
       inactivityTimerRef.current = setTimeout(async () => {
         logger.info('Session expired due to inactivity')
+        try { localStorage.removeItem(LAST_ACTIVE_KEY) } catch { /* ignore */ }
         await signOut()
       }, INACTIVITY_TIMEOUT)
     }
@@ -142,6 +145,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [setupJWTRefresh])
 
+  // Validate session age when the app becomes visible again (handles phone lock/background)
+  useEffect(() => {
+    if (isDemoMode()) return
+    if (!user) return
+
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible') {
+        const lastActive = localStorage.getItem(LAST_ACTIVE_KEY)
+        if (lastActive) {
+          const elapsed = Date.now() - parseInt(lastActive, 10)
+          if (elapsed > INACTIVITY_TIMEOUT) {
+            logger.info('Session invalidated: app returned from background after long inactivity')
+            try { localStorage.removeItem(LAST_ACTIVE_KEY) } catch { /* ignore */ }
+            await signOut()
+          }
+        } else {
+          // No timestamp means the timer never started (e.g. fresh session before any activity)
+          // Treat as active — let the inactivity timer start normally on first interaction
+        }
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [user])
+
   useEffect(() => {
     let mounted = true
 
@@ -160,8 +189,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               await supabase.auth.signOut()
             }
 
-            const emailCandidates = Array.from(new Set([DEMO_DOCTOR_EMAIL, DEFAULT_DEMO_DOCTOR_EMAIL]))
-            const passwordCandidates = Array.from(new Set([DEMO_DOCTOR_PASSWORD, DEFAULT_DEMO_DOCTOR_PASSWORD]))
+            const emailCandidates = [DEMO_DOCTOR_EMAIL]
+            const passwordCandidates = [DEMO_DOCTOR_PASSWORD]
 
             let signedIn = false
             let lastError: Error | null = null
@@ -226,6 +255,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Inicializar autenticación
     const initAuth = async () => {
       try {
+        // Guard against sessions that survived device sleep/restart beyond the inactivity limit.
+        // The in-memory setTimeout is lost when the app closes, so we persist last-active to
+        // localStorage and invalidate here if too much time has passed.
+        const lastActive = localStorage.getItem(LAST_ACTIVE_KEY)
+        if (lastActive) {
+          const elapsed = Date.now() - parseInt(lastActive, 10)
+          if (elapsed > INACTIVITY_TIMEOUT) {
+            logger.info('Session invalidated: device was inactive too long')
+            try { localStorage.removeItem(LAST_ACTIVE_KEY) } catch { /* ignore */ }
+            await supabase.auth.signOut()
+            if (mounted) setLoading(false)
+            return
+          }
+        }
+
         const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession()
 
         if (!mounted) return
@@ -308,6 +352,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (jwtRefreshTimerRef.current) {
       clearInterval(jwtRefreshTimerRef.current)
     }
+    // Always remove the activity timestamp so the next session starts clean
+    try { localStorage.removeItem(LAST_ACTIVE_KEY) } catch { /* ignore */ }
 
     if (isDemoMode()) {
       try {
