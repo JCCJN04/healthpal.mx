@@ -3,7 +3,8 @@ import {
   X, Users, FileText, Trash2, Loader2, Activity, Pill,
   Microscope, ShieldCheck, ChevronDown, ChevronRight, UserX,
 } from 'lucide-react'
-import { getAllSharesByOwner, revokeDocumentShare } from '@/shared/lib/queries/documents'
+import { getAllSharesByOwner, revokeShareById } from '@/shared/lib/queries/documents'
+import { revokeRequestAccess } from '@/shared/lib/queries/documentRequests'
 import { showToast } from '@/shared/components/ui/Toast'
 
 interface AccessPanelProps {
@@ -22,6 +23,7 @@ type ShareEntry = {
   shared_with_email: string | null
   shared_with_avatar: string | null
   created_at: string
+  source: 'share' | 'request'
 }
 
 type DoctorAccess = {
@@ -75,7 +77,9 @@ export function AccessPanel({ isOpen, onClose, ownerId }: AccessPanelProps) {
 
   async function handleRevoke(share: ShareEntry) {
     setRevoking(share.id)
-    const result = await revokeDocumentShare(share.document_id, ownerId, share.shared_with)
+    const result = share.source === 'request'
+      ? await revokeRequestAccess(share.id)
+      : await revokeShareById(share.id)
     if (result.success) {
       setShares(prev => prev.filter(s => s.id !== share.id))
       showToast('Acceso revocado', 'success')
@@ -89,7 +93,9 @@ export function AccessPanel({ isOpen, onClose, ownerId }: AccessPanelProps) {
     setRevoking(doctorId)
     let failed = 0
     for (const s of doctorDocs) {
-      const result = await revokeDocumentShare(s.document_id, ownerId, doctorId)
+      const result = s.source === 'request'
+        ? await revokeRequestAccess(s.id)
+        : await revokeShareById(s.id)
       if (!result.success) failed++
     }
     if (failed === 0) {
@@ -242,6 +248,9 @@ export function AccessPanel({ isOpen, onClose, ownerId }: AccessPanelProps) {
                             </p>
                             <p className="text-[10px] text-gray-400 uppercase tracking-wide">
                               {CATEGORY_LABELS[share.document_category] || 'Otro'}
+                              {share.source === 'request' && (
+                                <span className="ml-1 text-[10px] text-amber-500 font-semibold normal-case tracking-normal">· vía solicitud</span>
+                              )}
                             </p>
                           </div>
                           <button

@@ -18,6 +18,7 @@ import {
   ConsentWithProfile,
 } from '@/shared/lib/queries/consent'
 import { createDocumentRequest } from '@/shared/lib/queries/documentRequests'
+import { supabase } from '@/shared/lib/supabase'
 import { mapDashboardPath } from '@/context/DemoContext'
 import { showToast } from '@/shared/components/ui/Toast'
 import { logger } from '@/shared/lib/logger'
@@ -40,10 +41,13 @@ export default function Pacientes() {
   // Document request modal
   const [docReqOpen, setDocReqOpen] = useState(false)
   const [docReqEmail, setDocReqEmail] = useState('')
+  const [docReqPhone, setDocReqPhone] = useState('')
   const [docReqType, setDocReqType] = useState('')
   const [docReqDesc, setDocReqDesc] = useState('')
   const [docReqLoading, setDocReqLoading] = useState(false)
+  const [docReqWaLoading, setDocReqWaLoading] = useState(false)
   const [docReqLink, setDocReqLink] = useState<string | null>(null)
+  const [docReqId, setDocReqId] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
@@ -117,23 +121,89 @@ export default function Pacientes() {
     setRequestingId(null)
   }
 
+  const normalizePhone = (raw: string): string => {
+    const digits = raw.replace(/[\s\-().+]/g, '')
+    if (digits.startsWith('52') && digits.length === 12) return digits
+    if (digits.startsWith('1') && digits.length === 11) return digits
+    if (digits.length === 10) return `52${digits}`
+    return digits
+  }
+
   const handleCreateDocRequest = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) return
     setDocReqLoading(true)
     try {
-      const { data, error } = await createDocumentRequest(user.id, docReqEmail, docReqType, docReqDesc)
+      const phone = docReqPhone.trim() ? normalizePhone(docReqPhone) : undefined
+      const { data, error } = await createDocumentRequest(user.id, docReqEmail, docReqType, docReqDesc, phone)
       if (error || !data) {
         showToast(error || 'Error al crear la solicitud', 'error', 3000)
         return
       }
       const link = `${window.location.origin}/solicitud/${data.token}`
       setDocReqLink(link)
+      setDocReqId(data.id)
     } catch (err) {
       logger.error('Pacientes.createDocRequest', err)
       showToast('Error inesperado', 'error', 3000)
     } finally {
       setDocReqLoading(false)
+    }
+  }
+
+  const handleSendWhatsApp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user || !profile) return
+    setDocReqWaLoading(true)
+    try {
+      const phone = normalizePhone(docReqPhone)
+      // Create the document request first if not already done
+      let requestId = docReqId
+      if (!requestId) {
+        const { data, error } = await createDocumentRequest(user.id, docReqEmail, docReqType, docReqDesc, phone)
+        if (error || !data) {
+          showToast(error || 'Error al crear la solicitud', 'error', 3000)
+          return
+        }
+        requestId = data.id
+        setDocReqLink(`${window.location.origin}/solicitud/${data.token}`)
+        setDocReqId(requestId)
+      }
+
+      const { error: fnErr } = await supabase.functions.invoke('send-document-request-whatsapp', {
+        body: {
+          document_request_id: requestId,
+          patient_phone: phone,
+          doctor_name: profile.full_name ?? 'Doctor',
+          document_type: docReqType,
+          doctor_id: user.id,
+        },
+      })
+
+      if (fnErr) {
+        let detail = 'Error al enviar WhatsApp'
+        try {
+          const fnErrWithContext = fnErr as {
+            context?: {
+              json?: () => Promise<unknown>
+            }
+          }
+          const body = await fnErrWithContext.context?.json?.()
+          // Prefer Meta's raw error over our generic wrapper
+          const bodyData = body as { detail?: string; error?: string } | null
+          detail = bodyData?.detail ?? bodyData?.error ?? detail
+          logger.error('Pacientes.sendWhatsApp', body)
+        } catch { logger.error('Pacientes.sendWhatsApp', fnErr) }
+        showToast(`❌ ${detail} — copia el enlace manualmente`, 'error', 8000)
+      } else {
+        showToast('✅ Solicitud enviada por WhatsApp al paciente', 'success', 4000)
+        resetDocReqModal()
+      }
+    } catch (err) {
+      logger.error('Pacientes.sendWhatsApp', err)
+      showToast('❌ Error al enviar WhatsApp, copia el enlace manualmente', 'error', 4000)
+    } finally {
+      setDocReqWaLoading(false)
     }
   }
 
@@ -147,8 +217,10 @@ export default function Pacientes() {
   const resetDocReqModal = () => {
     setDocReqOpen(false)
     setDocReqLink(null)
+    setDocReqId(null)
     setDocReqEmail('')
-    setDocReqType('lab')
+    setDocReqPhone('')
+    setDocReqType('')
     setDocReqDesc('')
     setCopied(false)
   }
@@ -489,6 +561,17 @@ export default function Pacientes() {
                   <p className="text-xs text-gray-400 mt-1">No necesita tener cuenta — se le pedirá crearla al abrir el enlace.</p>
                 </div>
                 <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">WhatsApp del paciente (opcional)</label>
+                  <input
+                    type="tel"
+                    value={docReqPhone}
+                    onChange={e => setDocReqPhone(e.target.value)}
+                    placeholder="52 81 XXXX XXXX"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Si lo proporcionas, podrás enviar la solicitud directo por WhatsApp</p>
+                </div>
+                <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">¿Qué documento necesitas?</label>
                   <input
                     type="text"
@@ -524,14 +607,36 @@ export default function Pacientes() {
                     className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
                   />
                 </div>
-                <button
-                  type="submit"
-                  disabled={docReqLoading}
-                  className="w-full py-2.5 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
-                >
-                  {docReqLoading ? <Loader2 size={15} className="animate-spin" /> : <FileUp size={15} />}
-                  Generar enlace
-                </button>
+                {docReqPhone.trim() ? (
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      disabled={docReqLoading || docReqWaLoading}
+                      className="flex-1 py-2.5 text-sm font-semibold text-primary border border-primary rounded-lg hover:bg-primary/5 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                    >
+                      {docReqLoading ? <Loader2 size={15} className="animate-spin" /> : <Copy size={15} />}
+                      Copiar enlace
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSendWhatsApp}
+                      disabled={docReqLoading || docReqWaLoading}
+                      className="flex-1 py-2.5 text-sm font-semibold text-white bg-green-500 rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                    >
+                      {docReqWaLoading ? <Loader2 size={15} className="animate-spin" /> : <span>📱</span>}
+                      Enviar por WhatsApp
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={docReqLoading}
+                    className="w-full py-2.5 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                  >
+                    {docReqLoading ? <Loader2 size={15} className="animate-spin" /> : <FileUp size={15} />}
+                    Generar enlace
+                  </button>
+                )}
               </form>
             )}
           </div>

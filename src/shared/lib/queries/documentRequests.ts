@@ -33,6 +33,7 @@ export async function createDocumentRequest(
   patientEmail: string,
   documentType: string,
   description?: string,
+  patientPhone?: string,
 ): Promise<{ data: DocumentRequest | null; error: string | null }> {
   try {
     const { data, error } = await supabase
@@ -42,6 +43,7 @@ export async function createDocumentRequest(
         patient_email: patientEmail.toLowerCase().trim(),
         document_type: documentType,
         description: description || null,
+        ...(patientPhone ? { patient_phone: patientPhone } : {}),
       })
       .select()
       .single()
@@ -139,4 +141,94 @@ export async function getFulfilledRequestsByDoctor(
     return []
   }
   return data ?? []
+}
+
+/** Doctor: get documents from fulfilled requests for a specific patient */
+export async function getFulfilledRequestDocsByPatient(
+  doctorId: string,
+  patientId: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): Promise<any[]> {
+  const { data, error } = await supabase
+    .from('document_requests')
+    .select('document_id, document:documents(*)')
+    .eq('doctor_id', doctorId)
+    .eq('patient_id', patientId)
+    .eq('status', 'fulfilled')
+    .not('document_id', 'is', null)
+
+  if (error) {
+    logger.error('documentRequests:fulfilledByPatient', error)
+    return []
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data ?? []).map((r: any) => r.document).filter(Boolean)
+}
+
+/** Patient: revoke a doctor's access that was granted via a fulfilled document_request.
+ *  Sets document_id = null and status = 'expired' so the doctor's RLS access disappears.
+ */
+export async function revokeRequestAccess(
+  requestId: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabase
+      .from('document_requests')
+      .update({ document_id: null, status: 'expired' })
+      .eq('id', requestId)
+      .eq('status', 'fulfilled')
+
+    if (error) {
+      logger.error('revokeRequestAccess', error)
+      return { success: false, error: 'No se pudo revocar el acceso' }
+    }
+    return { success: true }
+  } catch (err) {
+    logger.error('revokeRequestAccess:catch', err)
+    return { success: false, error: 'Error inesperado al revocar el acceso' }
+  }
+}
+
+/** Patient: get all fulfilled document requests for a patient (to show in AccessPanel) */
+export async function getFulfilledRequestsByPatient(
+  patientId: string,
+): Promise<Array<{
+  id: string
+  document_id: string
+  doctor_id: string
+  created_at: string
+  fulfilled_at: string | null
+}>> {
+  const { data, error } = await supabase
+    .from('document_requests')
+    .select('id, document_id, doctor_id, created_at, fulfilled_at')
+    .eq('patient_id', patientId)
+    .eq('status', 'fulfilled')
+    .not('document_id', 'is', null)
+    .order('fulfilled_at', { ascending: false })
+
+  if (error) {
+    logger.error('getFulfilledRequestsByPatient', error)
+    return []
+  }
+  return data ?? []
+}
+
+/** Doctor: get distinct patient IDs that have fulfilled document requests */
+export async function getPatientsWithFulfilledRequests(
+  doctorId: string,
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('document_requests')
+    .select('patient_id')
+    .eq('doctor_id', doctorId)
+    .eq('status', 'fulfilled')
+    .not('patient_id', 'is', null)
+
+  if (error) {
+    logger.error('documentRequests:patientsWithFulfilled', error)
+    return []
+  }
+  const ids = new Set((data ?? []).map((r: { patient_id: string | null }) => r.patient_id).filter(Boolean) as string[])
+  return Array.from(ids)
 }

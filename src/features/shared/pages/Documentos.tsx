@@ -10,7 +10,7 @@ import { AccessPanel } from '@/shared/components/documents/AccessPanel'
 import { useAuth } from '@/app/providers/AuthContext'
 import { getUserDocuments, getDocumentsSharedWithMe, getDocumentsSharedByMeWith, uploadDocument, deleteDocument, getFolders, createFolder, deleteFolder, updateFolder, updateDocument, shareDocumentWithUser, saveExternalUrlDocument } from '@/shared/lib/queries/documents'
 import { getPatientDoctorAccess, getDoctorConsentRequests } from '@/shared/lib/queries/consent'
-import { createDocumentRequest } from '@/shared/lib/queries/documentRequests'
+import { createDocumentRequest, getFulfilledRequestDocsByPatient, getPatientsWithFulfilledRequests } from '@/shared/lib/queries/documentRequests'
 import { showToast } from '@/shared/components/ui/Toast'
 import { validateFile } from '@/shared/lib/errors'
 import { isDemoMode } from '@/context/DemoContext'
@@ -172,7 +172,7 @@ export default function Documentos() {
     // Drop imported copies (owner = me, uploaded_by != me) to avoid duplicates
     // Also drop docs uploaded for a patient context (patient_id != user.id) from root view
     const cleanedOwn = ownDocs.filter(doc =>
-      !(doc.owner_id === user.id && doc.uploaded_by !== user.id) &&
+      !(doc.owner_id === user.id && doc.uploaded_by && doc.uploaded_by !== user.id) &&
       (!doc.patient_id || doc.patient_id === user.id)
     )
 
@@ -229,14 +229,20 @@ export default function Documentos() {
     }))
 
     // For doctors at root level: also include consented patients who haven't shared docs yet
+    // and patients with fulfilled document requests
     if (profile?.role === 'doctor' && !folderId) {
-      const consentedPatients = await getDoctorConsentRequests(user.id)
+      const [consentedPatients, requestPatientIds] = await Promise.all([
+        getDoctorConsentRequests(user.id),
+        getPatientsWithFulfilledRequests(user.id),
+      ])
       const existingIds = new Set(syntheticSharedFolders.map(f => f.id))
+
       consentedPatients
         .filter(c => c.status === 'accepted' && c.patient?.id)
         .forEach(c => {
           const fid = `shared-${c.patient!.id}`
           if (!existingIds.has(fid)) {
+            existingIds.add(fid)
             syntheticSharedFolders.push({
               id: fid,
               name: c.patient!.full_name || c.patient!.email || 'Paciente',
@@ -249,6 +255,24 @@ export default function Documentos() {
             })
           }
         })
+
+      // Add patients who sent docs via document_request but may not have a consent record
+      requestPatientIds.forEach(pid => {
+        const fid = `shared-${pid}`
+        if (!existingIds.has(fid)) {
+          existingIds.add(fid)
+          syntheticSharedFolders.push({
+            id: fid,
+            name: 'Paciente',
+            color: '#33C7BE',
+            created_at: new Date().toISOString(),
+            avatarUrl: null,
+            subtitle: null,
+            docCount: 0,
+            hasNew: false,
+          })
+        }
+      })
     }
 
     // Remove legacy imported shared folders from DB to avoid clutter
@@ -279,10 +303,16 @@ export default function Documentos() {
         .map(s => s.document as Document)
         .filter(Boolean)
 
+      // Also include documents uploaded via fulfilled document_requests (WhatsApp / token link)
+      const requestDocs = profile?.role === 'doctor'
+        ? await getFulfilledRequestDocsByPatient(user.id, targetSenderId)
+        : []
+
       // Merge and deduplicate by doc ID
       const merged = new Map<string, Document>()
-      patientToDoctorDocs.forEach(d => merged.set(d.id, d))
-      doctorToPatientDocs.forEach(d => merged.set(d.id, d))
+      patientToDoctorDocs.forEach(d => merged.set(d.id, d))      // explicitly shared patient→doctor
+      doctorToPatientDocs.forEach(d => merged.set(d.id, d))      // doctor→patient shares
+      requestDocs.forEach((d: Document) => merged.set(d.id, d))  // fulfilled document_requests
       docsForView = Array.from(merged.values())
     } else {
       docsForView = cleanedOwn
@@ -814,6 +844,15 @@ export default function Documentos() {
                   Nueva Carpeta
                 </button>
               )}
+              {profile?.role === 'patient' && (
+                <button
+                  onClick={() => setAccessPanelOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-white/20 hover:bg-white/30 border border-white/20 text-white text-sm font-semibold rounded-xl transition-all backdrop-blur-sm"
+                >
+                  <Users size={15} />
+                  Accesos
+                </button>
+              )}
               <button
                 onClick={() => setUploadModalOpen(true)}
                 className="inline-flex items-center gap-1.5 px-4 py-2 bg-white text-primary text-sm font-bold rounded-xl hover:bg-white/90 transition-all shadow-sm"
@@ -1012,6 +1051,7 @@ export default function Documentos() {
             onFolderClick={handleFolderClick}
             onMoveDocument={handleMoveDocument}
             movingDocId={movingDocId}
+            onShareDocument={handleShareDocument}
           />
         ) : (
           <DocumentGrid

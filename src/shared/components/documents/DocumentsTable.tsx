@@ -10,6 +10,7 @@ import {
   Eye,
   Folder as FolderIcon,
   UserCircle,
+  Share2,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
@@ -35,6 +36,7 @@ interface DocumentsTableProps {
   onFolderClick?: (id: string, name: string) => void
   onMoveDocument?: (docId: string, folderId: string | null) => void
   movingDocId?: string | null
+  onShareDocument?: (docId: string, title: string) => void
 }
 
 const getFileIcon = (mimeType: string | null) => {
@@ -73,7 +75,7 @@ const formatDate = (dateString: string) => {
   })
 }
 
-const DocumentRow = ({ doc, onDelete, onMoveDocument, movingDocId: _movingDocId }: { doc: Document; onDelete: (id: string) => void; onMoveDocument?: (id: string, folderId: string | null) => void; movingDocId?: string | null }) => {
+const DocumentRow = ({ doc, onDelete, onMoveDocument, movingDocId: _movingDocId, onShare }: { doc: Document; onDelete: (id: string) => void; onMoveDocument?: (id: string, folderId: string | null) => void; movingDocId?: string | null; onShare?: (docId: string, title: string) => void }) => {
   const [menuOpen, setMenuOpen] = useState(false)
   const navigate = useNavigate()
 
@@ -153,6 +155,15 @@ const DocumentRow = ({ doc, onDelete, onMoveDocument, movingDocId: _movingDocId 
                 <Download size={16} />
                 Descargar
               </button>
+              {onShare && (
+                <button
+                  onClick={() => { setMenuOpen(false); onShare(doc.id, doc.title) }}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
+                >
+                  <Share2 size={16} />
+                  Compartir / Revocar
+                </button>
+              )}
               <button
                 onClick={handleDelete}
                 className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
@@ -260,7 +271,7 @@ const FolderRow = ({ folder, onClick, onMoveDocument }: { folder: Folder; onClic
   )
 }
 
-export default function DocumentsTable({ documents, folders = [], onDelete, onFolderClick, onMoveDocument, movingDocId }: DocumentsTableProps) {
+export default function DocumentsTable({ documents, folders = [], onDelete, onFolderClick, onMoveDocument, movingDocId, onShareDocument }: DocumentsTableProps) {
   return (
     <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
       <div className="overflow-x-auto">
@@ -291,7 +302,7 @@ export default function DocumentsTable({ documents, folders = [], onDelete, onFo
               />
             ))}
             {documents.map((doc) => (
-              <DocumentRow key={doc.id} doc={doc} onDelete={onDelete} onMoveDocument={onMoveDocument} movingDocId={movingDocId} />
+              <DocumentRow key={doc.id} doc={doc} onDelete={onDelete} onMoveDocument={onMoveDocument} movingDocId={movingDocId} onShare={onShareDocument} />
             ))}
           </tbody>
         </table>

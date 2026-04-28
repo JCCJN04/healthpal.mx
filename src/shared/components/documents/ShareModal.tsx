@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { X, Mail, Send, Loader2, Trash2, Users, Folder } from 'lucide-react'
-import { listDocumentShares, revokeDocumentShare } from '@/shared/lib/queries/documents'
+import { listDocumentShares, revokeShareById } from '@/shared/lib/queries/documents'
+import { revokeRequestAccess } from '@/shared/lib/queries/documentRequests'
 
 export interface KnownDoctor {
   id: string
@@ -13,6 +14,7 @@ interface CurrentShare {
   id: string
   shared_with: string
   created_at: string
+  source: 'share' | 'request'
   profiles: { id: string; full_name: string | null; email: string | null; role: string | null } | null
 }
 
@@ -40,7 +42,7 @@ export function ShareModal({
   isOpen,
   onClose,
   title,
-  ownerId,
+  ownerId: _ownerId,
   documentId,
   isFolder,
   folderDocCount,
@@ -96,7 +98,9 @@ export function ShareModal({
   async function handleRevoke(share: CurrentShare) {
     if (!documentId) return
     setRevoking(share.id)
-    const result = await revokeDocumentShare(documentId, ownerId, share.shared_with)
+    const result = share.source === 'request'
+      ? await revokeRequestAccess(share.id)
+      : await revokeShareById(share.id)
     if (result.success) {
       setCurrentShares(prev => prev.filter(s => s.id !== share.id))
       onRevoked?.()
@@ -183,6 +187,9 @@ export function ShareModal({
                             <p className="text-sm font-semibold text-gray-800 truncate">{name}</p>
                             {share.profiles?.email && share.profiles.email !== name && (
                               <p className="text-xs text-gray-400 truncate">{share.profiles.email}</p>
+                            )}
+                            {share.source === 'request' && (
+                              <p className="text-[10px] text-amber-500 font-semibold">vía solicitud</p>
                             )}
                           </div>
                           <button

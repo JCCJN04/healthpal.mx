@@ -1033,7 +1033,41 @@ export async function shareDocumentWithUser(
 }
 
 /**
- * Revoke a document share
+ * Revoke a document share by share row ID.
+ * Works for both the sharer (shared_by) and the recipient (shared_with) — RLS allows both.
+ */
+export async function revokeShareById(
+  shareId: string,
+): Promise<{ success: boolean; error?: string }> {
+  if (checkInMemoryDemoDocuments()) {
+    logger.info('demo:revokeShareById', { shareId })
+    return { success: true }
+  }
+
+  try {
+    const { error, count } = await supabase
+      .from('document_shares')
+      .delete({ count: 'exact' })
+      .eq('id', shareId)
+
+    if (error) {
+      logger.error('revokeShareById', error)
+      return { success: false, error: error.message }
+    }
+
+    if ((count || 0) === 0) {
+      return { success: false, error: 'No se encontró el acceso a revocar' }
+    }
+
+    return { success: true }
+  } catch (err) {
+    logger.error('revokeShareById', err)
+    return { success: false, error: 'No se pudo revocar el acceso' }
+  }
+}
+
+/**
+ * Revoke a document share by document/sharer/recipient triple (legacy — prefer revokeShareById).
  */
 export async function revokeDocumentShare(
   documentId: string,
@@ -1059,7 +1093,7 @@ export async function revokeDocumentShare(
     }
 
     if ((count || 0) === 0) {
-      return { success: false, error: 'No se encontrÃ³ la relaciÃ³n a revocar' }
+      return { success: false, error: 'No se encontró la relación a revocar' }
     }
 
     return { success: true }
@@ -1070,26 +1104,91 @@ export async function revokeDocumentShare(
 }
 
 /**
- * List users a document is shared with
+ * List all people who have access to a document (via explicit shares OR fulfilled requests).
+ * Uses separate queries instead of embedded joins to avoid silent RLS failures.
  */
-export async function listDocumentShares(documentId: string) {
+export async function listDocumentShares(documentId: string): Promise<Array<{
+  id: string
+  shared_with: string
+  created_at: string
+  source: 'share' | 'request'
+  profiles: { id: string; full_name: string | null; email: string | null; role: string | null } | null
+}>> {
   if (checkInMemoryDemoDocuments()) {
     return []
   }
 
   try {
-    const { data, error } = await supabase
+    // Part A: explicit document_shares
+    const { data: shares, error: sharesError } = await supabase
       .from('document_shares')
-      .select('id, shared_with, created_at, profiles:profiles!document_shares_shared_with_fkey(id, full_name, email, role)')
+      .select('id, shared_with, created_at')
       .eq('document_id', documentId)
       .order('created_at', { ascending: false })
 
-    if (error) {
-      logger.error('listDocumentShares', error)
-      return []
+    if (sharesError) {
+      logger.error('listDocumentShares:shares', sharesError)
     }
 
-    return data || []
+    // Part B: fulfilled document_requests for this specific document
+    const { data: requests, error: requestsError } = await supabase
+      .from('document_requests')
+      .select('id, doctor_id, fulfilled_at, created_at')
+      .eq('document_id', documentId)
+      .eq('status', 'fulfilled')
+
+    if (requestsError) {
+      logger.error('listDocumentShares:requests', requestsError)
+    }
+
+    const shareList = shares || []
+    const requestList = requests || []
+
+    // Collect all profile IDs to resolve
+    const allProfileIds = [
+      ...new Set([
+        ...shareList.map(s => s.shared_with),
+        ...requestList.map(r => r.doctor_id),
+      ]),
+    ]
+
+    const profileMap = new Map<string, { id: string; full_name: string | null; email: string | null; role: string | null }>()
+    if (allProfileIds.length > 0) {
+      const { data: profileRows } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, role')
+        .in('id', allProfileIds)
+      for (const p of profileRows || []) {
+        profileMap.set(p.id, p)
+      }
+    }
+
+    const shareEntries = shareList.map(row => ({
+      id: row.id,
+      shared_with: row.shared_with,
+      created_at: row.created_at,
+      source: 'share' as const,
+      profiles: profileMap.get(row.shared_with) ?? null,
+    }))
+
+    const requestEntries = requestList.map(row => ({
+      id: row.id,
+      shared_with: row.doctor_id,
+      created_at: row.fulfilled_at || row.created_at,
+      source: 'request' as const,
+      profiles: profileMap.get(row.doctor_id) ?? null,
+    }))
+
+    // Merge, dedup by shared_with — explicit share wins over request
+    const seen = new Set<string>()
+    const result = []
+    for (const entry of [...shareEntries, ...requestEntries]) {
+      if (!seen.has(entry.shared_with)) {
+        seen.add(entry.shared_with)
+        result.push(entry)
+      }
+    }
+    return result
   } catch (err) {
     logger.error('listDocumentShares', err)
     return []
@@ -1358,40 +1457,109 @@ export async function getAllSharesByOwner(ownerId: string): Promise<Array<{
   shared_with_email: string | null
   shared_with_avatar: string | null
   created_at: string
+  source: 'share' | 'request'
 }>> {
   if (checkInMemoryDemoDocuments()) return []
 
   try {
-    const { data, error } = await supabase
+    // --- Part A: explicit document_shares ---
+    const { data: shares, error: sharesError } = await supabase
       .from('document_shares')
-      .select(`
-        id,
-        document_id,
-        shared_with,
-        created_at,
-        document:documents!document_shares_document_id_fkey(title, category),
-        recipient:profiles!document_shares_shared_with_fkey(id, full_name, email, avatar_url)
-      `)
+      .select('id, document_id, shared_with, created_at')
       .eq('shared_by', ownerId)
       .order('created_at', { ascending: false })
 
-    if (error) {
-      logger.error('getAllSharesByOwner', error)
-      return []
+    if (sharesError) {
+      logger.error('getAllSharesByOwner:shares', sharesError)
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (data || []).map((row: any) => ({
-      id: row.id,
-      document_id: row.document_id,
-      document_title: row.document?.title || 'Documento',
-      document_category: row.document?.category || 'other',
-      shared_with: row.shared_with,
-      shared_with_name: row.recipient?.full_name ?? null,
-      shared_with_email: row.recipient?.email ?? null,
-      shared_with_avatar: row.recipient?.avatar_url ?? null,
-      created_at: row.created_at,
-    }))
+    // --- Part B: fulfilled document_requests (doctor requested, patient uploaded) ---
+    const { data: requests, error: requestsError } = await supabase
+      .from('document_requests')
+      .select('id, document_id, doctor_id, fulfilled_at, created_at')
+      .eq('patient_id', ownerId)
+      .eq('status', 'fulfilled')
+      .not('document_id', 'is', null)
+      .order('fulfilled_at', { ascending: false })
+
+    if (requestsError) {
+      logger.error('getAllSharesByOwner:requests', requestsError)
+    }
+
+    // Collect all doc IDs and profile IDs to resolve in bulk
+    const shareList = shares || []
+    const requestList = requests || []
+
+    const allDocIds = [
+      ...new Set([
+        ...shareList.map(s => s.document_id),
+        ...requestList.map(r => r.document_id as string),
+      ]),
+    ]
+    const allProfileIds = [
+      ...new Set([
+        ...shareList.map(s => s.shared_with),
+        ...requestList.map(r => r.doctor_id),
+      ]),
+    ]
+
+    const [{ data: docs }, { data: profileRows }] = await Promise.all([
+      allDocIds.length > 0
+        ? supabase.from('documents').select('id, title, category').in('id', allDocIds)
+        : Promise.resolve({ data: [] }),
+      allProfileIds.length > 0
+        ? supabase.from('profiles').select('id, full_name, email, avatar_url').in('id', allProfileIds)
+        : Promise.resolve({ data: [] }),
+    ])
+
+    const docMap = new Map((docs || []).map(d => [d.id, d]))
+    const profileMap = new Map((profileRows || []).map(p => [p.id, p]))
+
+    const shareEntries = shareList.map(row => {
+      const doc = docMap.get(row.document_id)
+      const recipient = profileMap.get(row.shared_with)
+      return {
+        id: row.id,
+        document_id: row.document_id,
+        document_title: doc?.title || 'Documento',
+        document_category: doc?.category || 'other',
+        shared_with: row.shared_with,
+        shared_with_name: recipient?.full_name ?? null,
+        shared_with_email: recipient?.email ?? null,
+        shared_with_avatar: recipient?.avatar_url ?? null,
+        created_at: row.created_at,
+        source: 'share' as const,
+      }
+    })
+
+    const requestEntries = requestList.map(row => {
+      const doc = docMap.get(row.document_id as string)
+      const doctor = profileMap.get(row.doctor_id)
+      return {
+        id: row.id,
+        document_id: row.document_id as string,
+        document_title: doc?.title || 'Documento',
+        document_category: doc?.category || 'other',
+        shared_with: row.doctor_id,
+        shared_with_name: doctor?.full_name ?? null,
+        shared_with_email: doctor?.email ?? null,
+        shared_with_avatar: doctor?.avatar_url ?? null,
+        created_at: row.fulfilled_at || row.created_at,
+        source: 'request' as const,
+      }
+    })
+
+    // Merge: deduplicate by (document_id, shared_with) — if both a share and request exist, keep share
+    const seen = new Set<string>()
+    const result = []
+    for (const entry of [...shareEntries, ...requestEntries]) {
+      const key = `${entry.document_id}::${entry.shared_with}`
+      if (!seen.has(key)) {
+        seen.add(key)
+        result.push(entry)
+      }
+    }
+    return result
   } catch (err) {
     logger.error('getAllSharesByOwner', err)
     return []
