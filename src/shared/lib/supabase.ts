@@ -18,7 +18,9 @@ export const supabase = createClient<Database>(
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-      // Explicit storage key prevents session collisions if deployed on shared subdomains
+      // For medical apps, storing session in sessionStorage is safer than localStorage
+      // as it expires when the tab is closed.
+      storage: window.sessionStorage,
       storageKey: 'healthpal_auth',
     },
   }
