@@ -6,7 +6,7 @@ import { logger } from '@/shared/lib/logger'
 export type DocumentRequest = {
   id: string
   doctor_id: string
-  patient_email: string
+  patient_email: string | null
   patient_id: string | null
   document_type: string
   description: string | null
@@ -36,11 +36,12 @@ export async function createDocumentRequest(
   patientPhone?: string,
 ): Promise<{ data: DocumentRequest | null; error: string | null }> {
   try {
+    const trimmedEmail = patientEmail.trim()
     const { data, error } = await supabase
       .from('document_requests')
       .insert({
         doctor_id: doctorId,
-        patient_email: patientEmail.toLowerCase().trim(),
+        patient_email: trimmedEmail ? trimmedEmail.toLowerCase() : null,
         document_type: documentType,
         description: description || null,
         ...(patientPhone ? { patient_phone: patientPhone } : {}),

@@ -17,8 +17,6 @@ const DoctorCard: React.FC<DoctorCardProps> = ({ doctor, onRemoved }) => {
   const { user } = useAuth();
   const [showMenu, setShowMenu] = useState(false);
   const profile = doctor.doctor_profile;
-  const stats = doctor.review_stats;
-
   const initials = doctor.full_name
     ? doctor.full_name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()
     : 'DR';
@@ -49,7 +47,7 @@ const DoctorCard: React.FC<DoctorCardProps> = ({ doctor, onRemoved }) => {
     }
   };
 
-  const hasRating = stats && stats.avg_rating > 0;
+  const hasRating = false;
 
   return (
     <div className="group relative bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden
@@ -114,10 +112,7 @@ const DoctorCard: React.FC<DoctorCardProps> = ({ doctor, onRemoved }) => {
             <div className="flex items-center gap-1 mt-1.5">
               <Star className={`w-3.5 h-3.5 ${hasRating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
               <span className="text-xs font-bold text-gray-900">
-                {hasRating ? stats.avg_rating.toFixed(1) : '—'}
-              </span>
-              <span className="text-xs text-gray-500">
-                ({stats?.review_count ?? 0} reseña{stats?.review_count !== 1 ? 's' : ''})
+                —
               </span>
             </div>
           </div>

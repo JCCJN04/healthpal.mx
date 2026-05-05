@@ -5,19 +5,9 @@ import { Skeleton } from '@/shared/components/ui/Skeleton'
 import type { UserRole } from '@/shared/types/database'
 
 interface SummaryData {
-    nextAppointment: {
-        date: string;
-        time: string;
-        doctor: string;
-    } | null;
     documentCount: number;
-    unreadMessages: number;
     activePatients?: number;
     sharedDocumentCount?: number;
-    alerts: {
-        type: 'profile' | 'appointment' | 'document';
-        message: string;
-    }[];
 }
 
 interface DashboardSummaryProps {
@@ -82,10 +72,9 @@ export const DashboardSummary: React.FC<DashboardSummaryProps> = ({
                 </div>
             </div>
 
-            {/* 3 stats cards */}
+            {/* Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                {/* 1. Documentos — protagonista */}
+                {/* Documentos */}
                 <div className="bg-white p-4 rounded-xl shadow-sm border-2 border-primary/20 flex flex-col justify-between">
                     <div>
                         <div className="flex items-center gap-2 text-gray-500 mb-2">
@@ -114,7 +103,7 @@ export const DashboardSummary: React.FC<DashboardSummaryProps> = ({
                     </button>
                 </div>
 
-                {/* 2. Compartidos (paciente) / Pacientes activos (doctor) */}
+                {/* Pacientes activos (doctor) / Compartidos (paciente) */}
                 {role === 'doctor' ? (
                     <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between">
                         <div>
@@ -123,10 +112,10 @@ export const DashboardSummary: React.FC<DashboardSummaryProps> = ({
                                 <span className="text-xs font-semibold uppercase tracking-wider">Pacientes Activos</span>
                             </div>
                             <p className="text-2xl font-bold text-gray-900 mt-1">{data.activePatients ?? 0}</p>
-                            <p className="text-xs text-gray-500">Con historial activo</p>
+                            <p className="text-xs text-gray-500">Con acceso al expediente</p>
                         </div>
                         <button
-                            onClick={() => navigate('/dashboard/consultas')}
+                            onClick={() => navigate('/dashboard/pacientes')}
                             className="mt-4 flex items-center justify-between text-primary text-xs font-bold group"
                         >
                             VER PACIENTES
@@ -152,7 +141,6 @@ export const DashboardSummary: React.FC<DashboardSummaryProps> = ({
                         </button>
                     </div>
                 )}
-
             </div>
         </div>
     )

@@ -1,30 +1,19 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { Search, User, FileText, Calendar, ArrowRight, Loader2 } from 'lucide-react'
+import { Search, User, FileText, ArrowRight, Loader2 } from 'lucide-react'
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import { useAuth } from '@/app/providers/AuthContext'
 import { searchPatients } from '@/features/doctor/services/patients'
 import { searchDocuments } from '@/shared/lib/queries/documents'
-import { searchAppointments, type AppointmentWithDetails } from '@/shared/lib/queries/appointments'
 import { showToast } from '@/shared/components/ui/Toast'
 import { logger } from '@/shared/lib/logger'
 import type { Database } from '@/shared/types/database'
-
-const statusStyles: Record<string, string> = {
-  requested: 'text-amber-700 bg-amber-100',
-  confirmed: 'text-teal-700 bg-teal-100',
-  completed: 'text-emerald-700 bg-emerald-100',
-  cancelled: 'text-red-700 bg-red-100',
-  rejected: 'text-red-700 bg-red-100',
-  no_show: 'text-gray-700 bg-gray-200'
-}
 
 type DocumentRow = Database['public']['Tables']['documents']['Row']
 
 type SearchResults = {
   patients: Awaited<ReturnType<typeof searchPatients>>
   documents: DocumentRow[]
-  appointments: AppointmentWithDetails[]
 }
 
 export default function Busqueda() {
@@ -36,7 +25,7 @@ export default function Busqueda() {
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
-  const [results, setResults] = useState<SearchResults>({ patients: [], documents: [], appointments: [] })
+  const [results, setResults] = useState<SearchResults>({ patients: [], documents: [] })
 
   const source = searchParams.get('from') || ''
   const qParam = searchParams.get('q') || ''
@@ -47,7 +36,7 @@ export default function Busqueda() {
 
   useEffect(() => {
     if (!qParam || !user) {
-      setResults({ patients: [], documents: [], appointments: [] })
+      setResults({ patients: [], documents: [] })
       return
     }
 
@@ -57,13 +46,12 @@ export default function Busqueda() {
       try {
         const searchRole = profile?.role === 'doctor' ? 'doctor' : profile?.role === 'patient' ? 'patient' : undefined
 
-        const [patients, documents, appointments] = await Promise.all([
+        const [patients, documents] = await Promise.all([
           searchRole === 'doctor' ? searchPatients(qParam, user.id) : Promise.resolve([]),
           searchDocuments(qParam, user.id),
-          searchAppointments(qParam, user.id, searchRole)
         ])
 
-        setResults({ patients, documents, appointments })
+        setResults({ patients, documents })
       } catch (err) {
         logger.error('Busqueda.search', err)
         showToast('No pudimos completar la búsqueda, inténtalo de nuevo', 'error')
@@ -78,26 +66,12 @@ export default function Busqueda() {
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
     if (!query.trim()) return
-
     const params = new URLSearchParams({ q: query.trim(), from: source || location.pathname })
     navigate(`/dashboard/buscar?${params.toString()}`)
   }
 
-  const patientSectionVisible = useMemo(() => profile?.role === 'doctor', [profile?.role])
   const nothingFound =
-    hasSearched &&
-    !loading &&
-    results.patients.length === 0 &&
-    results.documents.length === 0 &&
-    results.appointments.length === 0
-
-  const formatDateTime = (value: string) => {
-    const date = new Date(value)
-    return {
-      date: date.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }),
-      time: date.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
-    }
-  }
+    hasSearched && !loading && results.patients.length === 0 && results.documents.length === 0
 
   const renderEmpty = (label: string) => (
     <div className="text-sm text-gray-500 bg-gray-50 border border-dashed border-gray-200 rounded-lg p-4">
@@ -119,7 +93,7 @@ export default function Busqueda() {
             )}
             {hasSearched && !loading && (
               <span className="text-xs text-gray-600 bg-white border border-gray-200 px-2 py-1 rounded-full">
-                {results.documents.length + results.appointments.length + results.patients.length} resultados
+                {results.documents.length + results.patients.length} resultados
               </span>
             )}
           </div>
@@ -132,7 +106,7 @@ export default function Busqueda() {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Busca pacientes, documentos o citas"
+                placeholder="Busca pacientes o documentos"
                 className="w-full pl-10 pr-3 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
               />
             </div>
@@ -145,7 +119,6 @@ export default function Busqueda() {
               Buscar
             </button>
           </div>
-          <p className="text-xs text-gray-500 mt-2">Presiona Enter para lanzar la búsqueda.</p>
         </form>
 
         {nothingFound && (
@@ -156,38 +129,31 @@ export default function Busqueda() {
         )}
 
         <div className="grid grid-cols-1 gap-6">
-          {patientSectionVisible && (
+          {profile?.role === 'doctor' && (
             <section className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 md:p-5">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <div className="p-2 rounded-lg bg-primary/10 text-primary"><User size={18} /></div>
                   <div>
                     <p className="text-xs font-semibold uppercase text-primary">Pacientes</p>
-                    <p className="text-sm text-gray-600">Coincidencias por nombre o correo</p>
+                    <p className="text-sm text-gray-600">Coincidencias por nombre</p>
                   </div>
                 </div>
                 {loading && <Loader2 className="animate-spin text-gray-400" size={18} />}
               </div>
-
-              {results.patients.length === 0 && !loading ? (
-                renderEmpty('pacientes')
-              ) : (
+              {results.patients.length === 0 && !loading ? renderEmpty('pacientes') : (
                 <div className="space-y-3">
                   {results.patients.map((patient) => (
                     <div
                       key={patient.id}
                       className="flex items-center justify-between p-3 border border-gray-100 rounded-lg hover:border-primary/30 transition-colors"
                     >
-                      <div>
-                        <p className="text-sm font-semibold text-gray-900">{patient.full_name || 'Paciente sin nombre'}</p>
-                        <p className="text-xs text-gray-600">{patient.email || 'Sin correo registrado'}</p>
-                      </div>
+                      <p className="text-sm font-semibold text-gray-900">{patient.full_name || 'Paciente sin nombre'}</p>
                       <button
                         onClick={() => navigate('/dashboard/pacientes')}
                         className="inline-flex items-center gap-1 text-primary text-sm font-semibold hover:underline"
                       >
-                        Ver pacientes
-                        <ArrowRight size={14} />
+                        Ver pacientes <ArrowRight size={14} />
                       </button>
                     </div>
                   ))}
@@ -207,10 +173,7 @@ export default function Busqueda() {
               </div>
               {loading && <Loader2 className="animate-spin text-gray-400" size={18} />}
             </div>
-
-            {results.documents.length === 0 && !loading ? (
-              renderEmpty('documentos')
-            ) : (
+            {results.documents.length === 0 && !loading ? renderEmpty('documentos') : (
               <div className="space-y-3">
                 {results.documents.map((doc) => {
                   const created = new Date(doc.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -221,60 +184,11 @@ export default function Busqueda() {
                       onClick={() => navigate(`/dashboard/documentos/${doc.id}`)}
                     >
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-                          {doc.category}
-                        </span>
+                        <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">{doc.category}</span>
                         <span className="text-xs text-gray-500">{created}</span>
                       </div>
                       <p className="text-sm font-semibold text-gray-900">{doc.title}</p>
-                      {doc.notes && (
-                        <p className="text-xs text-gray-600 mt-1 line-clamp-2">{doc.notes}</p>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </section>
-
-          <section className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 md:p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-emerald-50 text-emerald-600"><Calendar size={18} /></div>
-                <div>
-                  <p className="text-xs font-semibold uppercase text-emerald-600">Citas</p>
-                  <p className="text-sm text-gray-600">Consultas pasadas o próximas</p>
-                </div>
-              </div>
-              {loading && <Loader2 className="animate-spin text-gray-400" size={18} />}
-            </div>
-
-            {results.appointments.length === 0 && !loading ? (
-              renderEmpty('citas')
-            ) : (
-              <div className="space-y-3">
-                {results.appointments.map((apt) => {
-                  const { date, time } = formatDateTime(apt.start_at)
-                  const counterpart = profile?.role === 'doctor' ? apt.patient : apt.doctor
-
-                  return (
-                    <div
-                      key={apt.id}
-                      className="p-3 border border-gray-100 rounded-lg hover:border-primary/30 transition-colors cursor-pointer"
-                      onClick={() => navigate(`/dashboard/consultas/${apt.id}`)}
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
-                          {date} · {time}
-                        </span>
-                        <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${statusStyles[apt.status] || 'text-gray-700 bg-gray-200'}`}>
-                          {apt.status}
-                        </span>
-                      </div>
-                      <p className="text-sm font-semibold text-gray-900">Consulta médica</p>
-                      <p className="text-xs text-gray-600 mt-1">
-                        {counterpart?.full_name || (profile?.role === 'doctor' ? 'Paciente sin nombre' : 'Doctor sin nombre')}
-                      </p>
+                      {doc.notes && <p className="text-xs text-gray-600 mt-1 line-clamp-2">{doc.notes}</p>}
                     </div>
                   )
                 })}

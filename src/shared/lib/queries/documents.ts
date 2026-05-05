@@ -644,7 +644,7 @@ export async function deleteFolder(folderId: string, userId: string): Promise<{ 
     // Fetch all documents in the folder owned by this user
     const { data: docsInFolder, error: fetchError } = await supabase
       .from('documents')
-      .select('id, owner_id, file_path, storage_path')
+      .select('id, owner_id')
       .eq('folder_id', folderId)
       .eq('owner_id', userId)
 

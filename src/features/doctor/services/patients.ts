@@ -88,38 +88,22 @@ export async function searchPatients(term: string, doctorId: string): Promise<Pa
       .slice(0, 10)
   }
 
-  const like = `%${term.trim()}%`
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, full_name, avatar_url')
-    .eq('role', 'patient')
-    .or(`full_name.ilike.${like}`)
-    .limit(10)
+  const { data, error } = await supabase.rpc('search_patients_for_doctor', {
+    search_term: term.trim(),
+    p_doctor_id: doctorId,
+  })
 
   if (error) {
     logger.error('searchPatients', error)
     return []
   }
 
-  // Check consent status for each result
-  const ids = (data || []).map((p) => p.id)
-  const consentMap: Record<string, string> = {}
-  if (ids.length > 0 && doctorId) {
-    const { data: consents } = await supabase
-      .from('doctor_patient_consent')
-      .select('patient_id, status')
-      .eq('doctor_id', doctorId)
-      .in('patient_id', ids)
-
-    ;(consents || []).forEach((c) => { consentMap[c.patient_id] = c.status })
-  }
-
-  return (data || []).map(({ id, full_name, avatar_url }) => ({
+  return (data || []).map(({ id, full_name, avatar_url, consent_status }) => ({
     id,
     full_name,
     email: null, // Never expose email in search results
     avatar_url,
-    consentStatus: consentMap[id] || null,
+    consentStatus: consent_status || null,
   }))
 }
 

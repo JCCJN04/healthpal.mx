@@ -13,8 +13,6 @@ export type Json =
 // Enums from database
 export type UserRole = 'patient' | 'doctor' | 'admin'
 export type SexType = 'male' | 'female' | 'other' | 'unspecified'
-export type AppointmentStatus = 'requested' | 'confirmed' | 'completed' | 'cancelled' | 'rejected' | 'no_show'
-export type VisitMode = 'in_person' | 'video' | 'phone'
 export type DocCategory = 'radiology' | 'prescription' | 'history' | 'lab' | 'insurance' | 'other'
 
 export interface Database {
@@ -148,56 +146,6 @@ export interface Database {
           weight_kg?: number | null
           insurance_provider?: string | null
           preferred_language?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-      }
-      appointments: {
-        Row: {
-          id: string
-          doctor_id: string
-          patient_id: string
-          status: AppointmentStatus
-          mode: VisitMode
-          reason: string | null
-          symptoms: string | null
-          start_at: string
-          end_at: string
-          location_text: string | null
-          location: Json | null
-          created_by: string
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          doctor_id: string
-          patient_id: string
-          status?: AppointmentStatus
-          mode?: VisitMode
-          reason?: string | null
-          symptoms?: string | null
-          start_at: string
-          end_at: string
-          location_text?: string | null
-          location?: Json | null
-          created_by: string
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          doctor_id?: string
-          patient_id?: string
-          status?: AppointmentStatus
-          mode?: VisitMode
-          reason?: string | null
-          symptoms?: string | null
-          start_at?: string
-          end_at?: string
-          location_text?: string | null
-          location?: Json | null
-          created_by?: string
           created_at?: string
           updated_at?: string
         }
@@ -419,7 +367,7 @@ export interface Database {
         Row: {
           id: string
           doctor_id: string
-          patient_email: string
+          patient_email: string | null
           patient_id: string | null
           document_type: string
           description: string | null
@@ -433,7 +381,7 @@ export interface Database {
         Insert: {
           id?: string
           doctor_id: string
-          patient_email: string
+          patient_email?: string | null
           patient_id?: string | null
           document_type?: string
           description?: string | null
@@ -523,16 +471,6 @@ export interface Database {
           review_count: number
         }[]
       }
-      get_public_doctor_reviews: {
-        Args: { p_slug: string; p_limit?: number; p_offset?: number }
-        Returns: {
-          rating: number
-          comment: string | null
-          reviewer: string
-          created_at: string
-          total_count: number
-        }[]
-      }
       get_public_specialties: {
         Args: Record<PropertyKey, never>
         Returns: { specialty: string; doctor_count: number }[]
@@ -541,8 +479,6 @@ export interface Database {
     Enums: {
       user_role: UserRole
       sex_type: SexType
-      appointment_status: AppointmentStatus
-      visit_mode: VisitMode
       doc_category: DocCategory
     }
   }
@@ -561,7 +497,6 @@ export interface DoctorLocation {
 export type Profile = Database['public']['Tables']['profiles']['Row']
 export type DoctorProfile = Database['public']['Tables']['doctor_profiles']['Row']
 export type PatientProfile = Database['public']['Tables']['patient_profiles']['Row']
-export type Appointment = Database['public']['Tables']['appointments']['Row']
 export type Document = Database['public']['Tables']['documents']['Row']
 export type Notification = Database['public']['Tables']['notifications']['Row']
 export type UserSettings = Database['public']['Tables']['user_settings']['Row']
@@ -572,20 +507,3 @@ export type DoctorPatientConsentUpdate = Database['public']['Tables']['doctor_pa
 export type ConsentStatus = 'requested' | 'accepted' | 'rejected' | 'revoked'
 export type ConsentScope = 'share_basic_profile' | 'share_contact' | 'share_documents' | 'share_appointments' | 'share_medical_notes'
 
-/** Verified review left by a patient after a completed appointment */
-export interface VerifiedReview {
-  id: string
-  appointment_id: string
-  patient_id: string
-  doctor_id: string
-  rating: number
-  rating_punctuality: number | null
-  rating_attention: number | null
-  rating_facilities: number | null
-  comment: string | null
-  is_anonymous: boolean
-  helpful_count: number
-  doctor_response: string | null
-  doctor_responded_at: string | null
-  created_at: string
-}

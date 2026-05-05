@@ -43,7 +43,6 @@ const DoctorList: React.FC<DoctorListProps> = ({ doctors, onDoctorRemoved }) => 
     <div className="space-y-3">
       {doctors.map((doctor) => {
         const profile = doctor.doctor_profile;
-        const stats = doctor.review_stats;
         const initials = doctor.full_name
           ? doctor.full_name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()
           : 'DR';
@@ -93,11 +92,8 @@ const DoctorList: React.FC<DoctorListProps> = ({ doctors, onDoctorRemoved }) => 
                   <span className="text-gray-300 hidden sm:inline">·</span>
 
                   <span className="text-sm text-gray-500 flex items-center gap-1 hidden sm:flex">
-                    <Star className={`w-3.5 h-3.5 ${stats && stats.avg_rating > 0 ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
-                    {stats && stats.avg_rating > 0 ? stats.avg_rating.toFixed(1) : '—'}
-                    <span className="text-xs text-gray-400 ml-0.5">
-                      ({stats && stats.review_count > 0 ? stats.review_count : 0})
-                    </span>
+                    <Star className="w-3.5 h-3.5 text-gray-300" />
+                    —
                   </span>
 
                   {profile?.years_experience && (

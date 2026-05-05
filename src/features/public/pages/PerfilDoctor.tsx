@@ -16,14 +16,12 @@ import {
   Video,
   Globe,
   Briefcase,
-  MessageSquareText,
 } from 'lucide-react';
 import PublicLayout from '@/features/public/components/PublicLayout';
 import MapboxMap from '@/shared/components/ui/MapboxMap';
 import StickyBookingWidget from '@/features/public/components/StickyBookingWidget';
 import DoctorExperienceTab from '@/features/public/components/DoctorExperienceTab';
 import DoctorServicesTab from '@/features/public/components/DoctorServicesTab';
-import DoctorReviewsTab from '@/features/public/components/DoctorReviewsTab';
 import {
   getPublicDoctorDetail,
   type PublicDoctorEnriched,
@@ -32,12 +30,11 @@ import { geocodeAddress } from '@/shared/lib/geocoding';
 import { formatSpecialty } from '@/shared/lib/specialties';
 import { buildPhysicianJsonLd } from '@/shared/lib/seoJsonLd';
 
-type TabId = 'experiencia' | 'servicios' | 'opiniones';
+type TabId = 'experiencia' | 'servicios';
 
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: 'experiencia', label: 'Experiencia', icon: <Briefcase className="w-4 h-4" /> },
   { id: 'servicios', label: 'Servicios y Precios', icon: <DollarSign className="w-4 h-4" /> },
-  { id: 'opiniones', label: 'Opiniones', icon: <MessageSquareText className="w-4 h-4" /> },
 ];
 
 export default function PerfilDoctor() {
@@ -296,13 +293,6 @@ export default function PerfilDoctor() {
                 )}
                 {activeTab === 'servicios' && (
                   <DoctorServicesTab doctor={doctor} />
-                )}
-                {activeTab === 'opiniones' && (
-                  <DoctorReviewsTab
-                    doctorSlug={slug!}
-                    avgRating={doctor.avg_rating}
-                    reviewCount={doctor.review_count}
-                  />
                 )}
               </div>
             </div>

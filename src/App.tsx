@@ -20,27 +20,16 @@ import VerifyEmail from '@/features/auth/pages/VerifyEmail'
 const Dashboard = lazy(() => import('@/features/shared/pages/Dashboard'))
 const Documentos = lazy(() => import('@/features/shared/pages/Documentos'))
 const DocumentDetail = lazy(() => import('@/features/shared/pages/DocumentDetail'))
-const Consultas = lazy(() => import('@/features/shared/pages/Consultas'))
-const ConsultaDetail = lazy(() => import('@/features/shared/pages/ConsultaDetail'))
-const NuevaConsulta = lazy(() => import('@/features/shared/pages/NuevaConsulta'))
-const ConsultasHistorial = lazy(() => import('@/features/shared/pages/ConsultasHistorial'))
-const Mensajes = lazy(() => import('@/features/shared/pages/Mensajes'))
+const Busqueda = lazy(() => import('@/features/shared/pages/Busqueda'))
+const Configuracion = lazy(() => import('@/features/shared/pages/Configuracion'))
 const Doctores = lazy(() => import('@/features/patient/pages/Doctores'))
 const DoctorDetail = lazy(() => import('@/features/patient/pages/DoctorDetail'))
-const Calendario = lazy(() => import('@/features/shared/pages/Calendario'))
-const Configuracion = lazy(() => import('@/features/shared/pages/Configuracion'))
 const Pacientes = lazy(() => import('@/features/doctor/pages/Pacientes'))
 const PatientDetail = lazy(() => import('@/features/doctor/pages/PatientDetail'))
-const Busqueda = lazy(() => import('@/features/shared/pages/Busqueda'))
 
 // Public pages (no auth required)
 const SolicitudDocumento = lazy(() => import('@/features/public/pages/SolicitudDocumento'))
 
-// Phase 2: Patient reviews & Doctor management
-const MisResenas = lazy(() => import('@/features/patient/pages/MisResenas'))
-const DoctorServicesManager = lazy(() => import('@/features/doctor/pages/DoctorServicesManager'))
-const AvailabilityCalendarManager = lazy(() => import('@/features/doctor/pages/AvailabilityCalendarManager'))
-const MisResenasDoctorPage = lazy(() => import('@/features/doctor/pages/MisResenasDoctorPage'))
 const DemoDoctor = lazy(() => import('@/pages/DemoDoctor'))
 
 // Lazy load onboarding pages
@@ -87,8 +76,7 @@ function App() {
         <Route path="/especialistas/:specialty/:city" element={<Navigate to="/" replace />} />
         <Route path="/solicitud/:token" element={<Suspense fallback={<PageLoader />}><SolicitudDocumento /></Suspense>} />
 
-        {/* Onboarding Routes - Lazy loaded with Suspense */}
-        {/* Protected with OnlyOnboarding to prevent access after completion */}
+        {/* Onboarding Routes */}
         <Route path="/onboarding/role" element={<RequireAuth><OnlyOnboarding><Suspense fallback={<PageLoader />}><OnboardingRole /></Suspense></OnlyOnboarding></RequireAuth>} />
         <Route path="/onboarding/basic" element={<RequireAuth><OnlyOnboarding><Suspense fallback={<PageLoader />}><OnboardingBasic /></Suspense></OnlyOnboarding></RequireAuth>} />
         <Route path="/onboarding/contact" element={<RequireAuth><OnlyOnboarding><Suspense fallback={<PageLoader />}><OnboardingContact /></Suspense></OnlyOnboarding></RequireAuth>} />
@@ -96,27 +84,17 @@ function App() {
         <Route path="/onboarding/patient" element={<RequireAuth><OnlyOnboarding><Suspense fallback={<PageLoader />}><OnboardingPatient /></Suspense></OnlyOnboarding></RequireAuth>} />
         <Route path="/onboarding/done" element={<RequireAuth><OnlyOnboarding><Suspense fallback={<PageLoader />}><OnboardingDone /></Suspense></OnlyOnboarding></RequireAuth>} />
 
-        {/* Dashboard Routes - Lazy loaded with Suspense */}
+        {/* Dashboard Routes */}
         <Route path="/dashboard" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><Dashboard /></Suspense></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/documentos" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><Documentos /></Suspense></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/documentos/:id" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><DocumentDetail /></Suspense></RequireOnboarding></RequireAuth>} />
-        <Route path="/dashboard/consultas" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><Consultas /></Suspense></RequireOnboarding></RequireAuth>} />
-        <Route path="/dashboard/consultas/historial" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><ConsultasHistorial /></Suspense></RequireOnboarding></RequireAuth>} />
-        <Route path="/dashboard/consultas/:id" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><ConsultaDetail /></Suspense></RequireOnboarding></RequireAuth>} />
-        <Route path="/dashboard/consultas/nueva" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><NuevaConsulta /></Suspense></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/buscar" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><Busqueda /></Suspense></RequireOnboarding></RequireAuth>} />
-        <Route path="/dashboard/mensajes" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><Mensajes /></Suspense></RequireOnboarding></RequireAuth>} />
         {/* Patient-only routes */}
         <Route path="/dashboard/doctores" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['patient']}><Suspense fallback={<PageLoader />}><Doctores /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/doctores/:id" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['patient']}><Suspense fallback={<PageLoader />}><DoctorDetail /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
-        <Route path="/dashboard/resenas" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['patient']}><Suspense fallback={<PageLoader />}><MisResenas /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
         {/* Doctor-only routes */}
         <Route path="/dashboard/pacientes" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['doctor']}><Suspense fallback={<PageLoader />}><Pacientes /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/pacientes/:id" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['doctor']}><Suspense fallback={<PageLoader />}><PatientDetail /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
-        <Route path="/dashboard/servicios" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['doctor']}><Suspense fallback={<PageLoader />}><DoctorServicesManager /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
-        <Route path="/dashboard/disponibilidad" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['doctor']}><Suspense fallback={<PageLoader />}><AvailabilityCalendarManager /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
-        <Route path="/dashboard/resenas-doctor" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['doctor']}><Suspense fallback={<PageLoader />}><MisResenasDoctorPage /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
-        <Route path="/dashboard/calendario" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><Calendario /></Suspense></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/configuracion" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><Configuracion /></Suspense></RequireOnboarding></RequireAuth>} />
       </Routes>
     </AuthProvider>

@@ -72,18 +72,19 @@ export default function SolicitudDocumento() {
 
     setRequest(data)
 
-    // Pre-fill email from request
-    setEmail(data.patient_email)
+    // Pre-fill email from request (may be null for phone-only requests)
+    setEmail(data.patient_email ?? '')
 
     // Check if user is already logged in
     const { data: session } = await supabase.auth.getSession()
     const sessionUser = session.session?.user
+    const requestEmail = (data.patient_email ?? '').toLowerCase().trim()
 
     if (sessionUser) {
-      const sessionEmail = sessionUser.email?.toLowerCase().trim()
-      const requestEmail = data.patient_email.toLowerCase().trim()
+      const sessionEmail = sessionUser.email?.toLowerCase().trim() ?? ''
 
-      if (sessionEmail === requestEmail) {
+      // Phone-only request (no email) OR emails match → allow upload
+      if (!requestEmail || sessionEmail === requestEmail) {
         setCurrentUserId(sessionUser.id)
         setStep('upload')
       } else {
@@ -322,7 +323,10 @@ export default function SolicitudDocumento() {
             <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-2">
               <AlertCircle size={16} className="text-amber-500 shrink-0 mt-0.5" />
               <p className="text-xs text-amber-700">
-                Esta solicitud es para <strong>{request?.patient_email}</strong>. Inicia sesión con esa cuenta o crea una nueva.
+                {request?.patient_email
+                  ? <>Esta solicitud es para <strong>{request.patient_email}</strong>. Inicia sesión con esa cuenta o crea una nueva.</>
+                  : 'Esta solicitud fue enviada a un número de teléfono. Inicia sesión o crea una cuenta para subir el documento.'
+                }
               </p>
             </div>
           )}

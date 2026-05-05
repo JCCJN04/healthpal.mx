@@ -19,13 +19,7 @@ import {
 import DashboardLayout from '@/app/layout/DashboardLayout';
 import {
   getDoctorById,
-  getDoctorReviews,
-  getDoctorSchedule,
-  getReviewableAppointmentId,
-  submitDoctorReview,
   DoctorWithProfile,
-  DoctorReview,
-  ScheduleDay,
 } from '@/features/patient/services/doctors';
 import MapboxMap from '@/shared/components/ui/MapboxMap';
 import type { DoctorLocation } from '@/shared/types/database';
@@ -40,31 +34,13 @@ export default function DoctorDetail() {
   const [doctor, setDoctor] = useState<DoctorWithProfile | null>(stateDoctor);
   const [loading, setLoading] = useState(!stateDoctor);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'info' | 'reviews' | 'schedule'>('info');
+  const [activeTab, setActiveTab] = useState<'info'>('info');
   const [geocodedCoords, setGeocodedCoords] = useState<DoctorLocation | null>(null);
   const [geocoding, setGeocoding] = useState(false);
-  const [reviews, setReviews] = useState<DoctorReview[]>([]);
-  const [reviewsLoading, setReviewsLoading] = useState(false);
-  const [schedule, setSchedule] = useState<ScheduleDay[]>([]);
-  const [scheduleLoading, setScheduleLoading] = useState(false);
-  const [reviewableApptId, setReviewableApptId] = useState<string | null | undefined>(undefined);
-  const [reviewRating, setReviewRating] = useState(5);
-  const [reviewComment, setReviewComment] = useState('');
-  const [reviewSubmitting, setReviewSubmitting] = useState(false);
-  const [reviewError, setReviewError] = useState<string | null>(null);
-  const [reviewSuccess, setReviewSuccess] = useState(false);
 
   useEffect(() => {
     if (!id) return;
 
-    // Always load secondary data (reviews, schedule)
-    setReviewsLoading(true);
-    setScheduleLoading(true);
-    getDoctorReviews(id).then(setReviews).finally(() => setReviewsLoading(false));
-    getDoctorSchedule(id).then(setSchedule).finally(() => setScheduleLoading(false));
-    getReviewableAppointmentId(id).then(setReviewableApptId);
-
-    // Load/refresh doctor profile in background
     loadDoctor();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
@@ -166,8 +142,6 @@ export default function DoctorDetail() {
 
   const tabs = [
     { id: 'info' as const, label: 'Información', icon: FileText },
-    { id: 'reviews' as const, label: 'Reseñas', icon: Star },
-    { id: 'schedule' as const, label: 'Horario', icon: Clock },
   ];
 
   const specialtyLabel = formatSpecialty(profile?.specialty);
@@ -285,11 +259,7 @@ export default function DoctorDetail() {
               />
               <StatCell
                 icon={<Star className="w-4 h-4 text-amber-400 fill-amber-400" />}
-                value={doctor.review_stats && doctor.review_stats.avg_rating > 0
-                  ? doctor.review_stats.avg_rating.toFixed(1)
-                  : reviews.length > 0
-                    ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)
-                    : '—'}
+                value="—"
                 label="Calificación"
               />
               <StatCell
@@ -458,237 +428,6 @@ export default function DoctorDetail() {
               </div>
             )}
 
-            {activeTab === 'reviews' && (
-              <div className="space-y-6">
-
-                {/* Review submission form — only if patient has a reviewable appointment */}
-                {reviewableApptId && !reviewSuccess && (
-                  <div className="rounded-xl border border-primary/20 bg-primary/5 p-5">
-                    <h4 className="font-bold text-gray-900 mb-1 text-sm">Deja tu reseña</h4>
-                    <p className="text-xs text-gray-400 mb-4">Comparte tu experiencia con este médico.</p>
-
-                    {/* Star picker */}
-                    <div className="flex items-center gap-1 mb-4">
-                      {[1, 2, 3, 4, 5].map((n) => (
-                        <button
-                          key={n}
-                          type="button"
-                          onClick={() => setReviewRating(n)}
-                          className="focus-visible:outline-none"
-                          aria-label={`${n} estrellas`}
-                        >
-                          <Star
-                            className={`w-7 h-7 transition-colors ${
-                              n <= reviewRating
-                                ? 'text-amber-400 fill-amber-400'
-                                : 'text-gray-200 fill-gray-200 hover:text-amber-300 hover:fill-amber-300'
-                            }`}
-                          />
-                        </button>
-                      ))}
-                      <span className="ml-2 text-sm font-semibold text-gray-600">{reviewRating}/5</span>
-                    </div>
-
-                    {/* Comment textarea */}
-                    <textarea
-                      value={reviewComment}
-                      onChange={(e) => setReviewComment(e.target.value)}
-                      placeholder="Cuéntanos sobre tu experiencia (opcional)…"
-                      rows={3}
-                      className="w-full text-sm rounded-xl border border-gray-200 px-3.5 py-2.5 resize-none focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary placeholder:text-gray-300"
-                    />
-
-                    {reviewError && (
-                      <p className="text-xs text-red-500 mt-2">{reviewError}</p>
-                    )}
-
-                    <button
-                      type="button"
-                      disabled={reviewSubmitting}
-                      onClick={async () => {
-                        if (!reviewableApptId || !doctor) return;
-                        setReviewSubmitting(true);
-                        setReviewError(null);
-                        const res = await submitDoctorReview(
-                          doctor.id,
-                          reviewableApptId,
-                          reviewRating,
-                          reviewComment,
-                        );
-                        if (res.ok) {
-                          setReviewSuccess(true);
-                          setReviewableApptId(null);
-                          getDoctorReviews(doctor.id).then(setReviews);
-                        } else {
-                          setReviewError(res.error ?? 'Error al enviar la reseña');
-                        }
-                        setReviewSubmitting(false);
-                      }}
-                      className="mt-3 inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-teal-600 active:scale-[0.98] transition-all disabled:opacity-60"
-                    >
-                      {reviewSubmitting ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Star className="w-4 h-4" />
-                      )}
-                      Publicar reseña
-                    </button>
-                  </div>
-                )}
-
-                {reviewSuccess && (
-                  <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-4 flex items-center gap-3">
-                    <BadgeCheck className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                    <p className="text-sm font-medium text-emerald-700">¡Reseña publicada! Gracias por tu opinión.</p>
-                  </div>
-                )}
-
-                {/* Reviews list */}
-                {reviewsLoading ? (
-                  <div className="flex items-center justify-center py-10">
-                    <Loader2 className="w-6 h-6 text-primary animate-spin" />
-                  </div>
-                ) : reviews.length === 0 ? (
-                  <div className="text-center py-10">
-                    <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-amber-50 flex items-center justify-center">
-                      <Star className="w-5 h-5 text-amber-300" />
-                    </div>
-                    <p className="text-sm font-semibold text-gray-700 mb-1">Sin reseñas todavía</p>
-                    <p className="text-xs text-gray-400 max-w-xs mx-auto">
-                      Las reseñas aparecen aquí despues de que los pacientes completen una cita.
-                    </p>
-                  </div>
-                ) : (
-                  <div>
-                    {/* Summary bar */}
-                    <div className="flex items-center gap-4 mb-5 p-4 rounded-xl bg-gray-50 border border-gray-100">
-                      <div className="text-center">
-                        <p className="text-3xl font-extrabold text-gray-900 leading-none">
-                          {(reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)}
-                        </p>
-                        <div className="flex justify-center gap-0.5 mt-1">
-                          {[1, 2, 3, 4, 5].map((n) => {
-                            const avg = reviews.reduce((s, r) => s + r.rating, 0) / reviews.length;
-                            return (
-                              <Star
-                                key={n}
-                                className={`w-3.5 h-3.5 ${
-                                  n <= Math.round(avg)
-                                    ? 'text-amber-400 fill-amber-400'
-                                    : 'text-gray-200 fill-gray-200'
-                                }`}
-                              />
-                            );
-                          })}
-                        </div>
-                        <p className="text-xs text-gray-400 mt-0.5">{reviews.length} reseña{reviews.length !== 1 ? 's' : ''}</p>
-                      </div>
-                      <div className="flex-1 space-y-1.5">
-                        {[5, 4, 3, 2, 1].map((star) => {
-                          const count = reviews.filter((r) => r.rating === star).length;
-                          const pct = reviews.length ? (count / reviews.length) * 100 : 0;
-                          return (
-                            <div key={star} className="flex items-center gap-2">
-                              <span className="text-xs text-gray-400 w-3">{star}</span>
-                              <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                                <div
-                                  className="h-full bg-amber-400 rounded-full transition-all"
-                                  style={{ width: `${pct}%` }}
-                                />
-                              </div>
-                              <span className="text-xs text-gray-400 w-4 text-right">{count}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Review cards */}
-                    <div className="space-y-3">
-                      {reviews.map((review) => (
-                        <div key={review.id} className="p-4 rounded-xl border border-gray-100 bg-white hover:border-gray-200 transition-colors">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 flex-shrink-0 rounded-full bg-gradient-to-br from-primary to-teal-700 flex items-center justify-center text-white text-xs font-bold select-none">
-                                {review.reviewer_name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()}
-                              </div>
-                              <div>
-                                <p className="text-sm font-semibold text-gray-800">{review.reviewer_name}</p>
-                                <div className="flex gap-0.5 mt-0.5">
-                                  {[1, 2, 3, 4, 5].map((n) => (
-                                    <Star
-                                      key={n}
-                                      className={`w-3 h-3 ${
-                                        n <= review.rating
-                                          ? 'text-amber-400 fill-amber-400'
-                                          : 'text-gray-200 fill-gray-200'
-                                      }`}
-                                    />
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                            <span className="text-xs text-gray-400 flex-shrink-0">
-                              {new Date(review.created_at).toLocaleDateString('es-MX', {
-                                day: 'numeric', month: 'short', year: 'numeric',
-                              })}
-                            </span>
-                          </div>
-                          {review.comment && (
-                            <p className="mt-2.5 text-sm text-gray-600 leading-relaxed">{review.comment}</p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {activeTab === 'schedule' && (
-              <div>
-                <SectionHeading>Horario de atención</SectionHeading>
-                {scheduleLoading ? (
-                  <div className="flex items-center justify-center py-10">
-                    <Loader2 className="w-6 h-6 text-primary animate-spin" />
-                  </div>
-                ) : schedule.length === 0 ? (
-                  <div className="text-center py-10">
-                    <Clock className="w-10 h-10 mx-auto mb-3 text-gray-200" />
-                    <p className="text-sm text-gray-400">El médico aún no ha configurado sus horarios.</p>
-                  </div>
-                ) : (
-                  <div className="rounded-xl border border-gray-100 overflow-hidden">
-                    {schedule.map((item, i) => {
-                      const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-                      const label = DAY_NAMES[item.day_of_week] ?? `Día ${item.day_of_week}`;
-                      const fmt = (t: string) => {
-                        const [h, m] = t.split(':').map(Number);
-                        const ampm = h >= 12 ? 'PM' : 'AM';
-                        const h12 = h % 12 || 12;
-                        return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
-                      };
-                      return (
-                        <div
-                          key={item.day_of_week}
-                          className={`flex items-center justify-between px-4 py-3.5 ${
-                            i < schedule.length - 1 ? 'border-b border-gray-50' : ''
-                          } ${!item.is_active ? 'bg-gray-50/60' : ''}`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${item.is_active ? 'bg-emerald-400' : 'bg-gray-200'}`} />
-                            <span className={`text-sm font-medium ${item.is_active ? 'text-gray-800' : 'text-gray-400'}`}>{label}</span>
-                          </div>
-                          <span className={`text-sm ${item.is_active ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
-                            {item.is_active ? `${fmt(item.open_time)} – ${fmt(item.close_time)}` : 'Cerrado'}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </div>
       </div>

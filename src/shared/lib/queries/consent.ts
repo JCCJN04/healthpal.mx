@@ -355,9 +355,12 @@ export async function rejectConsentRequest(
 
 /**
  * Patient: revoke previously-accepted access.
+ * Also deletes all document_shares between the patient and the doctor.
  */
 export async function revokeConsentAccess(
-  consentId: string
+  consentId: string,
+  doctorId?: string,
+  patientId?: string,
 ): Promise<{ ok: boolean; error?: string }> {
   if (isDemoMode()) {
     return { ok: true }
@@ -380,6 +383,21 @@ export async function revokeConsentAccess(
     if (error) {
       logger.error('revokeConsentAccess', error)
       return { ok: false, error: error.message }
+    }
+
+    // Remove all document_shares between patient→doctor and doctor→patient
+    if (doctorId && patientId) {
+      await supabase
+        .from('document_shares')
+        .delete()
+        .eq('shared_with', doctorId)
+        .eq('shared_by', patientId)
+
+      await supabase
+        .from('document_shares')
+        .delete()
+        .eq('shared_with', patientId)
+        .eq('shared_by', doctorId)
     }
 
     return { ok: true }

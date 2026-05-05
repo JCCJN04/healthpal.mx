@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Upload, Search, FileText, Loader2, Plus, FileUp, X, Copy, Check, Activity, Pill, Microscope, ShieldCheck, Users, Link2, MessageCircle, Share2, ChevronLeft, UserCircle } from 'lucide-react'
+import { Upload, Search, FileText, Loader2, Plus, FileUp, X, Copy, Check, Activity, Pill, Microscope, ShieldCheck, Users, Link2, MessageCircle, Share2, ChevronLeft, UserCircle, UserPlus } from 'lucide-react'
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import ViewToggle from '@/shared/components/ui/ViewToggle'
 import DocumentsTable from '@/shared/components/documents/DocumentsTable'
@@ -8,8 +8,8 @@ import { DocumentPreviewModal } from '@/shared/components/documents/DocumentPrev
 import { ShareModal, type KnownDoctor } from '@/shared/components/documents/ShareModal'
 import { AccessPanel } from '@/shared/components/documents/AccessPanel'
 import { useAuth } from '@/app/providers/AuthContext'
-import { getUserDocuments, getDocumentsSharedWithMe, getDocumentsSharedByMeWith, uploadDocument, deleteDocument, getFolders, createFolder, deleteFolder, updateFolder, updateDocument, shareDocumentWithUser, saveExternalUrlDocument } from '@/shared/lib/queries/documents'
-import { getPatientDoctorAccess, getDoctorConsentRequests } from '@/shared/lib/queries/consent'
+import { getUserDocuments, getDocumentsSharedWithMe, getDocumentsSharedByMeWith, uploadDocument, deleteDocument, getFolders, createFolder, deleteFolder, updateFolder, updateDocument, shareDocumentWithUser, saveExternalUrlDocument, findProfileByEmail } from '@/shared/lib/queries/documents'
+import { getPatientDoctorAccess, getDoctorConsentRequests, requestPatientAccess, reRequestAccess } from '@/shared/lib/queries/consent'
 import { createDocumentRequest, getFulfilledRequestDocsByPatient, getPatientsWithFulfilledRequests } from '@/shared/lib/queries/documentRequests'
 import { showToast } from '@/shared/components/ui/Toast'
 import { validateFile } from '@/shared/lib/errors'
@@ -84,6 +84,12 @@ export default function Documentos() {
   const [, setSharedFolders] = useState<Folder[]>([])
   const [movingDocId, setMovingDocId] = useState<string | null>(null)
   const [senderEmailMap, setSenderEmailMap] = useState<Map<string, string>>(new Map())
+
+  // Request patient access modal (doctor only)
+  const [accessReqOpen, setAccessReqOpen] = useState(false)
+  const [accessReqEmail, setAccessReqEmail] = useState('')
+  const [accessReqReason, setAccessReqReason] = useState('')
+  const [accessReqLoading, setAccessReqLoading] = useState(false)
 
   // Document request modal (doctor only)
   const [docReqOpen, setDocReqOpen] = useState(false)
@@ -542,6 +548,40 @@ export default function Documentos() {
     setSearchQuery('')
   }
 
+  const handleRequestPatientAccess = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user) return
+    setAccessReqLoading(true)
+    try {
+      const patient = await findProfileByEmail(accessReqEmail.trim())
+      if (!patient?.id) {
+        showToast('No encontramos un paciente con ese correo', 'error')
+        return
+      }
+      if (patient.role !== 'patient') {
+        showToast('El correo no corresponde a una cuenta de paciente', 'error')
+        return
+      }
+      const { ok, error } = await requestPatientAccess(user.id, patient.id, accessReqReason.trim() || undefined)
+      if (!ok) {
+        // If already exists try re-request
+        const retry = await reRequestAccess(user.id, patient.id, accessReqReason.trim() || undefined)
+        if (!retry.ok) {
+          showToast(error || retry.error || 'No se pudo enviar la solicitud', 'error')
+          return
+        }
+      }
+      showToast('Solicitud de acceso enviada al paciente', 'success')
+      setAccessReqOpen(false)
+      setAccessReqEmail('')
+      setAccessReqReason('')
+    } catch {
+      showToast('Error inesperado', 'error')
+    } finally {
+      setAccessReqLoading(false)
+    }
+  }
+
   const handleCreateDocRequest = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) return
@@ -822,6 +862,15 @@ export default function Documentos() {
               </div>
             </div>
             <div className="relative z-10 flex items-center gap-2 mt-5 flex-wrap">
+              {profile?.role === 'doctor' && !currentFolder.id && (
+                <button
+                  onClick={() => setAccessReqOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-white/20 hover:bg-white/30 border border-white/20 text-white text-sm font-semibold rounded-xl transition-all backdrop-blur-sm"
+                >
+                  <UserPlus size={15} />
+                  Solicitar acceso a paciente
+                </button>
+              )}
               {profile?.role === 'doctor' && currentFolder.id?.startsWith('shared-') && (
                 <button
                   onClick={() => {
@@ -1333,6 +1382,54 @@ export default function Documentos() {
               </div>
             </form>
             )}
+          </div>
+        </div>
+      )}
+      {/* Request Patient Access Modal (doctor only) */}
+      {accessReqOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <UserPlus size={18} className="text-primary" />
+                <h2 className="text-base font-bold text-gray-900">Solicitar acceso a paciente</h2>
+              </div>
+              <button onClick={() => { setAccessReqOpen(false); setAccessReqEmail(''); setAccessReqReason('') }} className="p-1 hover:bg-gray-100 rounded-lg">
+                <X size={18} className="text-gray-500" />
+              </button>
+            </div>
+            <form onSubmit={handleRequestPatientAccess} className="p-5 space-y-4">
+              <p className="text-sm text-gray-500">El paciente recibirá una notificación y podrá aceptar o rechazar tu solicitud desde su configuración.</p>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Correo del paciente *</label>
+                <input
+                  type="email"
+                  value={accessReqEmail}
+                  onChange={e => setAccessReqEmail(e.target.value)}
+                  placeholder="paciente@correo.com"
+                  required
+                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Motivo de la solicitud <span className="text-gray-400 font-normal">(opcional)</span></label>
+                <textarea
+                  value={accessReqReason}
+                  onChange={e => setAccessReqReason(e.target.value)}
+                  placeholder="Ej: Paciente referido para revisión de estudios previos"
+                  rows={2}
+                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={accessReqLoading}
+                className="w-full py-2.5 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                {accessReqLoading ? <Loader2 size={15} className="animate-spin" /> : <UserPlus size={15} />}
+                Enviar solicitud
+              </button>
+            </form>
           </div>
         </div>
       )}

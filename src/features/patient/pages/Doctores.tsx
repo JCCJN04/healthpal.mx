@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { LayoutGrid, List, Search, UserPlus, Loader2, Stethoscope } from 'lucide-react';
 import DashboardLayout from '@/app/layout/DashboardLayout';
 import DoctorGrid from '@/features/patient/components/DoctorGrid';
 import DoctorList from '@/features/patient/components/DoctorList';
-import AddDoctorModal from '@/features/patient/components/AddDoctorModal';
 import { getPatientDoctors } from '@/features/patient/services/doctors';
 import type { DoctorWithProfile } from '@/features/patient/services/doctors';
 import { useAuth } from '@/app/providers/AuthContext';
@@ -12,11 +12,11 @@ type ViewMode = 'grid' | 'list';
 
 const Doctores: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [doctors, setDoctors] = useState<DoctorWithProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAddModal, setShowAddModal] = useState(false);
 
   const loadDoctors = useCallback(async () => {
     if (!user?.id) return;
@@ -42,12 +42,7 @@ const Doctores: React.FC = () => {
     : doctors;
 
   const handleAddDoctor = () => {
-    setShowAddModal(true);
-  };
-
-  const handleDoctorAdded = () => {
-    // Reload patient's doctors after adding one
-    loadDoctors();
+    navigate('/directorio');
   };
 
   return (
@@ -169,17 +164,6 @@ const Doctores: React.FC = () => {
           <DoctorList doctors={filteredDoctors} onDoctorRemoved={loadDoctors} />
         )}
       </div>
-
-      {/* Add Doctor Modal */}
-      {user?.id && (
-        <AddDoctorModal
-          isOpen={showAddModal}
-          onClose={() => setShowAddModal(false)}
-          patientId={user.id}
-          existingDoctorIds={doctors.map(d => d.id)}
-          onDoctorAdded={handleDoctorAdded}
-        />
-      )}
     </DashboardLayout>
   );
 };

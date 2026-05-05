@@ -188,40 +188,128 @@ serve(async (req: Request) => {
         // ── SCENARIO 0: Message is a reply to a document request ────────────
         console.log('Scenario 0: linked to document_request', session.document_request_id);
 
-        // Get document request details
+        // Get document request details (include patient_phone for phone-only requests)
         const { data: docReq } = await supabase
           .from("document_requests")
-          .select("id, patient_email, document_type")
+          .select("id, patient_email, patient_phone, document_type")
           .eq("id", session.document_request_id)
           .single();
 
         if (!docReq) throw new Error(`document_request not found: ${session.document_request_id}`);
 
-        // Resolve patient by email
-        const { data: patientProfile } = await supabase
-          .from("profiles")
-          .select("id, full_name")
-          .eq("email", docReq.patient_email)
-          .eq("role", "patient")
-          .single();
+        // Resolve patient: try auth.users by email first (reliable, no 1000-user limit),
+        // then fall back to phone lookup in profiles.
+        let patientId: string | null = null;
 
-        // Fall back to looking up by email in auth if not in profiles yet
-        let patientId: string;
-        if (patientProfile) {
-          patientId = patientProfile.id;
-        } else {
-          // Try auth.users by email
-          const { data: authList } = await supabase.auth.admin.listUsers({ perPage: 1000 });
-          const authUser = authList?.users?.find(u => u.email === docReq.patient_email);
-          if (authUser) {
-            patientId = authUser.id;
-          } else {
-            throw new Error(`Patient not found for email: ${docReq.patient_email}`);
+        // Try 1: direct auth.users lookup by email (case-insensitive, no pagination limit)
+        if (docReq.patient_email) {
+          const { data: authUid } = await supabase
+            .rpc("auth_user_id_by_email", { search_email: docReq.patient_email });
+          if (authUid) {
+            patientId = authUid as string;
+            console.log('Patient resolved via auth.users email lookup:', patientId);
           }
         }
 
-        // uploaded_by=null: patient's filter won't exclude it; doctor sees via consent RLS
-        const documentId = await saveFile(patientId, null, `Solicitado por doctor vía WhatsApp — ${docReq.document_type}`);
+        // Try 2: profile lookup by phone (sender phone + stored patient_phone variants)
+        if (!patientId) {
+          const phoneCandidates = [...new Set(
+            [senderPhone, docReq.patient_phone].filter(Boolean) as string[]
+          )];
+          const phoneVariantsForLookup: string[] = [];
+          for (const ph of phoneCandidates) {
+            phoneVariantsForLookup.push(ph);
+            if (ph.startsWith("521") && ph.length === 13) {
+              phoneVariantsForLookup.push("52" + ph.slice(3));
+            } else if (ph.startsWith("52") && !ph.startsWith("521") && ph.length === 12) {
+              phoneVariantsForLookup.push("521" + ph.slice(2));
+            }
+            if (ph.startsWith("52")) phoneVariantsForLookup.push(ph.slice(2));
+          }
+          const { data: phoneProfile } = await supabase
+            .from("profiles")
+            .select("id")
+            .in("phone", [...new Set(phoneVariantsForLookup)])
+            .eq("role", "patient")
+            .limit(1)
+            .maybeSingle();
+          if (phoneProfile) {
+            patientId = phoneProfile.id;
+            console.log('Patient resolved via phone lookup:', patientId);
+          }
+        }
+
+        // ── Auto-register: patient has no HealthPal account yet ─────────────
+        // They replied via WhatsApp but never signed up. Pre-register them so
+        // the document can be saved and linked to the fulfilled request.
+        if (!patientId) {
+          console.log('Scenario 0 - no account found, auto pre-registering patient');
+          let newUserId: string | null = null;
+
+          // Prefer email-based registration so the patient can later log in with email
+          if (docReq.patient_email) {
+            const { data: newUser, error: createErr } =
+              await supabase.auth.admin.createUser({
+                email: docReq.patient_email,
+                email_confirm: true,
+              });
+            if (!createErr && newUser?.user) {
+              newUserId = newUser.user.id;
+            } else {
+              // createUser failed — email might already exist despite Try 1 missing it
+              // (edge case: RPC timing or replication lag). Re-try via RPC.
+              console.warn('createUser(email) error:', createErr?.message);
+              const { data: retryUid } = await supabase
+                .rpc("auth_user_id_by_email", { search_email: docReq.patient_email });
+              if (retryUid) newUserId = retryUid as string;
+            }
+          }
+
+          // Fall back to phone-only if email registration failed
+          if (!newUserId) {
+            const { data: newUser, error: phoneErr } =
+              await supabase.auth.admin.createUser({
+                phone: senderPhone,
+                phone_confirm: true,
+              });
+            if (!phoneErr && newUser?.user) {
+              newUserId = newUser.user.id;
+            } else {
+              console.warn('createUser(phone) error:', phoneErr?.message);
+            }
+          }
+
+          if (!newUserId) {
+            throw new Error(
+              `Cannot pre-register patient for request ${session.document_request_id} ` +
+              `(email="${docReq.patient_email}", phone="${docReq.patient_phone}")`
+            );
+          }
+
+          const { error: profileErr } = await supabase.from("profiles").upsert({
+            id: newUserId,
+            role: "patient",
+            phone: senderPhone,
+            onboarding_completed: false,
+            onboarding_step: "whatsapp_preregistro",
+          }, { onConflict: "id" });
+          if (profileErr) console.warn('profiles upsert (auto-reg):', profileErr.message);
+
+          const { error: ppErr } = await supabase
+            .from("patient_profiles")
+            .upsert({ patient_id: newUserId }, { onConflict: "patient_id" });
+          if (ppErr) console.warn('patient_profiles upsert (auto-reg):', ppErr.message);
+
+          patientId = newUserId;
+          console.log('Auto pre-registered patient:', patientId);
+        }
+
+        const documentId = await saveFile(patientId, patientId, `Solicitado por doctor vía WhatsApp — ${docReq.document_type}`);
+
+        // NOTE: No document_shares insert here — the doctor accesses this document
+        // through the expediente in PatientDetail (consent-based RLS: share_documents=true).
+        // An explicit share would create an unwanted "Compartido" folder in the doctor's
+        // Documentos page, which is not the intended UX.
 
         // Auto-grant consent: patient explicitly sent a document to this doctor,
         // so we create/update an accepted consent with share_documents scope.

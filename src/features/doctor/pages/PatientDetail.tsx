@@ -2,7 +2,6 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import {
     ArrowLeft,
-    Calendar,
     MessageSquare,
     FileText,
     Clock,
@@ -35,7 +34,6 @@ import {
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import { getPatientFullProfile, getPatientNotes, addPatientNote, getPatientContactInfo } from '@/features/doctor/services/patients'
 import { getPatientProfile } from '@/shared/lib/queries/profile'
-import { listUpcomingAppointments, listPastAppointments } from '@/shared/lib/queries/appointments'
 import { getUserDocuments, getDocumentDownloadUrl, uploadDocumentForPatient, getDoctorDocumentsForPatient, getDocumentsSharedByPatientWithDoctor } from '@/shared/lib/queries/documents'
 import { createDocumentRequest } from '@/shared/lib/queries/documentRequests'
 import { getConsentForPatient, requestPatientAccess, ConsentScopes } from '@/shared/lib/queries/consent'
@@ -47,7 +45,7 @@ import { mapDashboardPath } from '@/context/DemoContext'
 import { validateFile } from '@/shared/lib/errors'
 import type { DocCategory } from '@/shared/types/database'
 
-type TabType = 'summary' | 'notes' | 'activity' | 'expediente'
+type TabType = 'summary' | 'notes' | 'expediente'
 type ConsentGate = 'loading' | 'no-consent' | 'requested' | 'rejected' | 'revoked' | 'accepted'
 
 export default function PatientDetail() {
@@ -62,8 +60,6 @@ export default function PatientDetail() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [notes, setNotes] = useState<any[]>([])
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const [appointments, setAppointments] = useState<any[]>([])
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [documents, setDocuments] = useState<any[]>([])
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [doctorDocs, setDoctorDocs] = useState<any[]>([])
@@ -76,11 +72,11 @@ export default function PatientDetail() {
     // Consent state
     const [consentGate, setConsentGate] = useState<ConsentGate>('loading')
     const [scopes, setScopes] = useState<ConsentScopes>({
-        share_basic_profile: false,
-        share_contact: false,
-        share_documents: false,
-        share_appointments: false,
-        share_medical_notes: false,
+        share_basic_profile: true,
+        share_contact: true,
+        share_documents: true,
+        share_appointments: true,
+        share_medical_notes: true,
     })
     const [contactInfo, setContactInfo] = useState<{ email?: string; phone?: string } | null>(null)
     const [requestingAccess, setRequestingAccess] = useState(false)
@@ -121,13 +117,13 @@ export default function PatientDetail() {
                 return
             }
 
-            // Status === 'accepted' — save scopes and load data
+            // Status === 'accepted' — full access to EMR, all scopes enabled
             const liveScopes: ConsentScopes = {
-                share_basic_profile: consent.share_basic_profile,
-                share_contact: consent.share_contact,
-                share_documents: consent.share_documents,
-                share_appointments: consent.share_appointments,
-                share_medical_notes: consent.share_medical_notes,
+                share_basic_profile: true,
+                share_contact: true,
+                share_documents: true,
+                share_appointments: true,
+                share_medical_notes: true,
             }
             setConsentGate('accepted')
             setScopes(liveScopes)
@@ -167,18 +163,6 @@ export default function PatientDetail() {
                 keys.push('notes')
             }
 
-            if (s.share_appointments) {
-                promises.push(
-                    Promise.all([
-                        listUpcomingAppointments({ userId: id!, role: 'patient' }).catch(e => { logger.error('PatientDetail.appts.upcoming', e); return [] }),
-                        listPastAppointments({ userId: id!, role: 'patient' }).catch(e => { logger.error('PatientDetail.appts.past', e); return [] }),
-                    ]).then(([upcoming, past]) =>
-                        [...upcoming, ...past].sort((a, b) => new Date(b.start_at).getTime() - new Date(a.start_at).getTime())
-                    )
-                )
-                keys.push('appointments')
-            }
-
             if (s.share_documents) {
                 promises.push(getUserDocuments(id!, null, true).catch(e => { logger.error('PatientDetail.docs', e); return [] }))
                 keys.push('documents')
@@ -198,7 +182,6 @@ export default function PatientDetail() {
                 switch (key) {
                     case 'medProfile': setMedProfile(results[i]); break
                     case 'notes': setNotes(results[i] || []); break
-                    case 'appointments': setAppointments(results[i] || []); break
                     case 'documents': setDocuments(results[i] || []); break
                     case 'doctorDocs': setDoctorDocs(results[i] || []); break
                     case 'patientSharedDocs': setPatientSharedDocs(results[i] || []); break
@@ -495,7 +478,6 @@ export default function PatientDetail() {
                                 { id: 'summary', label: 'Resumen Médico', icon: Activity, enabled: true },
                                 { id: 'expediente', label: 'Expediente', icon: FileText, enabled: scopes.share_documents },
                                 { id: 'notes', label: 'Notas Clínicas', icon: StickyNote, enabled: scopes.share_medical_notes },
-                                { id: 'activity', label: 'Consultas', icon: Calendar, enabled: false },
                             ].filter(t => t.enabled).map((tab) => (
                                 <button
                                     key={tab.id}
@@ -805,70 +787,6 @@ export default function PatientDetail() {
                                 </div>
                             )}
 
-                            {activeTab === 'activity' && scopes.share_appointments && (
-                                <div className="space-y-4 animate-in fade-in duration-300">
-                                    <div className="flex items-center justify-between">
-                                        <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                                            <Calendar size={16} className="text-primary" />
-                                            Todas las Consultas
-                                            {appointments.length > 0 && (
-                                                <span className="bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                                    {appointments.length}
-                                                </span>
-                                            )}
-                                        </h3>
-                                    </div>
-                                    {appointments.length === 0 ? (
-                                        <div className="text-center py-12 text-gray-400">
-                                            <Calendar size={40} className="mx-auto mb-2 opacity-20" />
-                                            <p className="text-sm font-medium">No hay consultas registradas.</p>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-2">
-                                            {appointments.map(apt => {
-                                                const isPast = new Date(apt.start_at) < new Date()
-                                                const statusMap: Record<string, { label: string; color: string }> = {
-                                                    confirmed: { label: 'Confirmada', color: 'text-green-600 bg-green-50' },
-                                                    requested: { label: 'Solicitada', color: 'text-blue-600 bg-blue-50' },
-                                                    completed: { label: 'Completada', color: 'text-gray-600 bg-gray-100' },
-                                                    cancelled: { label: 'Cancelada', color: 'text-red-500 bg-red-50' },
-                                                    rejected: { label: 'Rechazada', color: 'text-orange-500 bg-orange-50' },
-                                                    no_show: { label: 'No asistió', color: 'text-yellow-600 bg-yellow-50' },
-                                                }
-                                                const st = statusMap[apt.status] || { label: apt.status, color: 'text-gray-500 bg-gray-50' }
-                                                return (
-                                                    <div
-                                                        key={apt.id}
-                                                        className="group flex items-center justify-between p-3 border border-gray-100 rounded-xl hover:border-primary/30 transition-all cursor-pointer"
-                                                        onClick={() => navigate(mapDashboardPath(`/dashboard/consultas/${apt.id}`))}
-                                                    >
-                                                        <div className="flex items-center gap-3 min-w-0">
-                                                            <div className={`w-10 h-10 rounded-lg flex flex-col items-center justify-center flex-shrink-0 ${isPast ? 'bg-gray-100 text-gray-500' : 'bg-primary/10 text-primary'}`}>
-                                                                <span className="text-[10px] font-bold uppercase">{new Date(apt.start_at).toLocaleDateString('es-MX', { month: 'short' })}</span>
-                                                                <span className="text-sm font-bold -mt-1">{new Date(apt.start_at).getDate()}</span>
-                                                            </div>
-                                                            <div className="min-w-0">
-                                                                <p className="text-sm font-bold text-gray-900 group-hover:text-primary transition-colors truncate">
-                                                                    {apt.reason || 'Consulta médica'}
-                                                                </p>
-                                                                <p className="text-xs text-gray-500 truncate">
-                                                                    {new Date(apt.start_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                                                    {' · '}
-                                                                    {new Date(apt.start_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex items-center gap-2">
-                                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${st.color}`}>{st.label}</span>
-                                                            <ChevronRight size={14} className="text-gray-300" />
-                                                        </div>
-                                                    </div>
-                                                )
-                                            })}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
                         </div>
                     </div>
 
@@ -877,17 +795,16 @@ export default function PatientDetail() {
                         {/* Combined stats + actions panel */}
                         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                             {/* Stats grid */}
-                            <div className="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100">
+                            <div className="grid grid-cols-2 divide-x divide-gray-100 border-b border-gray-100">
                                 {[
                                     { icon: StickyNote, label: 'Notas', value: notes.length, color: 'text-primary', bg: 'bg-primary/10', enabled: scopes.share_medical_notes, onClick: () => setActiveTab('notes') },
                                     { icon: FileText, label: 'Docs', value: documents.length + doctorDocs.length + patientSharedDocs.length, color: 'text-blue-600', bg: 'bg-blue-50', enabled: scopes.share_documents, onClick: () => setActiveTab('expediente') },
-                                    { icon: Calendar, label: 'Consultas', value: appointments.length, color: 'text-purple-600', bg: 'bg-purple-50', enabled: scopes.share_appointments, onClick: null },
                                 ].map((s, i) => (
                                     <button
                                         key={i}
                                         onClick={s.onClick ?? undefined}
                                         disabled={!s.onClick || !s.enabled}
-                                        className={`flex flex-col items-center gap-1.5 py-4 transition-all ${s.onClick && s.enabled ? 'hover:bg-gray-50 cursor-pointer' : 'cursor-default'}`}
+                                        className={`flex flex-col items-center gap-1.5 py-4 transition-all ${s.enabled ? 'hover:bg-gray-50 cursor-pointer' : 'cursor-default'}`}
                                     >
                                         <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${s.bg} ${s.color}`}>
                                             <s.icon size={16} />
