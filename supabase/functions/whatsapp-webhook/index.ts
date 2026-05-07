@@ -224,7 +224,7 @@ serve(async (req: Request) => {
       return new Response(null, { status: 204 });
     }
 
-    // Determine filename from MIME type
+    // Determine filename — Twilio sends the original filename in Body for media messages
     const timestamp = Date.now();
     const extMap: Record<string, string> = {
       "application/pdf": "pdf",
@@ -235,7 +235,12 @@ serve(async (req: Request) => {
     };
     const ext = extMap[mimeType] ?? "bin";
     const type = mimeType.startsWith("image/") ? "image" : "document";
-    const filename = sanitizeFilename(`whatsapp_${type}_${timestamp}.${ext}`);
+    // Body contains original filename when patient sends a file (e.g. "receta.pdf", "hp.jpeg")
+    const bodyText = (params.get("Body") ?? "").trim();
+    const looksLikeFilename = bodyText.length > 0 && bodyText.length <= 200 && /\.[a-zA-Z0-9]{2,5}$/.test(bodyText);
+    const filename = looksLikeFilename
+      ? sanitizeFilename(bodyText)
+      : sanitizeFilename(`whatsapp_${type}_${timestamp}.${ext}`);
 
     // Build phone variants for DB lookups
     // MX numbers: Twilio may send 521XXXXXXXXXX (with mobile 1) or 52XXXXXXXXXX
