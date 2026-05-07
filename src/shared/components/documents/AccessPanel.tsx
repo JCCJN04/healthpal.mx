@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import { getAllSharesByOwner, revokeShareById } from '@/shared/lib/queries/documents'
 import { revokeRequestAccess } from '@/shared/lib/queries/documentRequests'
+import { revokeConsentByDoctorPatient } from '@/shared/lib/queries/consent'
 import { showToast } from '@/shared/components/ui/Toast'
 
 interface AccessPanelProps {
@@ -81,6 +82,9 @@ export function AccessPanel({ isOpen, onClose, ownerId }: AccessPanelProps) {
       ? await revokeRequestAccess(share.id)
       : await revokeShareById(share.id)
     if (result.success) {
+      if (share.source === 'request') {
+        await revokeConsentByDoctorPatient(share.shared_with, ownerId)
+      }
       setShares(prev => prev.filter(s => s.id !== share.id))
       showToast('Acceso revocado', 'success')
     } else {
@@ -92,11 +96,15 @@ export function AccessPanel({ isOpen, onClose, ownerId }: AccessPanelProps) {
   async function handleRevokeAll(doctorId: string, doctorDocs: ShareEntry[]) {
     setRevoking(doctorId)
     let failed = 0
+    const hasRequestSource = doctorDocs.some(s => s.source === 'request')
     for (const s of doctorDocs) {
       const result = s.source === 'request'
         ? await revokeRequestAccess(s.id)
         : await revokeShareById(s.id)
       if (!result.success) failed++
+    }
+    if (hasRequestSource) {
+      await revokeConsentByDoctorPatient(doctorId, ownerId)
     }
     if (failed === 0) {
       setShares(prev => prev.filter(s => s.shared_with !== doctorId))

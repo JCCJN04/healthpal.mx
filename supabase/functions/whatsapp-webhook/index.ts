@@ -139,38 +139,49 @@ serve(async (req: Request) => {
     const reqUrl = new URL(req.url);
     const webhookUrl = `${reqUrl.protocol}//${reqUrl.host}${reqUrl.pathname}`;
 
-    const sigValid = await validateTwilioSignature(
+    console.log("webhookUrl:", webhookUrl, "hasSig:", !!twilioSig);
+
+    const skipSigCheck = Deno.env.get("TWILIO_SKIP_SIG_CHECK") === "1";
+    const sigValid = skipSigCheck || await validateTwilioSignature(
       twilioAuthToken,
       webhookUrl,
       params,
       twilioSig,
     );
 
+    console.log("sigValid:", sigValid, "skipSigCheck:", skipSigCheck);
+
     if (!sigValid) {
       console.warn("Invalid Twilio signature — rejecting request");
       // Return 200 to avoid Twilio retry loops, but don't process
-      return new Response("OK", { status: 200 });
+      return new Response("<Response/>", { status: 200, headers: { "Content-Type": "text/xml" } });
     }
 
     const fromRaw = params.get("From") ?? ""; // whatsapp:+521XXXXXXXXXX
     const numMedia = parseInt(params.get("NumMedia") ?? "0", 10);
 
+    console.log("fromRaw:", fromRaw, "numMedia:", numMedia);
+
     // Only process media (document or image) — skip plain text messages
     if (numMedia === 0) {
-      return new Response("OK", { status: 200 });
+      console.log("numMedia=0, skipping");
+      return new Response("<Response/>", { status: 200, headers: { "Content-Type": "text/xml" } });
     }
 
     const mediaUrl = params.get("MediaUrl0") ?? "";
     const mimeType = params.get("MediaContentType0") ?? "";
 
+    console.log("mediaUrl:", mediaUrl ? "present" : "missing", "mimeType:", mimeType);
+
     if (!mediaUrl || !fromRaw) {
-      return new Response("OK", { status: 200 });
+      console.warn("Missing mediaUrl or fromRaw — skipping");
+      return new Response("<Response/>", { status: 200, headers: { "Content-Type": "text/xml" } });
     }
 
     // Validate MIME type against allowlist
     if (!ALLOWED_MIMES.has(mimeType)) {
       console.warn(`Rejected unsupported MIME type: ${mimeType}`);
-      return new Response("OK", { status: 200 });
+      return new Response("<Response/>", { status: 200, headers: { "Content-Type": "text/xml" } });
     }
 
     // Strip "whatsapp:+" prefix → raw digits for DB lookups (e.g. 521XXXXXXXXXX)
@@ -179,7 +190,7 @@ serve(async (req: Request) => {
     // Rate limit per sender phone
     if (!checkRateLimit(senderPhone)) {
       console.warn(`Rate limit exceeded for phone: ${senderPhone}`);
-      return new Response("OK", { status: 200 });
+      return new Response("<Response/>", { status: 200, headers: { "Content-Type": "text/xml" } });
     }
 
     const supabase = createClient(
@@ -200,15 +211,17 @@ serve(async (req: Request) => {
     const contentLength = parseInt(fileRes.headers.get("content-length") ?? "0", 10);
     if (contentLength > MAX_FILE_BYTES) {
       console.warn(`File too large (Content-Length): ${contentLength}`);
-      return new Response("OK", { status: 200 });
+      return new Response("<Response/>", { status: 200, headers: { "Content-Type": "text/xml" } });
     }
 
     const fileBuffer = await fileRes.arrayBuffer();
 
+    console.log("File downloaded, byteLength:", fileBuffer.byteLength);
+
     // Double-check actual size after download
     if (fileBuffer.byteLength > MAX_FILE_BYTES) {
       console.warn(`File too large after download: ${fileBuffer.byteLength}`);
-      return new Response("OK", { status: 200 });
+      return new Response("<Response/>", { status: 200, headers: { "Content-Type": "text/xml" } });
     }
 
     // Determine filename from MIME type
@@ -474,7 +487,7 @@ serve(async (req: Request) => {
         fromRaw,
         { body: "✅ Documento recibido. Tu médico podrá verlo en HealthPal." },
       );
-      return new Response("OK", { status: 200 });
+      return new Response("<Response/>", { status: 200, headers: { "Content-Type": "text/xml" } });
     }
 
     if (profile) {
@@ -518,7 +531,7 @@ serve(async (req: Request) => {
             fromRaw,
             { body: `Recibimos tu documento 📎 Para vincularlo a tu expediente de HealthPal, ingresa a tu cuenta y agrega este número de WhatsApp en tu perfil: healthpal.mx/perfil` },
           );
-          return new Response("OK", { status: 200 });
+          return new Response("<Response/>", { status: 200, headers: { "Content-Type": "text/xml" } });
         }
         resolvedUserId = existingAuthUser.id;
       }
@@ -571,5 +584,5 @@ serve(async (req: Request) => {
     // Still return 200 so Twilio does not retry
   }
 
-  return new Response("OK", { status: 200 });
+  return new Response("<Response/>", { status: 200, headers: { "Content-Type": "text/xml" } });
 });

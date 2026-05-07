@@ -416,6 +416,40 @@ export async function revokeConsentAccess(
 }
 
 /**
+ * Patient: revoke consent by doctor+patient IDs (no consent ID needed).
+ * Used by AccessPanel when revoking a WA document request.
+ */
+export async function revokeConsentByDoctorPatient(
+  doctorId: string,
+  patientId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (isDemoMode()) return { ok: true }
+  try {
+    const { error } = await supabase
+      .from('doctor_patient_consent')
+      .update({
+        status: 'revoked',
+        responded_at: new Date().toISOString(),
+        share_basic_profile: false,
+        share_contact: false,
+        share_documents: false,
+        share_appointments: false,
+        share_medical_notes: false,
+      })
+      .eq('doctor_id', doctorId)
+      .eq('patient_id', patientId)
+    if (error) {
+      logger.error('revokeConsentByDoctorPatient', error)
+      return { ok: false, error: error.message }
+    }
+    return { ok: true }
+  } catch (err) {
+    logger.error('revokeConsentByDoctorPatient', err)
+    return { ok: false, error: 'Error inesperado.' }
+  }
+}
+
+/**
  * Patient: update scopes on an accepted consent.
  */
 export async function updateConsentScopes(
