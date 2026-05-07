@@ -2,8 +2,35 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': 'https://healthpal.mx',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const PHONE_RE = /^\d{10,15}$/
+
+// In-memory rate limit: 20 WA requests per doctor per hour
+const doctorRateLimit = new Map<string, { count: number; resetAt: number }>()
+
+function checkRateLimit(key: string, max: number, windowMs: number): boolean {
+  const now = Date.now()
+  const entry = doctorRateLimit.get(key)
+  if (!entry || now > entry.resetAt) {
+    doctorRateLimit.set(key, { count: 1, resetAt: now + windowMs })
+    return true
+  }
+  if (entry.count >= max) return false
+  entry.count++
+  return true
+}
+
+function sanitizeText(input: unknown, maxLen: number): string {
+  return String(input ?? '')
+    .replace(/<[^>]*>/g, '')
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\x00-\x1f\x7f]/g, '')
+    .trim()
+    .slice(0, maxLen)
 }
 
 serve(async (req) => {
@@ -12,13 +39,81 @@ serve(async (req) => {
   }
 
   try {
-    const {
-      document_request_id,
-      patient_phone,
-      doctor_name,
-      document_type,
-      doctor_id,
-    } = await req.json()
+    // Extract JWT — verify_jwt:true means Supabase gateway already validated it,
+    // but we still need it to confirm identity and role.
+    const authHeader = req.headers.get('authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+    const token = authHeader.slice(7)
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    const twilioAccountSid = Deno.env.get('TWILIO_ACCOUNT_SID')
+    const twilioAuthToken = Deno.env.get('TWILIO_AUTH_TOKEN')
+    const twilioFrom = Deno.env.get('TWILIO_WHATSAPP_FROM') // whatsapp:+5218126251579
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      return new Response(
+        JSON.stringify({ error: 'Missing SUPABASE env vars' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+    if (!twilioAccountSid || !twilioAuthToken || !twilioFrom) {
+      return new Response(
+        JSON.stringify({ error: 'Missing TWILIO secrets' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+
+    const supabase = createClient(supabaseUrl, serviceRoleKey)
+
+    // Verify caller identity via JWT
+    const { data: { user }, error: userErr } = await supabase.auth.getUser(token)
+    if (userErr || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+
+    // Verify caller is a doctor
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (profile?.role !== 'doctor') {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+
+    // Rate limit: 20 requests per doctor per hour
+    if (!checkRateLimit(user.id, 20, 60 * 60 * 1000)) {
+      return new Response(
+        JSON.stringify({ error: 'Rate limit exceeded. Try again later.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+
+    // Parse and validate body
+    let body: Record<string, unknown>
+    try {
+      body = await req.json()
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+
+    const { document_request_id, patient_phone, doctor_name, document_type, doctor_id } = body
 
     if (!document_request_id || !patient_phone || !doctor_name || !document_type || !doctor_id) {
       return new Response(
@@ -27,31 +122,50 @@ serve(async (req) => {
       )
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-    const whatsappToken = Deno.env.get('WHATSAPP_TOKEN')
-    const phoneNumberId = Deno.env.get('WHATSAPP_PHONE_NUMBER_ID')
-
-    if (!supabaseUrl || !serviceRoleKey) {
+    if (!UUID_RE.test(String(document_request_id))) {
       return new Response(
-        JSON.stringify({ error: 'Missing SUPABASE env vars' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        JSON.stringify({ error: 'Invalid document_request_id' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }
-    if (!whatsappToken || !phoneNumberId) {
+    if (!UUID_RE.test(String(doctor_id))) {
       return new Response(
-        JSON.stringify({ error: 'Missing WHATSAPP_TOKEN or WHATSAPP_PHONE_NUMBER_ID secrets' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        JSON.stringify({ error: 'Invalid doctor_id' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+    // Prevent spoofing another doctor
+    if (String(doctor_id) !== user.id) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: doctor_id mismatch' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }
 
-    const supabase = createClient(supabaseUrl, serviceRoleKey)
+    const cleanPhone = String(patient_phone).replace(/\D/g, '')
+    if (!PHONE_RE.test(cleanPhone)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid patient_phone format' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
 
-    // Validate document request exists
+    const cleanDoctorName = sanitizeText(doctor_name, 100)
+    const cleanDocumentType = sanitizeText(document_type, 100)
+
+    if (!cleanDoctorName || !cleanDocumentType) {
+      return new Response(
+        JSON.stringify({ error: 'doctor_name and document_type must not be empty' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+
+    // Validate document request exists and belongs to this doctor
     const { data: docReq, error: docReqErr } = await supabase
       .from('document_requests')
       .select('id, token, status')
       .eq('id', document_request_id)
+      .eq('doctor_id', user.id)
       .single()
 
     if (docReqErr || !docReq) {
@@ -61,49 +175,46 @@ serve(async (req) => {
       )
     }
 
-    // Build the upload link
-    const uploadLink = `${Deno.env.get('APP_URL') ?? 'https://healthpal.mx'}/solicitud/${docReq.token}`
-
     // Create whatsapp_sessions record
     const { error: sessionErr } = await supabase
       .from('whatsapp_sessions')
       .insert({
-        patient_phone,
-        doctor_id,
+        patient_phone: cleanPhone,
+        doctor_id: user.id,
         document_request_id,
         status: 'waiting',
       })
 
     if (sessionErr) {
       console.error('whatsapp_sessions insert error:', sessionErr)
-      // Non-fatal — still try to send the message
+      // Non-fatal — still try to send
     }
 
-    // Send WhatsApp message via Meta Graph API
-    const messageBody = `Hola 👋 El *Dr. ${doctor_name}* te solicita: *${document_type}*\n\nTienes dos opciones para enviarlo:\n\n1️⃣ Responde este mensaje con el archivo (foto o PDF)\n\n2️⃣ Súbelo desde este enlace: ${uploadLink}\n\nTu documento quedará guardado de forma segura en HealthPal 🔒`
+    const toPhone = `whatsapp:+${cleanPhone}`
 
-    const waRes = await fetch(
-      `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${whatsappToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messaging_product: 'whatsapp',
-          to: patient_phone,
-          type: 'text',
-          text: { body: messageBody },
-        }),
+    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`
+    const credentials = btoa(`${twilioAccountSid}:${twilioAuthToken}`)
+
+    const formBody = new URLSearchParams()
+    formBody.set('From', twilioFrom)
+    formBody.set('To', toPhone)
+    formBody.set('ContentSid', 'HX13845df01dae4d5d7dc9dbcf1de09439')
+    formBody.set('ContentVariables', JSON.stringify({ '1': cleanDoctorName, '2': cleanDocumentType }))
+
+    const twilioRes = await fetch(twilioUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${credentials}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
-    )
+      body: formBody.toString(),
+    })
 
-    if (!waRes.ok) {
-      const waError = await waRes.text()
-      console.error('WhatsApp API error:', waRes.status, waError)
+    if (!twilioRes.ok) {
+      const twilioError = await twilioRes.text()
+      console.error('Twilio API error:', twilioRes.status, twilioError)
       return new Response(
-        JSON.stringify({ error: 'Failed to send WhatsApp message', detail: waError, wa_status: waRes.status }),
+        JSON.stringify({ error: 'Failed to send WhatsApp message', detail: twilioError, wa_status: twilioRes.status }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }

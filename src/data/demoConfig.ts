@@ -6,8 +6,10 @@ export const DEMO_DOCTOR_EMAIL =
   (import.meta.env.VITE_DEMO_DOCTOR_EMAIL as string | undefined) ||
   'demo@healthpal.mx'
 
+// Never falls back to empty string — a missing env var disables demo login
+// rather than allowing authentication with no password.
 export const DEMO_DOCTOR_PASSWORD =
-  (import.meta.env.VITE_DEMO_DOCTOR_PASSWORD as string | undefined) || ''
+  (import.meta.env.VITE_DEMO_DOCTOR_PASSWORD as string | undefined) ?? '__demo_not_configured__'
 
 export const DEMO_PATIENT_IDS = {
   ana: '22222222-2222-4222-8222-222222222222',

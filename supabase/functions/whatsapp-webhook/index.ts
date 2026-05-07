@@ -1,458 +1,577 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-async function sendWhatsAppReply(
-  phoneNumberId: string,
-  token: string,
-  to: string,
-  body: string,
-): Promise<void> {
-  await fetch(
-    `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        to,
-        type: "text",
-        text: { body },
-      }),
-    },
+const TEMPLATE_DOCUMENT_RECEIVED = "HXf627fb5de84912902eb7994c70cfba62";
+
+const ALLOWED_MIMES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+]);
+
+const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
+
+// Rate limit: 10 media messages per phone per hour
+const phoneRateLimit = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(phone: string): boolean {
+  const now = Date.now();
+  const entry = phoneRateLimit.get(phone);
+  if (!entry || now > entry.resetAt) {
+    phoneRateLimit.set(phone, { count: 1, resetAt: now + 60 * 60 * 1000 });
+    return true;
+  }
+  if (entry.count >= 10) return false;
+  entry.count++;
+  return true;
+}
+
+/**
+ * Validate Twilio webhook signature (HMAC-SHA1).
+ * https://www.twilio.com/docs/usage/webhooks/webhooks-security
+ */
+async function validateTwilioSignature(
+  authToken: string,
+  url: string,
+  params: URLSearchParams,
+  signature: string,
+): Promise<boolean> {
+  if (!signature) return false;
+
+  const sortedStr = Array.from(params.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([k, v]) => `${k}${v}`)
+    .join("");
+
+  const data = url + sortedStr;
+
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(authToken),
+    { name: "HMAC", hash: "SHA-1" },
+    false,
+    ["sign"],
   );
+
+  const sigBytes = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode(data),
+  );
+  const expected = btoa(String.fromCharCode(...new Uint8Array(sigBytes)));
+
+  // Constant-time comparison to prevent timing attacks
+  if (expected.length !== signature.length) return false;
+  let diff = 0;
+  for (let i = 0; i < expected.length; i++) {
+    diff |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+function sanitizeFilename(name: string): string {
+  return name
+    .replace(/[^a-zA-Z0-9._-]/g, "_")
+    .replace(/\.{2,}/g, "_")
+    .slice(0, 100);
+}
+
+async function sendWhatsAppReply(
+  twilioAccountSid: string,
+  twilioAuthToken: string,
+  twilioFrom: string,
+  to: string, // whatsapp:+XXXXXXXXXXX
+  bodyOrTemplate:
+    | { body: string }
+    | { contentSid: string; contentVariables?: Record<string, string> },
+): Promise<void> {
+  const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
+  const credentials = btoa(`${twilioAccountSid}:${twilioAuthToken}`);
+
+  const formBody = new URLSearchParams();
+  formBody.set("From", twilioFrom);
+  formBody.set("To", to);
+
+  if ("contentSid" in bodyOrTemplate) {
+    formBody.set("ContentSid", bodyOrTemplate.contentSid);
+    if (bodyOrTemplate.contentVariables) {
+      formBody.set(
+        "ContentVariables",
+        JSON.stringify(bodyOrTemplate.contentVariables),
+      );
+    }
+  } else {
+    formBody.set("Body", bodyOrTemplate.body);
+  }
+
+  const res = await fetch(twilioUrl, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${credentials}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: formBody.toString(),
+  });
+  if (!res.ok) {
+    console.error("Twilio reply error:", res.status, await res.text());
+  }
 }
 
 serve(async (req: Request) => {
-  const url = new URL(req.url);
-
-  // ── GET: Meta webhook verification ──────────────────────────────────────
-  if (req.method === "GET") {
-    const mode = url.searchParams.get("hub.mode");
-    const token = url.searchParams.get("hub.verify_token");
-    const challenge = url.searchParams.get("hub.challenge");
-
-    if (
-      mode === "subscribe" &&
-      token === Deno.env.get("WHATSAPP_VERIFY_TOKEN")
-    ) {
-      return new Response(challenge, { status: 200 });
-    }
-    return new Response("Forbidden", { status: 403 });
+  // Twilio sends POST with application/x-www-form-urlencoded
+  if (req.method !== "POST") {
+    return new Response("Method Not Allowed", { status: 405 });
   }
 
-  // ── POST: Incoming WhatsApp messages ────────────────────────────────────
-  if (req.method === "POST") {
-    // Meta requires HTTP 200 even on errors, otherwise it retries endlessly.
-    try {
-      const body = await req.json();
-      console.log('POST received, body:', JSON.stringify(body));
+  // Always respond 200 — Twilio retries on non-200
+  try {
+    const twilioAccountSid = Deno.env.get("TWILIO_ACCOUNT_SID")!;
+    const twilioAuthToken = Deno.env.get("TWILIO_AUTH_TOKEN")!;
+    const twilioFrom = Deno.env.get("TWILIO_WHATSAPP_FROM")!; // whatsapp:+5218126251579
 
-      const message = body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
-      console.log('Message extracted:', JSON.stringify(message));
+    // Read body first (needed for signature validation)
+    const formText = await req.text();
+    const params = new URLSearchParams(formText);
 
-      if (!message) {
-        console.log('No message found in payload, returning OK');
-        return new Response("OK", { status: 200 });
-      }
+    // ── Twilio signature validation ─────────────────────────────────────────
+    const twilioSig = req.headers.get("x-twilio-signature") ?? "";
+    // Reconstruct the public webhook URL (strip query string — Twilio POST has none)
+    const reqUrl = new URL(req.url);
+    const webhookUrl = `${reqUrl.protocol}//${reqUrl.host}${reqUrl.pathname}`;
 
-      const senderPhone: string = message.from;
-      const type: string = message.type;
-      console.log('Message type:', message?.type);
+    const sigValid = await validateTwilioSignature(
+      twilioAuthToken,
+      webhookUrl,
+      params,
+      twilioSig,
+    );
 
-      if (type !== "document" && type !== "image") {
-        return new Response("OK", { status: 200 });
-      }
+    if (!sigValid) {
+      console.warn("Invalid Twilio signature — rejecting request");
+      // Return 200 to avoid Twilio retry loops, but don't process
+      return new Response("OK", { status: 200 });
+    }
 
-      const whatsappToken = Deno.env.get("WHATSAPP_TOKEN")!;
-      const phoneNumberId = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID")!;
-      const supabase = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-      );
+    const fromRaw = params.get("From") ?? ""; // whatsapp:+521XXXXXXXXXX
+    const numMedia = parseInt(params.get("NumMedia") ?? "0", 10);
 
-      // Step 1 – Extract message data
-      const mediaId: string =
-        type === "document" ? message.document.id : message.image.id;
-      const timestamp = Date.now();
-      const filename: string =
-        type === "document"
-          ? (message.document?.filename ?? `document_${timestamp}`)
-          : `whatsapp_${type}_${timestamp}`;
-      const mimeType: string =
-        type === "document"
-          ? message.document?.mime_type
-          : message.image?.mime_type;
+    // Only process media (document or image) — skip plain text messages
+    if (numMedia === 0) {
+      return new Response("OK", { status: 200 });
+    }
 
-      // Step 2 – Download file from Meta
-      const metaRes = await fetch(
-        `https://graph.facebook.com/v19.0/${mediaId}`,
-        { headers: { Authorization: `Bearer ${whatsappToken}` } },
-      );
-      if (!metaRes.ok) {
-        throw new Error(`Meta media metadata failed: ${metaRes.status}`);
-      }
-      const { url: mediaUrl } = await metaRes.json();
+    const mediaUrl = params.get("MediaUrl0") ?? "";
+    const mimeType = params.get("MediaContentType0") ?? "";
 
-      const fileRes = await fetch(mediaUrl, {
-        headers: { Authorization: `Bearer ${whatsappToken}` },
+    if (!mediaUrl || !fromRaw) {
+      return new Response("OK", { status: 200 });
+    }
+
+    // Validate MIME type against allowlist
+    if (!ALLOWED_MIMES.has(mimeType)) {
+      console.warn(`Rejected unsupported MIME type: ${mimeType}`);
+      return new Response("OK", { status: 200 });
+    }
+
+    // Strip "whatsapp:+" prefix → raw digits for DB lookups (e.g. 521XXXXXXXXXX)
+    const senderPhone = fromRaw.replace(/^whatsapp:\+?/, "");
+
+    // Rate limit per sender phone
+    if (!checkRateLimit(senderPhone)) {
+      console.warn(`Rate limit exceeded for phone: ${senderPhone}`);
+      return new Response("OK", { status: 200 });
+    }
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+
+    // Download file from Twilio (Basic Auth required)
+    const credentials = btoa(`${twilioAccountSid}:${twilioAuthToken}`);
+    const fileRes = await fetch(mediaUrl, {
+      headers: { Authorization: `Basic ${credentials}` },
+    });
+    if (!fileRes.ok) {
+      throw new Error(`Media download failed: ${fileRes.status}`);
+    }
+
+    // Enforce file size limit before buffering
+    const contentLength = parseInt(fileRes.headers.get("content-length") ?? "0", 10);
+    if (contentLength > MAX_FILE_BYTES) {
+      console.warn(`File too large (Content-Length): ${contentLength}`);
+      return new Response("OK", { status: 200 });
+    }
+
+    const fileBuffer = await fileRes.arrayBuffer();
+
+    // Double-check actual size after download
+    if (fileBuffer.byteLength > MAX_FILE_BYTES) {
+      console.warn(`File too large after download: ${fileBuffer.byteLength}`);
+      return new Response("OK", { status: 200 });
+    }
+
+    // Determine filename from MIME type
+    const timestamp = Date.now();
+    const extMap: Record<string, string> = {
+      "application/pdf": "pdf",
+      "image/jpeg": "jpg",
+      "image/jpg": "jpg",
+      "image/png": "png",
+      "image/webp": "webp",
+    };
+    const ext = extMap[mimeType] ?? "bin";
+    const type = mimeType.startsWith("image/") ? "image" : "document";
+    const filename = sanitizeFilename(`whatsapp_${type}_${timestamp}.${ext}`);
+
+    // Build phone variants for DB lookups
+    // MX numbers: Twilio may send 521XXXXXXXXXX (with mobile 1) or 52XXXXXXXXXX
+    // Profiles may store with or without leading +
+    const phoneVariants = [senderPhone];
+    if (senderPhone.startsWith("521") && senderPhone.length === 13) {
+      phoneVariants.push("52" + senderPhone.slice(3)); // strip mobile 1
+    } else if (
+      senderPhone.startsWith("52") &&
+      !senderPhone.startsWith("521") &&
+      senderPhone.length === 12
+    ) {
+      phoneVariants.push("521" + senderPhone.slice(2)); // add mobile 1
+    }
+    if (senderPhone.startsWith("52")) {
+      phoneVariants.push(senderPhone.slice(2)); // no country code
+    }
+    // Also include + prefix variants (some profiles store phone as +52XXXXXXXXXX)
+    const withPlus = phoneVariants.map((p) => `+${p}`);
+    phoneVariants.push(...withPlus);
+
+    // Look up patient by phone
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id, full_name, onboarding_completed")
+      .in("phone", phoneVariants)
+      .eq("role", "patient")
+      .limit(1)
+      .single();
+
+    console.log("Profile lookup:", profile ? `found id=${profile.id}` : "not found");
+
+    // Helper: upload to storage + insert document record
+    const saveFile = async (
+      patientId: string,
+      uploadedBy: string | null,
+      notes: string,
+    ): Promise<string> => {
+      const documentId = crypto.randomUUID();
+      const storagePath = `${patientId}/${documentId}/${filename}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("documents")
+        .upload(storagePath, fileBuffer, { contentType: mimeType, upsert: false });
+      if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
+
+      const { error: docError } = await supabase.from("documents").insert({
+        id: documentId,
+        owner_id: patientId,
+        patient_id: patientId,
+        uploaded_by: uploadedBy,
+        title: filename,
+        category: "other",
+        mime_type: mimeType,
+        notes,
       });
-      if (!fileRes.ok) {
-        throw new Error(`Media download failed: ${fileRes.status}`);
-      }
-      const fileBuffer = await fileRes.arrayBuffer();
+      if (docError) throw new Error(`documents insert failed: ${docError.message}`);
 
-      // Step 3 – Look up patient by phone number
-      // WhatsApp sends numbers as "521XXXXXXXXXX"; profiles may store with/without country code
-      const phoneVariants = [senderPhone];
-      if (senderPhone.startsWith("52")) {
-        phoneVariants.push(senderPhone.slice(2)); // strip MX country code
-      }
-      if (senderPhone.startsWith("521")) {
-        phoneVariants.push("1" + senderPhone.slice(3)); // reformat with +1
-      }
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("id, full_name, onboarding_completed")
-        .in("phone", phoneVariants)
-        .eq("role", "patient")
-        .limit(1)
-        .single();
-
-      console.log('Profile lookup result:', profile ? `found id=${profile.id}` : 'not found');
-
-      // ── Helper: save file + document record ─────────────────────────────────
-      const saveFile = async (patientId: string, uploadedBy: string | null, notes: string) => {
-        // Path format matches the app: {ownerId}/{documentId}/{filename}
-        const documentId = crypto.randomUUID();
-        const storagePath = `${patientId}/${documentId}/${filename}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from("documents")
-          .upload(storagePath, fileBuffer, { contentType: mimeType, upsert: false });
-        if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
-
-        const { error: docError } = await supabase.from("documents").insert({
-          id: documentId,
-          owner_id: patientId,
-          patient_id: patientId,
-          uploaded_by: uploadedBy,
-          title: filename,
-          category: "other",
+      const { error: archivoError } = await supabase
+        .from("archivos_recibidos")
+        .insert({
+          telefono: senderPhone,
+          nombre_archivo: filename,
+          storage_path: storagePath,
+          tipo: type,
           mime_type: mimeType,
-          notes,
+          recibido_en: new Date().toISOString(),
         });
-        if (docError) throw new Error(`documents insert failed: ${docError.message}`);
+      if (archivoError) console.warn(`archivos_recibidos insert: ${archivoError.message}`);
 
-        const { error: archivoError } = await supabase
-          .from("archivos_recibidos")
-          .insert({
-            telefono: senderPhone,
-            nombre_archivo: filename,
-            storage_path: storagePath,
-            tipo: type,
-            mime_type: mimeType,
-            recibido_en: new Date().toISOString(),
-          });
-        if (archivoError) throw new Error(`archivos_recibidos insert failed: ${archivoError.message}`);
+      return documentId;
+    };
 
-        return documentId;
-      }
+    // ── PRIORITY: Check whatsapp_sessions (document request reply) ───────────
+    const sessionPhoneVariants = [...new Set([senderPhone, ...phoneVariants])];
+    // Also include the whatsapp:+ prefixed variants — doctor's form may have stored them
+    sessionPhoneVariants.push(...sessionPhoneVariants.map((p) => `+${p}`));
 
-      // ── PRIORITY: Check whatsapp_sessions to link to the right patient/doctor ─
-      // Build phone variants: Meta sends "521XXXXXXXXXX" (with mobile 1) but the
-      // doctor may have stored "5281XXXXXXXXXX" (without mobile 1), and vice versa.
-      const sessionPhoneVariants = [...new Set([senderPhone, ...phoneVariants])];
-      if (senderPhone.startsWith("521") && senderPhone.length === 13) {
-        sessionPhoneVariants.push("52" + senderPhone.slice(3)); // strip mobile 1
-      } else if (senderPhone.startsWith("52") && !senderPhone.startsWith("521") && senderPhone.length === 12) {
-        sessionPhoneVariants.push("521" + senderPhone.slice(2)); // add mobile 1
-      }
-      console.log("sessionPhoneVariants:", sessionPhoneVariants);
+    const { data: session } = await supabase
+      .from("whatsapp_sessions")
+      .select("id, document_request_id, doctor_id")
+      .in("patient_phone", sessionPhoneVariants)
+      .eq("status", "waiting")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
 
-      const { data: session } = await supabase
-        .from("whatsapp_sessions")
-        .select("id, document_request_id, doctor_id")
-        .in("patient_phone", sessionPhoneVariants)
-        .eq("status", "waiting")
-        .order("created_at", { ascending: false })
-        .limit(1)
+    console.log(
+      "whatsapp_session lookup:",
+      session ? `found session=${session.id}` : "not found",
+    );
+
+    if (session?.document_request_id) {
+      // ── SCENARIO 0: Reply linked to a document request ───────────────────
+      console.log("Scenario 0: linked to document_request", session.document_request_id);
+
+      const { data: docReq } = await supabase
+        .from("document_requests")
+        .select("id, patient_email, patient_phone, document_type")
+        .eq("id", session.document_request_id)
         .single();
 
-      console.log('whatsapp_session lookup:', session ? `found session=${session.id}` : 'not found');
+      if (!docReq) throw new Error(`document_request not found: ${session.document_request_id}`);
 
-      if (session?.document_request_id) {
-        // ── SCENARIO 0: Message is a reply to a document request ────────────
-        console.log('Scenario 0: linked to document_request', session.document_request_id);
+      let patientId: string | null = null;
 
-        // Get document request details (include patient_phone for phone-only requests)
-        const { data: docReq } = await supabase
-          .from("document_requests")
-          .select("id, patient_email, patient_phone, document_type")
-          .eq("id", session.document_request_id)
-          .single();
+      // Try 1: auth.users lookup by email
+      if (docReq.patient_email) {
+        const { data: authUid } = await supabase.rpc("auth_user_id_by_email", {
+          search_email: docReq.patient_email,
+        });
+        if (authUid) {
+          patientId = authUid as string;
+          console.log("Patient resolved via email:", patientId);
+        }
+      }
 
-        if (!docReq) throw new Error(`document_request not found: ${session.document_request_id}`);
+      // Try 2: profile lookup by phone
+      if (!patientId) {
+        const phoneCandidates = [
+          ...new Set([senderPhone, docReq.patient_phone].filter(Boolean) as string[]),
+        ];
+        const phoneVariantsForLookup: string[] = [];
+        for (const ph of phoneCandidates) {
+          const stripped = ph.replace(/^\+/, "");
+          phoneVariantsForLookup.push(stripped);
+          phoneVariantsForLookup.push(`+${stripped}`);
+          if (stripped.startsWith("521") && stripped.length === 13) {
+            phoneVariantsForLookup.push("52" + stripped.slice(3));
+            phoneVariantsForLookup.push("+52" + stripped.slice(3));
+          } else if (stripped.startsWith("52") && !stripped.startsWith("521") && stripped.length === 12) {
+            phoneVariantsForLookup.push("521" + stripped.slice(2));
+            phoneVariantsForLookup.push("+521" + stripped.slice(2));
+          }
+          if (stripped.startsWith("52")) {
+            phoneVariantsForLookup.push(stripped.slice(2));
+          }
+        }
+        const { data: phoneProfile } = await supabase
+          .from("profiles")
+          .select("id")
+          .in("phone", [...new Set(phoneVariantsForLookup)])
+          .eq("role", "patient")
+          .limit(1)
+          .maybeSingle();
+        if (phoneProfile) {
+          patientId = phoneProfile.id;
+          console.log("Patient resolved via phone:", patientId);
+        }
+      }
 
-        // Resolve patient: try auth.users by email first (reliable, no 1000-user limit),
-        // then fall back to phone lookup in profiles.
-        let patientId: string | null = null;
+      // Auto-register: patient replied via WhatsApp but has no account
+      if (!patientId) {
+        console.log("Scenario 0 - no account, auto pre-registering patient");
+        let newUserId: string | null = null;
 
-        // Try 1: direct auth.users lookup by email (case-insensitive, no pagination limit)
         if (docReq.patient_email) {
-          const { data: authUid } = await supabase
-            .rpc("auth_user_id_by_email", { search_email: docReq.patient_email });
-          if (authUid) {
-            patientId = authUid as string;
-            console.log('Patient resolved via auth.users email lookup:', patientId);
+          const { data: newUser, error: createErr } = await supabase.auth.admin.createUser({
+            email: docReq.patient_email,
+            email_confirm: true,
+          });
+          if (!createErr && newUser?.user) {
+            newUserId = newUser.user.id;
+          } else {
+            console.warn("createUser(email) error:", createErr?.message);
+            const { data: retryUid } = await supabase.rpc("auth_user_id_by_email", {
+              search_email: docReq.patient_email,
+            });
+            if (retryUid) newUserId = retryUid as string;
           }
         }
 
-        // Try 2: profile lookup by phone (sender phone + stored patient_phone variants)
-        if (!patientId) {
-          const phoneCandidates = [...new Set(
-            [senderPhone, docReq.patient_phone].filter(Boolean) as string[]
-          )];
-          const phoneVariantsForLookup: string[] = [];
-          for (const ph of phoneCandidates) {
-            phoneVariantsForLookup.push(ph);
-            if (ph.startsWith("521") && ph.length === 13) {
-              phoneVariantsForLookup.push("52" + ph.slice(3));
-            } else if (ph.startsWith("52") && !ph.startsWith("521") && ph.length === 12) {
-              phoneVariantsForLookup.push("521" + ph.slice(2));
-            }
-            if (ph.startsWith("52")) phoneVariantsForLookup.push(ph.slice(2));
-          }
-          const { data: phoneProfile } = await supabase
-            .from("profiles")
-            .select("id")
-            .in("phone", [...new Set(phoneVariantsForLookup)])
-            .eq("role", "patient")
-            .limit(1)
-            .maybeSingle();
-          if (phoneProfile) {
-            patientId = phoneProfile.id;
-            console.log('Patient resolved via phone lookup:', patientId);
+        if (!newUserId) {
+          const { data: newUser, error: phoneErr } = await supabase.auth.admin.createUser({
+            phone: senderPhone,
+            phone_confirm: true,
+          });
+          if (!phoneErr && newUser?.user) {
+            newUserId = newUser.user.id;
+          } else {
+            console.warn("createUser(phone) error:", phoneErr?.message);
           }
         }
 
-        // ── Auto-register: patient has no HealthPal account yet ─────────────
-        // They replied via WhatsApp but never signed up. Pre-register them so
-        // the document can be saved and linked to the fulfilled request.
-        if (!patientId) {
-          console.log('Scenario 0 - no account found, auto pre-registering patient');
-          let newUserId: string | null = null;
+        if (!newUserId) {
+          throw new Error(
+            `Cannot pre-register patient for request ${session.document_request_id} ` +
+              `(email="${docReq.patient_email}", phone="${docReq.patient_phone}")`,
+          );
+        }
 
-          // Prefer email-based registration so the patient can later log in with email
-          if (docReq.patient_email) {
-            const { data: newUser, error: createErr } =
-              await supabase.auth.admin.createUser({
-                email: docReq.patient_email,
-                email_confirm: true,
-              });
-            if (!createErr && newUser?.user) {
-              newUserId = newUser.user.id;
-            } else {
-              // createUser failed — email might already exist despite Try 1 missing it
-              // (edge case: RPC timing or replication lag). Re-try via RPC.
-              console.warn('createUser(email) error:', createErr?.message);
-              const { data: retryUid } = await supabase
-                .rpc("auth_user_id_by_email", { search_email: docReq.patient_email });
-              if (retryUid) newUserId = retryUid as string;
-            }
-          }
-
-          // Fall back to phone-only if email registration failed
-          if (!newUserId) {
-            const { data: newUser, error: phoneErr } =
-              await supabase.auth.admin.createUser({
-                phone: senderPhone,
-                phone_confirm: true,
-              });
-            if (!phoneErr && newUser?.user) {
-              newUserId = newUser.user.id;
-            } else {
-              console.warn('createUser(phone) error:', phoneErr?.message);
-            }
-          }
-
-          if (!newUserId) {
-            throw new Error(
-              `Cannot pre-register patient for request ${session.document_request_id} ` +
-              `(email="${docReq.patient_email}", phone="${docReq.patient_phone}")`
-            );
-          }
-
-          const { error: profileErr } = await supabase.from("profiles").upsert({
+        await supabase.from("profiles").upsert(
+          {
             id: newUserId,
             role: "patient",
             phone: senderPhone,
             onboarding_completed: false,
             onboarding_step: "whatsapp_preregistro",
-          }, { onConflict: "id" });
-          if (profileErr) console.warn('profiles upsert (auto-reg):', profileErr.message);
+          },
+          { onConflict: "id" },
+        );
+        await supabase
+          .from("patient_profiles")
+          .upsert({ patient_id: newUserId }, { onConflict: "patient_id" });
 
-          const { error: ppErr } = await supabase
-            .from("patient_profiles")
-            .upsert({ patient_id: newUserId }, { onConflict: "patient_id" });
-          if (ppErr) console.warn('patient_profiles upsert (auto-reg):', ppErr.message);
+        patientId = newUserId;
+        console.log("Auto pre-registered patient:", patientId);
+      }
 
-          patientId = newUserId;
-          console.log('Auto pre-registered patient:', patientId);
-        }
+      const documentId = await saveFile(
+        patientId,
+        patientId,
+        `Solicitado por doctor vía WhatsApp — ${docReq.document_type}`,
+      );
 
-        const documentId = await saveFile(patientId, patientId, `Solicitado por doctor vía WhatsApp — ${docReq.document_type}`);
-
-        // NOTE: No document_shares insert here — the doctor accesses this document
-        // through the expediente in PatientDetail (consent-based RLS: share_documents=true).
-        // An explicit share would create an unwanted "Compartido" folder in the doctor's
-        // Documentos page, which is not the intended UX.
-
-        // Auto-grant consent: patient explicitly sent a document to this doctor,
-        // so we create/update an accepted consent with share_documents scope.
-        // On conflict (consent already exists) we only upgrade share_documents/status,
-        // leaving other scopes untouched.
-        if (session.doctor_id) {
-          await supabase.from("doctor_patient_consent").upsert({
+      if (session.doctor_id) {
+        await supabase.from("doctor_patient_consent").upsert(
+          {
             doctor_id: session.doctor_id,
             patient_id: patientId,
             status: "accepted",
             share_basic_profile: true,
             share_documents: true,
-          }, { onConflict: "doctor_id,patient_id" });
-        }
-
-        // Fulfill the document request
-        await supabase
-          .from("document_requests")
-          .update({
-            status: "fulfilled",
-            patient_id: patientId,
-            document_id: documentId,
-            fulfilled_at: new Date().toISOString(),
-          })
-          .eq("id", session.document_request_id)
-          .eq("status", "pending");
-
-        // Mark session fulfilled
-        await supabase
-          .from("whatsapp_sessions")
-          .update({ status: "fulfilled" })
-          .eq("id", session.id);
-
-        await sendWhatsAppReply(
-          phoneNumberId,
-          whatsappToken,
-          senderPhone,
-          `¡Gracias! 📎 Recibimos tu *${docReq.document_type}* y lo guardamos en tu expediente de HealthPal de forma segura 🔒`,
+          },
+          { onConflict: "doctor_id,patient_id" },
         );
-        return new Response("OK", { status: 200 });
       }
 
-      if (profile) {
-        // ── SCENARIO 1: Patient has HealthPal account, phone matched ────────
-        console.log('Scenario 1: existing patient matched by phone');
-        await saveFile(profile.id, null, "Recibido por WhatsApp");
+      await supabase
+        .from("document_requests")
+        .update({
+          status: "fulfilled",
+          patient_id: patientId,
+          document_id: documentId,
+          fulfilled_at: new Date().toISOString(),
+        })
+        .eq("id", session.document_request_id)
+        .eq("status", "pending");
 
-        await sendWhatsAppReply(
-          phoneNumberId,
-          whatsappToken,
-          senderPhone,
-          `Hola ${profile.full_name || "paciente"} 👋 Recibimos tu documento *${filename}* y lo guardamos en tu expediente de HealthPal. Puedes verlo en: healthpal.mx`,
-        );
-      } else {
-        // Phone not found in profiles — check if this auth user exists at all
-        // (Scenario 2: has account but phone not set vs Scenario 3: no account)
+      await supabase
+        .from("whatsapp_sessions")
+        .update({ status: "fulfilled" })
+        .eq("id", session.id);
 
-        // First check auth.users for this phone
-        let resolvedUserId: string | null = null;
-        const { data: listData } = await supabase.auth.admin.listUsers({ perPage: 1000 });
-        const existingAuthUser = listData?.users?.find(
-          (u) => phoneVariants.includes(u.phone ?? ""),
-        );
+      await sendWhatsAppReply(
+        twilioAccountSid,
+        twilioAuthToken,
+        twilioFrom,
+        fromRaw,
+        { contentSid: TEMPLATE_DOCUMENT_RECEIVED },
+      );
+      return new Response("OK", { status: 200 });
+    }
 
-        if (existingAuthUser) {
-          // Check if they have a real profile (account exists but phone not set yet)
-          const { data: existingProfile } = await supabase
-            .from("profiles")
-            .select("id")
-            .eq("id", existingAuthUser.id)
-            .single();
+    if (profile) {
+      // ── SCENARIO 1: Patient matched by phone ─────────────────────────────
+      console.log("Scenario 1: existing patient matched by phone");
+      await saveFile(profile.id, null, "Recibido por WhatsApp");
+      await sendWhatsAppReply(
+        twilioAccountSid,
+        twilioAuthToken,
+        twilioFrom,
+        fromRaw,
+        { contentSid: TEMPLATE_DOCUMENT_RECEIVED },
+      );
+    } else {
+      // Phone not in profiles — check auth.users
+      let resolvedUserId: string | null = null;
+      const { data: listData } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+      const existingAuthUser = listData?.users?.find((u) =>
+        phoneVariants.includes(u.phone ?? ""),
+      );
 
-          if (existingProfile) {
-            // ── SCENARIO 2: Has HealthPal account, phone not set in profile ─
-            console.log('Scenario 2: auth user exists but phone not linked, id:', existingAuthUser.id);
-            await saveFile(existingAuthUser.id, null, "Recibido por WhatsApp - Teléfono no vinculado");
+      if (existingAuthUser) {
+        const { data: existingProfile } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("id", existingAuthUser.id)
+          .single();
 
-            await sendWhatsAppReply(
-              phoneNumberId,
-              whatsappToken,
-              senderPhone,
-              `Recibimos tu documento 📎 Para vincularlo a tu expediente de HealthPal, ingresa a tu cuenta y agrega este número de WhatsApp en tu perfil: healthpal.mx/perfil`,
-            );
-            return new Response("OK", { status: 200 });
-          }
-
-          // Auth user exists but no profile row — fall through to create profile
-          resolvedUserId = existingAuthUser.id;
-          console.log('Auth user exists without profile row, id:', resolvedUserId);
+        if (existingProfile) {
+          // ── SCENARIO 2: Has account, phone not linked ───────────────────
+          console.log("Scenario 2: auth user exists, phone not linked:", existingAuthUser.id);
+          await saveFile(
+            existingAuthUser.id,
+            null,
+            "Recibido por WhatsApp - Teléfono no vinculado",
+          );
+          await sendWhatsAppReply(
+            twilioAccountSid,
+            twilioAuthToken,
+            twilioFrom,
+            fromRaw,
+            { body: `Recibimos tu documento 📎 Para vincularlo a tu expediente de HealthPal, ingresa a tu cuenta y agrega este número de WhatsApp en tu perfil: healthpal.mx/perfil` },
+          );
+          return new Response("OK", { status: 200 });
         }
+        resolvedUserId = existingAuthUser.id;
+      }
 
-        // ── SCENARIO 3: No HealthPal account → pre-register ─────────────────
-        console.log('Scenario 3: new pre-registration');
-
-        if (!resolvedUserId) {
-          const { data: newUser, error: createUserError } =
-            await supabase.auth.admin.createUser({
-              phone: senderPhone,
-              email_confirm: true,
-              phone_confirm: true,
-            });
-          if (createUserError || !newUser?.user) {
-            throw new Error(`createUser failed: ${createUserError?.message}`);
-          }
-          resolvedUserId = newUser.user.id;
-          console.log('New auth user created, id:', resolvedUserId);
+      // ── SCENARIO 3: No account → pre-register ──────────────────────────
+      console.log("Scenario 3: new pre-registration");
+      if (!resolvedUserId) {
+        const { data: newUser, error: createUserError } =
+          await supabase.auth.admin.createUser({
+            phone: senderPhone,
+            email_confirm: true,
+            phone_confirm: true,
+          });
+        if (createUserError || !newUser?.user) {
+          throw new Error(`createUser failed: ${createUserError?.message}`);
         }
+        resolvedUserId = newUser.user.id;
+        console.log("New auth user created:", resolvedUserId);
+      }
 
-        const newUserId = resolvedUserId;
+      const newUserId = resolvedUserId;
 
-        const { error: profileError } = await supabase.from("profiles").upsert({
+      await supabase.from("profiles").upsert(
+        {
           id: newUserId,
           role: "patient",
           phone: senderPhone,
           onboarding_completed: false,
           onboarding_step: "whatsapp_preregistro",
-        }, { onConflict: "id" });
-        if (profileError) throw new Error(`profiles upsert failed: ${profileError.message}`);
+        },
+        { onConflict: "id" },
+      );
+      await supabase
+        .from("patient_profiles")
+        .upsert({ patient_id: newUserId }, { onConflict: "patient_id" });
 
-        const { error: patientProfileError } = await supabase
-          .from("patient_profiles")
-          .upsert({ patient_id: newUserId }, { onConflict: "patient_id" });
-        if (patientProfileError) {
-          throw new Error(`patient_profiles upsert failed: ${patientProfileError.message}`);
-        }
+      await saveFile(newUserId, null, "Recibido por WhatsApp - Pre-registro");
 
-        await saveFile(newUserId, null, "Recibido por WhatsApp - Pre-registro");
-
-        await sendWhatsAppReply(
-          phoneNumberId,
-          whatsappToken,
-          senderPhone,
-          `Hola 👋 Recibimos tu documento y creamos tu expediente en HealthPal. Para acceder a tus archivos completa tu registro aquí: healthpal.mx/registro?phone=${senderPhone}\nTu documento *${filename}* ya está guardado y seguro 🔒`,
-        );
-      }
-    } catch (err) {
-      const error = err as Error;
-      console.error('Error:', error.message, error.stack);
-      // Still return 200 so Meta does not retry.
+      await sendWhatsAppReply(
+        twilioAccountSid,
+        twilioAuthToken,
+        twilioFrom,
+        fromRaw,
+        { contentSid: TEMPLATE_DOCUMENT_RECEIVED },
+      );
     }
-
-    return new Response("OK", { status: 200 });
+  } catch (err) {
+    const error = err as Error;
+    console.error("Error:", error.message, error.stack);
+    // Still return 200 so Twilio does not retry
   }
 
-  return new Response("Method Not Allowed", { status: 405 });
+  return new Response("OK", { status: 200 });
 });

@@ -300,6 +300,9 @@ export async function acceptConsentRequest(
   }
 
   try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { ok: false, error: 'No autenticado.' }
+
     const merged = { ...DEFAULT_SCOPES, ...scopes }
     const { error } = await supabase
       .from('doctor_patient_consent')
@@ -309,6 +312,7 @@ export async function acceptConsentRequest(
         ...merged,
       })
       .eq('id', consentId)
+      .eq('patient_id', user.id) // Prevent IDOR: only patient can accept own consent rows
 
     if (error) {
       logger.error('acceptConsentRequest', error)
@@ -333,6 +337,9 @@ export async function rejectConsentRequest(
   }
 
   try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { ok: false, error: 'No autenticado.' }
+
     const { error } = await supabase
       .from('doctor_patient_consent')
       .update({
@@ -340,6 +347,7 @@ export async function rejectConsentRequest(
         responded_at: new Date().toISOString(),
       })
       .eq('id', consentId)
+      .eq('patient_id', user.id) // Prevent IDOR: only patient can reject own consent rows
 
     if (error) {
       logger.error('rejectConsentRequest', error)

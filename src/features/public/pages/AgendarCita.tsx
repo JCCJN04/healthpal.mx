@@ -178,7 +178,6 @@ export default function AgendarCita() {
           time,
           modality,
           reason: form.reason,
-          phone: form.phone,
         }),
       );
 

@@ -77,26 +77,20 @@ export async function getDoctorDocumentRequests(
   return data ?? []
 }
 
-/** Public: fetch a request by token (for the public upload page) */
+/** Public: fetch a request by token (for the public upload page)
+ *  Uses a SECURITY DEFINER RPC to avoid exposing the entire document_requests table to anon.
+ */
 export async function getDocumentRequestByToken(
   token: string,
 ): Promise<{ data: DocumentRequestWithDoctor | null; error: string | null }> {
   const { data, error } = await supabase
-    .from('document_requests')
-    .select(`
-      *,
-      doctor:doctor_id (
-        full_name,
-        email,
-        avatar_url,
-        doctor_profiles ( specialty, clinic_name )
-      )
-    `)
-    .eq('token', token)
-    .single()
+    .rpc('get_document_request_by_token', { p_token: token })
 
   if (error) {
     logger.error('documentRequests:byToken', error)
+    return { data: null, error: 'Solicitud no encontrada' }
+  }
+  if (!data) {
     return { data: null, error: 'Solicitud no encontrada' }
   }
   return { data: data as DocumentRequestWithDoctor, error: null }
