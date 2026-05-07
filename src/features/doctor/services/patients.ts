@@ -107,39 +107,6 @@ export async function searchPatients(term: string, doctorId: string): Promise<Pa
   }))
 }
 
-/**
- * Create or reuse a conversation with a patient.
- * Will FAIL at the DB level if no accepted consent exists
- * (start_new_conversation RPC now enforces consent).
- */
-export async function linkPatientConversation(doctorId: string, patientId: string): Promise<string | null> {
-  if (isDemoMode()) {
-    return `demo-conv-${doctorId}-${patientId}`
-  }
-
-  try {
-    const { data: existing, error: eError } = await supabase
-      .rpc('get_conversation_between_users', {
-        user_a: doctorId,
-        user_b: patientId,
-      })
-
-    if (!eError && existing && existing.length > 0) {
-      return existing[0].id
-    }
-
-    const { data: newId, error: startError } = await supabase
-      .rpc('start_new_conversation', {
-        other_user_id: patientId,
-      })
-
-    if (startError) throw startError
-    return newId
-  } catch (err) {
-    logger.error('linkPatientConversation', err)
-    return null
-  }
-}
 
 /**
  * Fetches the patient's profile. RLS on patient_profiles will
