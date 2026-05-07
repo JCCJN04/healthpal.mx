@@ -123,7 +123,7 @@ serve(async (req: Request) => {
     return new Response("Method Not Allowed", { status: 405 });
   }
 
-  // Always respond 200 — Twilio retries on non-200
+  // Always respond 204 — Twilio retries on non-2xx. Avoid returning TwiML <Response/> which causes Twilio WhatsApp to auto-send "OK"
   try {
     const twilioAccountSid = Deno.env.get("TWILIO_ACCOUNT_SID")!;
     const twilioAuthToken = Deno.env.get("TWILIO_AUTH_TOKEN")!;
@@ -154,7 +154,7 @@ serve(async (req: Request) => {
     if (!sigValid) {
       console.warn("Invalid Twilio signature — rejecting request");
       // Return 200 to avoid Twilio retry loops, but don't process
-      return new Response("<Response/>", { status: 200, headers: { "Content-Type": "text/xml" } });
+      return new Response(null, { status: 204 });
     }
 
     const fromRaw = params.get("From") ?? ""; // whatsapp:+521XXXXXXXXXX
@@ -165,7 +165,7 @@ serve(async (req: Request) => {
     // Only process media (document or image) — skip plain text messages
     if (numMedia === 0) {
       console.log("numMedia=0, skipping");
-      return new Response("<Response/>", { status: 200, headers: { "Content-Type": "text/xml" } });
+      return new Response(null, { status: 204 });
     }
 
     const mediaUrl = params.get("MediaUrl0") ?? "";
@@ -175,13 +175,13 @@ serve(async (req: Request) => {
 
     if (!mediaUrl || !fromRaw) {
       console.warn("Missing mediaUrl or fromRaw — skipping");
-      return new Response("<Response/>", { status: 200, headers: { "Content-Type": "text/xml" } });
+      return new Response(null, { status: 204 });
     }
 
     // Validate MIME type against allowlist
     if (!ALLOWED_MIMES.has(mimeType)) {
       console.warn(`Rejected unsupported MIME type: ${mimeType}`);
-      return new Response("<Response/>", { status: 200, headers: { "Content-Type": "text/xml" } });
+      return new Response(null, { status: 204 });
     }
 
     // Strip "whatsapp:+" prefix → raw digits for DB lookups (e.g. 521XXXXXXXXXX)
@@ -190,7 +190,7 @@ serve(async (req: Request) => {
     // Rate limit per sender phone
     if (!checkRateLimit(senderPhone)) {
       console.warn(`Rate limit exceeded for phone: ${senderPhone}`);
-      return new Response("<Response/>", { status: 200, headers: { "Content-Type": "text/xml" } });
+      return new Response(null, { status: 204 });
     }
 
     const supabase = createClient(
@@ -211,7 +211,7 @@ serve(async (req: Request) => {
     const contentLength = parseInt(fileRes.headers.get("content-length") ?? "0", 10);
     if (contentLength > MAX_FILE_BYTES) {
       console.warn(`File too large (Content-Length): ${contentLength}`);
-      return new Response("<Response/>", { status: 200, headers: { "Content-Type": "text/xml" } });
+      return new Response(null, { status: 204 });
     }
 
     const fileBuffer = await fileRes.arrayBuffer();
@@ -221,7 +221,7 @@ serve(async (req: Request) => {
     // Double-check actual size after download
     if (fileBuffer.byteLength > MAX_FILE_BYTES) {
       console.warn(`File too large after download: ${fileBuffer.byteLength}`);
-      return new Response("<Response/>", { status: 200, headers: { "Content-Type": "text/xml" } });
+      return new Response(null, { status: 204 });
     }
 
     // Determine filename from MIME type
@@ -487,7 +487,7 @@ serve(async (req: Request) => {
         fromRaw,
         { body: "✅ Documento recibido. Tu médico podrá verlo en HealthPal." },
       );
-      return new Response("<Response/>", { status: 200, headers: { "Content-Type": "text/xml" } });
+      return new Response(null, { status: 204 });
     }
 
     if (profile) {
@@ -531,7 +531,7 @@ serve(async (req: Request) => {
             fromRaw,
             { body: `Recibimos tu documento 📎 Para vincularlo a tu expediente de HealthPal, ingresa a tu cuenta y agrega este número de WhatsApp en tu perfil: healthpal.mx/perfil` },
           );
-          return new Response("<Response/>", { status: 200, headers: { "Content-Type": "text/xml" } });
+          return new Response(null, { status: 204 });
         }
         resolvedUserId = existingAuthUser.id;
       }
@@ -584,5 +584,5 @@ serve(async (req: Request) => {
     // Still return 200 so Twilio does not retry
   }
 
-  return new Response("<Response/>", { status: 200, headers: { "Content-Type": "text/xml" } });
+  return new Response(null, { status: 204 });
 });

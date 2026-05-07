@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   User, Search, ShieldCheck, ShieldAlert,
-  Clock, Send, Loader2, ShieldX, FileUp, X, Copy, Check, ChevronRight,
+  Clock, Send, Loader2, ShieldX, FileUp, X, Copy, Check, ChevronRight, MessageCircle,
 } from 'lucide-react'
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import { useAuth } from '@/app/providers/AuthContext'
@@ -294,9 +294,9 @@ export default function Pacientes() {
           </button>
           <button
             onClick={() => setDocReqOpen(true)}
-            className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-white border border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm whitespace-nowrap"
+            className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-[#25D366] hover:bg-[#20bc5a] text-white font-semibold rounded-xl transition-all shadow-sm whitespace-nowrap"
           >
-            <FileUp size={15} className="text-primary" />
+            <MessageCircle size={15} />
             Solicitar doc.
           </button>
         </div>
@@ -619,9 +619,9 @@ export default function Pacientes() {
                       type="button"
                       onClick={handleSendWhatsApp}
                       disabled={docReqLoading || docReqWaLoading}
-                      className="flex-1 py-2.5 text-sm font-semibold text-white bg-green-500 rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                      className="flex-1 py-2.5 text-sm font-semibold text-white bg-[#25D366] hover:bg-[#20bc5a] rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
                     >
-                      {docReqWaLoading ? <Loader2 size={15} className="animate-spin" /> : <span>📱</span>}
+                      {docReqWaLoading ? <Loader2 size={15} className="animate-spin" /> : <MessageCircle size={15} />}
                       Enviar por WhatsApp
                     </button>
                   </div>

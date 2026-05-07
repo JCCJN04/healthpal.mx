@@ -42,7 +42,7 @@ export function ShareModal({
   isOpen,
   onClose,
   title,
-  ownerId: _ownerId,
+  ownerId,
   documentId,
   isFolder,
   folderDocCount,
@@ -192,17 +192,19 @@ export function ShareModal({
                               <p className="text-[10px] text-amber-500 font-semibold">vía solicitud</p>
                             )}
                           </div>
-                          <button
-                            onClick={() => handleRevoke(share)}
-                            disabled={!!revoking}
-                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer disabled:opacity-40"
-                            aria-label="Revocar acceso"
-                          >
-                            {revoking === share.id
-                              ? <Loader2 size={13} className="animate-spin" />
-                              : <Trash2 size={13} />
-                            }
-                          </button>
+                          {share.shared_with !== ownerId && (
+                            <button
+                              onClick={() => handleRevoke(share)}
+                              disabled={!!revoking}
+                              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer disabled:opacity-40"
+                              aria-label="Revocar acceso"
+                            >
+                              {revoking === share.id
+                                ? <Loader2 size={13} className="animate-spin" />
+                                : <Trash2 size={13} />
+                              }
+                            </button>
+                          )}
                         </li>
                       )
                     })}
