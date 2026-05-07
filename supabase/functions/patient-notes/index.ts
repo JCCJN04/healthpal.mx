@@ -1,10 +1,15 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
-const corsHeaders = {
-    'Access-Control-Allow-Origin': 'https://healthpal.mx',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-};
+const ALLOWED_ORIGINS = new Set(['https://healthpal.mx', 'https://www.healthpal.mx'])
+
+function getCorsHeaders(req: Request) {
+    const origin = req.headers.get('origin') ?? ''
+    return {
+        'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) ? origin : 'https://healthpal.mx',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    }
+}
 
 function toHex(bytes: Uint8Array): string {
     return '\\x' + Array.from(bytes).map((b: number) => b.toString(16).padStart(2, '0')).join('')
@@ -25,8 +30,10 @@ async function buildAesKey(keyB64: string): Promise<CryptoKey> {
 }
 
 Deno.serve(async (req: Request) => {
+    const cors = getCorsHeaders(req)
+
     if (req.method === 'OPTIONS') {
-        return new Response('ok', { headers: corsHeaders });
+        return new Response('ok', { headers: cors });
     }
 
     try {
@@ -38,14 +45,14 @@ Deno.serve(async (req: Request) => {
 
         if (!encKeyB64) {
             return new Response(JSON.stringify({ error: 'Clave de cifrado no configurada en el servidor' }), {
-                status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                status: 500, headers: { ...cors, 'Content-Type': 'application/json' }
             })
         }
 
         const authHeader = req.headers.get('Authorization')
         if (!authHeader) {
             return new Response(JSON.stringify({ error: 'No autorizado' }), {
-                status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                status: 401, headers: { ...cors, 'Content-Type': 'application/json' }
             })
         }
 
@@ -60,14 +67,14 @@ Deno.serve(async (req: Request) => {
             const { patient_id, title, body } = await req.json()
             if (!patient_id || !body?.trim()) {
                 return new Response(JSON.stringify({ error: 'Faltan campos requeridos' }), {
-                    status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                    status: 400, headers: { ...cors, 'Content-Type': 'application/json' }
                 })
             }
 
             const { data: { user }, error: userError } = await supabase.auth.getUser()
             if (userError || !user) {
                 return new Response(JSON.stringify({ error: 'No autorizado' }), {
-                    status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                    status: 401, headers: { ...cors, 'Content-Type': 'application/json' }
                 })
             }
 
@@ -95,12 +102,12 @@ Deno.serve(async (req: Request) => {
 
             if (error) {
                 return new Response(JSON.stringify({ error: error.message }), {
-                    status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                    status: 400, headers: { ...cors, 'Content-Type': 'application/json' }
                 })
             }
 
             return new Response(JSON.stringify({ ...data, body }), {
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                headers: { ...cors, 'Content-Type': 'application/json' }
             })
         }
 
@@ -112,7 +119,7 @@ Deno.serve(async (req: Request) => {
 
             if (!patientId || !doctorId) {
                 return new Response(JSON.stringify({ error: 'Faltan patient_id o doctor_id' }), {
-                    status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                    status: 400, headers: { ...cors, 'Content-Type': 'application/json' }
                 })
             }
 
@@ -125,7 +132,7 @@ Deno.serve(async (req: Request) => {
 
             if (error) {
                 return new Response(JSON.stringify({ error: error.message }), {
-                    status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                    status: 400, headers: { ...cors, 'Content-Type': 'application/json' }
                 })
             }
 
@@ -144,16 +151,16 @@ Deno.serve(async (req: Request) => {
             }))
 
             return new Response(JSON.stringify(decrypted), {
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                headers: { ...cors, 'Content-Type': 'application/json' }
             })
         }
 
-        return new Response('Method not allowed', { status: 405, headers: corsHeaders })
+        return new Response('Method not allowed', { status: 405, headers: cors })
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
         return new Response(JSON.stringify({ error: err?.message || 'Error interno' }), {
-            status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            status: 500, headers: { ...cors, 'Content-Type': 'application/json' }
         })
     }
 })

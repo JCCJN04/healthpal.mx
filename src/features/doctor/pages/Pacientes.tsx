@@ -166,7 +166,6 @@ export default function Pacientes() {
           return
         }
         requestId = data.id
-        setDocReqLink(`${window.location.origin}/solicitud/${data.token}`)
         setDocReqId(requestId)
       }
 
@@ -189,19 +188,18 @@ export default function Pacientes() {
             }
           }
           const body = await fnErrWithContext.context?.json?.()
-          // Prefer Meta's raw error over our generic wrapper
           const bodyData = body as { detail?: string; error?: string } | null
           detail = bodyData?.detail ?? bodyData?.error ?? detail
           logger.error('Pacientes.sendWhatsApp', body)
         } catch { logger.error('Pacientes.sendWhatsApp', fnErr) }
-        showToast(`❌ ${detail} — copia el enlace manualmente`, 'error', 8000)
+        showToast(`❌ ${detail}`, 'error', 6000)
       } else {
         showToast('✅ Solicitud enviada por WhatsApp al paciente', 'success', 4000)
         resetDocReqModal()
       }
     } catch (err) {
       logger.error('Pacientes.sendWhatsApp', err)
-      showToast('❌ Error al enviar WhatsApp, copia el enlace manualmente', 'error', 4000)
+      showToast('❌ Error inesperado al enviar WhatsApp', 'error', 4000)
     } finally {
       setDocReqWaLoading(false)
     }

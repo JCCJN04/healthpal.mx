@@ -51,11 +51,11 @@ export default function OnboardingDone() {
         </div>
 
         <h3 className="text-2xl font-bold text-gray-900 mb-4">
-          ¡Bienvenido a Healthpal!
+          ¡Bienvenido a HealthPal!
         </h3>
 
         <p className="text-gray-600 mb-8 max-w-md mx-auto">
-          Has completado tu perfil exitosamente. Ahora puedes acceder a todas las funciones de la plataforma.
+          Tu perfil está listo. Ya puedes empezar a usar la plataforma.
         </p>
 
         {/* Features List */}
@@ -64,19 +64,15 @@ export default function OnboardingDone() {
           <ul className="space-y-2 text-sm text-gray-600">
             <li className="flex items-start">
               <span className="text-primary mr-2">✓</span>
-              <span>Gestionar tus documentos médicos</span>
+              <span>Subir y gestionar tus documentos médicos</span>
             </li>
             <li className="flex items-start">
               <span className="text-primary mr-2">✓</span>
-              <span>Programar y administrar consultas</span>
+              <span>Compartir documentos de forma segura</span>
             </li>
             <li className="flex items-start">
               <span className="text-primary mr-2">✓</span>
-              <span>Comunicarte con tu equipo médico</span>
-            </li>
-            <li className="flex items-start">
-              <span className="text-primary mr-2">✓</span>
-              <span>Ver tu calendario de citas</span>
+              <span>Buscar y conectar con médicos o pacientes</span>
             </li>
           </ul>
         </div>

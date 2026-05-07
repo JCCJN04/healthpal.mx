@@ -1,14 +1,21 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
-const corsHeaders = {
-    'Access-Control-Allow-Origin': 'https://healthpal.mx',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+const ALLOWED_ORIGINS = new Set(['https://healthpal.mx', 'https://www.healthpal.mx'])
+
+function getCorsHeaders(req: Request) {
+    const origin = req.headers.get('origin') ?? ''
+    return {
+        'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) ? origin : 'https://healthpal.mx',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    }
+}
 
 Deno.serve(async (req) => {
+    const cors = getCorsHeaders(req)
+
     if (req.method === 'OPTIONS') {
-        return new Response('ok', { headers: corsHeaders });
+        return new Response('ok', { headers: cors });
     }
 
     try {
@@ -141,7 +148,7 @@ Genera tu respuesta estrictamente en formato Markdown, con un tono profesional, 
         await supabase.from('documents').update({ notes: finalNotes }).eq('id', documentId);
 
         return new Response(JSON.stringify({ success: true, text }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            headers: { ...cors, 'Content-Type': 'application/json' },
             status: 200,
         });
 
@@ -149,7 +156,7 @@ Genera tu respuesta estrictamente en formato Markdown, con un tono profesional, 
     } catch (err: any) {
         console.error('[CRITICAL]', err.message);
         return new Response(JSON.stringify({ success: false, error: err.message }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            headers: { ...cors, 'Content-Type': 'application/json' },
             status: 200, // Retornamos 200 para capturar el error en el frontend
         });
     }

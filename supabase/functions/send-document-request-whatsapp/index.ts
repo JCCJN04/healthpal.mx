@@ -1,9 +1,14 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://healthpal.mx',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+const ALLOWED_ORIGINS = new Set(['https://healthpal.mx', 'https://www.healthpal.mx'])
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get('origin') ?? ''
+  return {
+    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) ? origin : 'https://healthpal.mx',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  }
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -34,8 +39,10 @@ function sanitizeText(input: unknown, maxLen: number): string {
 }
 
 serve(async (req) => {
+  const cors = getCorsHeaders(req)
+
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { headers: cors })
   }
 
   try {
@@ -45,7 +52,7 @@ serve(async (req) => {
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 401, headers: { ...cors, 'Content-Type': 'application/json' } },
       )
     }
     const token = authHeader.slice(7)
@@ -59,13 +66,13 @@ serve(async (req) => {
     if (!supabaseUrl || !serviceRoleKey) {
       return new Response(
         JSON.stringify({ error: 'Missing SUPABASE env vars' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 500, headers: { ...cors, 'Content-Type': 'application/json' } },
       )
     }
     if (!twilioAccountSid || !twilioAuthToken || !twilioFrom) {
       return new Response(
         JSON.stringify({ error: 'Missing TWILIO secrets' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 500, headers: { ...cors, 'Content-Type': 'application/json' } },
       )
     }
 
@@ -76,7 +83,7 @@ serve(async (req) => {
     if (userErr || !user) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 401, headers: { ...cors, 'Content-Type': 'application/json' } },
       )
     }
 
@@ -90,7 +97,7 @@ serve(async (req) => {
     if (profile?.role !== 'doctor') {
       return new Response(
         JSON.stringify({ error: 'Forbidden' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 403, headers: { ...cors, 'Content-Type': 'application/json' } },
       )
     }
 
@@ -98,7 +105,7 @@ serve(async (req) => {
     if (!checkRateLimit(user.id, 20, 60 * 60 * 1000)) {
       return new Response(
         JSON.stringify({ error: 'Rate limit exceeded. Try again later.' }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 429, headers: { ...cors, 'Content-Type': 'application/json' } },
       )
     }
 
@@ -109,44 +116,50 @@ serve(async (req) => {
     } catch {
       return new Response(
         JSON.stringify({ error: 'Invalid JSON body' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } },
       )
     }
 
     const { document_request_id, patient_phone, doctor_name, document_type, doctor_id } = body
 
+    console.log('payload', { document_request_id, patient_phone, doctor_name: typeof doctor_name, document_type: typeof document_type, doctor_id, caller_id: user.id })
+
     if (!document_request_id || !patient_phone || !doctor_name || !document_type || !doctor_id) {
+      console.error('missing fields', { document_request_id: !!document_request_id, patient_phone: !!patient_phone, doctor_name: !!doctor_name, document_type: !!document_type, doctor_id: !!doctor_id })
       return new Response(
         JSON.stringify({ error: 'Missing required fields' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } },
       )
     }
 
     if (!UUID_RE.test(String(document_request_id))) {
+      console.error('bad document_request_id', document_request_id)
       return new Response(
         JSON.stringify({ error: 'Invalid document_request_id' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } },
       )
     }
     if (!UUID_RE.test(String(doctor_id))) {
+      console.error('bad doctor_id', doctor_id)
       return new Response(
         JSON.stringify({ error: 'Invalid doctor_id' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } },
       )
     }
     // Prevent spoofing another doctor
     if (String(doctor_id) !== user.id) {
       return new Response(
         JSON.stringify({ error: 'Forbidden: doctor_id mismatch' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 403, headers: { ...cors, 'Content-Type': 'application/json' } },
       )
     }
 
     const cleanPhone = String(patient_phone).replace(/\D/g, '')
     if (!PHONE_RE.test(cleanPhone)) {
+      console.error('bad phone', { raw: patient_phone, clean: cleanPhone })
       return new Response(
         JSON.stringify({ error: 'Invalid patient_phone format' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } },
       )
     }
 
@@ -154,9 +167,10 @@ serve(async (req) => {
     const cleanDocumentType = sanitizeText(document_type, 100)
 
     if (!cleanDoctorName || !cleanDocumentType) {
+      console.error('empty name/type after sanitize', { cleanDoctorName, cleanDocumentType })
       return new Response(
         JSON.stringify({ error: 'doctor_name and document_type must not be empty' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } },
       )
     }
 
@@ -171,7 +185,7 @@ serve(async (req) => {
     if (docReqErr || !docReq) {
       return new Response(
         JSON.stringify({ error: 'Document request not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 404, headers: { ...cors, 'Content-Type': 'application/json' } },
       )
     }
 
@@ -215,19 +229,19 @@ serve(async (req) => {
       console.error('Twilio API error:', twilioRes.status, twilioError)
       return new Response(
         JSON.stringify({ error: 'Failed to send WhatsApp message', detail: twilioError, wa_status: twilioRes.status }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 502, headers: { ...cors, 'Content-Type': 'application/json' } },
       )
     }
 
     return new Response(
       JSON.stringify({ success: true }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      { status: 200, headers: { ...cors, 'Content-Type': 'application/json' } },
     )
   } catch (err) {
     console.error('send-document-request-whatsapp error:', err)
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      { status: 500, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } },
     )
   }
 })

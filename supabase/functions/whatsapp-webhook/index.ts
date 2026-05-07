@@ -1,8 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const TEMPLATE_DOCUMENT_RECEIVED = "HXf627fb5de84912902eb7994c70cfba62";
-
 const ALLOWED_MIMES = new Set([
   "application/pdf",
   "image/jpeg",
@@ -474,7 +472,7 @@ serve(async (req: Request) => {
         twilioAuthToken,
         twilioFrom,
         fromRaw,
-        { contentSid: TEMPLATE_DOCUMENT_RECEIVED },
+        { body: "✅ Documento recibido. Tu médico podrá verlo en HealthPal." },
       );
       return new Response("OK", { status: 200 });
     }
@@ -488,7 +486,7 @@ serve(async (req: Request) => {
         twilioAuthToken,
         twilioFrom,
         fromRaw,
-        { contentSid: TEMPLATE_DOCUMENT_RECEIVED },
+        { body: "✅ Documento recibido. Tu médico podrá verlo en HealthPal." },
       );
     } else {
       // Phone not in profiles — check auth.users
@@ -564,7 +562,7 @@ serve(async (req: Request) => {
         twilioAuthToken,
         twilioFrom,
         fromRaw,
-        { contentSid: TEMPLATE_DOCUMENT_RECEIVED },
+        { body: "✅ Documento recibido. Tu médico podrá verlo en HealthPal." },
       );
     }
   } catch (err) {
