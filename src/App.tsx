@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route } from 'react-router-dom'
 import { Suspense, lazy } from 'react'
 import { Analytics } from '@vercel/analytics/react'
 import { AuthProvider } from '@/app/providers/AuthContext'
@@ -68,12 +68,6 @@ function App() {
         {/* Demo doctor route (direct URL access only) */}
         <Route path="/demo/doctor/*" element={<Suspense fallback={<PageLoader />}><DemoDoctor /></Suspense>} />
 
-        {/* Public Directory — temporarily disabled */}
-        <Route path="/directorio" element={<Navigate to="/" replace />} />
-        <Route path="/directorio/:slug" element={<Navigate to="/" replace />} />
-        <Route path="/agendar/:slug" element={<Navigate to="/" replace />} />
-        <Route path="/especialistas/:specialty" element={<Navigate to="/" replace />} />
-        <Route path="/especialistas/:specialty/:city" element={<Navigate to="/" replace />} />
         <Route path="/solicitud/:token" element={<Suspense fallback={<PageLoader />}><SolicitudDocumento /></Suspense>} />
 
         {/* Onboarding Routes */}
