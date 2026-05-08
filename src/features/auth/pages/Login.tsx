@@ -1,40 +1,24 @@
-import { useState, FormEvent, useEffect } from 'react'
+﻿import { useState, FormEvent, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import Button from '@/shared/components/ui/Button'
-import Input from '@/shared/components/ui/Input'
-import Checkbox from '@/shared/components/ui/Checkbox'
-import Tabs from '@/shared/components/ui/Tabs'
-// import GoogleIcon from '@/features/auth/components/GoogleIcon' // pendiente de activar
+import { User, Lock, ArrowLeft } from 'lucide-react'
 import { supabase } from '@/shared/lib/supabase'
 import { showToast } from '@/shared/components/ui/Toast'
 import { useAuth } from '@/app/providers/AuthContext'
 
-type UserRole = 'doctor' | 'patient'
-
 export default function Login() {
   const navigate = useNavigate()
   const { user, loading: authLoading } = useAuth()
-  const [role, setRole] = useState<UserRole>('patient')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [rememberMe, setRememberMe] = useState(false)
   const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({})
   const [loading, setLoading] = useState(false)
 
-  // If user is already authenticated, redirect to dashboard (which handles onboarding)
+  // If user is already authenticated, redirect to dashboard
   useEffect(() => {
     if (!authLoading && user) {
       navigate('/dashboard', { replace: true })
     }
   }, [user, authLoading, navigate])
-
-  const handleTabChange = (index: number) => {
-    setRole(index === 0 ? 'doctor' : 'patient')
-    // Clear form on role change
-    setEmail('')
-    setPassword('')
-    setErrors({})
-  }
 
   const validateForm = (): boolean => {
     const newErrors: { email?: string; password?: string } = {}
@@ -56,13 +40,10 @@ export default function Login() {
 
     if (!validateForm()) return
 
-    // Clear any previous errors
     setErrors({})
-
     setLoading(true)
 
     try {
-
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -71,7 +52,6 @@ export default function Login() {
       if (error) {
         let errorMessage = 'Error al iniciar sesión'
 
-        // Mensajes de error más descriptivos
         if (error.message.includes('Email not confirmed')) {
           errorMessage = 'Por favor confirma tu correo antes de iniciar sesión. Revisa tu bandeja de entrada.'
         } else if (error.message.includes('Invalid login credentials')) {
@@ -84,22 +64,18 @@ export default function Login() {
 
         showToast(errorMessage, 'error')
         setErrors({ general: errorMessage })
-        return // setLoading(false) happens in finally
+        return 
       }
 
       if (!data.user) {
         const errorMessage = 'Error inesperado: no se pudo completar el inicio de sesión'
         showToast(errorMessage, 'error')
         setErrors({ general: errorMessage })
-        return // setLoading(false) happens in finally
+        return 
       }
 
-      // Success
       showToast('Inicio de sesión exitoso', 'success')
       navigate('/dashboard')
-
-      // Note: setLoading will be false after navigation completes,
-      // but we won't see it since we're leaving the page
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
@@ -111,58 +87,43 @@ export default function Login() {
     }
   }
 
-  /* pendiente de activar
-  const handleGoogleLogin = async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/dashboard`,
-        },
-      })
-      
-      if (error) throw error
-    } catch (error: any) {
-      showToast(error.message || 'Error al iniciar sesión con Google', 'error')
-    }
-  }
-  */
-
   return (
-    <div className="flex min-h-screen">
-      {/* Left Panel - Login Form */}
-      <div className="w-full lg:w-[45%] flex items-center justify-center p-8 bg-white">
-        <div className="w-full max-w-md">
-          {/* Logo/Title */}
-          <div className="mb-12">
-            <img src="/logo.png" alt="HealthPal.mx" className="h-48" />
-          </div>
+    <div 
+      className="flex flex-col min-h-screen relative font-sans"
+      style={{ backgroundImage: `url('/monterrey.jpg')`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+    >
+      {/* Dark overlay */}
+      <div className="absolute inset-0 bg-black/60 z-0"></div>
 
-          {/* Role Tabs */}
-          <div className="flex justify-center mb-8">
-            <Tabs
-              options={['Doctor', 'Paciente']}
-              selectedIndex={role === 'doctor' ? 0 : 1}
-              onChange={handleTabChange}
-            />
-          </div>
+      {/* Back button */}
+      <Link to="/" className="absolute top-6 left-6 z-20 flex items-center gap-2 text-white/80 hover:text-white transition-colors">
+        <ArrowLeft className="w-5 h-5" />
+        <span className="font-medium hidden sm:inline">Regresar</span>
+      </Link>
 
-          {/* Login Form */}
-          <form onSubmit={handleSubmit} className="space-y-5">
+      {/* Main Content */}
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 py-8">
+        <Link to="/" className="mb-4">
+          <img src="/logograndenofondo.png" alt="HealthPal.mx" className="h-24 md:h-32 hover:opacity-80 transition-opacity" />
+        </Link>
+        <h1 className="text-white text-xl md:text-2xl mb-8 font-medium">Bienvenido a tu portal</h1>
+        
+        <div className="w-full max-w-sm">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            
             {/* General Error Display */}
             {errors.general && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-                <svg className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="bg-red-500/20 border border-red-500 rounded-xl p-3 flex items-start gap-3 backdrop-blur-sm">
+                <svg className="w-5 h-5 text-red-200 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <div className="flex-1">
-                  <p className="text-sm text-red-800 font-medium">Error de autenticación</p>
-                  <p className="text-sm text-red-700 mt-1">{errors.general}</p>
+                  <p className="text-sm text-red-100">{errors.general}</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setErrors({ ...errors, general: undefined })}
-                  className="text-red-400 hover:text-red-600"
+                  className="text-red-200 hover:text-white"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -172,89 +133,90 @@ export default function Login() {
             )}
 
             {/* Email Input */}
-            <Input
-              type="email"
-              label="Correo Electronico"
-              placeholder="paciente@ejemplo.com"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value)
-                if (errors.email) setErrors({ ...errors, email: undefined })
-              }}
-              onClear={() => setEmail('')}
-              error={errors.email}
-              autoComplete="email"
-            />
+            <div>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <User className="w-5 h-5 text-white/70" />
+                </div>
+                <input 
+                  type="email"
+                  placeholder="Ingresa tu correo..."
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    if (errors.email) setErrors({ ...errors, email: undefined })
+                  }}
+                  className={`w-full bg-white/20 border-0 rounded-full h-12 pl-12 pr-4 text-white placeholder:text-white/70 focus:ring-2 focus:ring-primary backdrop-blur-md outline-none transition-all ${errors.email ? 'ring-2 ring-red-400' : ''}`}
+                />
+              </div>
+              {errors.email && <p className="text-red-300 text-xs mt-1.5 ml-4">{errors.email}</p>}
+            </div>
 
             {/* Password Input */}
-            <Input
-              type="password"
-              label="Contraseña"
-              placeholder="Contraseña123"
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value)
-                if (errors.password) setErrors({ ...errors, password: undefined })
-              }}
-              onClear={() => setPassword('')}
-              error={errors.password}
-              autoComplete="current-password"
-            />
-
-            {/* Remember Me & Forgot Password */}
-            <div className="flex items-center justify-between">
-              <Checkbox
-                label="Recordar Contraseña"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-              />
-              <Link
-                to="/forgot"
-                className="text-sm text-blue-600 hover:text-blue-700 hover:underline"
-              >
-                Olvide mis credenciales
-              </Link>
+            <div>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Lock className="w-5 h-5 text-white/70" />
+                </div>
+                <input 
+                  type="password"
+                  placeholder="Ingresa tu contraseña..."
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value)
+                    if (errors.password) setErrors({ ...errors, password: undefined })
+                  }}
+                  className={`w-full bg-white/20 border-0 rounded-full h-12 pl-12 pr-4 text-white placeholder:text-white/70 focus:ring-2 focus:ring-primary backdrop-blur-md outline-none transition-all ${errors.password ? 'ring-2 ring-red-400' : ''}`}
+                />
+              </div>
+              {errors.password && <p className="text-red-300 text-xs mt-1.5 ml-4">{errors.password}</p>}
             </div>
 
             {/* Submit Button */}
-            <Button type="submit" variant="primary" fullWidth disabled={loading}>
-              {loading ? 'Iniciando sesión...' : 'iniciar sesion'}
-            </Button>
-
-            {/* Google Login — pendiente de activar
-            <Button
-              type="button"
-              variant="secondary"
-              fullWidth
-              onClick={handleGoogleLogin}
-              className="flex items-center justify-center gap-3"
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="w-full bg-primary hover:bg-primary/90 text-white rounded-full h-12 mt-2 font-semibold text-base transition-colors disabled:opacity-70 flex justify-center items-center shadow-lg"
             >
-              <GoogleIcon />
-              <span>Inicia Sesion con Google</span>
-            </Button>
-            */}
+              {loading ? (
+                <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : 'Ingresar'}
+            </button>
+
+            {/* Helpers Links */}
+            <div className="flex justify-between items-center pt-2 pb-2 text-xs md:text-sm text-white font-semibold tracking-wide px-2">
+              <Link to="/forgot" className="hover:text-gray-300 transition-colors">¿OLVIDASTE TU CONTRASEÑA?</Link>
+              <Link to="/ayuda" className="hover:text-gray-300 transition-colors">AYUDA</Link>
+            </div>
           </form>
-
+          
           {/* Register Link */}
-          <p className="mt-8 text-center text-sm text-gray-600">
-            No tienes cuenta?{' '}
-            <Link
-              to="/register"
-              className="text-primary hover:text-primary-dark font-medium hover:underline"
-            >
-              Registrate
-            </Link>
-          </p>
+          <div className="mt-4 text-center text-sm text-white font-medium">
+             ¿No tienes cuenta?{' '}
+             <Link
+               to="/register"
+               className="text-primary hover:text-primary/80 font-bold ml-1 transition-colors"
+             >
+               Regístrate aquí
+             </Link>
+          </div>
         </div>
-      </div>
+      </main>
 
-      {/* Right Panel - Image */}
-      <div className="hidden lg:block lg:w-[55%] relative">
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url('/doctores.png')` }}
-        />
-      </div>
+      {/* Footer */}
+      <footer className="relative z-10 flex flex-col md:flex-row justify-between items-center p-6 md:px-12 md:py-8 text-white text-xs md:text-sm font-medium">
+        <div className="flex flex-wrap justify-center gap-4 md:gap-8 mb-4 md:mb-0">
+          <Link to="/legal" className="hover:text-gray-300 transition-colors">AVISO LEGAL</Link>
+          <Link to="/privacidad" className="hover:text-gray-300 transition-colors">AVISO DE PRIVACIDAD</Link>
+          <Link to="/politicas" className="hover:text-gray-300 transition-colors">POLÍTICAS DE PRIVACIDAD</Link>
+        </div>
+        <div className="text-center">
+          © {new Date().getFullYear()} <span className="text-primary">HealthPal.mx</span>. Todos los Derechos Reservados.
+        </div>
+      </footer>
     </div>
   )
 }

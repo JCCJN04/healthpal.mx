@@ -1,9 +1,6 @@
-import { useState, FormEvent } from 'react'
+﻿import { useState, FormEvent } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import Button from '@/shared/components/ui/Button'
-import Input from '@/shared/components/ui/Input'
-import Tabs from '@/shared/components/ui/Tabs'
-// import GoogleIcon from '@/features/auth/components/GoogleIcon' // pendiente de activar
+import { User, Lock, CheckCircle, ArrowLeft } from 'lucide-react'
 import { supabase } from '@/shared/lib/supabase'
 import { showToast } from '@/shared/components/ui/Toast'
 import { logger } from '@/shared/lib/logger'
@@ -11,6 +8,7 @@ import { logger } from '@/shared/lib/logger'
 type UserRole = 'doctor' | 'patient'
 
 interface FormErrors {
+  general?: string
   email?: string
   password?: string
   confirmPassword?: string
@@ -26,15 +24,6 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [errors, setErrors] = useState<FormErrors>({})
   const [loading, setLoading] = useState(false)
-
-  const handleTabChange = (index: number) => {
-    setRole(index === 0 ? 'doctor' : 'patient')
-    // Clear form on role change
-    setEmail('')
-    setPassword('')
-    setConfirmPassword('')
-    setErrors({})
-  }
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {}
@@ -64,6 +53,7 @@ export default function Register() {
 
     if (!validateForm()) return
 
+    setErrors({})
     setLoading(true)
 
     try {
@@ -79,13 +69,12 @@ export default function Register() {
       })
 
       if (error) {
-        // Mensajes de error más descriptivos
         if (error.message.includes('rate limit')) {
-          showToast('Límite de registros alcanzado. Por favor contacta al administrador o intenta más tarde.', 'error')
+          setErrors({ general: 'Límite de registros alcanzado. Por favor contacta al administrador o intenta más tarde.' })
         } else if (error.message.includes('already registered')) {
-          showToast('Este correo ya está registrado. Intenta iniciar sesión.', 'error')
+          setErrors({ general: 'Este correo ya está registrado. Intenta iniciar sesión.' })
         } else {
-          showToast(error.message || 'Error al registrarse', 'error')
+          setErrors({ general: error.message || 'Error al registrarse' })
         }
         setLoading(false)
         return
@@ -93,145 +82,191 @@ export default function Register() {
 
       if (data.user) {
         if (data.session) {
-          // Supabase devolvió sesión → auto-confirm activo (dev) → onboarding directo
           showToast('Registro exitoso. Redirigiendo...', 'success')
           navigate('/onboarding/role')
         } else {
-          // session = null → Supabase requiere confirmación de email
           navigate('/verify-email', { state: { email }, replace: true })
         }
       }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       logger.error('register', error)
-      showToast('Error inesperado al registrarse. Por favor intenta de nuevo.', 'error')
+      setErrors({ general: 'Error inesperado al registrarse. Por favor intenta de nuevo.' })
     } finally {
       setLoading(false)
     }
   }
 
-  /* pendiente de activar
-  const handleGoogleRegister = async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/onboarding/role`,
-        },
-      })
-      
-      if (error) throw error
-    } catch (error: any) {
-      showToast(error.message || 'Error al registrarse con Google', 'error')
-    }
-  }
-  */
-
   return (
-    <div className="flex min-h-screen">
-      {/* Left Panel - Register Form */}
-      <div className="w-full lg:w-[45%] flex items-center justify-center p-8 bg-white">
-        <div className="w-full max-w-md">
-          {/* Logo/Title */}
-          <div className="mb-12">
-            <img src="/logo.png" alt="HealthPal.mx" className="h-48" />
+    <div 
+      className="flex flex-col min-h-screen relative font-sans"
+      style={{ backgroundImage: `url('/monterrey.jpg')`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+    >
+      {/* Dark overlay */}
+      <div className="absolute inset-0 bg-black/60 z-0"></div>
+
+      {/* Back button */}
+      <Link to="/" className="absolute top-6 left-6 z-20 flex items-center gap-2 text-white/80 hover:text-white transition-colors">
+        <ArrowLeft className="w-5 h-5" />
+        <span className="font-medium hidden sm:inline">Regresar</span>
+      </Link>
+
+      {/* Main Content */}
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 py-8">
+        <Link to="/" className="mb-4">
+          <img src="/logograndenofondo.png" alt="HealthPal.mx" className="h-24 md:h-32 hover:opacity-80 transition-opacity" />
+        </Link>
+        <h1 className="text-white text-xl md:text-2xl mb-6 font-medium">Crear cuenta en tu portal</h1>
+        
+        <div className="w-full max-w-sm">
+          {/* Custom Role Selector for new design */}
+          <div className="flex bg-black/30 rounded-full p-1 mb-6 backdrop-blur-sm gap-1">
+            <button
+              onClick={() => setRole('doctor')}
+              type="button"
+              className={`flex-1 rounded-full py-2 text-sm font-semibold transition-all ${
+                role === 'doctor' 
+                  ? 'bg-primary text-white shadow-md' 
+                  : 'text-white/70 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              Soy Doctor
+            </button>
+            <button
+              onClick={() => setRole('patient')}
+              type="button"
+              className={`flex-1 rounded-full py-2 text-sm font-semibold transition-all ${
+                role === 'patient' 
+                  ? 'bg-primary text-white shadow-md' 
+                  : 'text-white/70 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              Soy Paciente
+            </button>
           </div>
 
-          {/* Role Tabs */}
-          <div className="flex justify-center mb-8">
-            <Tabs
-              options={['Doctor', 'Paciente']}
-              selectedIndex={role === 'doctor' ? 0 : 1}
-              onChange={handleTabChange}
-            />
-          </div>
+          <form onSubmit={handleSubmit} className="space-y-3">
+            
+            {/* General Error */}
+            {errors.general && (
+              <div className="bg-red-500/20 border border-red-500 rounded-xl p-3 flex items-start gap-3 backdrop-blur-sm">
+                <svg className="w-5 h-5 text-red-200 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div className="flex-1">
+                  <p className="text-sm text-red-100">{errors.general}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setErrors({ ...errors, general: undefined })}
+                  className="text-red-200 hover:text-white"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            )}
 
-          {/* Register Form */}
-          <form onSubmit={handleSubmit} className="space-y-5">
             {/* Email Input */}
-            <Input
-              type="email"
-              label="Correo Electronico"
-              placeholder="paciente@ejemplo.com"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value)
-                if (errors.email) setErrors({ ...errors, email: undefined })
-              }}
-              onClear={() => setEmail('')}
-              error={errors.email}
-              autoComplete="email"
-            />
+            <div>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <User className="w-5 h-5 text-white/70" />
+                </div>
+                <input 
+                  type="email"
+                  placeholder="Correo electrónico..."
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    if (errors.email) setErrors({ ...errors, email: undefined })
+                  }}
+                  className={`w-full bg-white/20 border-0 rounded-full h-14 pl-12 pr-4 text-white placeholder:text-white/70 focus:ring-2 focus:ring-primary backdrop-blur-md outline-none transition-all ${errors.email ? 'ring-2 ring-red-400' : ''}`}
+                />
+              </div>
+              {errors.email && <p className="text-red-300 text-xs mt-1.5 ml-4">{errors.email}</p>}
+            </div>
 
             {/* Password Input */}
-            <Input
-              type="password"
-              label="Contraseña"
-              placeholder="Contraseña123"
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value)
-                if (errors.password) setErrors({ ...errors, password: undefined })
-              }}
-              onClear={() => setPassword('')}
-              error={errors.password}
-              autoComplete="new-password"
-            />
+            <div>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Lock className="w-5 h-5 text-white/70" />
+                </div>
+                <input 
+                  type="password"
+                  placeholder="Contraseña..."
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value)
+                    if (errors.password) setErrors({ ...errors, password: undefined })
+                  }}
+                  className={`w-full bg-white/20 border-0 rounded-full h-14 pl-12 pr-4 text-white placeholder:text-white/70 focus:ring-2 focus:ring-primary backdrop-blur-md outline-none transition-all ${errors.password ? 'ring-2 ring-red-400' : ''}`}
+                />
+              </div>
+              {errors.password && <p className="text-red-300 text-xs mt-1.5 ml-4">{errors.password}</p>}
+            </div>
 
             {/* Confirm Password Input */}
-            <Input
-              type="password"
-              label="Confirmar contraseña"
-              placeholder="Contraseña123"
-              value={confirmPassword}
-              onChange={(e) => {
-                setConfirmPassword(e.target.value)
-                if (errors.confirmPassword) setErrors({ ...errors, confirmPassword: undefined })
-              }}
-              onClear={() => setConfirmPassword('')}
-              error={errors.confirmPassword}
-              autoComplete="new-password"
-            />
+            <div>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <CheckCircle className="w-5 h-5 text-white/70" />
+                </div>
+                <input 
+                  type="password"
+                  placeholder="Confirmar contraseña..."
+                  value={confirmPassword}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value)
+                    if (errors.confirmPassword) setErrors({ ...errors, confirmPassword: undefined })
+                  }}
+                  className={`w-full bg-white/20 border-0 rounded-full h-14 pl-12 pr-4 text-white placeholder:text-white/70 focus:ring-2 focus:ring-primary backdrop-blur-md outline-none transition-all ${errors.confirmPassword ? 'ring-2 ring-red-400' : ''}`}
+                />
+              </div>
+              {errors.confirmPassword && <p className="text-red-300 text-xs mt-1.5 ml-4">{errors.confirmPassword}</p>}
+            </div>
 
             {/* Submit Button */}
-            <Button type="submit" variant="primary" fullWidth disabled={loading}>
-              {loading ? 'Creando cuenta...' : 'crear cuenta'}
-            </Button>
-
-            {/* Google Register — pendiente de activar
-            <Button
-              type="button"
-              variant="secondary"
-              fullWidth
-              onClick={handleGoogleRegister}
-              className="flex items-center justify-center gap-3"
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="w-full bg-primary hover:bg-primary/90 text-white rounded-full h-12 mt-2 font-semibold text-base transition-colors disabled:opacity-70 flex justify-center items-center shadow-lg"
             >
-              <GoogleIcon />
-              <span>Registrate con Google</span>
-            </Button>
-            */}
+              {loading ? (
+                <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : 'Crear cuenta'}
+            </button>
           </form>
-
+          
           {/* Login Link */}
-          <p className="mt-8 text-center text-sm text-gray-600">
-            Ya tienes cuenta?{' '}
-            <Link
-              to="/login"
-              className="text-primary hover:text-primary-dark font-medium hover:underline"
-            >
-              Inicia sesion
-            </Link>
-          </p>
+          <div className="mt-6 text-center text-sm text-white font-medium">
+             ¿Ya tienes una cuenta?{' '}
+             <Link
+               to="/login"
+               className="text-primary hover:text-primary/80 font-bold ml-1 transition-colors"
+             >
+               Inicia sesión
+             </Link>
+          </div>
         </div>
-      </div>
+      </main>
 
-      {/* Right Panel - Image */}
-      <div className="hidden lg:block lg:w-[55%] relative">
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url('/doctores.png')` }}
-        />
-      </div>
+      {/* Footer */}
+      <footer className="relative z-10 flex flex-col md:flex-row justify-between items-center p-6 md:px-12 md:py-8 text-white text-xs md:text-sm font-medium">
+        <div className="flex flex-wrap justify-center gap-4 md:gap-8 mb-4 md:mb-0">
+          <Link to="/legal" className="hover:text-gray-300 transition-colors">AVISO LEGAL</Link>
+          <Link to="/privacidad" className="hover:text-gray-300 transition-colors">AVISO DE PRIVACIDAD</Link>
+          <Link to="/politicas" className="hover:text-gray-300 transition-colors">POLÍTICAS DE PRIVACIDAD</Link>
+        </div>
+        <div className="text-center">
+          © {new Date().getFullYear()} <span className="text-primary">HealthPal.mx</span>. Todos los Derechos Reservados.
+        </div>
+      </footer>
     </div>
   )
 }
