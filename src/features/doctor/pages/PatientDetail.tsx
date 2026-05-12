@@ -2,7 +2,6 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import {
     ArrowLeft,
-    MessageSquare,
     FileText,
     Clock,
     Plus,
@@ -347,40 +346,41 @@ export default function PatientDetail() {
 
     return (
         <DashboardLayout>
-            <div className="max-w-6xl mx-auto space-y-5 p-4 md:p-6">
-                {/* Navigation */}
-                <button
-                    onClick={() => navigate(-1)}
-                    className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-primary transition-colors"
-                >
-                    <ArrowLeft size={16} />
-                    <span className="font-medium">Volver a pacientes</span>
-                </button>
+            <div className="max-w-6xl mx-auto space-y-4 pb-6">
 
                 {/* Header Card */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                    {/* Banner */}
-                    <div className="h-24 bg-gradient-to-r from-teal-600 via-primary to-cyan-500 relative">
+                    {/* Banner with back button */}
+                    <div className="h-20 bg-gradient-to-r from-teal-600 via-primary to-cyan-500 relative">
                         <div className="absolute inset-0 opacity-[0.07]" style={{backgroundImage:'radial-gradient(circle, white 1.5px, transparent 1.5px)', backgroundSize:'20px 20px'}} />
-                        {/* Vitals inline en el banner — visibles sin scroll */}
-                        <div className="absolute bottom-3 right-4 flex items-center gap-2">
-                            <span className="text-[11px] font-bold text-white/80 bg-white/15 backdrop-blur-sm px-2.5 py-1 rounded-full border border-white/20">
+                        <button
+                            onClick={() => navigate(-1)}
+                            className="absolute top-3 left-4 inline-flex items-center gap-1.5 text-xs font-semibold text-white/80 hover:text-white bg-white/10 hover:bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-full border border-white/20 transition-all"
+                        >
+                            <ArrowLeft size={13} />
+                            Pacientes
+                        </button>
+                        {/* Quick vitals chips */}
+                        <div className="absolute bottom-2.5 right-4 flex items-center gap-1.5">
+                            <span className="text-[10px] font-bold text-white/80 bg-white/15 px-2 py-0.5 rounded-full border border-white/20">
                                 {calculateAge(patient.birthdate)} años
                             </span>
-                            <span className="text-[11px] font-bold text-white/80 bg-white/15 backdrop-blur-sm px-2.5 py-1 rounded-full border border-white/20">
-                                {patient.sex === 'male' ? '♂ Hombre' : patient.sex === 'female' ? '♀ Mujer' : 'Otro'}
+                            <span className="text-[10px] font-bold text-white/80 bg-white/15 px-2 py-0.5 rounded-full border border-white/20">
+                                {patient.sex === 'male' ? '♂' : patient.sex === 'female' ? '♀' : '—'}
                             </span>
                             {(medProfile?.blood_type || pProfile.blood_type) && (
-                                <span className="text-[11px] font-bold text-white/80 bg-red-500/70 backdrop-blur-sm px-2.5 py-1 rounded-full border border-white/20">
+                                <span className="text-[10px] font-bold text-white/80 bg-red-500/60 px-2 py-0.5 rounded-full border border-white/20">
                                     🩸 {medProfile?.blood_type || pProfile.blood_type}
                                 </span>
                             )}
                         </div>
                     </div>
-                    <div className="px-5 pb-4">
-                        <div className="flex flex-col md:flex-row gap-4 -mt-9">
+
+                    {/* Patient info row */}
+                    <div className="px-4 pb-4">
+                        <div className="flex items-end gap-4 -mt-7">
                             {/* Avatar */}
-                            <div className="relative z-10 w-[72px] h-[72px] rounded-xl ring-4 ring-white shadow-md flex-shrink-0 overflow-hidden bg-primary/10">
+                            <div className="relative z-10 w-16 h-16 rounded-xl ring-3 ring-white shadow-md flex-shrink-0 overflow-hidden bg-primary/10">
                                 {patient.avatar_url ? (
                                     <img src={patient.avatar_url} alt="" className="w-full h-full object-cover" />
                                 ) : (
@@ -389,49 +389,31 @@ export default function PatientDetail() {
                                     </div>
                                 )}
                             </div>
-                            <div className="flex-1 pt-1 md:pt-10">
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                                    <div>
-                                        <h1 className="text-lg md:text-xl font-bold text-gray-900 leading-tight">{patient.full_name || 'Paciente'}</h1>
-                                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
-                                            {scopes.share_contact && contactInfo?.email && (
-                                                <span className="flex items-center gap-1 text-xs text-gray-500">
-                                                    <Mail size={11} className="text-gray-400" />{contactInfo.email}
-                                                </span>
-                                            )}
-                                            {scopes.share_contact && contactInfo?.phone && (
-                                                <a href={`tel:${contactInfo.phone}`} className="flex items-center gap-1 text-xs text-gray-500 hover:text-primary transition-colors">
-                                                    <Phone size={11} className="text-gray-400" />{contactInfo.phone}
-                                                </a>
-                                            )}
-                                            {scopes.share_medical_notes && (medProfile?.insurance_provider || pProfile.insurance_provider) && (
-                                                <span className="flex items-center gap-1 text-xs text-teal-600 font-medium">
-                                                    🏥 {medProfile?.insurance_provider || pProfile.insurance_provider}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        {scopes.share_medical_notes && (
-                                            <button
-                                                onClick={() => setActiveTab('notes')}
-                                                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-gray-100 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-200 transition-all"
-                                            >
-                                                <StickyNote size={14} />
-                                                Nueva nota
-                                            </button>
-                                        )}
-                                        {scopes.share_contact && (
-                                            <button
-                                                onClick={() => navigate(mapDashboardPath(`/dashboard/mensajes?with=${patient.id}`))}
-                                                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-teal-600 shadow-sm transition-all"
-                                            >
-                                                <MessageSquare size={14} />
-                                                Mensaje
-                                            </button>
-                                        )}
-                                    </div>
+                            <div className="flex-1 min-w-0 pb-0.5">
+                                <h1 className="text-base font-bold text-gray-900 leading-tight truncate">{patient.full_name || 'Paciente'}</h1>
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
+                                    {scopes.share_contact && contactInfo?.email && (
+                                        <span className="flex items-center gap-1 text-[11px] text-gray-400">
+                                            <Mail size={10} />{contactInfo.email}
+                                        </span>
+                                    )}
+                                    {scopes.share_contact && contactInfo?.phone && (
+                                        <a href={`tel:${contactInfo.phone}`} className="flex items-center gap-1 text-[11px] text-gray-400 hover:text-primary transition-colors">
+                                            <Phone size={10} />{contactInfo.phone}
+                                        </a>
+                                    )}
+                                    {scopes.share_medical_notes && (medProfile?.insurance_provider || pProfile.insurance_provider) && (
+                                        <span className="flex items-center gap-1 text-[11px] text-teal-600 font-medium">
+                                            🏥 {medProfile?.insurance_provider || pProfile.insurance_provider}
+                                        </span>
+                                    )}
                                 </div>
+                            </div>
+                            {/* Access badge */}
+                            <div className="flex-shrink-0 pb-1">
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full">
+                                    <ShieldCheck size={10} /> Acceso autorizado
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -791,93 +773,77 @@ export default function PatientDetail() {
                     </div>
 
                     {/* Right Column */}
-                    <div className="space-y-4">
-                        {/* Combined stats + actions panel */}
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                            {/* Stats grid */}
-                            <div className="grid grid-cols-2 divide-x divide-gray-100 border-b border-gray-100">
+                    <div className="space-y-3">
+                        {/* Stats */}
+                        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
+                            <div className="grid grid-cols-2 divide-x divide-gray-100">
                                 {[
                                     { icon: StickyNote, label: 'Notas', value: notes.length, color: 'text-primary', bg: 'bg-primary/10', enabled: scopes.share_medical_notes, onClick: () => setActiveTab('notes') },
                                     { icon: FileText, label: 'Docs', value: documents.length + doctorDocs.length + patientSharedDocs.length, color: 'text-blue-600', bg: 'bg-blue-50', enabled: scopes.share_documents, onClick: () => setActiveTab('expediente') },
                                 ].map((s, i) => (
                                     <button
                                         key={i}
-                                        onClick={s.onClick ?? undefined}
-                                        disabled={!s.onClick || !s.enabled}
-                                        className={`flex flex-col items-center gap-1.5 py-4 transition-all ${s.enabled ? 'hover:bg-gray-50 cursor-pointer' : 'cursor-default'}`}
+                                        onClick={s.enabled ? s.onClick : undefined}
+                                        disabled={!s.enabled}
+                                        className={`flex flex-col items-center gap-1 py-4 transition-all ${s.enabled ? 'hover:bg-gray-50 cursor-pointer' : 'cursor-default opacity-50'}`}
                                     >
-                                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${s.bg} ${s.color}`}>
-                                            <s.icon size={16} />
+                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${s.bg} ${s.color} mb-0.5`}>
+                                            <s.icon size={15} />
                                         </div>
-                                        <span className={`text-2xl font-black ${s.enabled ? 'text-gray-900' : 'text-gray-300'}`}>{s.enabled ? s.value : '—'}</span>
+                                        <span className="text-xl font-black text-gray-900">{s.enabled ? s.value : '—'}</span>
                                         <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">{s.label}</span>
                                     </button>
                                 ))}
                             </div>
-                            {/* Last note timestamp */}
                             {scopes.share_medical_notes && notes.length > 0 && (
-                                <div className="px-4 py-2 flex items-center gap-1.5 text-[11px] text-gray-400 border-b border-gray-50 bg-gray-50/50">
-                                    <Clock size={11} />
+                                <div className="px-3 py-2 flex items-center gap-1.5 text-[10px] text-gray-400 bg-gray-50/60 border-t border-gray-100">
+                                    <Clock size={10} />
                                     Última nota: {new Date(notes[0].created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
                                 </div>
                             )}
-                            {/* Action buttons */}
-                            <div className="p-3 space-y-1.5">
-                                {scopes.share_contact && (
-                                    <button
-                                        onClick={() => navigate(mapDashboardPath(`/dashboard/mensajes?with=${patient.id}`))}
-                                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-primary/5 hover:text-primary rounded-xl transition-all group border border-transparent hover:border-primary/20"
-                                    >
-                                        <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                                            <MessageSquare size={15} />
-                                        </div>
-                                        Enviar Mensaje
-                                        <ChevronRight size={14} className="ml-auto text-gray-300 group-hover:text-primary/50" />
-                                    </button>
-                                )}
-                                {scopes.share_medical_notes && (
-                                    <button
-                                        onClick={() => setActiveTab('notes')}
-                                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-primary/5 hover:text-primary rounded-xl transition-all group border border-transparent hover:border-primary/20"
-                                    >
-                                        <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                                            <StickyNote size={15} />
-                                        </div>
-                                        Nueva Nota Clínica
-                                        <ChevronRight size={14} className="ml-auto text-gray-300 group-hover:text-primary/50" />
-                                    </button>
-                                )}
-                                {scopes.share_documents && (
-                                    <button
-                                        onClick={() => setActiveTab('expediente')}
-                                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-primary/5 hover:text-primary rounded-xl transition-all group border border-transparent hover:border-primary/20"
-                                    >
-                                        <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                                            <FileText size={15} />
-                                        </div>
-                                        Ver Expediente
-                                        <ChevronRight size={14} className="ml-auto text-gray-300 group-hover:text-primary/50" />
-                                    </button>
-                                )}
-                            </div>
+                        </div>
+
+                        {/* Quick actions */}
+                        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm divide-y divide-gray-50">
+                            {scopes.share_medical_notes && (
+                                <button
+                                    onClick={() => setActiveTab('notes')}
+                                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-primary/5 hover:text-primary transition-all group"
+                                >
+                                    <div className="w-7 h-7 rounded-lg bg-primary/8 flex items-center justify-center text-primary shrink-0">
+                                        <StickyNote size={14} />
+                                    </div>
+                                    Nueva nota clínica
+                                    <ChevronRight size={13} className="ml-auto text-gray-300 group-hover:text-primary/60 transition-colors" />
+                                </button>
+                            )}
+                            {scopes.share_documents && (
+                                <button
+                                    onClick={() => setActiveTab('expediente')}
+                                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-primary/5 hover:text-primary transition-all group"
+                                >
+                                    <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500 shrink-0">
+                                        <FileText size={14} />
+                                    </div>
+                                    Ver expediente
+                                    <ChevronRight size={13} className="ml-auto text-gray-300 group-hover:text-primary/60 transition-colors" />
+                                </button>
+                            )}
                         </div>
 
                         {/* Insurance */}
                         {scopes.share_medical_notes && (medProfile?.insurance_provider || pProfile.insurance_provider) && (
-                            <div className="bg-gradient-to-br from-teal-500 to-cyan-600 rounded-2xl p-5 text-white">
-                                <p className="text-[10px] font-bold uppercase tracking-widest text-teal-100 mb-1">Seguro Médico</p>
-                                <p className="text-base font-bold mt-1">{medProfile?.insurance_provider || pProfile.insurance_provider}</p>
-                                <div className="mt-3 flex items-center justify-between">
-                                    <span className="text-xs text-teal-100">Cobertura activa</span>
-                                    <span className="text-[10px] font-bold bg-white/20 px-2 py-0.5 rounded-full">ACTIVO</span>
-                                </div>
+                            <div className="bg-white rounded-2xl border border-teal-100 p-4">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-teal-500 mb-1">Seguro médico</p>
+                                <p className="text-sm font-bold text-gray-900">{medProfile?.insurance_provider || pProfile.insurance_provider}</p>
+                                <span className="inline-block mt-2 text-[10px] font-bold text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full">Cobertura activa</span>
                             </div>
                         )}
 
                         {/* Privacy badge */}
-                        <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl">
-                            <Lock size={13} className="text-gray-400 flex-shrink-0" />
-                            <p className="text-[11px] text-gray-400 leading-snug">Datos cifrados con AES-256. Solo tú puedes ver este expediente.</p>
+                        <div className="flex items-center gap-2 px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl">
+                            <Lock size={12} className="text-gray-300 flex-shrink-0" />
+                            <p className="text-[10px] text-gray-400 leading-snug">Cifrado AES-256. Solo tú ves este expediente.</p>
                         </div>
                     </div>
                 </div>

@@ -224,7 +224,9 @@ serve(async (req: Request) => {
       return new Response(null, { status: 204 });
     }
 
-    // Determine filename — Twilio sends the original filename in Body for media messages
+    // Determine filename — prefer Content-Disposition from Twilio media response,
+    // fall back to Body field (Twilio also puts original filename there for documents),
+    // then fall back to a generated name.
     const timestamp = Date.now();
     const extMap: Record<string, string> = {
       "application/pdf": "pdf",
@@ -235,12 +237,24 @@ serve(async (req: Request) => {
     };
     const ext = extMap[mimeType] ?? "bin";
     const type = mimeType.startsWith("image/") ? "image" : "document";
-    // Body contains original filename when patient sends a file (e.g. "receta.pdf", "hp.jpeg")
-    const bodyText = (params.get("Body") ?? "").trim();
-    const looksLikeFilename = bodyText.length > 0 && bodyText.length <= 200 && /\.[a-zA-Z0-9]{2,5}$/.test(bodyText);
-    const filename = looksLikeFilename
-      ? sanitizeFilename(bodyText)
-      : sanitizeFilename(`whatsapp_${type}_${timestamp}.${ext}`);
+
+    // 1. Content-Disposition: attachment; filename="original.pdf"
+    let filename: string | null = null;
+    const contentDisposition = fileRes.headers.get("content-disposition") ?? "";
+    const cdMatch = contentDisposition.match(/filename\*?=(?:UTF-8'')?["']?([^"';\r\n]+)["']?/i);
+    if (cdMatch?.[1]) {
+      filename = sanitizeFilename(decodeURIComponent(cdMatch[1].trim()));
+    }
+
+    // 2. Body field (Twilio puts original filename here for document messages)
+    if (!filename) {
+      const bodyText = (params.get("Body") ?? "").trim();
+      const looksLikeFilename = bodyText.length > 0 && bodyText.length <= 200 && /\.[a-zA-Z0-9]{2,5}$/.test(bodyText);
+      if (looksLikeFilename) filename = sanitizeFilename(bodyText);
+    }
+
+    // 3. Fallback: generated name
+    if (!filename) filename = sanitizeFilename(`whatsapp_${type}_${timestamp}.${ext}`);
 
     // Build phone variants for DB lookups
     // MX numbers: Twilio may send 521XXXXXXXXXX (with mobile 1) or 52XXXXXXXXXX
