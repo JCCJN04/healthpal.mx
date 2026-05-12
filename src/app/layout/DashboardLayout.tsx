@@ -36,13 +36,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        {/* Header - Sticky */}
-        <div className="sticky top-0 z-20 flex-shrink-0">
+        {/* Header - Fixed on mobile, sticky on desktop */}
+        <div className="fixed top-0 left-0 right-0 z-20 lg:static lg:z-auto flex-shrink-0">
           <Header onMenuClick={() => setSidebarOpen(true)} />
         </div>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto pt-14 md:pt-16 lg:pt-0">
           <div className="p-4 md:p-6 lg:p-8">
             {children}
           </div>

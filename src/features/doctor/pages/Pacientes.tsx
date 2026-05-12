@@ -481,7 +481,7 @@ export default function Pacientes() {
                     onChange={e => setDocReqPhone(e.target.value)}
                     placeholder="52 81 XXXX XXXX"
                     required
-                    className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#25D366]/30 focus:border-[#25D366]"
+                    className="w-full pl-9 pr-3 py-2.5 text-base sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#25D366]/30 focus:border-[#25D366]"
                   />
                 </div>
               </div>
@@ -492,7 +492,7 @@ export default function Pacientes() {
                   value={docReqEmail}
                   onChange={e => setDocReqEmail(e.target.value)}
                   placeholder="paciente@correo.com"
-                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="w-full px-3 py-2.5 text-base sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
               </div>
               <div>
@@ -504,7 +504,7 @@ export default function Pacientes() {
                   onChange={e => setDocReqType(e.target.value)}
                   placeholder="Ej. Análisis de sangre, Radiografía…"
                   required
-                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="w-full px-3 py-2.5 text-base sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
                 <datalist id="doc-type-options">
                   <option value="Análisis de sangre completo" />

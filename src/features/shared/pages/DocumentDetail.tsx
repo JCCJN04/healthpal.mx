@@ -422,7 +422,7 @@ export default function DocumentDetail() {
           {/* Back */}
           <button
             onClick={handleBack}
-            className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-primary transition-colors mb-4 group"
+            className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-primary transition-colors mb-2 group py-3 pr-4 -ml-1 min-h-[44px]"
           >
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
             Documentos

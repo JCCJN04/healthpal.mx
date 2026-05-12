@@ -115,7 +115,7 @@ const SecurityCard = ({ lastPasswordChange, onUpdatePassword }: SecurityCardProp
         {/* Content */}
         <div className="p-6 space-y-6">
           {/* Password Section */}
-          <div className="flex items-start justify-between pb-6 border-b border-gray-100">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 pb-6 border-b border-gray-100">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
                 <Key className="w-5 h-5 text-gray-400" />
@@ -130,7 +130,7 @@ const SecurityCard = ({ lastPasswordChange, onUpdatePassword }: SecurityCardProp
             </div>
             <button
               onClick={() => setShowPasswordModal(true)}
-              className="px-5 py-2.5 bg-[#33C7BE] text-white text-sm font-semibold rounded-lg hover:bg-teal-600 transition-colors shadow-sm"
+              className="w-full sm:w-auto px-5 py-2.5 bg-[#33C7BE] text-white text-sm font-semibold rounded-lg hover:bg-teal-600 transition-colors shadow-sm"
             >
               Actualizar contraseña
             </button>
@@ -203,7 +203,7 @@ const SecurityCard = ({ lastPasswordChange, onUpdatePassword }: SecurityCardProp
                     setUpdateError(null);
                   }}
                   disabled={isUpdating || updateSuccess}
-                  className={`w-full px-4 py-3 border rounded-lg outline-none transition-colors disabled:bg-gray-50 disabled:cursor-not-allowed ${
+                  className={`w-full px-4 py-3 text-base border rounded-lg outline-none transition-colors disabled:bg-gray-50 disabled:cursor-not-allowed ${
                     errors.newPassword
                       ? 'border-red-300 focus:border-red-500'
                       : 'border-gray-200 focus:border-[#33C7BE]'
@@ -239,7 +239,7 @@ const SecurityCard = ({ lastPasswordChange, onUpdatePassword }: SecurityCardProp
                     setUpdateError(null);
                   }}
                   disabled={isUpdating || updateSuccess}
-                  className={`w-full px-4 py-3 border rounded-lg outline-none transition-colors disabled:bg-gray-50 disabled:cursor-not-allowed ${
+                  className={`w-full px-4 py-3 text-base border rounded-lg outline-none transition-colors disabled:bg-gray-50 disabled:cursor-not-allowed ${
                     errors.confirmPassword
                       ? 'border-red-300 focus:border-red-500'
                       : 'border-gray-200 focus:border-[#33C7BE]'
