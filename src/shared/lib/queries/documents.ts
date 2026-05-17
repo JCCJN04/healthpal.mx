@@ -6,6 +6,14 @@ import type { Database } from '@/shared/types/database'
 import { isDemoMode } from '@/context/DemoContext'
 import { demoDocuments } from '@/data/demoData'
 import { DEMO_DOCTOR_EMAIL, DEMO_DOCTOR_PASSWORD, DEMO_PATIENT_IDS } from '@/data/demoConfig'
+import {
+  generateDocumentKey,
+  encryptFile,
+  wrapDocumentKey,
+  unwrapDocumentKey,
+  decryptFileBuffer,
+  importPublicKey,
+} from '@/shared/lib/crypto'
 
 const DEMO_DOCUMENTS_KEY = 'healthpal:demo:documents'
 const DEMO_FOLDERS_KEY = 'healthpal:demo:folders'
@@ -160,10 +168,11 @@ async function resolveDocumentStoragePath(input: DocumentPathInput): Promise<str
     
     try {
       const folderPath = `${input.owner_id}/${input.id}`
-      const { data } = await supabase.storage.from('documents').list(folderPath, { limit: 1 })
-      
-      if (data && data.length > 0 && data[0].name) {
-        return `${folderPath}/${data[0].name}`
+      const { data } = await supabase.storage.from('documents').list(folderPath, { limit: 10 })
+
+      const realFile = (data || []).find(f => f.name && !f.name.startsWith('.'))
+      if (realFile) {
+        return `${folderPath}/${realFile.name}`
       }
     } catch (e) {
       // Silently fallback to default path
@@ -1583,7 +1592,7 @@ export async function getDocumentsSharedByPatientWithDoctor(
       return []
     }
 
-     
+
     return (data || [])
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .map((row: any) => row.document as Document)
@@ -1591,5 +1600,319 @@ export async function getDocumentsSharedByPatientWithDoctor(
   } catch (err) {
     logger.error('getDocumentsSharedByPatientWithDoctor', err)
     return []
+  }
+}
+
+// ─── E2E Encrypted document functions ───────────────────────────────────────
+// These functions require crypto keys to be passed as parameters (no hooks).
+// Keys come from CryptoContext in the calling component.
+
+// Manual type for user_crypto_keys row (not yet in auto-generated types)
+interface UserCryptoKeyRow {
+  public_key_spki: string
+}
+
+// Manual type for document_keys row
+interface DocumentKeyRow {
+  wrapped_key: string
+  doc_iv: string
+}
+
+/**
+ * Upload a file with client-side AES-256-GCM encryption.
+ * The raw file never leaves the browser unencrypted.
+ * Admin cannot read the file without the user's RSA private key.
+ */
+export async function uploadDocumentEncrypted(
+  file: File,
+  userId: string,
+  publicKey: CryptoKey,
+  metadata: {
+    title: string
+    category: Database['public']['Enums']['doc_category']
+    notes?: string
+    folderId?: string | null
+    patientId?: string | null
+  }
+): Promise<{ success: boolean; documentId?: string; error?: string }> {
+  if (isDemoMode()) {
+    // Demo mode — fall back to plain upload
+    return uploadDocument(file, userId, metadata)
+  }
+
+  try {
+    // 1. Generate a fresh AES-256-GCM document key
+    const docKey = await generateDocumentKey()
+
+    // 2. Encrypt the file
+    const { encryptedData, docIv } = await encryptFile(file, docKey)
+
+    // 3. Wrap the document key with the user's RSA public key
+    const wrappedKey = await wrapDocumentKey(docKey, publicKey)
+
+    // 4. Determine document ID and storage path
+    const documentId = crypto.randomUUID()
+    const filePath = buildDeterministicDocumentPath(userId, documentId)
+
+    // 5. Upload the encrypted blob
+    const encryptedBlob = new Blob([encryptedData], { type: file.type || 'application/octet-stream' })
+    const { error: uploadError } = await supabase.storage
+      .from('documents')
+      .upload(filePath, encryptedBlob)
+
+    if (uploadError) {
+      logger.error('uploadDocumentEncrypted.storage', uploadError)
+      return { success: false, error: uploadError.message }
+    }
+
+    // 6. Insert document record with is_encrypted flag
+    const { error: dbError } = await supabase
+      .from('documents')
+      .insert({
+        id: documentId,
+        owner_id: userId,
+        patient_id: metadata.patientId || userId,
+        uploaded_by: userId,
+        title: metadata.title || file.name,
+        category: metadata.category,
+        mime_type: file.type,
+        file_size: file.size,
+        notes: metadata.notes || null,
+        folder_id: metadata.folderId || null,
+        is_encrypted: true,
+      })
+
+    if (dbError) {
+      logger.error('uploadDocumentEncrypted.db', dbError)
+      await supabase.storage.from('documents').remove([filePath])
+      return { success: false, error: dbError.message }
+    }
+
+    // 7. Store the wrapped document key for this user
+    const { error: keyError } = await supabase
+      .from('document_keys')
+      .insert({
+        document_id: documentId,
+        user_id: userId,
+        wrapped_key: wrappedKey,
+        doc_iv: docIv,
+      })
+
+    if (keyError) {
+      logger.error('uploadDocumentEncrypted.document_keys', keyError)
+      // Non-fatal: document is uploaded but won't be decryptable without the key.
+      // Clean up to avoid orphan.
+      await supabase.from('documents').delete().eq('id', documentId)
+      await supabase.storage.from('documents').remove([filePath])
+      return { success: false, error: 'No se pudo guardar la clave del documento' }
+    }
+
+    return { success: true, documentId }
+  } catch (err) {
+    logger.error('uploadDocumentEncrypted', err)
+    return { success: false, error: 'Error inesperado al cifrar y subir el documento' }
+  }
+}
+
+/**
+ * Decrypt and return an object URL for previewing an encrypted document.
+ * The caller is responsible for revoking the URL after use.
+ */
+export async function getDecryptedDocumentUrl(
+  pathOrDocument: DocumentPathInput & { id?: string | null; is_encrypted?: boolean; mime_type?: string | null },
+  privateKey: CryptoKey
+): Promise<string | null> {
+  if (isDemoMode()) return null
+
+  try {
+    if (!pathOrDocument || typeof pathOrDocument !== 'object') return null
+
+    const documentId = pathOrDocument.id
+    const mimeType = pathOrDocument.mime_type || 'application/octet-stream'
+
+    if (!documentId) {
+      logger.error('getDecryptedDocumentUrl: missing document id')
+      return null
+    }
+
+    // Resolve storage path
+    const resolvedPath = await resolveDocumentStoragePath(pathOrDocument)
+    if (!resolvedPath) return null
+
+    // Download the encrypted blob
+    const { data: blob, error: downloadError } = await supabase.storage
+      .from('documents')
+      .download(resolvedPath)
+
+    if (downloadError || !blob) {
+      logger.error('getDecryptedDocumentUrl.download', downloadError)
+      return null
+    }
+
+    // Fetch document key row
+    const { data: keyRow, error: keyError } = await supabase
+      .from('document_keys')
+      .select('wrapped_key, doc_iv')
+      .eq('document_id', documentId)
+      .maybeSingle()
+
+    if (keyError || !keyRow) {
+      logger.error('getDecryptedDocumentUrl.document_keys', keyError)
+      return null
+    }
+
+    const { wrapped_key, doc_iv } = keyRow as DocumentKeyRow
+
+    // Unwrap the AES document key
+    const docKey = await unwrapDocumentKey(wrapped_key, privateKey)
+
+    // Decrypt the file buffer
+    const encryptedBuffer = await blob.arrayBuffer()
+    const decryptedBuffer = await decryptFileBuffer(encryptedBuffer, doc_iv, docKey)
+
+    // Return a blob URL for preview
+    const decryptedBlob = new Blob([decryptedBuffer], { type: mimeType })
+    return URL.createObjectURL(decryptedBlob)
+  } catch (err) {
+    logger.error('getDecryptedDocumentUrl', err)
+    return null
+  }
+}
+
+/**
+ * Decrypt an encrypted document and trigger a browser download.
+ */
+export async function downloadDocumentFileDecrypted(
+  pathOrDocument: DocumentPathInput & { id?: string | null; mime_type?: string | null },
+  documentId: string,
+  mimeType: string,
+  fileName: string,
+  privateKey: CryptoKey
+): Promise<{ success: boolean; error?: string }> {
+  if (isDemoMode()) return { success: true }
+
+  try {
+    const resolvedPath = await resolveDocumentStoragePath(pathOrDocument)
+    if (!resolvedPath) {
+      return { success: false, error: 'No se pudo resolver la ruta del archivo' }
+    }
+
+    // Download the encrypted blob
+    const { data: blob, error: downloadError } = await supabase.storage
+      .from('documents')
+      .download(resolvedPath)
+
+    if (downloadError || !blob) {
+      logger.error('downloadDocumentFileDecrypted.download', downloadError)
+      return { success: false, error: 'No se pudo descargar el archivo cifrado' }
+    }
+
+    // Fetch document key row
+    const { data: keyRow, error: keyError } = await supabase
+      .from('document_keys')
+      .select('wrapped_key, doc_iv')
+      .eq('document_id', documentId)
+      .maybeSingle()
+
+    if (keyError || !keyRow) {
+      logger.error('downloadDocumentFileDecrypted.document_keys', keyError)
+      return { success: false, error: 'No se encontró la clave del documento' }
+    }
+
+    const { wrapped_key, doc_iv } = keyRow as DocumentKeyRow
+
+    // Unwrap the AES document key
+    const docKey = await unwrapDocumentKey(wrapped_key, privateKey)
+
+    // Decrypt the file buffer
+    const encryptedBuffer = await blob.arrayBuffer()
+    const decryptedBuffer = await decryptFileBuffer(encryptedBuffer, doc_iv, docKey)
+
+    // Trigger download
+    const decryptedBlob = new Blob([decryptedBuffer], { type: mimeType })
+    const url = URL.createObjectURL(decryptedBlob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    return { success: true }
+  } catch (err) {
+    logger.error('downloadDocumentFileDecrypted', err)
+    return { success: false, error: 'Error al descifrar o descargar el documento' }
+  }
+}
+
+/**
+ * Share an encrypted document with another user.
+ * Re-wraps the document AES key with the recipient's RSA public key.
+ * Must be called in addition to (or instead of) shareDocumentWithUser for encrypted docs.
+ */
+export async function shareEncryptedDocumentKey(
+  documentId: string,
+  senderPrivateKey: CryptoKey,
+  recipientUserId: string
+): Promise<{ success: boolean; error?: string }> {
+  if (isDemoMode()) return { success: true }
+
+  try {
+    // 1. Fetch sender's wrapped key for this document
+    const { data: keyRow, error: keyError } = await supabase
+      .from('document_keys')
+      .select('wrapped_key, doc_iv')
+      .eq('document_id', documentId)
+      .maybeSingle()
+
+    if (keyError || !keyRow) {
+      logger.error('shareEncryptedDocumentKey.senderKey', keyError)
+      return { success: false, error: 'No se encontró la clave del documento' }
+    }
+
+    const { wrapped_key, doc_iv } = keyRow as DocumentKeyRow
+
+    // 2. Unwrap sender's AES key
+    const docKey = await unwrapDocumentKey(wrapped_key, senderPrivateKey)
+
+    // 3. Fetch recipient's public key from DB
+    const { data: recipientCryptoRow, error: recipientKeyError } = await supabase
+      .from('user_public_keys')
+      .select('public_key_spki')
+      .eq('user_id', recipientUserId)
+      .maybeSingle()
+
+    if (recipientKeyError || !recipientCryptoRow) {
+      // Recipient has no crypto keys yet — skip key sharing silently
+      logger.warn('shareEncryptedDocumentKey: recipient has no crypto keys, skipping key share')
+      return { success: true }
+    }
+
+    const { public_key_spki } = recipientCryptoRow as UserCryptoKeyRow
+
+    // 4. Import recipient's public key and re-wrap the document key
+    const recipientPublicKey = await importPublicKey(public_key_spki)
+    const recipientWrappedKey = await wrapDocumentKey(docKey, recipientPublicKey)
+
+    // 5. Upsert the document key row for the recipient
+    const { error: insertError } = await supabase
+      .from('document_keys')
+      .upsert({
+        document_id: documentId,
+        user_id: recipientUserId,
+        wrapped_key: recipientWrappedKey,
+        doc_iv: doc_iv,
+      }, { onConflict: 'document_id,user_id' })
+
+    if (insertError) {
+      logger.error('shareEncryptedDocumentKey.insert', insertError)
+      return { success: false, error: insertError.message }
+    }
+
+    return { success: true }
+  } catch (err) {
+    logger.error('shareEncryptedDocumentKey', err)
+    return { success: false, error: 'No se pudo compartir la clave del documento' }
   }
 }

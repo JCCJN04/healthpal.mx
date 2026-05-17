@@ -4,6 +4,7 @@ import { User, Lock, CheckCircle, ArrowLeft } from 'lucide-react'
 import { supabase } from '@/shared/lib/supabase'
 import { showToast } from '@/shared/components/ui/Toast'
 import { logger } from '@/shared/lib/logger'
+import { useCrypto } from '@/context/CryptoContext'
 
 type UserRole = 'doctor' | 'patient'
 
@@ -17,6 +18,7 @@ interface FormErrors {
 export default function Register() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { setupCrypto } = useCrypto()
   const initialRole = (location.state as { role?: string })?.role === 'doctor' ? 'doctor' : 'patient'
   const [role, setRole] = useState<UserRole>(initialRole)
   const [email, setEmail] = useState('')
@@ -83,6 +85,8 @@ export default function Register() {
       if (data.user) {
         if (data.session) {
           showToast('Registro exitoso. Redirigiendo...', 'success')
+          // Set up E2E encryption keypair for new user (non-blocking — failure is safe)
+          setupCrypto(password, data.user.id).catch(() => {/* silently ignore */})
           navigate('/onboarding/role')
         } else {
           navigate('/verify-email', { state: { email }, replace: true })

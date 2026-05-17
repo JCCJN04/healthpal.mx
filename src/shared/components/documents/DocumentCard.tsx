@@ -8,7 +8,8 @@ import {
 import { Document as PdfDocument, Page as PdfPage, pdfjs } from 'react-pdf'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
-import { getDocumentDownloadUrl } from '@/shared/lib/queries/documents'
+import { getDocumentDownloadUrl, getDecryptedDocumentUrl } from '@/shared/lib/queries/documents'
+import { useCrypto } from '@/context/CryptoContext'
 import type { Database } from '@/shared/types/database'
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
@@ -205,7 +206,9 @@ export const DocumentCard = ({ document, onDelete, onDragStart, isMoving, onShar
   const [menuOpen, setMenuOpen] = useState(false)
   const [thumbUrl, setThumbUrl] = useState<string | null>(null)
   const cardRef = useRef<HTMLDivElement>(null)
+  const blobUrlRef = useRef<string | null>(null)
   const navigate = useNavigate()
+  const { privateKey } = useCrypto()
 
   const config = CATEGORY_CONFIG[document.category] ?? CATEGORY_CONFIG.other
   const isExternal = !!document.external_url
@@ -213,8 +216,9 @@ export const DocumentCard = ({ document, onDelete, onDragStart, isMoving, onShar
   const isSharedDoc = document.uploaded_by && document.uploaded_by !== document.owner_id
   const thumbType = isExternal ? null : getThumbnailType(document.mime_type)
   const hasThumbnail = thumbType !== null
+  const isEncrypted = !!(document as Document & { is_encrypted?: boolean }).is_encrypted
 
-  // Lazy-fetch the signed URL once the card enters the viewport
+  // Lazy-fetch the signed URL (or decrypted blob URL) once the card enters the viewport
   useEffect(() => {
     if (!hasThumbnail || isExternal) return
     const el = cardRef.current
@@ -224,9 +228,18 @@ export const DocumentCard = ({ document, onDelete, onDragStart, isMoving, onShar
       (entries) => {
         if (entries[0].isIntersecting) {
           observer.disconnect()
-          getDocumentDownloadUrl(document).then(url => {
-            if (url) setThumbUrl(url)
-          })
+          if (isEncrypted && privateKey) {
+            getDecryptedDocumentUrl(document, privateKey).then(url => {
+              if (url) {
+                blobUrlRef.current = url
+                setThumbUrl(url)
+              }
+            })
+          } else {
+            getDocumentDownloadUrl(document).then(url => {
+              if (url) setThumbUrl(url)
+            })
+          }
         }
       },
       { threshold: 0.05, rootMargin: '100px' },
@@ -234,7 +247,14 @@ export const DocumentCard = ({ document, onDelete, onDragStart, isMoving, onShar
     observer.observe(el)
     return () => observer.disconnect()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [document.id, hasThumbnail, isExternal])
+  }, [document.id, hasThumbnail, isExternal, isEncrypted, privateKey])
+
+  // Revoke blob URL on unmount to free memory
+  useEffect(() => {
+    return () => {
+      if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current)
+    }
+  }, [])
 
   const handleAbrir = (e?: React.MouseEvent) => {
     e?.stopPropagation()
