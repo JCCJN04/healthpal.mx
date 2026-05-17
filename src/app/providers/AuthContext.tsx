@@ -358,6 +358,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Always remove the activity timestamp so the next session starts clean
     try { localStorage.removeItem(LAST_ACTIVE_KEY) } catch { /* ignore */ }
 
+    // Notify CryptoContext to clear in-memory keys (avoids circular import)
+    window.dispatchEvent(new Event('healthpal:signout'))
+
     if (isDemoMode()) {
       try {
         await supabase.auth.signOut()

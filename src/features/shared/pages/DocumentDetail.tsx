@@ -28,10 +28,11 @@ import { DocumentViewer } from '@/shared/components/documents/DocumentViewer'
 import { NotesPanel } from '@/shared/components/documents/NotesPanel'
 import { ShareModal } from '@/shared/components/documents/ShareModal'
 import { RenameDocumentModal, MoveDocumentModal } from '@/shared/components/documents/DocumentModals'
-import { getDocumentById, getDocumentDownloadUrl, deleteDocument, updateDocument, downloadDocumentFile, shareDocumentWithUser, buildDeterministicDocumentPath } from '@/shared/lib/queries/documents'
+import { getDocumentById, getDocumentDownloadUrl, deleteDocument, updateDocument, downloadDocumentFile, shareDocumentWithUser, buildDeterministicDocumentPath, getDecryptedDocumentUrl, downloadDocumentFileDecrypted } from '@/shared/lib/queries/documents'
 import { showToast } from '@/shared/components/ui/Toast'
 import { extractDocumentInfo } from '@/shared/lib/gemini'
 import { useAuth } from '@/app/providers/AuthContext'
+import { useCrypto } from '@/context/CryptoContext'
 import { logger } from '@/shared/lib/logger'
 import type { Database } from '@/shared/types/database'
 
@@ -41,6 +42,7 @@ export default function DocumentDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { user, profile } = useAuth()
+  const { privateKey } = useCrypto()
   const [menuOpen, setMenuOpen] = useState(false)
   const [shareModalOpen, setShareModalOpen] = useState(false)
   const [renameModalOpen, setRenameModalOpen] = useState(false)
@@ -57,6 +59,7 @@ export default function DocumentDetail() {
     if (id) {
       loadDocumentData(id)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
   const loadDocumentData = async (docId: string) => {
@@ -68,6 +71,14 @@ export default function DocumentDetail() {
         setDocument(doc)
         if (doc.external_url) {
           setFileUrl(doc.external_url)
+        } else if ((doc as Document & { is_encrypted?: boolean }).is_encrypted && privateKey) {
+          // Encrypted document: decrypt in-browser before preview
+          const url = await getDecryptedDocumentUrl(doc, privateKey)
+          if (url) {
+            setFileUrl(url)
+          } else {
+            setLoadError(true)
+          }
         } else {
           const url = await getDocumentDownloadUrl(doc)
           if (url) {
@@ -160,9 +171,25 @@ export default function DocumentDetail() {
   const handleDownload = async () => {
     if (!document) return
 
-    // Use the new blob download method to force download
-    const result = await downloadDocumentFile(document, document.title)
+    const isEncrypted = (document as Document & { is_encrypted?: boolean }).is_encrypted
 
+    if (isEncrypted && privateKey) {
+      // Decrypt in-browser before download
+      const result = await downloadDocumentFileDecrypted(
+        document,
+        document.id,
+        document.mime_type || 'application/octet-stream',
+        document.title,
+        privateKey
+      )
+      if (!result.success) {
+        showToast(result.error || 'No se pudo descargar el documento cifrado', 'error')
+      }
+      return
+    }
+
+    // Plain (non-encrypted) document
+    const result = await downloadDocumentFile(document, document.title)
     if (!result.success) {
       showToast(result.error || 'No se pudo descargar el documento', 'error')
     }

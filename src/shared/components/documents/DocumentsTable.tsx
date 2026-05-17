@@ -37,6 +37,7 @@ interface DocumentsTableProps {
   onMoveDocument?: (docId: string, folderId: string | null) => void
   movingDocId?: string | null
   onShareDocument?: (docId: string, title: string) => void
+  onPreview?: (doc: Document) => void
 }
 
 const getFileIcon = (mimeType: string | null) => {
@@ -75,9 +76,18 @@ const formatDate = (dateString: string) => {
   })
 }
 
-const DocumentRow = ({ doc, onDelete, onMoveDocument, movingDocId: _movingDocId, onShare }: { doc: Document; onDelete: (id: string) => void; onMoveDocument?: (id: string, folderId: string | null) => void; movingDocId?: string | null; onShare?: (docId: string, title: string) => void }) => {
+const DocumentRow = ({ doc, onDelete, onMoveDocument, movingDocId: _movingDocId, onShare, onPreview }: { doc: Document; onDelete: (id: string) => void; onMoveDocument?: (id: string, folderId: string | null) => void; movingDocId?: string | null; onShare?: (docId: string, title: string) => void; onPreview?: (doc: Document) => void }) => {
   const [menuOpen, setMenuOpen] = useState(false)
   const navigate = useNavigate()
+
+  const handleOpen = () => {
+    if (onPreview) {
+      onPreview(doc)
+    } else {
+      navigate(`/dashboard/documentos/${doc.id}`)
+    }
+    setMenuOpen(false)
+  }
 
   const handleDownload = async () => {
     const url = await getDocumentDownloadUrl(doc)
@@ -110,7 +120,7 @@ const DocumentRow = ({ doc, onDelete, onMoveDocument, movingDocId: _movingDocId,
             {getFileIcon(doc.mime_type)}
           </div>
           <button
-            onClick={() => navigate(`/dashboard/documentos/${doc.id}`)}
+            onClick={handleOpen}
             className="text-xs md:text-sm text-gray-900 font-medium hover:text-[#33C7BE] transition-colors text-left truncate"
           >
             {doc.title}
@@ -139,10 +149,7 @@ const DocumentRow = ({ doc, onDelete, onMoveDocument, movingDocId: _movingDocId,
             />
             <div className="absolute right-6 top-12 z-20 w-40 bg-white rounded-lg shadow-lg border border-gray-200 py-1">
               <button
-                onClick={() => {
-                  navigate(`/dashboard/documentos/${doc.id}`)
-                  setMenuOpen(false)
-                }}
+                onClick={handleOpen}
                 className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
               >
                 <Eye size={16} />
@@ -271,7 +278,7 @@ const FolderRow = ({ folder, onClick, onMoveDocument }: { folder: Folder; onClic
   )
 }
 
-export default function DocumentsTable({ documents, folders = [], onDelete, onFolderClick, onMoveDocument, movingDocId, onShareDocument }: DocumentsTableProps) {
+export default function DocumentsTable({ documents, folders = [], onDelete, onFolderClick, onMoveDocument, movingDocId, onShareDocument, onPreview }: DocumentsTableProps) {
   return (
     <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
       <div className="overflow-x-auto">
@@ -302,7 +309,7 @@ export default function DocumentsTable({ documents, folders = [], onDelete, onFo
               />
             ))}
             {documents.map((doc) => (
-              <DocumentRow key={doc.id} doc={doc} onDelete={onDelete} onMoveDocument={onMoveDocument} movingDocId={movingDocId} onShare={onShareDocument} />
+              <DocumentRow key={doc.id} doc={doc} onDelete={onDelete} onMoveDocument={onMoveDocument} movingDocId={movingDocId} onShare={onShareDocument} onPreview={onPreview} />
             ))}
           </tbody>
         </table>

@@ -4,10 +4,12 @@ import { User, Lock, ArrowLeft } from 'lucide-react'
 import { supabase } from '@/shared/lib/supabase'
 import { showToast } from '@/shared/components/ui/Toast'
 import { useAuth } from '@/app/providers/AuthContext'
+import { useCrypto } from '@/context/CryptoContext'
 
 export default function Login() {
   const navigate = useNavigate()
   const { user, loading: authLoading } = useAuth()
+  const { initializeCrypto } = useCrypto()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({})
@@ -75,6 +77,8 @@ export default function Login() {
       }
 
       showToast('Inicio de sesión exitoso', 'success')
+      // Initialize E2E encryption keys in memory (non-blocking — failure is safe)
+      initializeCrypto(password, data.user.id).catch(() => {/* silently ignore */})
       navigate('/dashboard')
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

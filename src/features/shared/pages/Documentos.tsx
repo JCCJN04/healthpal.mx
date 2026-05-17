@@ -8,7 +8,8 @@ import { DocumentPreviewModal } from '@/shared/components/documents/DocumentPrev
 import { ShareModal, type KnownDoctor } from '@/shared/components/documents/ShareModal'
 import { AccessPanel } from '@/shared/components/documents/AccessPanel'
 import { useAuth } from '@/app/providers/AuthContext'
-import { getUserDocuments, getDocumentsSharedWithMe, getDocumentsSharedByMeWith, uploadDocument, deleteDocument, getFolders, createFolder, deleteFolder, updateFolder, updateDocument, shareDocumentWithUser, saveExternalUrlDocument, findProfileByEmail } from '@/shared/lib/queries/documents'
+import { getUserDocuments, getDocumentsSharedWithMe, getDocumentsSharedByMeWith, uploadDocument, uploadDocumentEncrypted, deleteDocument, getFolders, createFolder, deleteFolder, updateFolder, updateDocument, shareDocumentWithUser, saveExternalUrlDocument, findProfileByEmail } from '@/shared/lib/queries/documents'
+import { useCrypto } from '@/context/CryptoContext'
 import { getPatientDoctorAccess, getDoctorConsentRequests, requestPatientAccess, reRequestAccess } from '@/shared/lib/queries/consent'
 import { createDocumentRequest, getFulfilledRequestDocsByPatient, getPatientsWithFulfilledRequests } from '@/shared/lib/queries/documentRequests'
 import { showToast } from '@/shared/components/ui/Toast'
@@ -65,6 +66,7 @@ function getCategoryIcon(value: string) {
 
 export default function Documentos() {
   const { user, profile } = useAuth()
+  const { publicKey: cryptoPublicKey } = useCrypto()
   const [view, setView] = useState<'list' | 'grid'>('grid')
   const [documents, setDocuments] = useState<Document[]>([])
   const [folders, setFolders] = useState<Folder[]>([])
@@ -388,13 +390,16 @@ export default function Documentos() {
 
     setUploading(true)
     const patientIdForUpload = currentFolder.id?.startsWith('shared-') ? currentFolder.id.replace('shared-', '') : null
-    const result = await uploadDocument(uploadForm.file, user.id, {
+    const uploadMeta = {
       title: uploadForm.title || uploadForm.file.name,
       category: uploadForm.category,
       notes: uploadForm.notes,
       folderId: patientIdForUpload ? null : currentFolder.id,
       patientId: patientIdForUpload,
-    })
+    }
+    const result = cryptoPublicKey
+      ? await uploadDocumentEncrypted(uploadForm.file, user.id, cryptoPublicKey, uploadMeta)
+      : await uploadDocument(uploadForm.file, user.id, uploadMeta)
 
     if (result.success && result.documentId) {
       setUploadModalOpen(false)

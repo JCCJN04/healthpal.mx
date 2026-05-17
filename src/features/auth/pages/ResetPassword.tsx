@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { Lock, Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react';
 import Button from '@/shared/components/ui/Button';
 import { supabase } from '@/shared/lib/supabase';
+import { useCrypto } from '@/context/CryptoContext';
 
 export default function ResetPassword() {
   const navigate = useNavigate();
+  const { reEncryptPrivateKey } = useCrypto();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -53,10 +55,15 @@ export default function ResetPassword() {
       const { error: updateError } = await supabase.auth.updateUser({
         password: password
       });
-      
+
       if (updateError) {
         setError(updateError.message || 'Error al actualizar la contraseña');
       } else {
+        // Re-encrypt the RSA private key with the new password (non-blocking)
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          reEncryptPrivateKey(password, user.id).catch(() => {/* silently ignore */});
+        }
         setSuccess(true);
         setTimeout(() => {
           navigate('/login');

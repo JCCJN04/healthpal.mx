@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom'
 import { Suspense, lazy } from 'react'
 import { Analytics } from '@vercel/analytics/react'
 import { AuthProvider } from '@/app/providers/AuthContext'
+import { CryptoProvider } from '@/context/CryptoContext'
 import RequireAuth from '@/features/auth/components/RequireAuth'
 import RequireOnboarding from '@/features/auth/components/RequireOnboarding'
 import RequireRole from '@/features/auth/components/RequireRole'
@@ -53,6 +54,7 @@ const PageLoader = () => (
 function App() {
 
   return (
+    <CryptoProvider>
     <AuthProvider>
       <Analytics />
       <ToastContainer />
@@ -92,6 +94,7 @@ function App() {
         <Route path="/dashboard/configuracion" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><Configuracion /></Suspense></RequireOnboarding></RequireAuth>} />
       </Routes>
     </AuthProvider>
+    </CryptoProvider>
   )
 }
 

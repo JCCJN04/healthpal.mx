@@ -6,8 +6,9 @@ import {
   Activity, Pill, FileText, Microscope, ShieldCheck, FolderOpen,
 } from 'lucide-react'
 import { DocumentViewer } from './DocumentViewer'
-import { getDocumentDownloadUrl, downloadDocumentFile } from '@/shared/lib/queries/documents'
+import { getDocumentDownloadUrl, getDecryptedDocumentUrl, downloadDocumentFile, downloadDocumentFileDecrypted } from '@/shared/lib/queries/documents'
 import { showToast } from '@/shared/components/ui/Toast'
+import { useCrypto } from '@/context/CryptoContext'
 import type { Database } from '@/shared/types/database'
 
 type Document = Database['public']['Tables']['documents']['Row']
@@ -48,6 +49,7 @@ function getFileType(mimeType: string | null, title?: string | null): 'pdf' | 'i
 
 export function DocumentPreviewModal({ document, onClose, onShare }: DocumentPreviewModalProps) {
   const navigate = useNavigate()
+  const { privateKey } = useCrypto()
   const [fileUrl, setFileUrl] = useState<string | null>(null)
   const [urlLoading, setUrlLoading] = useState(false)
   const [loadError, setLoadError] = useState(false)
@@ -61,14 +63,18 @@ export function DocumentPreviewModal({ document, onClose, onShare }: DocumentPre
     }
     setUrlLoading(true)
     setLoadError(false)
-    const url = await getDocumentDownloadUrl(document)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const isEncrypted = (document as any).is_encrypted === true
+    const url = isEncrypted && privateKey
+      ? await getDecryptedDocumentUrl(document, privateKey)
+      : await getDocumentDownloadUrl(document)
     if (url) {
       setFileUrl(url)
     } else {
       setLoadError(true)
     }
     setUrlLoading(false)
-  }, [document])
+  }, [document, privateKey])
 
   useEffect(() => {
     if (document) {
@@ -103,7 +109,11 @@ export function DocumentPreviewModal({ document, onClose, onShare }: DocumentPre
       return
     }
     setDownloading(true)
-    const result = await downloadDocumentFile(document, document.title)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const isEncrypted = (document as any).is_encrypted === true
+    const result = isEncrypted && privateKey
+      ? await downloadDocumentFileDecrypted(document, document.id, document.mime_type ?? '', document.title, privateKey)
+      : await downloadDocumentFile(document, document.title)
     if (!result.success) showToast(result.error || 'No se pudo descargar', 'error')
     setDownloading(false)
   }

@@ -1,6 +1,65 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// ── Crypto helpers (mirrors src/shared/lib/crypto.ts, Web Crypto API) ─────────
+
+function base64ToBuffer(b64: string): ArrayBuffer {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+
+function bufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
+async function importPublicKey(base64Spki: string): Promise<CryptoKey> {
+  return crypto.subtle.importKey(
+    "spki",
+    base64ToBuffer(base64Spki),
+    { name: "RSA-OAEP", hash: "SHA-256" },
+    false,
+    ["wrapKey"],
+  );
+}
+
+async function generateDocumentKey(): Promise<CryptoKey> {
+  return crypto.subtle.generateKey(
+    { name: "AES-GCM", length: 256 },
+    true,
+    ["encrypt", "decrypt"],
+  );
+}
+
+async function wrapDocumentKey(
+  docKey: CryptoKey,
+  publicKey: CryptoKey,
+): Promise<string> {
+  const wrappedBuffer = await crypto.subtle.wrapKey("raw", docKey, publicKey, {
+    name: "RSA-OAEP",
+  });
+  return bufferToBase64(wrappedBuffer);
+}
+
+async function encryptBuffer(
+  buffer: ArrayBuffer,
+  docKey: CryptoKey,
+): Promise<{ encryptedData: ArrayBuffer; docIv: string }> {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encryptedData = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    docKey,
+    buffer,
+  );
+  return { encryptedData, docIv: bufferToBase64(iv.buffer) };
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+
 const ALLOWED_MIMES = new Set([
   "application/pdf",
   "image/jpeg",
@@ -287,18 +346,75 @@ serve(async (req: Request) => {
 
     console.log("Profile lookup:", profile ? `found id=${profile.id}` : "not found");
 
+    // Helper: atomically claim the reply slot for this phone+minute window.
+    // Uses INSERT with PRIMARY KEY conflict — only the first invocation succeeds.
+    const shouldSendReply = async (): Promise<boolean> => {
+      try {
+        const windowStart = new Date(Math.floor(Date.now() / 60_000) * 60_000).toISOString();
+        const { error } = await supabase
+          .from("whatsapp_reply_dedup")
+          .insert({ phone: senderPhone, window_start: windowStart });
+        // No error = insert succeeded = we are first → send reply
+        // Duplicate key error = another invocation already claimed it → skip
+        return !error;
+      } catch {
+        return true;
+      }
+    };
+
+    // Helper: fetch patient public key for encryption (null if not found)
+    const getPatientPublicKey = async (patientId: string): Promise<CryptoKey | null> => {
+      try {
+        const { data } = await supabase
+          .from("user_crypto_keys")
+          .select("public_key_spki")
+          .eq("user_id", patientId)
+          .maybeSingle();
+        if (!data?.public_key_spki) return null;
+        return await importPublicKey(data.public_key_spki);
+      } catch (err) {
+        console.warn("getPatientPublicKey failed:", (err as Error).message);
+        return null;
+      }
+    };
+
     // Helper: upload to storage + insert document record
+    // If patientPublicKey is provided, file is AES-256-GCM encrypted before upload.
     const saveFile = async (
       patientId: string,
       uploadedBy: string | null,
       notes: string,
+      patientPublicKey: CryptoKey | null = null,
     ): Promise<string> => {
       const documentId = crypto.randomUUID();
-      const storagePath = `${patientId}/${documentId}/${filename}`;
+
+      let uploadBuffer: ArrayBuffer = fileBuffer;
+      let uploadMime = mimeType;
+      let storageFilename = filename;
+      let isEncrypted = false;
+      let docIv: string | null = null;
+      let wrappedKey: string | null = null;
+
+      if (patientPublicKey) {
+        try {
+          const docKey = await generateDocumentKey();
+          const { encryptedData, docIv: iv } = await encryptBuffer(fileBuffer, docKey);
+          wrappedKey = await wrapDocumentKey(docKey, patientPublicKey);
+          uploadBuffer = encryptedData;
+          docIv = iv;
+          uploadMime = mimeType; // keep original MIME — bucket allowlist requires it
+          storageFilename = `${documentId}.bin`;
+          isEncrypted = true;
+        } catch (encErr) {
+          console.warn("Encryption failed, falling back to plain upload:", (encErr as Error).message);
+        }
+      }
+
+      const storagePath = `${patientId}/${documentId}/${storageFilename}`;
 
       const { error: uploadError } = await supabase.storage
         .from("documents")
-        .upload(storagePath, fileBuffer, { contentType: mimeType, upsert: false });
+        .upload(storagePath, uploadBuffer, { contentType: uploadMime, upsert: false });
       if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
 
       const { error: docError } = await supabase.from("documents").insert({
@@ -310,8 +426,20 @@ serve(async (req: Request) => {
         category: "other",
         mime_type: mimeType,
         notes,
+        is_encrypted: isEncrypted,
       });
       if (docError) throw new Error(`documents insert failed: ${docError.message}`);
+
+      // Store wrapped document key if encrypted
+      if (isEncrypted && wrappedKey && docIv) {
+        const { error: keyError } = await supabase.from("document_keys").insert({
+          document_id: documentId,
+          user_id: patientId,
+          wrapped_key: wrappedKey,
+          doc_iv: docIv,
+        });
+        if (keyError) console.warn("document_keys insert failed:", keyError.message);
+      }
 
       const { error: archivoError } = await supabase
         .from("archivos_recibidos")
@@ -464,10 +592,12 @@ serve(async (req: Request) => {
         console.log("Auto pre-registered patient:", patientId);
       }
 
+      const patientPubKey0 = await getPatientPublicKey(patientId);
       const documentId = await saveFile(
         patientId,
         patientId,
         `Solicitado por doctor vía WhatsApp — ${docReq.document_type}`,
+        patientPubKey0,
       );
 
       if (session.doctor_id) {
@@ -499,27 +629,39 @@ serve(async (req: Request) => {
         .update({ status: "fulfilled" })
         .eq("id", session.id);
 
-      await sendWhatsAppReply(
-        twilioAccountSid,
-        twilioAuthToken,
-        twilioFrom,
-        fromRaw,
-        { body: "✅ Documento recibido. Tu médico podrá verlo en HealthPal." },
-      );
+      if (await shouldSendReply()) {
+        await sendWhatsAppReply(
+          twilioAccountSid,
+          twilioAuthToken,
+          twilioFrom,
+          fromRaw,
+          { body: "✅ Documento recibido. Tu médico podrá verlo en HealthPal." },
+        );
+      }
       return new Response(null, { status: 204 });
     }
 
     if (profile) {
       // ── SCENARIO 1: Patient matched by phone ─────────────────────────────
       console.log("Scenario 1: existing patient matched by phone");
-      await saveFile(profile.id, null, "Recibido por WhatsApp");
-      await sendWhatsAppReply(
-        twilioAccountSid,
-        twilioAuthToken,
-        twilioFrom,
-        fromRaw,
-        { body: "✅ Documento recibido. Tu médico podrá verlo en HealthPal." },
-      );
+      const patientPubKey1 = await getPatientPublicKey(profile.id);
+      const isFirstInBatch1 = await shouldSendReply();
+      await saveFile(profile.id, null, "Recibido por WhatsApp", patientPubKey1);
+      if (isFirstInBatch1) {
+        // Wait 3s for sibling webhooks (same batch) to finish inserting
+        await new Promise((r) => setTimeout(r, 3000));
+        const since = new Date(Date.now() - 65_000).toISOString();
+        const { count: batchCount } = await supabase
+          .from("archivos_recibidos")
+          .select("id", { count: "exact", head: true })
+          .eq("telefono", senderPhone)
+          .gte("recibido_en", since);
+        const n = batchCount ?? 1;
+        const replyBody = n > 1
+          ? `✅ ${n} documentos recibidos y subidos a tu cuenta.`
+          : "✅ Documento recibido y subido a tu cuenta.";
+        await sendWhatsAppReply(twilioAccountSid, twilioAuthToken, twilioFrom, fromRaw, { body: replyBody });
+      }
     } else {
       // Phone not in profiles — check auth.users
       let resolvedUserId: string | null = null;
@@ -538,18 +680,22 @@ serve(async (req: Request) => {
         if (existingProfile) {
           // ── SCENARIO 2: Has account, phone not linked ───────────────────
           console.log("Scenario 2: auth user exists, phone not linked:", existingAuthUser.id);
+          const patientPubKey2 = await getPatientPublicKey(existingAuthUser.id);
           await saveFile(
             existingAuthUser.id,
             null,
             "Recibido por WhatsApp - Teléfono no vinculado",
+            patientPubKey2,
           );
-          await sendWhatsAppReply(
-            twilioAccountSid,
-            twilioAuthToken,
-            twilioFrom,
-            fromRaw,
-            { body: `Recibimos tu documento 📎 Para vincularlo a tu expediente de HealthPal, ingresa a tu cuenta y agrega este número de WhatsApp en tu perfil: healthpal.mx/perfil` },
-          );
+          if (await shouldSendReply()) {
+            await sendWhatsAppReply(
+              twilioAccountSid,
+              twilioAuthToken,
+              twilioFrom,
+              fromRaw,
+              { body: `Recibimos tu documento 📎 Para vincularlo a tu expediente de HealthPal, ingresa a tu cuenta y agrega este número de WhatsApp en tu perfil: healthpal.mx/perfil` },
+            );
+          }
           return new Response(null, { status: 204 });
         }
         resolvedUserId = existingAuthUser.id;
@@ -587,15 +733,22 @@ serve(async (req: Request) => {
         .from("patient_profiles")
         .upsert({ patient_id: newUserId }, { onConflict: "patient_id" });
 
+      const isFirstInBatch3 = await shouldSendReply();
       await saveFile(newUserId, null, "Recibido por WhatsApp - Pre-registro");
-
-      await sendWhatsAppReply(
-        twilioAccountSid,
-        twilioAuthToken,
-        twilioFrom,
-        fromRaw,
-        { body: "✅ Documento recibido. Tu médico podrá verlo en HealthPal." },
-      );
+      if (isFirstInBatch3) {
+        await new Promise((r) => setTimeout(r, 3000));
+        const since3 = new Date(Date.now() - 65_000).toISOString();
+        const { count: batchCount3 } = await supabase
+          .from("archivos_recibidos")
+          .select("id", { count: "exact", head: true })
+          .eq("telefono", senderPhone)
+          .gte("recibido_en", since3);
+        const n3 = batchCount3 ?? 1;
+        const replyBody3 = n3 > 1
+          ? `✅ ${n3} documentos recibidos y subidos a tu cuenta.`
+          : "✅ Documento recibido y subido a tu cuenta.";
+        await sendWhatsAppReply(twilioAccountSid, twilioAuthToken, twilioFrom, fromRaw, { body: replyBody3 });
+      }
     }
   } catch (err) {
     const error = err as Error;
