@@ -592,12 +592,16 @@ serve(async (req: Request) => {
         console.log("Auto pre-registered patient:", patientId);
       }
 
+      // Use patient's own key if available, otherwise fall back to doctor's key
+      // so the document is encrypted at rest even for pre-registered patients.
       const patientPubKey0 = await getPatientPublicKey(patientId);
+      const encryptionKey0 = patientPubKey0 ??
+        (session.doctor_id ? await getPatientPublicKey(session.doctor_id) : null);
       const documentId = await saveFile(
         patientId,
         patientId,
         `Solicitado por doctor vía WhatsApp — ${docReq.document_type}`,
-        patientPubKey0,
+        encryptionKey0,
       );
 
       if (session.doctor_id) {
@@ -745,8 +749,8 @@ serve(async (req: Request) => {
           .gte("recibido_en", since3);
         const n3 = batchCount3 ?? 1;
         const replyBody3 = n3 > 1
-          ? `✅ ${n3} documentos recibidos y subidos a tu cuenta.`
-          : "✅ Documento recibido y subido a tu cuenta.";
+          ? `✅ ${n3} documentos recibidos. Para acceder a ellos, crea tu cuenta en healthpal.mx con este número de teléfono.`
+          : "✅ Documento recibido. Para acceder a él, crea tu cuenta en healthpal.mx con este número de teléfono.";
         await sendWhatsAppReply(twilioAccountSid, twilioAuthToken, twilioFrom, fromRaw, { body: replyBody3 });
       }
     }
