@@ -39,7 +39,8 @@ export default function RequireOnboarding({ children }: RequireOnboardingProps) 
 
   const checkOnboarding = async () => {
     if (!user) {
-      setChecking(false)
+      // Don't resolve checking state here — auth may still be initializing.
+      // RequireAuth handles the unauthenticated redirect; authLoading handles the spinner.
       return
     }
 
@@ -97,8 +98,11 @@ export default function RequireOnboarding({ children }: RequireOnboardingProps) 
     }
   }
 
+  // If user is set but profile hasn't arrived yet, keep waiting (prevents flash-redirect)
+  const waitingForProfile = !!user && !profile && !profileTimedOut
+
   // Show loading state — only while genuinely checking (not forever)
-  if (authLoading || checking) {
+  if (authLoading || checking || waitingForProfile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
