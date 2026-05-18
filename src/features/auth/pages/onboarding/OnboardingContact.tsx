@@ -7,6 +7,7 @@ import Button from '@/shared/components/ui/Button'
 import { getMyProfile, updateMyProfile, saveOnboardingStep } from '@/shared/lib/queries/profile'
 import { showToast } from '@/shared/components/ui/Toast'
 import { logger } from '@/shared/lib/logger'
+import { supabase } from '@/shared/lib/supabase'
 
 const STEPS = ['Rol', 'Información', 'Contacto', 'Detalles', 'Listo']
 
@@ -62,17 +63,52 @@ export default function OnboardingContact() {
     setLoading(true)
 
     try {
-      // Guardar con código de país
       const fullPhone = `${countryCode}${phone.replace(/\D/g, '')}`
+
+      // Check if this phone belongs to a pre-registered WhatsApp account.
+      // If so, merge the current session into that account so the patient
+      // can access documents they sent before creating an account.
+      const { data: mergeResult, error: mergeErr } = await supabase.functions.invoke<{
+        merged: boolean
+        token_hash?: string
+        merged_user_id?: string
+      }>('merge-preregistered-account', { body: { phone: fullPhone } })
+
+      if (mergeErr) {
+        logger.error('merge-preregistered-account error:', mergeErr)
+        // Non-fatal: continue normal onboarding flow
+      }
+
+      if (mergeResult?.merged && mergeResult.token_hash) {
+        // Re-authenticate as the pre-registered account (UUID_A) which owns the documents
+        const { error: otpErr } = await supabase.auth.verifyOtp({
+          token_hash: mergeResult.token_hash,
+          type: 'email',
+        })
+        if (otpErr) {
+          logger.error('verifyOtp after merge failed:', otpErr)
+          // Non-fatal: user stays as UUID_B, loses pre-registered docs link
+        } else {
+          showToast('Cuenta vinculada. Tus documentos de WhatsApp están disponibles.', 'success')
+          await new Promise(resolve => setTimeout(resolve, 100))
+          if (role === 'doctor') {
+            navigate('/onboarding/doctor')
+          } else if (role === 'patient') {
+            navigate('/onboarding/patient')
+          } else {
+            navigate('/onboarding/done')
+          }
+          return
+        }
+      }
+
+      // Normal flow: no pre-registered account found (or merge failed non-fatally)
       await updateMyProfile({ phone: fullPhone })
       await saveOnboardingStep('details')
 
       showToast('Teléfono guardado exitosamente', 'success')
-      
-      // Wait briefly for Supabase to process
       await new Promise(resolve => setTimeout(resolve, 50))
 
-      // Navigate based on role
       if (role === 'doctor') {
         navigate('/onboarding/doctor')
       } else if (role === 'patient') {
