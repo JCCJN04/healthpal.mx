@@ -1,6 +1,6 @@
 ﻿import { useState, FormEvent } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { User, Lock, CheckCircle, ArrowLeft } from 'lucide-react'
+import { User, Lock, CheckCircle, ArrowLeft, Eye, EyeOff } from 'lucide-react'
 import { supabase } from '@/shared/lib/supabase'
 import { showToast } from '@/shared/components/ui/Toast'
 import { logger } from '@/shared/lib/logger'
@@ -26,6 +26,8 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [errors, setErrors] = useState<FormErrors>({})
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {}
@@ -198,16 +200,23 @@ export default function Register() {
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                   <Lock className="w-5 h-5 text-white/70" />
                 </div>
-                <input 
-                  type="password"
+                <input
+                  type={showPassword ? 'text' : 'password'}
                   placeholder="Contraseña..."
                   value={password}
                   onChange={(e) => {
                     setPassword(e.target.value)
                     if (errors.password) setErrors({ ...errors, password: undefined })
                   }}
-                  className={`w-full bg-white/20 border-0 rounded-full h-14 pl-12 pr-4 text-white placeholder:text-white/70 focus:ring-2 focus:ring-primary backdrop-blur-md outline-none transition-all ${errors.password ? 'ring-2 ring-red-400' : ''}`}
+                  className={`w-full bg-white/20 border-0 rounded-full h-14 pl-12 pr-12 text-white placeholder:text-white/70 focus:ring-2 focus:ring-primary backdrop-blur-md outline-none transition-all ${errors.password ? 'ring-2 ring-red-400' : ''}`}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(v => !v)}
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-white/70 hover:text-white transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
               </div>
               {errors.password && <p className="text-red-300 text-xs mt-1.5 ml-4">{errors.password}</p>}
             </div>
@@ -218,16 +227,23 @@ export default function Register() {
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                   <CheckCircle className="w-5 h-5 text-white/70" />
                 </div>
-                <input 
-                  type="password"
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
                   placeholder="Confirmar contraseña..."
                   value={confirmPassword}
                   onChange={(e) => {
                     setConfirmPassword(e.target.value)
                     if (errors.confirmPassword) setErrors({ ...errors, confirmPassword: undefined })
                   }}
-                  className={`w-full bg-white/20 border-0 rounded-full h-14 pl-12 pr-4 text-white placeholder:text-white/70 focus:ring-2 focus:ring-primary backdrop-blur-md outline-none transition-all ${errors.confirmPassword ? 'ring-2 ring-red-400' : ''}`}
+                  className={`w-full bg-white/20 border-0 rounded-full h-14 pl-12 pr-12 text-white placeholder:text-white/70 focus:ring-2 focus:ring-primary backdrop-blur-md outline-none transition-all ${errors.confirmPassword ? 'ring-2 ring-red-400' : ''}`}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(v => !v)}
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-white/70 hover:text-white transition-colors"
+                >
+                  {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
               </div>
               {errors.confirmPassword && <p className="text-red-300 text-xs mt-1.5 ml-4">{errors.confirmPassword}</p>}
             </div>
