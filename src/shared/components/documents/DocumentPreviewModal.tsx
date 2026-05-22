@@ -27,6 +27,10 @@ const CATEGORY_CONFIG: Record<DocCategory, { label: string; gradient: string; ba
   history:      { label: 'Historial',    gradient: 'from-amber-400 to-orange-500',  badge: 'bg-amber-100 text-amber-700',   icon: <FileText className="w-4 h-4" /> },
   lab:          { label: 'Laboratorio',  gradient: 'from-emerald-400 to-green-500', badge: 'bg-emerald-100 text-emerald-700', icon: <Microscope className="w-4 h-4" /> },
   insurance:    { label: 'Seguro',       gradient: 'from-rose-400 to-pink-500',     badge: 'bg-rose-100 text-rose-700',     icon: <ShieldCheck className="w-4 h-4" /> },
+  consultation: { label: 'Consulta',     gradient: 'from-sky-400 to-cyan-500',     badge: 'bg-sky-100 text-sky-700',       icon: <Activity className="w-4 h-4" /> },
+  surgery:      { label: 'Cirugía',      gradient: 'from-red-400 to-rose-500',     badge: 'bg-red-100 text-red-700',       icon: <Activity className="w-4 h-4" /> },
+  vaccine:      { label: 'Vacunas',      gradient: 'from-lime-400 to-green-500',   badge: 'bg-lime-100 text-lime-700',     icon: <ShieldCheck className="w-4 h-4" /> },
+  referral:     { label: 'Referencia',   gradient: 'from-violet-400 to-indigo-500', badge: 'bg-violet-100 text-violet-700', icon: <FolderOpen className="w-4 h-4" /> },
   other:        { label: 'Otro',         gradient: 'from-slate-400 to-gray-500',    badge: 'bg-gray-100 text-gray-600',     icon: <FolderOpen className="w-4 h-4" /> },
 }
 

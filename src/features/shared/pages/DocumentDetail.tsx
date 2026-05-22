@@ -312,47 +312,89 @@ export default function DocumentDetail() {
 
   const getCategoryColor = (category: string) => {
     switch (category) {
-      case 'prescription': return 'bg-purple-100 text-purple-700'
-      case 'radiology':    return 'bg-blue-100 text-blue-700'
-      case 'lab':          return 'bg-green-100 text-green-700'
-      case 'history':      return 'bg-orange-100 text-orange-700'
-      case 'insurance':    return 'bg-teal-100 text-teal-700'
-      default:             return 'bg-gray-100 text-gray-600'
+      case 'prescription':  return 'bg-purple-100 text-purple-700'
+      case 'radiology':     return 'bg-blue-100 text-blue-700'
+      case 'lab':           return 'bg-green-100 text-green-700'
+      case 'history':       return 'bg-orange-100 text-orange-700'
+      case 'insurance':     return 'bg-teal-100 text-teal-700'
+      case 'consultation':  return 'bg-sky-100 text-sky-700'
+      case 'surgery':       return 'bg-red-100 text-red-700'
+      case 'vaccine':       return 'bg-lime-100 text-lime-700'
+      case 'referral':      return 'bg-violet-100 text-violet-700'
+      default:              return 'bg-gray-100 text-gray-600'
     }
   }
 
   const getCategoryBg = (category: string) => {
     switch (category) {
-      case 'prescription': return 'bg-purple-50'
-      case 'radiology':    return 'bg-blue-50'
-      case 'lab':          return 'bg-green-50'
-      case 'history':      return 'bg-orange-50'
-      case 'insurance':    return 'bg-teal-50'
-      default:             return 'bg-gray-50'
+      case 'prescription':  return 'bg-purple-50'
+      case 'radiology':     return 'bg-blue-50'
+      case 'lab':           return 'bg-green-50'
+      case 'history':       return 'bg-orange-50'
+      case 'insurance':     return 'bg-teal-50'
+      case 'consultation':  return 'bg-sky-50'
+      case 'surgery':       return 'bg-red-50'
+      case 'vaccine':       return 'bg-lime-50'
+      case 'referral':      return 'bg-violet-50'
+      default:              return 'bg-gray-50'
     }
   }
 
   const getCategoryText = (category: string) => {
     switch (category) {
-      case 'prescription': return 'text-purple-600'
-      case 'radiology':    return 'text-blue-600'
-      case 'lab':          return 'text-green-600'
-      case 'history':      return 'text-orange-600'
-      case 'insurance':    return 'text-teal-600'
-      default:             return 'text-gray-500'
+      case 'prescription':  return 'text-purple-600'
+      case 'radiology':     return 'text-blue-600'
+      case 'lab':           return 'text-green-600'
+      case 'history':       return 'text-orange-600'
+      case 'insurance':     return 'text-teal-600'
+      case 'consultation':  return 'text-sky-600'
+      case 'surgery':       return 'text-red-600'
+      case 'vaccine':       return 'text-lime-600'
+      case 'referral':      return 'text-violet-600'
+      default:              return 'text-gray-500'
     }
   }
 
   const getCategoryLabel = (category: string) => {
     const labels: Record<string, string> = {
-      radiology: 'Radiología',
+      radiology:    'Radiología',
       prescription: 'Recetas',
-      history: 'Historial',
-      lab: 'Laboratorio',
-      insurance: 'Seguros',
-      other: 'Otros',
+      history:      'Historial',
+      lab:          'Laboratorio',
+      insurance:    'Seguros',
+      consultation: 'Consulta',
+      surgery:      'Cirugía',
+      vaccine:      'Vacunas',
+      referral:     'Referencia',
+      other:        'Otros',
     }
     return labels[category] || category
+  }
+
+  const CATEGORY_OPTIONS = [
+    { value: 'radiology',    label: 'Radiología' },
+    { value: 'lab',          label: 'Laboratorio' },
+    { value: 'prescription', label: 'Recetas' },
+    { value: 'consultation', label: 'Consulta' },
+    { value: 'surgery',      label: 'Cirugía' },
+    { value: 'vaccine',      label: 'Vacunas' },
+    { value: 'referral',     label: 'Referencia' },
+    { value: 'history',      label: 'Historial' },
+    { value: 'insurance',    label: 'Seguros' },
+    { value: 'other',        label: 'Otros' },
+  ]
+
+  const handleCategoryChange = async (newCategory: string) => {
+    if (!user || !document || newCategory === document.category) return
+    const previousCategory = document.category
+    setDocument({ ...document, category: newCategory as Document['category'] })
+    const result = await updateDocument(document.id, user.id, { category: newCategory as Document['category'] })
+    if (result.success) {
+      showToast('Categoría actualizada', 'success')
+    } else {
+      setDocument({ ...document, category: previousCategory })
+      showToast(result.error || 'Error al actualizar categoría', 'error')
+    }
   }
 
   const formatDate = (dateString: string) => {
@@ -433,6 +475,10 @@ export default function DocumentDetail() {
       case 'history':      return <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
       case 'lab':          return <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
       case 'insurance':    return <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+      case 'consultation': return <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" /></svg>
+      case 'surgery':      return <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243zm0-5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z" /></svg>
+      case 'vaccine':      return <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /><circle cx="16" cy="8" r="1" fill="currentColor" /></svg>
+      case 'referral':     return <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
       default:             return <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
     }
   }
@@ -635,9 +681,22 @@ export default function DocumentDetail() {
                       <h3 className="font-bold text-gray-900 text-base mb-5">Detalles del documento</h3>
                       <div className="space-y-5">
                         <MetaRow icon={<Tag className="w-4 h-4" />} label="Categoría">
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${getCategoryColor(document.category)}`}>
-                            {getCategoryLabel(document.category)}
-                          </span>
+                          {document.owner_id === user?.id ? (
+                            <select
+                              value={document.category}
+                              onChange={(e) => handleCategoryChange(e.target.value)}
+                              className="text-xs font-semibold rounded-full px-2 py-0.5 border-0 outline-none cursor-pointer focus:ring-2 focus:ring-primary/30 transition-all"
+                              style={{ backgroundColor: 'transparent' }}
+                            >
+                              {CATEGORY_OPTIONS.map(opt => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${getCategoryColor(document.category)}`}>
+                              {getCategoryLabel(document.category)}
+                            </span>
+                          )}
                         </MetaRow>
                         <MetaRow icon={<FileText className="w-4 h-4" />} label="Formato">
                           <span className="text-sm font-semibold text-gray-900">{getMimeLabel(document.mime_type)}</span>

@@ -44,13 +44,17 @@ type SharedEntry = {
 }
 
 const CATEGORIES = [
-  { value: 'all', label: 'Todos' },
-  { value: 'radiology', label: 'Radiología' },
+  { value: 'all',          label: 'Todos' },
+  { value: 'radiology',    label: 'Radiología' },
+  { value: 'lab',          label: 'Laboratorio' },
   { value: 'prescription', label: 'Recetas' },
-  { value: 'history', label: 'Historial' },
-  { value: 'lab', label: 'Laboratorio' },
-  { value: 'insurance', label: 'Seguros' },
-  { value: 'other', label: 'Otros' },
+  { value: 'consultation', label: 'Consulta' },
+  { value: 'surgery',      label: 'Cirugía' },
+  { value: 'vaccine',      label: 'Vacunas' },
+  { value: 'referral',     label: 'Referencia' },
+  { value: 'history',      label: 'Historial' },
+  { value: 'insurance',    label: 'Seguros' },
+  { value: 'other',        label: 'Otros' },
 ]
 
 function getCategoryIcon(value: string) {
@@ -118,16 +122,19 @@ export default function Documentos() {
   const [previewDoc, setPreviewDoc] = useState<Document | null>(null)
 
   const [uploadForm, setUploadForm] = useState<{
-    file: File | null
+    files: File[]
     title: string
     category: DocCategory
     notes: string
+    document_date: string
   }>({
-    file: null,
+    files: [],
     title: '',
     category: 'other',
     notes: '',
+    document_date: '',
   })
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null)
 
   // URL-link mode (for radiology/lab links instead of file upload)
   const [urlMode, setUrlMode] = useState(false)
@@ -368,7 +375,11 @@ export default function Documentos() {
         filtDocs = [...filtDocs].sort((a, b) => a.title.localeCompare(b.title, 'es-MX'))
       } else {
         filtFlds = [...filtFlds].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        filtDocs = [...filtDocs].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        filtDocs = [...filtDocs].sort((a, b) => {
+          const dateA = a.document_date || a.created_at
+          const dateB = b.document_date || b.created_at
+          return new Date(dateB).getTime() - new Date(dateA).getTime()
+        })
       }
     }
 
@@ -383,62 +394,80 @@ export default function Documentos() {
       return
     }
 
-    if (!uploadForm.file) {
-      showToast('Selecciona un archivo para continuar.', 'warning')
+    if (!uploadForm.files.length) {
+      showToast('Selecciona al menos un archivo para continuar.', 'warning')
       return
     }
 
     setUploading(true)
+    const total = uploadForm.files.length
+    setUploadProgress({ current: 0, total })
+
     const patientIdForUpload = currentFolder.id?.startsWith('shared-') ? currentFolder.id.replace('shared-', '') : null
-    const uploadMeta = {
-      title: uploadForm.title || uploadForm.file.name,
-      category: uploadForm.category,
-      notes: uploadForm.notes,
-      folderId: patientIdForUpload ? null : currentFolder.id,
-      patientId: patientIdForUpload,
+    let successCount = 0
+
+    for (let i = 0; i < total; i++) {
+      const file = uploadForm.files[i]
+      setUploadProgress({ current: i + 1, total })
+
+      const title = total === 1
+        ? (uploadForm.title || file.name.replace(/\.[^/.]+$/, ''))
+        : file.name.replace(/\.[^/.]+$/, '')
+
+      const uploadMeta = {
+        title,
+        category: uploadForm.category,
+        notes: uploadForm.notes,
+        folderId: patientIdForUpload ? null : currentFolder.id,
+        patientId: patientIdForUpload,
+        documentDate: uploadForm.document_date || null,
+      }
+
+      const result = cryptoPublicKey
+        ? await uploadDocumentEncrypted(file, user.id, cryptoPublicKey, uploadMeta)
+        : await uploadDocument(file, user.id, uploadMeta)
+
+      if (result.success && result.documentId) {
+        successCount++
+
+        if (isDemoMode()) continue
+
+        if (currentFolder.id?.startsWith('shared-')) {
+          const patientId = currentFolder.id.replace('shared-', '')
+          await shareDocumentWithUser(result.documentId, user.id, { userId: patientId }, {
+            senderProfile: { full_name: profile?.full_name, email: user.email },
+          })
+        }
+      } else {
+        showToast(`${file.name}: ${result.error || 'Error al subir'}`, 'error')
+      }
     }
-    const result = cryptoPublicKey
-      ? await uploadDocumentEncrypted(uploadForm.file, user.id, cryptoPublicKey, uploadMeta)
-      : await uploadDocument(uploadForm.file, user.id, uploadMeta)
 
-    if (result.success && result.documentId) {
-      setUploadModalOpen(false)
+    setUploadProgress(null)
 
+    if (successCount > 0) {
       if (isDemoMode()) {
-        showToast('Documento subido correctamente (demo)', 'success')
+        showToast(
+          successCount === 1 ? 'Documento subido correctamente (demo)' : `${successCount} documentos subidos (demo)`,
+          'success'
+        )
         setCurrentFolder({ id: null, name: 'Mis Documentos' })
         setNavHistory([])
         setSearchQuery('')
         setSelectedCategory('all')
-        setUploadForm({
-          file: null,
-          title: '',
-          category: 'other',
-          notes: '',
-        })
-        await loadContent(null)
-        setUploading(false)
-        return
+      } else {
+        showToast(
+          successCount === total
+            ? (total === 1 ? 'Documento subido correctamente' : `${total} documentos subidos correctamente`)
+            : `${successCount} de ${total} documentos subidos`,
+          successCount === total ? 'success' : 'warning'
+        )
       }
-
-      // Auto-share with patient when uploading from their shared folder
-      if (currentFolder.id?.startsWith('shared-')) {
-        const patientId = currentFolder.id.replace('shared-', '')
-        await shareDocumentWithUser(result.documentId, user.id, { userId: patientId }, {
-          senderProfile: { full_name: profile?.full_name, email: user.email },
-        })
-      }
-      showToast("Documento subido correctamente", "success")
-      setUploadForm({
-        file: null,
-        title: '',
-        category: 'other',
-        notes: '',
-      })
-      loadContent(currentFolder.id)
-    } else {
-      showToast(result.error || 'Error al subir el documento', 'error')
+      setUploadModalOpen(false)
+      setUploadForm({ files: [], title: '', category: 'other', notes: '', document_date: '' })
+      loadContent(isDemoMode() ? null : currentFolder.id)
     }
+
     setUploading(false)
   }
 
@@ -713,21 +742,39 @@ export default function Documentos() {
   }
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      // Validate file type and size before accepting
-      const validationError = validateFile(file, 'document')
-      if (validationError) {
-        showToast(validationError, 'error')
-        e.target.value = '' // Reset input
-        return
-      }
+    const selected = Array.from(e.target.files || [])
+    e.target.value = ''
+    if (!selected.length) return
+
+    const validFiles: File[] = []
+    for (const file of selected) {
+      const err = validateFile(file, 'document')
+      if (err) { showToast(`${file.name}: ${err}`, 'error'); continue }
+      validFiles.push(file)
+    }
+
+    if (validFiles.length) {
       setUploadForm(prev => ({
         ...prev,
-        file,
-        title: prev.title || file.name.replace(/\.[^/.]+$/, ''), // Remove extension
+        files: [...prev.files, ...validFiles],
+        title: prev.files.length === 0 && validFiles.length === 1
+          ? (prev.title || validFiles[0].name.replace(/\.[^/.]+$/, ''))
+          : prev.title,
       }))
     }
+  }
+
+  const handleRemoveFile = (index: number) => {
+    setUploadForm(prev => {
+      const newFiles = prev.files.filter((_, i) => i !== index)
+      return {
+        ...prev,
+        files: newFiles,
+        title: newFiles.length === 1 && !prev.title
+          ? newFiles[0].name.replace(/\.[^/.]+$/, '')
+          : prev.title,
+      }
+    })
   }
 
   return (
@@ -1097,30 +1144,100 @@ export default function Documentos() {
               </div>
             )
           })()
-        ) : view === 'list' ? (
-          <DocumentsTable
-            documents={filteredDocuments}
-            folders={filteredFolders}
-            onDelete={handleDelete}
-            onFolderClick={handleFolderClick}
-            onMoveDocument={handleMoveDocument}
-            movingDocId={movingDocId}
-            onShareDocument={handleShareDocument}
-          />
-        ) : (
-          <DocumentGrid
-            documents={filteredDocuments}
-            folders={filteredFolders}
-            onDeleteDocument={handleDelete}
-            onDeleteFolder={handleDeleteFolder}
-            onFolderClick={handleFolderClick}
-            onRenameFolder={handleRenameFolder}
-            onMoveDocument={handleMoveDocument}
-            movingDocId={movingDocId}
-            onShareDocument={handleShareDocument}
-            onShareFolder={profile?.role === 'patient' ? handleShareFolder : undefined}
-          />
-        )}
+        ) : (() => {
+          // Group documents by year (document_date takes priority over created_at)
+          const docsByYear = filteredDocuments.reduce<Record<string, Document[]>>((acc, doc) => {
+            const dateStr = doc.document_date || doc.created_at
+            const year = new Date(dateStr).getFullYear().toString()
+            if (!acc[year]) acc[year] = []
+            acc[year].push(doc)
+            return acc
+          }, {})
+          const years = Object.keys(docsByYear).sort((a, b) => Number(b) - Number(a))
+          const showYearGroups = years.length > 1 || (years.length === 1 && filteredFolders.length > 0)
+
+          if (view === 'list') {
+            return (
+              <div className="space-y-6">
+                {/* Folders always at top (ungrouped) */}
+                {filteredFolders.length > 0 && (
+                  <DocumentsTable
+                    documents={[]}
+                    folders={filteredFolders}
+                    onDelete={handleDelete}
+                    onFolderClick={handleFolderClick}
+                    onMoveDocument={handleMoveDocument}
+                    movingDocId={movingDocId}
+                    onShareDocument={handleShareDocument}
+                  />
+                )}
+                {years.map(year => (
+                  <div key={year}>
+                    {showYearGroups && (
+                      <div className="flex items-center gap-3 mb-3">
+                        <span className="text-sm font-bold text-gray-500 uppercase tracking-wider">{year}</span>
+                        <div className="flex-1 h-px bg-gray-200" />
+                        <span className="text-xs text-gray-400">{docsByYear[year].length} doc{docsByYear[year].length !== 1 ? 's' : ''}</span>
+                      </div>
+                    )}
+                    <DocumentsTable
+                      documents={docsByYear[year]}
+                      folders={[]}
+                      onDelete={handleDelete}
+                      onFolderClick={handleFolderClick}
+                      onMoveDocument={handleMoveDocument}
+                      movingDocId={movingDocId}
+                      onShareDocument={handleShareDocument}
+                    />
+                  </div>
+                ))}
+              </div>
+            )
+          }
+
+          return (
+            <div className="space-y-6">
+              {/* Folders always at top (ungrouped) */}
+              {filteredFolders.length > 0 && (
+                <DocumentGrid
+                  documents={[]}
+                  folders={filteredFolders}
+                  onDeleteDocument={handleDelete}
+                  onDeleteFolder={handleDeleteFolder}
+                  onFolderClick={handleFolderClick}
+                  onRenameFolder={handleRenameFolder}
+                  onMoveDocument={handleMoveDocument}
+                  movingDocId={movingDocId}
+                  onShareDocument={handleShareDocument}
+                  onShareFolder={profile?.role === 'patient' ? handleShareFolder : undefined}
+                />
+              )}
+              {years.map(year => (
+                <div key={year}>
+                  {showYearGroups && (
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="text-sm font-bold text-gray-500 uppercase tracking-wider">{year}</span>
+                      <div className="flex-1 h-px bg-gray-200" />
+                      <span className="text-xs text-gray-400">{docsByYear[year].length} doc{docsByYear[year].length !== 1 ? 's' : ''}</span>
+                    </div>
+                  )}
+                  <DocumentGrid
+                    documents={docsByYear[year]}
+                    folders={[]}
+                    onDeleteDocument={handleDelete}
+                    onDeleteFolder={handleDeleteFolder}
+                    onFolderClick={handleFolderClick}
+                    onRenameFolder={handleRenameFolder}
+                    onMoveDocument={handleMoveDocument}
+                    movingDocId={movingDocId}
+                    onShareDocument={handleShareDocument}
+                    onShareFolder={profile?.role === 'patient' ? handleShareFolder : undefined}
+                  />
+                </div>
+              ))}
+            </div>
+          )
+        })()}
       </div>
 
       {/* Document Preview Modal */}
@@ -1260,7 +1377,7 @@ export default function Documentos() {
                   className={`border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer ${
                     dragOver
                       ? 'border-primary bg-primary/5 scale-[1.01]'
-                      : uploadForm.file
+                      : uploadForm.files.length > 0
                         ? 'border-primary/40 bg-primary/5'
                         : 'border-gray-200 hover:border-primary/40 hover:bg-gray-50'
                   }`}
@@ -1270,59 +1387,109 @@ export default function Documentos() {
                   onDrop={(e) => {
                     e.preventDefault()
                     setDragOver(false)
-                    const file = e.dataTransfer.files[0]
-                    if (file) {
+                    const dropped = Array.from(e.dataTransfer.files)
+                    const validFiles: File[] = []
+                    for (const file of dropped) {
                       const err = validateFile(file, 'document')
-                      if (err) { showToast(err, 'error'); return }
-                      setUploadForm(prev => ({ ...prev, file, title: prev.title || file.name.replace(/\.[^/.]+$/, '') }))
+                      if (err) { showToast(`${file.name}: ${err}`, 'error'); continue }
+                      validFiles.push(file)
+                    }
+                    if (validFiles.length) {
+                      setUploadForm(prev => ({
+                        ...prev,
+                        files: [...prev.files, ...validFiles],
+                        title: prev.files.length === 0 && validFiles.length === 1
+                          ? (prev.title || validFiles[0].name.replace(/\.[^/.]+$/, ''))
+                          : prev.title,
+                      }))
                     }
                   }}
                 >
                   <input
                     type="file"
+                    multiple
                     onChange={handleFileSelect}
                     accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.webp,.gif,.tiff,.heic,.heif,.bmp,.mp4,.mov,.avi,.webm,.mp3,.wav,.m4a,.ogg,.txt,.csv,.dcm"
                     className="hidden"
                     id="file-upload"
-                    required
                   />
-                  {uploadForm.file ? (
-                    <div className="flex items-center gap-3 text-left">
-                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                        <FileText size={20} className="text-primary" />
+                  {uploadForm.files.length > 0 ? (
+                    uploadForm.files.length === 1 ? (
+                      <div className="flex items-center gap-3 text-left">
+                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                          <FileText size={20} className="text-primary" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-gray-900 truncate">{uploadForm.files[0].name}</p>
+                          <p className="text-xs text-gray-500">{(uploadForm.files[0].size / 1024 / 1024).toFixed(2)} MB · Clic para agregar más</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); handleRemoveFile(0) }}
+                          className="p-1 text-gray-400 hover:text-red-500 shrink-0"
+                        >
+                          <X size={14} />
+                        </button>
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-gray-900 truncate">{uploadForm.file.name}</p>
-                        <p className="text-xs text-gray-500">{(uploadForm.file.size / 1024 / 1024).toFixed(2)} MB · Clic para cambiar</p>
+                    ) : (
+                      <div className="text-left w-full" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs font-semibold text-gray-700">{uploadForm.files.length} archivos seleccionados</p>
+                          <button
+                            type="button"
+                            onClick={() => document.getElementById('file-upload')?.click()}
+                            className="text-xs text-primary font-semibold hover:underline"
+                          >
+                            + Agregar más
+                          </button>
+                        </div>
+                        <div className="space-y-1 max-h-28 overflow-y-auto pr-1">
+                          {uploadForm.files.map((f, i) => (
+                            <div key={i} className="flex items-center gap-2 bg-gray-50 rounded-lg px-2 py-1.5">
+                              <FileText size={13} className="text-primary shrink-0" />
+                              <span className="text-xs text-gray-700 truncate flex-1">{f.name}</span>
+                              <span className="text-xs text-gray-400 shrink-0">{(f.size / 1024 / 1024).toFixed(1)}MB</span>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveFile(i)}
+                                className="text-gray-400 hover:text-red-500 shrink-0"
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    )
                   ) : (
                     <>
                       <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-3">
                         <Upload size={22} className="text-gray-400" />
                       </div>
-                      <p className="text-sm font-medium text-gray-700">Arrastra un archivo o haz clic para seleccionar</p>
-                      <p className="text-xs text-gray-400 mt-1">PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, MP4, MP3 y más · Máx. 50 MB</p>
+                      <p className="text-sm font-medium text-gray-700">Arrastra archivos o haz clic para seleccionar</p>
+                      <p className="text-xs text-gray-400 mt-1">Puedes seleccionar varios a la vez · PDF, JPG, PNG, MP4 y más · Máx. 10 MB c/u</p>
                     </>
                   )}
                 </div>
               </div>
 
-              {/* Title */}
-              <div>
-                <label htmlFor="doc-title" className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Título *
-                </label>
-                <input
-                  id="doc-title"
-                  type="text"
-                  value={uploadForm.title}
-                  onChange={(e) => setUploadForm(prev => ({ ...prev, title: e.target.value }))}
-                  className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm transition-all"
-                  placeholder="Ej: Radiografía de tórax"
-                  required
-                />
-              </div>
+              {/* Title — only for single file */}
+              {uploadForm.files.length <= 1 && (
+                <div>
+                  <label htmlFor="doc-title" className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Título {uploadForm.files.length === 1 ? '*' : ''}
+                  </label>
+                  <input
+                    id="doc-title"
+                    type="text"
+                    value={uploadForm.title}
+                    onChange={(e) => setUploadForm(prev => ({ ...prev, title: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm transition-all"
+                    placeholder="Ej: Radiografía de tórax"
+                    required={uploadForm.files.length === 1}
+                  />
+                </div>
+              )}
 
               {/* Category */}
               <div>
@@ -1340,6 +1507,22 @@ export default function Documentos() {
                     <option key={cat.value} value={cat.value}>{cat.label}</option>
                   ))}
                 </select>
+              </div>
+
+              {/* Document Date */}
+              <div>
+                <label htmlFor="doc-date" className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Fecha del documento <span className="text-gray-400 font-normal">(opcional)</span>
+                </label>
+                <input
+                  id="doc-date"
+                  type="date"
+                  value={uploadForm.document_date}
+                  onChange={(e) => setUploadForm(prev => ({ ...prev, document_date: e.target.value }))}
+                  max={new Date().toISOString().split('T')[0]}
+                  className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm transition-all"
+                />
+                <p className="text-xs text-gray-400 mt-1">La fecha real del documento, no la de subida (ej. fecha del análisis o receta)</p>
               </div>
 
               {/* Notes */}
@@ -1369,18 +1552,20 @@ export default function Documentos() {
                 </button>
                 <button
                   type="submit"
-                  disabled={uploading || !uploadForm.file}
+                  disabled={uploading || !uploadForm.files.length}
                   className="flex-1 px-4 py-2.5 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm cursor-pointer"
                 >
                   {uploading ? (
                     <>
                       <Loader2 size={16} className="animate-spin" />
-                      Subiendo…
+                      {uploadProgress && uploadProgress.total > 1
+                        ? `Subiendo ${uploadProgress.current} de ${uploadProgress.total}…`
+                        : 'Subiendo…'}
                     </>
                   ) : (
                     <>
                       <Upload size={16} />
-                      Subir Documento
+                      {uploadForm.files.length > 1 ? `Subir ${uploadForm.files.length} archivos` : 'Subir Documento'}
                     </>
                   )}
                 </button>

@@ -347,6 +347,7 @@ export async function uploadDocument(
     notes?: string
     folderId?: string | null
     patientId?: string | null
+    documentDate?: string | null
   }
 ): Promise<{ success: boolean; documentId?: string; error?: string }> {
   if (checkInMemoryDemoDocuments()) {
@@ -364,6 +365,7 @@ export async function uploadDocument(
       file_size: file.size,
       notes: metadata.notes || null,
       folder_id: metadata.folderId || null,
+      document_date: metadata.documentDate || null,
       storage_path: demoPreviewUrl,
       demo_preview_url: demoPreviewUrl,
       created_at: createdAt,
@@ -416,6 +418,7 @@ export async function uploadDocument(
         file_size: file.size,
         notes: metadata.notes || null,
         folder_id: metadata.folderId || null,
+        document_date: metadata.documentDate || null,
       })
 
     if (dbError) {
@@ -759,7 +762,7 @@ export async function updateFolder(
 export async function updateDocument(
   documentId: string,
   userId: string,
-  data: { title?: string; notes?: string; folder_id?: string | null }
+  data: { title?: string; notes?: string; folder_id?: string | null; category?: string }
 ): Promise<{ success: boolean; error?: string }> {
   if (checkInMemoryDemoDocuments()) {
     const docs = getDemoDocumentsState()
@@ -1633,6 +1636,7 @@ export async function uploadDocumentEncrypted(
     notes?: string
     folderId?: string | null
     patientId?: string | null
+    documentDate?: string | null
   }
 ): Promise<{ success: boolean; documentId?: string; error?: string }> {
   if (isDemoMode()) {
@@ -1679,6 +1683,7 @@ export async function uploadDocumentEncrypted(
         file_size: file.size,
         notes: metadata.notes || null,
         folder_id: metadata.folderId || null,
+        document_date: metadata.documentDate || null,
         is_encrypted: true,
       })
 
