@@ -45,8 +45,10 @@ export default function Header({ onMenuClick }: HeaderProps) {
           <Menu size={20} className="text-gray-600" />
         </button>
 
-        {/* Logo */}
-        <img src="/logo.png" alt="HealthPal.mx" className="h-7 md:h-8 w-auto" />
+        {/* Logo - mobile only (desktop shows logo in sidebar) */}
+        <div className="lg:hidden h-8 overflow-hidden flex items-center">
+          <img src="/logo.png" alt="HealthPal.mx" className="h-40 w-auto" style={{ marginTop: '-3.5rem', marginBottom: '-3.5rem' }} />
+        </div>
       </div>
 
       {/* Right: Search */}

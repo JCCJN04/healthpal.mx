@@ -5,7 +5,9 @@ import React from 'react'
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import { showToast } from '@/shared/components/ui/Toast'
 import { useAuth } from '@/app/providers/AuthContext'
-import { getUserDocuments, getDocumentsSharedWithMe } from '@/shared/lib/queries/documents'
+import { getUserDocuments, getDocumentsSharedWithMe, shareEncryptedDocumentKey } from '@/shared/lib/queries/documents'
+import { getPatientDoctorAccess } from '@/shared/lib/queries/consent'
+import { useCrypto } from '@/context/CryptoContext'
 import { Skeleton } from '@/shared/components/ui/Skeleton'
 import { DashboardSummary } from '@/shared/components/DashboardSummary'
 import { listDoctorPatients, type PatientProfileLite } from '@/features/doctor/services/patients'
@@ -138,6 +140,7 @@ const DoctorHome = ({ profile, loading, summaryData, recentDocs, patientSnapshot
 export default function Dashboard() {
   const navigate = useNavigate()
   const { user, profile } = useAuth()
+  const { privateKey } = useCrypto()
   const [loading, setLoading] = useState(true)
   const [recentDocs, setRecentDocs] = useState<Doc[]>([])
   const [sharedDocsList, setSharedDocsList] = useState<SharedEntry[]>([])
@@ -150,6 +153,32 @@ export default function Dashboard() {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadDashboardData() }, [user])
+
+  // Patient: silently re-wrap document keys for all consented doctors so they can decrypt files
+  useEffect(() => {
+    if (!user?.id || !privateKey || profile?.role !== 'patient') return
+    const syncKeys = async () => {
+      try {
+        const [docs, consents] = await Promise.all([
+          getUserDocuments(user.id, null, true),
+          getPatientDoctorAccess(user.id),
+        ])
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const encrypted = docs.filter((d) => (d as any).is_encrypted)
+        const accepted = consents.filter((c) => c.status === 'accepted')
+        if (!encrypted.length || !accepted.length) return
+        for (const consent of accepted) {
+          await Promise.allSettled(
+            encrypted.map((d) => shareEncryptedDocumentKey(d.id, privateKey, consent.doctor_id))
+          )
+        }
+      } catch (err) {
+        logger.error('Dashboard.syncDocumentKeys', err)
+      }
+    }
+    syncKeys()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, privateKey])
 
   const loadDashboardData = async () => {
     if (!user) return
