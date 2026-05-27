@@ -1,5 +1,6 @@
 import React from 'react';
 import { User, Edit2, Calendar, Clock, Video, Phone, Building2 } from 'lucide-react';
+import { openAddToGoogleCalendar } from '@/shared/lib/googleCalendar';
 
 interface AppointmentData {
   reason: string;
@@ -21,6 +22,48 @@ const AppointmentSummaryCard: React.FC<AppointmentSummaryCardProps> = ({
   isConfirmed,
   onEdit,
 }) => {
+  function handleAddToCalendar() {
+    // Parse "15 de Marzo del 2024" + "09:00" into ISO datetime
+    // Fallback: use current date + 1 day if parsing fails
+    let startISO = new Date(Date.now() + 86_400_000).toISOString().slice(0, 16)
+    try {
+      const monthMap: Record<string, string> = {
+        enero: '01', febrero: '02', marzo: '03', abril: '04', mayo: '05', junio: '06',
+        julio: '07', agosto: '08', septiembre: '09', octubre: '10', noviembre: '11', diciembre: '12',
+      }
+      const match = data.appointmentDate.match(/(\d+)\s+de\s+(\w+)\s+del?\s+(\d{4})/i)
+      if (match) {
+        const day = match[1].padStart(2, '0')
+        const month = monthMap[match[2].toLowerCase()] ?? '01'
+        const year = match[3]
+        startISO = `${year}-${month}-${day}T${data.appointmentTime}:00`
+      }
+    } catch { /* use fallback */ }
+
+    const [h, m] = data.appointmentTime.split(':').map(Number)
+    const endDate = new Date(startISO)
+    endDate.setHours(h + 1, m)
+    const endISO = endDate.toISOString().slice(0, 19)
+
+    const typeLabel: Record<string, string> = {
+      Videollamada: 'Videollamada',
+      'Llamada telefónica': 'Llamada telefónica',
+      Presencial: 'Consulta presencial',
+    }
+
+    openAddToGoogleCalendar({
+      title: `Consulta médica — ${data.doctorName}`,
+      description: [
+        `Tipo: ${typeLabel[data.consultationType] ?? data.consultationType}`,
+        `Motivo: ${data.reason}`,
+        data.additionalInfo ? `Notas: ${data.additionalInfo}` : '',
+        '\nCita agendada a través de HealthPal.mx',
+      ].filter(Boolean).join('\n'),
+      startDateTime: startISO,
+      endDateTime: endISO,
+      timeZone: 'America/Mexico_City',
+    })
+  }
   const getConsultationIcon = () => {
     switch (data.consultationType) {
       case 'Videollamada':
@@ -163,6 +206,24 @@ const AppointmentSummaryCard: React.FC<AppointmentSummaryCardProps> = ({
           )}
         </div>
       </div>
+
+      {/* Add to Google Calendar */}
+      {isConfirmed && (
+        <div className="px-6 pb-2">
+          <button
+            onClick={handleAddToCalendar}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            </svg>
+            Agregar a Google Calendar
+          </button>
+        </div>
+      )}
 
       {/* Privacy Note */}
       <div className="px-6 pb-6">

@@ -194,7 +194,8 @@ export default function Documentos() {
     const sharedEntries = (shared as SharedEntry[])
       .map((s) => ({
         doc: s.document as Document,
-        senderId: s.sender?.id || 'shared',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        senderId: s.sender?.id || (s as any).shared_by || 'shared',
         senderName: s.sender?.full_name || s.sender?.email || 'Compartido',
         senderEmail: s.sender?.email || '',
         senderAvatarUrl: s.sender?.avatar_url || null,

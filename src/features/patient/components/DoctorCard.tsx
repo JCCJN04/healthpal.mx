@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import {
   Star, MoreVertical, MapPin, Stethoscope,
-  Clock, DollarSign, UserX, ShieldCheck,
+  Clock, DollarSign, UserX, ShieldCheck, CalendarPlus,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { DoctorWithProfile, unlinkDoctorFromPatient } from '@/features/patient/services/doctors';
 import { showToast } from '@/shared/components/ui/Toast';
 import { useAuth } from '@/app/providers/AuthContext';
@@ -15,6 +16,7 @@ interface DoctorCardProps {
 
 const DoctorCard: React.FC<DoctorCardProps> = ({ doctor, onRemoved }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [showMenu, setShowMenu] = useState(false);
   const profile = doctor.doctor_profile;
   const initials = doctor.full_name
@@ -151,10 +153,18 @@ const DoctorCard: React.FC<DoctorCardProps> = ({ doctor, onRemoved }) => {
         </div>
 
         {/* CTA */}
-        <div className="mt-auto pt-4 border-t border-gray-100">
+        <div className="mt-auto pt-4 border-t border-gray-100 flex gap-2">
+          <button
+            onClick={() => navigate(`/dashboard/consultas/nueva?doctor=${doctor.id}`)}
+            className="flex-1 bg-primary text-white py-2.5 rounded-xl font-bold text-sm
+              flex items-center justify-center gap-1.5 hover:bg-primary/90 active:scale-95 transition-all"
+          >
+            <CalendarPlus className="w-4 h-4 flex-shrink-0" />
+            Agendar
+          </button>
           <button
             onClick={handleSendMessage}
-            className="w-full bg-[#25D366]/10 text-[#075E54] py-2.5 rounded-xl font-bold text-sm
+            className="flex-1 bg-[#25D366]/10 text-[#075E54] py-2.5 rounded-xl font-bold text-sm
               flex items-center justify-center gap-1.5 hover:bg-[#25D366]/20 active:scale-95 transition-all"
           >
             <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
