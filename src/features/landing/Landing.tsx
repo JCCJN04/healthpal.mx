@@ -296,7 +296,7 @@ function Hero() {
       <div className="relative z-20 text-center px-6 max-w-[1000px] mx-auto pt-[68px]">
         {/* Hero heading - word-by-word on mount */}
         <h1
-          className="text-[4rem] sm:text-[5.5rem] md:text-[7rem] lg:text-[7.5rem] font-black text-white leading-[0.92] tracking-[-0.04em]"
+          className="text-[2.4rem] min-[390px]:text-[3rem] sm:text-[5rem] md:text-[7rem] lg:text-[7.5rem] font-black text-white leading-[0.92] tracking-[-0.04em]"
           style={{ willChange: 'transform' }}
         >
           {['Tus', 'expedientes,', 'siempre', 'contigo.'].map((word, i) => (

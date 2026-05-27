@@ -184,13 +184,13 @@ export const DocumentViewer = ({ fileUrl, fileType = 'pdf', title }: DocumentVie
             {/* PDF */}
             {fileType === 'pdf' && (
               <div className="w-full flex flex-col items-center gap-0">
-                {pdfLoading && (
+                {(pdfLoading || !pdfBlobUrl) && (
                   <div className="flex flex-col items-center gap-3 py-20 text-gray-400">
                     <Loader2 className="w-8 h-8 animate-spin text-primary" />
                     <span className="text-sm">Cargando PDF...</span>
                   </div>
                 )}
-                <Document
+                {pdfBlobUrl && <Document
                   file={pdfBlobUrl}
                   onLoadSuccess={onDocumentLoadSuccess}
                   onLoadError={() => setPdfLoading(false)}
@@ -211,7 +211,7 @@ export const DocumentViewer = ({ fileUrl, fileType = 'pdf', title }: DocumentVie
                     renderAnnotationLayer
                     className="overflow-hidden"
                   />
-                </Document>
+                </Document>}
               </div>
             )}
 
