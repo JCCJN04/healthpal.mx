@@ -350,25 +350,6 @@ function Hero() {
   )
 }
 
-/* ─────────────────────────────────────────────
-   Logo Ticker (Swiper autoplay speed:1000ms, loop)
-───────────────────────────────────────────── */
-const LOGOS = ['Médica Sur', 'Hospital Ángeles', 'Salud Digna', 'Cruz Roja México', 'UNAM Facultad de Medicina', 'Christus Muguerza', 'Star Médica', 'TecSalud', 'Grupo Ángeles', 'IMSS Bienestar']
-
-function LogoTicker() {
-  const doubled = [...LOGOS, ...LOGOS]
-  return (
-    <div className="overflow-hidden py-6" style={{ backgroundColor: '#0097a9' }}>
-      <div className="ht-ticker-track flex items-center gap-16 whitespace-nowrap">
-        {doubled.map((logo, i) => (
-          <span key={i} className="text-white font-semibold text-[13px] opacity-70 shrink-0 uppercase tracking-[0.12em]">
-            {logo}
-          </span>
-        ))}
-      </div>
-    </div>
-  )
-}
 
 /* ─────────────────────────────────────────────
    Problem Card (blue rounded card, word reveal)
@@ -402,7 +383,7 @@ function SpeedSection() {
   const { ref: mockupRef, style: mockupStyle } = useFadeUp(150)
 
   return (
-    <section className="pt-8 pb-0 overflow-hidden" style={{ backgroundColor: '#f9f0ff' }}>
+    <section className="pt-8 pb-0" style={{ backgroundColor: '#f9f0ff' }}>
       <div className="max-w-[1100px] mx-auto px-6">
         <div ref={titleRef} style={titleStyle} className="text-center">
           <h2 className="text-[3.5rem] sm:text-[5rem] md:text-[6.5rem] font-black leading-[0.95] tracking-[-0.04em] mb-6">
@@ -426,19 +407,36 @@ function SpeedSection() {
           </Link>
         </div>
 
-        {/* Mockup — stacked on mobile, side-by-side on md+ */}
-        <div ref={mockupRef} style={mockupStyle} className="relative mt-4 pb-0">
+        {/* Mockup — dashboard left, phone floating right */}
+        <div ref={mockupRef} style={mockupStyle} className="relative mt-4 pb-10">
           {/* Floating decorations — hidden on small screens */}
           <div className="lp-float hidden md:block absolute left-[2%] top-[10%] w-12 h-12 rounded-full opacity-60" style={{ background: 'linear-gradient(135deg, #8b3fff, #4541fe)' }} />
           <div className="lp-float-alt hidden md:block absolute left-[9%] top-[55%] opacity-55" style={{ width: 0, height: 0, borderLeft: '14px solid transparent', borderRight: '14px solid transparent', borderBottom: '26px solid #ff3eb5' }} />
-          <div className="lp-float-rev hidden md:block absolute right-[5%] top-[8%] w-10 h-10 rounded-full opacity-50" style={{ background: 'linear-gradient(135deg, #ff3eb5, #8b3fff)' }} />
 
-          {/* Desktop: side-by-side. Mobile: dashboard full-width, phone centered below */}
-          <div className="flex flex-col md:flex-row justify-center items-end gap-6">
-            <div className="relative z-10 w-full md:max-w-[840px] lg:max-w-[980px]">
+          {/* Outer wrapper: reserves space for phone on the right */}
+          <div className="relative md:pr-[100px] lg:pr-[120px] overflow-visible">
+
+            {/* Dashboard — full width of its slot */}
+            <div className="relative z-10">
               <DashboardMockup />
             </div>
-            <div className="relative z-20 w-full flex justify-center md:w-auto md:block md:-mb-8 md:-ml-10">
+
+            {/* Phone — absolute, anchored to bottom-right of outer wrapper, sticks out */}
+            <div
+              className="hidden md:block absolute bottom-0 right-0 z-20"
+              style={{
+                width: '210px',
+                transform: 'translateX(-30px) translateY(24px)',
+                filter: 'drop-shadow(0 32px 48px rgba(0,0,0,0.28))',
+              }}
+            >
+              <PhoneMockup />
+            </div>
+          </div>
+
+          {/* Mobile: phone below dashboard, centered, smaller */}
+          <div className="md:hidden flex justify-center mt-6">
+            <div style={{ width: '160px' }}>
               <PhoneMockup />
             </div>
           </div>
@@ -474,29 +472,70 @@ function DashboardMockup() {
 
 function PhoneMockup() {
   return (
-    <div className="flex-shrink-0 relative" style={{ width: '250px', maxWidth: '100%' }}>
-      <img
-        src="/iphonesinfondo.png"
-        alt="Mockup de iPhone"
-        className="block w-full h-auto"
-      />
+    <div className="relative w-full select-none" style={{ filter: 'drop-shadow(0 24px 48px rgba(160,120,80,0.35)) drop-shadow(0 8px 16px rgba(0,0,0,0.4))' }}>
 
+      {/* ── Left buttons ── */}
+      {/* Silent toggle */}
+      <div className="absolute rounded-full" style={{
+        left: '-3px', top: '17%', width: '3px', height: '20px',
+        background: 'linear-gradient(180deg, #c8a882, #a07850)',
+      }} />
+      {/* Volume up */}
+      <div className="absolute rounded-full" style={{
+        left: '-3px', top: '25%', width: '3px', height: '38px',
+        background: 'linear-gradient(180deg, #c8a882, #a07850)',
+      }} />
+      {/* Volume down */}
+      <div className="absolute rounded-full" style={{
+        left: '-3px', top: '36%', width: '3px', height: '38px',
+        background: 'linear-gradient(180deg, #c8a882, #a07850)',
+      }} />
+
+      {/* ── Right button (power) ── */}
+      <div className="absolute rounded-full" style={{
+        right: '-3px', top: '27%', width: '3px', height: '58px',
+        background: 'linear-gradient(180deg, #c8a882, #a07850)',
+      }} />
+
+      {/* ── Outer casing ── */}
       <div
-        className="absolute overflow-hidden"
+        className="relative w-full"
         style={{
-          left: '10.3%',
-          top: '4.9%',
-          width: '79.2%',
-          height: '90.3%',
-          borderRadius: '4.1%',
-          backgroundColor: '#000',
+          borderRadius: '3rem',
+          background: 'linear-gradient(145deg, #d4b896 0%, #c8a882 30%, #b8966e 60%, #a07850 100%)',
+          border: '1.5px solid #8a6440',
+          padding: '10px',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -1px 0 rgba(0,0,0,0.2)',
         }}
       >
-        <img
-          src="/CapturaDashboardHPTelefono.png"
-          alt="Captura del dashboard de HealthPal en teléfono"
-          style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top' }}
-        />
+        {/* ── Inner bezel (black) ── */}
+        <div
+          style={{
+            borderRadius: '2.5rem',
+            background: '#0a0a0a',
+            padding: '2px',
+            boxShadow: 'inset 0 0 8px rgba(0,0,0,0.8)',
+          }}
+        >
+          {/* ── Screen ── */}
+          <div
+            className="relative overflow-hidden"
+            style={{ borderRadius: '2.2rem', aspectRatio: '9/19.5', background: '#000' }}
+          >
+            {/* Dynamic Island */}
+            <div
+              className="absolute left-1/2 -translate-x-1/2 z-10 bg-black rounded-full"
+              style={{ top: '10px', width: '28%', height: '22px' }}
+            />
+
+            {/* App screenshot */}
+            <img
+              src="/CapturaDashboardHPTelefono.png"
+              alt="Captura del dashboard de HealthPal en teléfono"
+              className="w-full h-full object-cover object-top"
+            />
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -872,7 +911,6 @@ export default function Landing() {
       <AnnouncementBar />
       <Navbar />
       <Hero />
-      <LogoTicker />
       <ProblemCard />
       <SpeedSection />
       <HumanCenteredSection />

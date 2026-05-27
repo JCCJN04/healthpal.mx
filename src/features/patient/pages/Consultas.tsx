@@ -511,7 +511,7 @@ function CalendarView({
           return (
             <div className="mt-3 bg-white border border-gray-200 rounded-2xl shadow-xl p-4 space-y-2">
               <div className="flex items-center justify-between mb-1">
-                <p className="text-sm font-bold text-gray-800">{formatDate(new Date(overflowDay + 'T12:00:00-06:00'))}</p>
+                <p className="text-sm font-bold text-gray-800">{formatDate(new Date(overflowDay + 'T12:00:00-06:00').toISOString())}</p>
                 <button onClick={() => setOverflowDay(null)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400"><X className="w-4 h-4" /></button>
               </div>
               {dayAppts.map(appt => (

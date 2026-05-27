@@ -29,18 +29,6 @@ body {
   transform-origin: 50% 50%;
 }
 
-/* ── HT Clone: Logo ticker ── */
-@keyframes ht-ticker {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-.ht-ticker-track {
-  animation: ht-ticker 28s linear infinite;
-  will-change: transform;
-}
-.ht-ticker-track:hover {
-  animation-play-state: paused;
-}
 
 /* ── HT Clone: Word reveal ── */
 @keyframes word-up {

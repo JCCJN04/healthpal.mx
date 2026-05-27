@@ -520,7 +520,7 @@ function CalendarView({
           ) : (
             <>
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
-                {formatDate(new Date(selectedKey + 'T12:00:00-06:00'))} · {selectedDayAppts.length} {selectedDayAppts.length === 1 ? 'cita' : 'citas'}
+                {formatDate(new Date(selectedKey + 'T12:00:00-06:00').toISOString())} · {selectedDayAppts.length} {selectedDayAppts.length === 1 ? 'cita' : 'citas'}
               </p>
               {selectedDayAppts.map(appt => {
                 const initials = (appt.patient_name ?? 'P').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
@@ -615,7 +615,7 @@ function CalendarView({
           return (
             <div className="mt-3 bg-white border border-gray-200 rounded-xl shadow-lg p-4 space-y-2">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-bold text-gray-800">{formatDate(new Date(overflowDay + 'T12:00:00-06:00'))}</p>
+                <p className="text-sm font-bold text-gray-800">{formatDate(new Date(overflowDay + 'T12:00:00-06:00').toISOString())}</p>
                 <button onClick={() => setOverflowDay(null)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
               </div>
               {dayAppts.map(appt => (
