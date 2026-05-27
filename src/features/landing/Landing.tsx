@@ -234,13 +234,8 @@ function Navbar() {
       style={{ backgroundColor: scrolled ? 'rgba(16,23,34,0.98)' : 'rgba(16,23,34,0.8)', backdropFilter: 'blur(20px)' }}
     >
       <div className="max-w-[1200px] mx-auto px-6 lg:px-10 h-[68px] flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2.5 flex-shrink-0">
-          <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #ff3eb5, #8b3fff, #4541fe)' }}>
-            <span className="text-white text-[15px] leading-none">♥</span>
-          </div>
-          <span className="text-white font-bold text-[17px]">
-            HealthPal<span className="text-white/40">.mx</span>
-          </span>
+        <Link to="/" className="flex items-center flex-shrink-0">
+          <img src="/logograndenofondo.png" alt="HealthPal.mx" className="h-7 md:h-8 w-auto object-contain" />
         </Link>
 
         <nav className="hidden md:flex items-center gap-8 text-[14px] font-medium text-white/70">
@@ -254,7 +249,7 @@ function Navbar() {
             Iniciar sesión
           </Link>
           <Link to="/register">
-            <button className="bg-[#4541fe] text-white text-[13px] font-semibold px-5 py-2 rounded-full hover:bg-[#3530dc] transition-colors">
+            <button className="bg-[#0097a9] text-white text-[13px] font-semibold px-5 py-2 rounded-full hover:bg-[#007f89] transition-colors">
               Empieza gratis
             </button>
           </Link>
@@ -278,7 +273,7 @@ function Navbar() {
               <button className="w-full border border-white/20 text-white text-sm py-2.5 rounded-full">Iniciar sesión</button>
             </Link>
             <Link to="/register" className="flex-1">
-              <button className="w-full bg-[#4541fe] text-white text-sm font-semibold py-2.5 rounded-full">Empieza gratis</button>
+              <button className="w-full bg-[#0097a9] text-white text-sm font-semibold py-2.5 rounded-full">Empieza gratis</button>
             </Link>
           </div>
         </div>
@@ -304,7 +299,7 @@ function Hero() {
           className="text-[4rem] sm:text-[5.5rem] md:text-[7rem] lg:text-[7.5rem] font-black text-white leading-[0.92] tracking-[-0.04em]"
           style={{ willChange: 'transform' }}
         >
-          {['Tu', 'expediente,', 'siempre', 'contigo.'].map((word, i) => (
+          {['Tus', 'expedientes,', 'siempre', 'contigo.'].map((word, i) => (
             <span key={word + i} style={{ display: 'inline-block', overflow: 'hidden', paddingBottom: '0.06em', marginRight: '0.22em' }}>
               <span
                 style={{
@@ -330,7 +325,7 @@ function Hero() {
             transition: 'opacity 0.8s ease 1.7s, transform 0.8s cubic-bezier(0.16,1,0.3,1) 1.7s',
           }}
         >
-          Guarda y comparte tu historial médico en segundos. Con WhatsApp integrado, mandar un estudio a tu doctor es tan fácil como mandar un mensaje.
+          Accesa al expediente de tus pacientes en segundos. Con WhatsApp integrado, enviar archivos es tan fácil como mandar un mensaje.
         </p>
 
         <div
@@ -342,7 +337,7 @@ function Hero() {
           }}
         >
           <Link to="/register">
-            <button className="bg-[#4541fe] text-white text-[15px] font-semibold px-8 py-3.5 rounded-full hover:bg-[#3530dc] transition-all hover:scale-105 active:scale-95">
+            <button className="bg-[#0097a9] text-white text-[15px] font-semibold px-8 py-3.5 rounded-full hover:bg-[#007f89] transition-all hover:scale-105 active:scale-95">
               Crear cuenta gratis
             </button>
           </Link>
@@ -363,7 +358,7 @@ const LOGOS = ['Médica Sur', 'Hospital Ángeles', 'Salud Digna', 'Cruz Roja Mé
 function LogoTicker() {
   const doubled = [...LOGOS, ...LOGOS]
   return (
-    <div className="overflow-hidden py-6" style={{ backgroundColor: '#4541fe' }}>
+    <div className="overflow-hidden py-6" style={{ backgroundColor: '#0097a9' }}>
       <div className="ht-ticker-track flex items-center gap-16 whitespace-nowrap">
         {doubled.map((logo, i) => (
           <span key={i} className="text-white font-semibold text-[13px] opacity-70 shrink-0 uppercase tracking-[0.12em]">
@@ -384,13 +379,13 @@ function ProblemCard() {
     <section className="py-16 px-6" style={{ backgroundColor: '#f9f0ff' }}>
       <div className="max-w-[1100px] mx-auto">
         <div ref={ref} style={style}>
-          <div className="rounded-[28px] px-6 py-14 sm:px-12 sm:py-20 md:px-20 md:py-28 text-center" style={{ backgroundColor: '#4541fe' }}>
+          <div className="rounded-[28px] px-6 py-14 sm:px-12 sm:py-20 md:px-20 md:py-28 text-center" style={{ backgroundColor: '#0097a9' }}>
             <WordReveal
               tag="h2"
               className="text-[2rem] sm:text-[3.2rem] md:text-[4.5rem] font-black text-white leading-[1.0] tracking-[-0.03em]"
               stagger={60}
             >
-              Llegas a consulta sin tus estudios. Tu doctor te vuelve a preguntar lo mismo. Tus análisis están perdidos entre fotos y WhatsApp.
+              Decenas de pacientes en WhatsApp. Tus pacientes te vuelven a preguntar lo mismo. Análisis perdidos entre fotos y mensajes.
             </WordReveal>
           </div>
         </div>
@@ -413,7 +408,7 @@ function SpeedSection() {
           <h2 className="text-[3.5rem] sm:text-[5rem] md:text-[6.5rem] font-black leading-[0.95] tracking-[-0.04em] mb-6">
             <span
               className="inline bg-clip-text text-transparent"
-              style={{ backgroundImage: 'linear-gradient(90deg, #ff3eb5 0%, #8b3fff 50%, #4541fe 100%)' }}
+              style={{ backgroundImage: 'linear-gradient(90deg, #ff3eb5 0%, #8b3fff 30%, #0097a9 100%)' }}
             >
               Todo en un solo lugar,
             </span>
@@ -424,7 +419,7 @@ function SpeedSection() {
           <Link to="/register">
             <button
               className="text-white text-[15px] font-semibold px-8 py-3.5 rounded-full hover:opacity-90 transition-all hover:scale-105 active:scale-95 mt-2 mb-16"
-              style={{ backgroundColor: '#4541fe' }}
+              style={{ backgroundColor: '#0097a9' }}
             >
               Ver cómo funciona
             </button>
@@ -440,10 +435,10 @@ function SpeedSection() {
 
           {/* Desktop: side-by-side. Mobile: dashboard full-width, phone centered below */}
           <div className="flex flex-col md:flex-row justify-center items-end gap-6">
-            <div className="relative z-10 w-full md:max-w-[700px] lg:max-w-[780px]">
+            <div className="relative z-10 w-full md:max-w-[840px] lg:max-w-[980px]">
               <DashboardMockup />
             </div>
-            <div className="relative z-10 w-full flex justify-center md:w-auto md:block md:-mb-2">
+            <div className="relative z-20 w-full flex justify-center md:w-auto md:block md:-mb-8 md:-ml-10">
               <PhoneMockup />
             </div>
           </div>
@@ -466,55 +461,12 @@ function DashboardMockup() {
         <div className="flex-1 bg-[#2a2a3e] rounded h-6 flex items-center px-3 text-[10px] text-white/30 min-w-0">healthpal.mx/dashboard</div>
       </div>
 
-      <div className="bg-white flex" style={{ minHeight: '320px' }}>
-        {/* Sidebar — hidden on mobile */}
-        <div className="hidden sm:flex flex-col w-[160px] lg:w-[180px] bg-[#fafafa] border-r border-gray-100 flex-shrink-0 p-4">
-          <div className="flex items-center gap-2 mb-5">
-            <div className="w-6 h-6 rounded-full shrink-0" style={{ background: 'linear-gradient(135deg,#ff3eb5,#4541fe)' }} />
-            <span className="text-[11px] font-bold text-gray-700">HealthPal</span>
-          </div>
-          {['Dashboard', 'Pacientes', 'Consultas', 'Documentos', 'Mensajes', 'Citas'].map((item, i) => (
-            <div key={item} className="py-2 px-2.5 rounded-lg mb-0.5 text-[11px] font-medium flex items-center gap-2"
-              style={{ backgroundColor: i === 0 ? '#ede8ff' : 'transparent', color: i === 0 ? '#4541fe' : '#888' }}>
-              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: i === 0 ? '#4541fe' : '#ccc' }} />
-              {item}
-            </div>
-          ))}
-        </div>
-
-        {/* Main content */}
-        <div className="flex-1 p-4 sm:p-5 overflow-hidden min-w-0">
-          <div className="flex items-center justify-between mb-4 gap-2">
-            <p className="text-[12px] sm:text-[13px] font-bold text-gray-800 truncate">Expedientes Clínicos</p>
-            <div className="text-[10px] text-white font-semibold px-3 py-1 rounded-full shrink-0" style={{ backgroundColor: '#4541fe' }}>+ Nuevo</div>
-          </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4">
-            {[['2,625', 'Pacientes'], ['3,250', 'Consultas'], ['6,281', 'Docs']].map(([v, l]) => (
-              <div key={l} className="bg-gray-50 rounded-xl p-2 sm:p-3">
-                <p className="text-[13px] sm:text-[15px] font-black text-gray-900">{v}</p>
-                <p className="text-[8px] sm:text-[9px] text-gray-400 mt-0.5">{l}</p>
-                <div className="mt-1.5 h-1 bg-gray-100 rounded-full">
-                  <div className="h-1 rounded-full" style={{ width: '70%', backgroundColor: '#4541fe' }} />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Patient list */}
-          <div className="text-[11px] font-bold text-gray-700 mb-2">Últimos pacientes</div>
-          {[['María García', 'Consulta pendiente', '#4541fe'], ['Roberto López', 'Documento subido', '#ff3eb5'], ['Ana Martínez', 'Cita confirmada', '#28c840'], ['Carlos Ruiz', 'Receta generada', '#febc2e']].map(([name, status, color]) => (
-            <div key={name} className="flex items-center gap-2 sm:gap-3 py-2 border-b border-gray-50">
-              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex-shrink-0" style={{ background: `${color}25`, border: `1.5px solid ${color}40` }} />
-              <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-bold text-gray-800 truncate">{name}</p>
-                <p className="text-[8px] sm:text-[9px] text-gray-400">{status}</p>
-              </div>
-              <div className="text-[8px] font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ backgroundColor: `${color}18`, color }}>Ver</div>
-            </div>
-          ))}
-        </div>
+      <div className="bg-white" style={{ minHeight: '320px' }}>
+        <img
+          src="/CapturaDashboardHP.png"
+          alt="Captura del dashboard de HealthPal"
+          className="block w-full h-full object-cover"
+        />
       </div>
     </div>
   )
@@ -522,80 +474,29 @@ function DashboardMockup() {
 
 function PhoneMockup() {
   return (
-    <div className="flex-shrink-0" style={{ width: '190px' }}>
-      {/* iPhone 15 Pro silhouette */}
-      <div style={{
-        position: 'relative',
-        width: '190px',
-        height: '390px',
-        borderRadius: '48px',
-        background: 'linear-gradient(145deg, #3a3a3c 0%, #1c1c1e 40%, #2c2c2e 100%)',
-        boxShadow: '0 40px 80px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -1px 0 rgba(0,0,0,0.3)',
-        padding: '3px',
-      }}>
-        {/* Side buttons — volume up */}
-        <div style={{ position: 'absolute', left: '-3px', top: '88px', width: '3px', height: '32px', backgroundColor: '#3a3a3c', borderRadius: '2px 0 0 2px' }} />
-        <div style={{ position: 'absolute', left: '-3px', top: '130px', width: '3px', height: '32px', backgroundColor: '#3a3a3c', borderRadius: '2px 0 0 2px' }} />
-        {/* Side button — power */}
-        <div style={{ position: 'absolute', right: '-3px', top: '108px', width: '3px', height: '56px', backgroundColor: '#3a3a3c', borderRadius: '0 2px 2px 0' }} />
+    <div className="flex-shrink-0 relative" style={{ width: '250px', maxWidth: '100%' }}>
+      <img
+        src="/iphonesinfondo.png"
+        alt="Mockup de iPhone"
+        className="block w-full h-auto"
+      />
 
-        {/* Screen */}
-        <div style={{
-          width: '100%',
-          height: '100%',
-          borderRadius: '46px',
-          backgroundColor: '#fff',
-          overflow: 'hidden',
-          position: 'relative',
-        }}>
-          {/* Dynamic Island */}
-          <div style={{
-            position: 'absolute',
-            top: '12px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: '80px',
-            height: '26px',
-            backgroundColor: '#000',
-            borderRadius: '20px',
-            zIndex: 10,
-          }} />
-
-          {/* Status bar */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '48px 16px 4px', fontSize: '9px', color: '#888' }}>
-            <span style={{ fontWeight: 600, color: '#111' }}>9:41</span>
-            <span>●●●</span>
-          </div>
-
-          {/* App content */}
-          <div style={{ padding: '4px 14px 14px' }}>
-            <p style={{ fontSize: '8px', color: '#aaa', marginBottom: '2px' }}>Actualizado ahora</p>
-            <p style={{ fontSize: '14px', fontWeight: 900, color: '#111', marginBottom: '12px' }}>Mis Documentos</p>
-
-            <p style={{ fontSize: '8px', fontWeight: 700, color: '#555', marginBottom: '6px' }}>Recientes</p>
-            {[
-              ['🩺', 'Análisis de sangre', 'PDF · 2 MB', '#4541fe'],
-              ['💊', 'Receta · Dr. Herrera', 'PDF · 180 KB', '#ff3eb5'],
-              ['🔬', 'Radiografía tórax', 'IMG · 5 MB', '#28c840'],
-            ].map(([icon, name, size, color]) => (
-              <div key={name} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 0', borderBottom: '1px solid #f0f0f0' }}>
-                <div style={{ width: '28px', height: '28px', borderRadius: '8px', backgroundColor: `${color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', flexShrink: 0 }}>{icon}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: '9px', fontWeight: 700, color: '#111', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</p>
-                  <p style={{ fontSize: '8px', color: '#aaa' }}>{size}</p>
-                </div>
-              </div>
-            ))}
-
-            <div style={{ marginTop: '12px', backgroundColor: '#4541fe', borderRadius: '14px', padding: '10px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <p style={{ fontSize: '9px', fontWeight: 700, color: '#fff' }}>Compartir vía WhatsApp</p>
-                <p style={{ fontSize: '7px', color: 'rgba(255,255,255,0.6)' }}>Enviar al médico al instante</p>
-              </div>
-              <span style={{ fontSize: '16px' }}>📤</span>
-            </div>
-          </div>
-        </div>
+      <div
+        className="absolute overflow-hidden"
+        style={{
+          left: '10.3%',
+          top: '4.9%',
+          width: '79.2%',
+          height: '90.3%',
+          borderRadius: '4.1%',
+          backgroundColor: '#000',
+        }}
+      >
+        <img
+          src="/CapturaDashboardHPTelefono.png"
+          alt="Captura del dashboard de HealthPal en teléfono"
+          style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top' }}
+        />
       </div>
     </div>
   )
@@ -647,7 +548,7 @@ function HumanCenteredSection() {
             HealthPal nació en México para resolver un problema real: médicos y pacientes sin un expediente compartido. Panel de control, agenda, documentos y mensajería en un solo lugar.
           </p>
           <Link to="/register" state={{ role: 'patient' }}>
-            <button className="text-white text-[14px] font-semibold px-7 py-3 rounded-full hover:opacity-90 transition-all hover:scale-105 active:scale-95" style={{ backgroundColor: '#4541fe' }}>
+            <button className="text-white text-[14px] font-semibold px-7 py-3 rounded-full hover:opacity-90 transition-all hover:scale-105 active:scale-95" style={{ backgroundColor: '#0097a9' }}>
               Registra tu consultorio gratis
             </button>
           </Link>
@@ -689,36 +590,6 @@ function AISection() {
           <p className="text-[15px] max-w-[460px] mx-auto mb-14" style={{ color: '#101722', opacity: 0.55 }}>
             Tu información médica protegida con cifrado AES-256, cumplimiento con la NOM-024-SSA3 y sin acceso de terceros. Lo que es tuyo, es tuyo.
           </p>
-          <div className="flex justify-center">
-            <div className="w-[260px] md:w-[300px]">
-              <div className="rounded-[44px] p-3.5 shadow-[0_40px_80px_rgba(0,0,0,0.12)]" style={{ backgroundColor: '#1a1a2e' }}>
-                <div className="bg-white rounded-[34px] overflow-hidden">
-                  <div className="bg-[#1a1a2e] h-8 flex items-center justify-center">
-                    <div className="w-20 h-1.5 bg-gray-800 rounded-full" />
-                  </div>
-                  <div className="px-5 py-4">
-                    <p className="text-[10px] text-gray-400 mb-0.5">Actualizado ahora</p>
-                    <p className="text-[18px] font-black text-gray-900 mb-4">Citas Médicas</p>
-                    <p className="text-[10px] font-bold text-gray-600 mb-2">Solicitado</p>
-                    {[['Dr. García', 'Medicina General'], ['Dra. López', 'Cardiología'], ['Dr. Martínez', 'Pediatría']].map(([doc, spec]) => (
-                      <div key={doc} className="flex items-center gap-2.5 py-2.5 border-b border-gray-50">
-                        <div className="w-8 h-8 rounded-full flex-shrink-0" style={{ background: 'linear-gradient(135deg, #4541fe30, #ff3eb515)' }} />
-                        <div className="flex-1">
-                          <p className="text-[11px] font-bold text-gray-900">{doc}</p>
-                          <p className="text-[9px] text-gray-400">{spec}</p>
-                        </div>
-                        <ChevronRight size={14} className="text-[#4541fe]" />
-                      </div>
-                    ))}
-                    <div className="mt-4 rounded-2xl p-3" style={{ backgroundColor: '#4541fe' }}>
-                      <p className="text-[11px] font-bold text-white">Solicitar Cita →</p>
-                      <p className="text-[9px] text-white/60">Médicos verificados · En minutos</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </section>
@@ -763,7 +634,7 @@ function ScaleSection() {
             Menos tiempo en papeleo, más tiempo con pacientes. Médicos en México ahorran hasta 2 horas diarias con HealthPal.
           </p>
           <Link to="/register">
-            <button className="bg-white text-[#4541fe] text-[15px] font-bold px-8 py-3.5 rounded-full hover:opacity-90 hover:scale-105 active:scale-95 transition-all">
+            <button className="bg-white text-[#0097a9] text-[15px] font-bold px-8 py-3.5 rounded-full hover:opacity-90 hover:scale-105 active:scale-95 transition-all">
               Conoce nuestro impacto
             </button>
           </Link>
@@ -945,7 +816,7 @@ function CTASection() {
         <Link to="/register">
           <button
             className="text-white text-[16px] font-semibold px-10 py-4 rounded-full hover:opacity-90 hover:scale-105 active:scale-95 transition-all"
-            style={{ backgroundColor: '#4541fe' }}
+            style={{ backgroundColor: '#0097a9' }}
           >
             Crear mi cuenta gratis →
           </button>
@@ -962,36 +833,32 @@ function Footer() {
   return (
     <footer className="py-16" style={{ backgroundColor: '#f9f0ff' }}>
       <div className="max-w-[1100px] mx-auto px-6 lg:px-10">
-        <div className="grid grid-cols-2 md:grid-cols-[1.5fr_1fr_1fr_1fr_1fr] gap-8 md:gap-10 mb-14">
+        <div className="grid grid-cols-1 md:grid-cols-[1.5fr_1fr] gap-8 md:gap-10 mb-14">
           <div className="col-span-2 md:col-span-1">
-            <div className="flex items-center gap-2.5 mb-5">
-              <div className="w-9 h-9 rounded-full" style={{ background: 'linear-gradient(135deg, #ff3eb5, #8b3fff, #4541fe)' }} />
-              <span className="font-black text-[18px]" style={{ color: '#101722' }}>HealthPal<span className="font-medium text-gray-400">.mx</span></span>
-            </div>
+            <img src="/logo healthpal.mx negro.png" alt="HealthPal.mx" className="h-8 w-auto object-contain mb-5" />
             <p className="text-[13px] text-gray-500 leading-relaxed max-w-[200px]">Expediente clínico digital para médicos y pacientes. Hecho en México 🇲🇽</p>
           </div>
-          {[
-            { heading: 'Expediente', links: ['Historial Clínico', 'Compartir por WhatsApp', 'Recetas Digitales', 'Estudios'] },
-            { heading: 'Médicos', links: ['Panel Médico', 'Agenda Digital', 'Pacientes', 'Comunicación'] },
-            { heading: 'Empresa', links: ['Nosotros', 'Blog', 'Careers', 'Privacidad', 'Términos', 'Trust Center'] },
-            { heading: 'Soporte', links: ['Centro de Ayuda', 'Descargas'] },
-          ].map(({ heading, links }) => (
-            <div key={heading}>
-              <p className="text-[13px] font-black mb-4" style={{ color: '#101722' }}>{heading}</p>
-              {links.map(l => (
-                <a key={l} href="#" className="block text-[13px] mb-2.5 hover:text-[#4541fe] transition-colors" style={{ color: '#4541fe' }}>{l}</a>
-              ))}
-            </div>
-          ))}
+          <div>
+            <p className="text-[13px] font-black mb-4" style={{ color: '#101722' }}>Legal</p>
+            <Link to="/privacidad" className="block text-[13px] mb-2.5 hover:text-[#0097a9] transition-colors" style={{ color: '#0097a9' }}>
+              Aviso de Privacidad
+            </Link>
+            <Link to="/legal" className="block text-[13px] mb-2.5 hover:text-[#0097a9] transition-colors" style={{ color: '#0097a9' }}>
+              Términos y Condiciones
+            </Link>
+          </div>
         </div>
         <div className="border-t border-gray-200 pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-[12px] text-gray-400">
-          <p>© {new Date().getFullYear()} HealthPal.mx — Todos los derechos reservados</p>
-          <p>Hecho con ❤️ en México · Twenty Labs, S.A. de C.V.</p>
+          <p>© {new Date().getFullYear()} HealthPal.mx | Todos los derechos reservados</p>
+          <p>Healthpal.mx hecho en México.</p>
         </div>
       </div>
     </footer>
   )
 }
+
+void ScaleSection
+void TestimonialsSection
 
 /* ─────────────────────────────────────────────
    Landing — main
@@ -1010,8 +877,8 @@ export default function Landing() {
       <SpeedSection />
       <HumanCenteredSection />
       <AISection />
-      <ScaleSection />
-      <TestimonialsSection />
+      {/* <ScaleSection /> */}
+      {/* <TestimonialsSection /> */}
       <CTASection />
       <Footer />
     </div>
