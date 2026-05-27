@@ -32,6 +32,8 @@ const PatientDetail = lazy(() => import('@/features/doctor/pages/PatientDetail')
 const SolicitudDocumento = lazy(() => import('@/features/public/pages/SolicitudDocumento'))
 
 const DemoDoctor = lazy(() => import('@/pages/DemoDoctor'))
+const Privacidad = lazy(() => import('@/pages/Privacidad'))
+const Legal = lazy(() => import('@/pages/Legal'))
 
 // Lazy load onboarding pages
 const OnboardingRole = lazy(() => import('@/features/auth/pages/onboarding/OnboardingRole'))
@@ -71,6 +73,8 @@ function App() {
         <Route path="/demo/doctor/*" element={<Suspense fallback={<PageLoader />}><DemoDoctor /></Suspense>} />
 
         <Route path="/solicitud/:token" element={<Suspense fallback={<PageLoader />}><SolicitudDocumento /></Suspense>} />
+        <Route path="/privacidad" element={<Suspense fallback={<PageLoader />}><Privacidad /></Suspense>} />
+        <Route path="/legal" element={<Suspense fallback={<PageLoader />}><Legal /></Suspense>} />
 
         {/* Onboarding Routes */}
         <Route path="/onboarding/role" element={<RequireAuth><OnlyOnboarding><Suspense fallback={<PageLoader />}><OnboardingRole /></Suspense></OnlyOnboarding></RequireAuth>} />

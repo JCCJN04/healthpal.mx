@@ -15,6 +15,9 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
+        instrument: ['"Instrument Serif"', 'serif'],
+        serif: ['"Instrument Serif"', 'serif'],
+        nokia: ['"Nokia Cellphone FC Small"', 'monospace'],
       },
     },
   },

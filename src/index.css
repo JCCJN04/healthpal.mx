@@ -1,3 +1,6 @@
+@import url('https://db.onlinewebfonts.com/c/440b53b1a1c65037f944ff19259d8014?family=Nokia+Cellphone+FC+Small');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -7,7 +10,53 @@ body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #F8F9FB;
+  background-color: #f9f0ff;
+}
+
+/* ── HT Clone: Ribbon animation ── */
+@keyframes ribbon-wave {
+  0%, 100% { transform: translateY(0px) skewY(0deg); }
+  30% { transform: translateY(-18px) skewY(0.4deg); }
+  70% { transform: translateY(10px) skewY(-0.25deg); }
+}
+.ribbon-anim {
+  animation: ribbon-wave 12s ease-in-out infinite;
+  transform-origin: 50% 50%;
+}
+.ribbon-anim-delay {
+  animation: ribbon-wave 12s ease-in-out infinite;
+  animation-delay: -4s;
+  transform-origin: 50% 50%;
+}
+
+/* ── HT Clone: Logo ticker ── */
+@keyframes ht-ticker {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.ht-ticker-track {
+  animation: ht-ticker 28s linear infinite;
+  will-change: transform;
+}
+.ht-ticker-track:hover {
+  animation-play-state: paused;
+}
+
+/* ── HT Clone: Word reveal ── */
+@keyframes word-up {
+  0% { opacity: 0; transform: translateY(30px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.word-reveal > span {
+  display: inline-block;
+  animation: word-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ── HT Clone: Horizontal testimonial scroll ── */
+.ht-testimonial-track {
+  display: flex;
+  gap: 20px;
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* ── Landing page: dot grid hero background ── */
@@ -39,6 +88,11 @@ body {
 
 * {
   box-sizing: border-box;
+}
+
+/* Page loader spinner */
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* Thin scrollbar for availability slot columns */

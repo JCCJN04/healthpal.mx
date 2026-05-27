@@ -1,0 +1,413 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]: HealthPal ya está disponible para médicos en México 🇲🇽
+    - generic [ref=e6]: Digitaliza tu consultorio gratis — Expediente clínico, agenda y WhatsApp en un solo lugar
+    - button [ref=e7] [cursor=pointer]:
+      - img [ref=e8]
+  - banner [ref=e11]:
+    - generic [ref=e12]:
+      - link "♥ HealthPal.mx" [ref=e13] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e15]: ♥
+        - generic [ref=e16]: HealthPal.mx
+      - navigation [ref=e17]:
+        - button "Soluciones" [ref=e18] [cursor=pointer]
+        - button "Empresa" [ref=e19] [cursor=pointer]
+        - button "Recursos" [ref=e20] [cursor=pointer]
+      - generic [ref=e21]:
+        - link "Iniciar sesión" [ref=e22] [cursor=pointer]:
+          - /url: /login
+        - link "Empieza gratis" [ref=e23] [cursor=pointer]:
+          - /url: /register
+          - button "Empieza gratis" [ref=e24]
+  - generic [ref=e26]:
+    - heading "Tu expediente, siempre contigo." [level=1] [ref=e27]:
+      - generic [ref=e29]: Tu
+      - generic [ref=e31]: expediente,
+      - generic [ref=e33]: siempre
+      - generic [ref=e35]: contigo.
+    - paragraph [ref=e36]: Guarda y comparte tu historial médico en segundos. Con WhatsApp integrado, mandar un estudio a tu doctor es tan fácil como mandar un mensaje.
+    - generic [ref=e37]:
+      - link "Crear cuenta gratis" [ref=e38] [cursor=pointer]:
+        - /url: /register
+        - button "Crear cuenta gratis" [ref=e39]
+      - link "Ver directorio médico" [ref=e40] [cursor=pointer]:
+        - /url: /directorio
+        - text: Ver directorio médico
+        - img [ref=e41]
+  - generic [ref=e44]:
+    - generic [ref=e45]: Médica Sur
+    - generic [ref=e46]: Hospital Ángeles
+    - generic [ref=e47]: Salud Digna
+    - generic [ref=e48]: Cruz Roja México
+    - generic [ref=e49]: UNAM Facultad de Medicina
+    - generic [ref=e50]: Christus Muguerza
+    - generic [ref=e51]: Star Médica
+    - generic [ref=e52]: TecSalud
+    - generic [ref=e53]: Grupo Ángeles
+    - generic [ref=e54]: IMSS Bienestar
+    - generic [ref=e55]: Médica Sur
+    - generic [ref=e56]: Hospital Ángeles
+    - generic [ref=e57]: Salud Digna
+    - generic [ref=e58]: Cruz Roja México
+    - generic [ref=e59]: UNAM Facultad de Medicina
+    - generic [ref=e60]: Christus Muguerza
+    - generic [ref=e61]: Star Médica
+    - generic [ref=e62]: TecSalud
+    - generic [ref=e63]: Grupo Ángeles
+    - generic [ref=e64]: IMSS Bienestar
+  - heading "Llegas a consulta sin tus estudios. Tu doctor te vuelve a preguntar lo mismo. Tus análisis están perdidos entre fotos y WhatsApp." [level=2] [ref=e69]:
+    - generic [ref=e71]: Llegas
+    - generic [ref=e73]: a
+    - generic [ref=e75]: consulta
+    - generic [ref=e77]: sin
+    - generic [ref=e79]: tus
+    - generic [ref=e81]: estudios.
+    - generic [ref=e83]: Tu
+    - generic [ref=e85]: doctor
+    - generic [ref=e87]: te
+    - generic [ref=e89]: vuelve
+    - generic [ref=e91]: a
+    - generic [ref=e93]: preguntar
+    - generic [ref=e95]: lo
+    - generic [ref=e97]: mismo.
+    - generic [ref=e99]: Tus
+    - generic [ref=e101]: análisis
+    - generic [ref=e103]: están
+    - generic [ref=e105]: perdidos
+    - generic [ref=e107]: entre
+    - generic [ref=e109]: fotos
+    - generic [ref=e111]: "y"
+    - generic [ref=e113]: WhatsApp.
+  - generic [ref=e115]:
+    - generic [ref=e116]:
+      - heading "Todo en un solo lugar, al alcance de tu celular." [level=2] [ref=e117]:
+        - text: Todo en un solo lugar,
+        - text: al alcance de tu celular.
+      - link "Ver cómo funciona" [ref=e118] [cursor=pointer]:
+        - /url: /register
+        - button "Ver cómo funciona" [ref=e119]
+    - generic [ref=e124]:
+      - generic [ref=e126]:
+        - generic [ref=e132]: healthpal.mx/dashboard
+        - generic [ref=e133]:
+          - generic [ref=e134]:
+            - generic [ref=e137]: HealthPal
+            - generic [ref=e138]: Dashboard
+            - generic [ref=e140]: Pacientes
+            - generic [ref=e142]: Consultas
+            - generic [ref=e144]: Documentos
+            - generic [ref=e146]: Mensajes
+            - generic [ref=e148]: Citas
+          - generic [ref=e150]:
+            - generic [ref=e151]:
+              - paragraph [ref=e152]: Expedientes Clínicos
+              - generic [ref=e153]: + Nuevo
+            - generic [ref=e154]:
+              - generic [ref=e155]:
+                - paragraph [ref=e156]: 2,625
+                - paragraph [ref=e157]: Pacientes
+              - generic [ref=e160]:
+                - paragraph [ref=e161]: 3,250
+                - paragraph [ref=e162]: Consultas
+              - generic [ref=e165]:
+                - paragraph [ref=e166]: 6,281
+                - paragraph [ref=e167]: Docs
+            - generic [ref=e170]: Últimos pacientes
+            - generic [ref=e171]:
+              - generic [ref=e173]:
+                - paragraph [ref=e174]: María García
+                - paragraph [ref=e175]: Consulta pendiente
+              - generic [ref=e176]: Ver
+            - generic [ref=e177]:
+              - generic [ref=e179]:
+                - paragraph [ref=e180]: Roberto López
+                - paragraph [ref=e181]: Documento subido
+              - generic [ref=e182]: Ver
+            - generic [ref=e183]:
+              - generic [ref=e185]:
+                - paragraph [ref=e186]: Ana Martínez
+                - paragraph [ref=e187]: Cita confirmada
+              - generic [ref=e188]: Ver
+            - generic [ref=e189]:
+              - generic [ref=e191]:
+                - paragraph [ref=e192]: Carlos Ruiz
+                - paragraph [ref=e193]: Receta generada
+              - generic [ref=e194]: Ver
+      - generic [ref=e201]:
+        - generic [ref=e203]:
+          - generic [ref=e204]: 9:41
+          - generic [ref=e205]: ●●●
+        - generic [ref=e206]:
+          - paragraph [ref=e207]: Actualizado ahora
+          - paragraph [ref=e208]: Mis Documentos
+          - paragraph [ref=e209]: Recientes
+          - generic [ref=e210]:
+            - generic [ref=e211]: 🩺
+            - generic [ref=e212]:
+              - paragraph [ref=e213]: Análisis de sangre
+              - paragraph [ref=e214]: PDF · 2 MB
+          - generic [ref=e215]:
+            - generic [ref=e216]: 💊
+            - generic [ref=e217]:
+              - paragraph [ref=e218]: Receta · Dr. Herrera
+              - paragraph [ref=e219]: PDF · 180 KB
+          - generic [ref=e220]:
+            - generic [ref=e221]: 🔬
+            - generic [ref=e222]:
+              - paragraph [ref=e223]: Radiografía tórax
+              - paragraph [ref=e224]: IMG · 5 MB
+          - generic [ref=e225]:
+            - generic [ref=e226]:
+              - paragraph [ref=e227]: Compartir vía WhatsApp
+              - paragraph [ref=e228]: Enviar al médico al instante
+            - generic [ref=e229]: 📤
+  - generic [ref=e231]:
+    - generic [ref=e238]:
+      - generic [ref=e239]:
+        - generic [ref=e241]:
+          - paragraph [ref=e242]: María García
+          - paragraph [ref=e243]: Paciente · CDMX
+        - generic [ref=e244]:
+          - img [ref=e245]
+          - img [ref=e247]
+          - img [ref=e249]
+          - img [ref=e251]
+          - img [ref=e253]
+      - paragraph [ref=e255]: "\"Llevaba mis estudios en una bolsa. Ahora los comparto por WhatsApp en segundos.\""
+    - generic [ref=e256]:
+      - heading "Hecho para médicos mexicanos. Diseñado para sus pacientes." [level=2] [ref=e257]:
+        - generic [ref=e259]: Hecho
+        - generic [ref=e261]: para
+        - generic [ref=e263]: médicos
+        - generic [ref=e265]: mexicanos.
+        - generic [ref=e267]: Diseñado
+        - generic [ref=e269]: para
+        - generic [ref=e271]: sus
+        - generic [ref=e273]: pacientes.
+      - paragraph [ref=e274]: "HealthPal nació en México para resolver un problema real: médicos y pacientes sin un expediente compartido. Panel de control, agenda, documentos y mensajería en un solo lugar."
+      - link "Registra tu consultorio gratis" [ref=e275] [cursor=pointer]:
+        - /url: /register
+        - button "Registra tu consultorio gratis" [ref=e276]
+  - generic [ref=e277]:
+    - generic:
+      - img
+    - generic [ref=e279]:
+      - heading "Cumplimiento NOM-024. Privacidad real. Cifrado total." [level=2] [ref=e280]:
+        - generic [ref=e282]: Cumplimiento
+        - generic [ref=e284]: NOM-024.
+        - generic [ref=e286]: Privacidad
+        - generic [ref=e288]: real.
+        - generic [ref=e290]: Cifrado
+        - generic [ref=e292]: total.
+      - paragraph [ref=e293]: Tu información médica protegida con cifrado AES-256, cumplimiento con la NOM-024-SSA3 y sin acceso de terceros. Lo que es tuyo, es tuyo.
+      - generic [ref=e300]:
+        - paragraph [ref=e301]: Actualizado ahora
+        - paragraph [ref=e302]: Citas Médicas
+        - paragraph [ref=e303]: Solicitado
+        - generic [ref=e304]:
+          - generic [ref=e306]:
+            - paragraph [ref=e307]: Dr. García
+            - paragraph [ref=e308]: Medicina General
+          - img [ref=e309]
+        - generic [ref=e311]:
+          - generic [ref=e313]:
+            - paragraph [ref=e314]: Dra. López
+            - paragraph [ref=e315]: Cardiología
+          - img [ref=e316]
+        - generic [ref=e318]:
+          - generic [ref=e320]:
+            - paragraph [ref=e321]: Dr. Martínez
+            - paragraph [ref=e322]: Pediatría
+          - img [ref=e323]
+        - generic [ref=e325]:
+          - paragraph [ref=e326]: Solicitar Cita →
+          - paragraph [ref=e327]: Médicos verificados · En minutos
+  - generic [ref=e331]:
+    - heading "Lo que logran los médicos que usan HealthPal." [level=2] [ref=e333]:
+      - generic [ref=e335]: Lo
+      - generic [ref=e337]: que
+      - generic [ref=e339]: logran
+      - generic [ref=e341]: los
+      - generic [ref=e343]: médicos
+      - generic [ref=e345]: que
+      - generic [ref=e347]: usan
+      - generic [ref=e349]: HealthPal.
+    - generic [ref=e350]:
+      - paragraph [ref=e351]: Menos tiempo en papeleo, más tiempo con pacientes. Médicos en México ahorran hasta 2 horas diarias con HealthPal.
+      - link "Conoce nuestro impacto" [ref=e352] [cursor=pointer]:
+        - /url: /register
+        - button "Conoce nuestro impacto" [ref=e353]
+    - generic [ref=e354]:
+      - generic [ref=e355]:
+        - paragraph [ref=e356]: "0"
+        - paragraph [ref=e357]: Pacientes activos
+      - generic [ref=e358]:
+        - paragraph [ref=e359]: "0"
+        - paragraph [ref=e360]: Consultas este mes
+      - generic [ref=e361]:
+        - paragraph [ref=e362]: "0"
+        - paragraph [ref=e363]: Documentos subidos
+    - generic [ref=e364]:
+      - generic [ref=e370]: healthpal.mx
+      - paragraph [ref=e372]: Dashboard
+  - generic [ref=e375]:
+    - generic [ref=e376]:
+      - heading "Lo que dicen médicos y pacientes." [level=2] [ref=e377]:
+        - generic [ref=e379]: Lo
+        - generic [ref=e381]: que
+        - generic [ref=e383]: dicen
+        - generic [ref=e385]: médicos
+        - generic [ref=e387]: "y"
+        - generic [ref=e389]: pacientes.
+      - generic [ref=e390]:
+        - button [disabled] [ref=e391] [cursor=pointer]:
+          - img [ref=e392]
+        - button [ref=e394] [cursor=pointer]:
+          - img [ref=e395]
+    - generic [ref=e398]:
+      - generic [ref=e399]:
+        - generic [ref=e400]:
+          - generic [ref=e401]: 🟢
+          - generic [ref=e402]:
+            - paragraph [ref=e403]: Dra. Alejandra R.
+            - paragraph [ref=e404]: CDMX · WhatsApp
+        - generic [ref=e405]:
+          - img [ref=e406]
+          - img [ref=e408]
+          - img [ref=e410]
+          - img [ref=e412]
+          - img [ref=e414]
+        - paragraph [ref=e416]: Mis pacientes me mandan sus estudios por WhatsApp y los tengo listos antes de que lleguen a consulta. HealthPal cambió completamente mi flujo de trabajo.
+      - generic [ref=e417]:
+        - generic [ref=e418]:
+          - generic [ref=e419]: ⭐
+          - generic [ref=e420]:
+            - paragraph [ref=e421]: Roberto Méndez
+            - paragraph [ref=e422]: Guadalajara · App Store
+        - generic [ref=e423]:
+          - img [ref=e424]
+          - img [ref=e426]
+          - img [ref=e428]
+          - img [ref=e430]
+          - img [ref=e432]
+        - paragraph [ref=e434]: Tenía años buscando una plataforma así. Subí todos mis estudios en una tarde y ahora los comparto con cualquier médico en segundos.
+      - generic [ref=e435]:
+        - generic [ref=e436]:
+          - generic [ref=e437]: 🔵
+          - generic [ref=e438]:
+            - paragraph [ref=e439]: Dr. Marco Herrera
+            - paragraph [ref=e440]: Monterrey · Google Play
+        - generic [ref=e441]:
+          - img [ref=e442]
+          - img [ref=e444]
+          - img [ref=e446]
+          - img [ref=e448]
+          - img [ref=e450]
+        - paragraph [ref=e452]: La agenda integrada y el expediente en un solo lugar es un antes y un después. Ya no pierdo tiempo buscando archivos entre consulta y consulta.
+      - generic [ref=e453]:
+        - generic [ref=e454]:
+          - generic [ref=e455]: 🟢
+          - generic [ref=e456]:
+            - paragraph [ref=e457]: Carmen Ortiz
+            - paragraph [ref=e458]: Puebla · WhatsApp
+        - generic [ref=e459]:
+          - img [ref=e460]
+          - img [ref=e462]
+          - img [ref=e464]
+          - img [ref=e466]
+          - img [ref=e468]
+        - paragraph [ref=e470]: Llevaba mis estudios en una bolsa de plástico desde hace 10 años. Ahora los tengo todos aquí y los puedo compartir con mi médico con un tap.
+      - generic [ref=e471]:
+        - generic [ref=e472]:
+          - generic [ref=e473]: ⭐
+          - generic [ref=e474]:
+            - paragraph [ref=e475]: Dra. Sofía Vargas
+            - paragraph [ref=e476]: Querétaro · App Store
+        - generic [ref=e477]:
+          - img [ref=e478]
+          - img [ref=e480]
+          - img [ref=e482]
+          - img [ref=e484]
+          - img [ref=e486]
+        - paragraph [ref=e488]: Lo que más me gusta es que mis pacientes llegan con su historial completo. Dedico menos tiempo a preguntas básicas y más a lo que importa.
+      - generic [ref=e489]:
+        - generic [ref=e490]:
+          - generic [ref=e491]: 🔵
+          - generic [ref=e492]:
+            - paragraph [ref=e493]: Luis Antonio P.
+            - paragraph [ref=e494]: CDMX · Google Play
+        - generic [ref=e495]:
+          - img [ref=e496]
+          - img [ref=e498]
+          - img [ref=e500]
+          - img [ref=e502]
+          - img [ref=e504]
+        - paragraph [ref=e506]: Encontré a mi médico en el directorio, agendé la cita el mismo día y compartí mis análisis antes de llegar. Todo desde el celular. Increíble.
+    - generic [ref=e507]:
+      - button [ref=e508] [cursor=pointer]
+      - button [ref=e509] [cursor=pointer]
+      - button [ref=e510] [cursor=pointer]
+      - button [ref=e511] [cursor=pointer]
+  - generic [ref=e513]:
+    - heading "Tu expediente digital. Sin tarjeta. Sin letra chica." [level=2] [ref=e514]:
+      - generic [ref=e516]: Tu
+      - generic [ref=e518]: expediente
+      - generic [ref=e520]: digital.
+      - generic [ref=e522]: Sin
+      - generic [ref=e524]: tarjeta.
+      - generic [ref=e526]: Sin
+      - generic [ref=e528]: letra
+      - generic [ref=e530]: chica.
+    - link "Crear mi cuenta gratis →" [ref=e531] [cursor=pointer]:
+      - /url: /register
+      - button "Crear mi cuenta gratis →" [ref=e532]
+  - contentinfo [ref=e533]:
+    - generic [ref=e534]:
+      - generic [ref=e535]:
+        - generic [ref=e536]:
+          - generic [ref=e539]: HealthPal.mx
+          - paragraph [ref=e540]: Expediente clínico digital para médicos y pacientes. Hecho en México 🇲🇽
+        - generic [ref=e541]:
+          - paragraph [ref=e542]: Expediente
+          - link "Historial Clínico" [ref=e543] [cursor=pointer]:
+            - /url: "#"
+          - link "Compartir por WhatsApp" [ref=e544] [cursor=pointer]:
+            - /url: "#"
+          - link "Recetas Digitales" [ref=e545] [cursor=pointer]:
+            - /url: "#"
+          - link "Estudios" [ref=e546] [cursor=pointer]:
+            - /url: "#"
+        - generic [ref=e547]:
+          - paragraph [ref=e548]: Médicos
+          - link "Panel Médico" [ref=e549] [cursor=pointer]:
+            - /url: "#"
+          - link "Agenda Digital" [ref=e550] [cursor=pointer]:
+            - /url: "#"
+          - link "Pacientes" [ref=e551] [cursor=pointer]:
+            - /url: "#"
+          - link "Comunicación" [ref=e552] [cursor=pointer]:
+            - /url: "#"
+        - generic [ref=e553]:
+          - paragraph [ref=e554]: Empresa
+          - link "Nosotros" [ref=e555] [cursor=pointer]:
+            - /url: "#"
+          - link "Blog" [ref=e556] [cursor=pointer]:
+            - /url: "#"
+          - link "Careers" [ref=e557] [cursor=pointer]:
+            - /url: "#"
+          - link "Privacidad" [ref=e558] [cursor=pointer]:
+            - /url: "#"
+          - link "Términos" [ref=e559] [cursor=pointer]:
+            - /url: "#"
+          - link "Trust Center" [ref=e560] [cursor=pointer]:
+            - /url: "#"
+        - generic [ref=e561]:
+          - paragraph [ref=e562]: Soporte
+          - link "Centro de Ayuda" [ref=e563] [cursor=pointer]:
+            - /url: "#"
+          - link "Descargas" [ref=e564] [cursor=pointer]:
+            - /url: "#"
+      - generic [ref=e565]:
+        - paragraph [ref=e566]: © 2026 HealthPal.mx — Todos los derechos reservados
+        - paragraph [ref=e567]: Hecho con ❤️ en México · Twenty Labs, S.A. de C.V.

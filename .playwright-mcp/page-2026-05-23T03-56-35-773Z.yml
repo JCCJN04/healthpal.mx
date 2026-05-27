@@ -1,0 +1,419 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - link "This is some text inside of a div block." [ref=e5] [cursor=pointer]:
+          - /url: "#"
+          - generic [ref=e6]: This is some text inside of a div block.
+        - generic [ref=e7]:
+          - strong [ref=e9]: "Meet us at NWA 2026 Booth #125"
+          - generic [ref=e10]: "Join our session: 5/28 at 4pm: How Montana WIC Modernized Engagement Through Participant Centered Digital Services"
+      - banner [ref=e11]:
+        - link "HT Icon Healthy Together" [ref=e12] [cursor=pointer]:
+          - /url: /
+          - img "HT Icon" [ref=e13]
+          - img "Healthy Together" [ref=e14]
+        - navigation [ref=e15]:
+          - generic [ref=e16]:
+            - generic [ref=e19] [cursor=pointer]: Solutions
+            - generic [ref=e22] [cursor=pointer]: Company
+            - generic [ref=e25] [cursor=pointer]: Resources
+        - link "Need Help?" [ref=e29] [cursor=pointer]:
+          - /url: https://healthytogether.zendesk.com/hc/en-us
+          - generic [ref=e30]: Need Help?
+    - main [ref=e31]:
+      - generic [ref=e32]:
+        - generic [ref=e33]:
+          - generic [ref=e34]:
+            - heading "Systems that deliver outcomes for government." [level=1] [ref=e35]:
+              - generic [ref=e37]: Systems
+              - generic [ref=e39]: that
+              - generic [ref=e41]: deliver
+              - generic [ref=e43]: outcomes
+              - generic [ref=e45]: for
+              - generic [ref=e47]: government.
+            - link "Schedule a Demo" [ref=e48] [cursor=pointer]:
+              - /url: "#"
+          - img "Florida Health" [ref=e50]
+        - generic [ref=e52]: Sorry, your browser doesn't support embedded videos.
+      - generic [ref=e57]:
+        - heading "Legacy systems are expensive, insecure, and stall innovation." [level=2] [ref=e58]:
+          - generic [ref=e60]: Legacy
+          - generic [ref=e62]: systems
+          - generic [ref=e64]: are
+          - generic [ref=e66]: expensive,
+          - generic [ref=e68]: insecure,
+          - generic [ref=e70]: and
+          - generic [ref=e72]: stall
+          - generic [ref=e74]: innovation.
+        - paragraph [ref=e75]:
+          - text: Older software cannot update at the
+          - text: speed of government change.
+      - generic [ref=e76]:
+        - generic [ref=e80]:
+          - heading "Speed & Efficiency are our priority." [level=2] [ref=e81]
+          - link "Learn More About Our Vision" [ref=e82] [cursor=pointer]:
+            - /url: "#vision"
+        - generic [ref=e83]:
+          - generic [ref=e84]: Our Vision
+          - generic [ref=e85]:
+            - heading "Solutions for" [level=2] [ref=e86]
+            - list [ref=e89]:
+              - heading "Child Services" [level=2] [ref=e91]
+              - heading "WIC & FMNP" [level=2] [ref=e93]
+              - heading "SNAP" [level=2] [ref=e95]
+              - heading "SUN Bucks" [level=2] [ref=e97]
+              - heading "Medicaid IE&E" [level=2] [ref=e99]
+              - heading "TANF" [level=2] [ref=e101]
+              - heading "Child Services" [level=2] [ref=e103]
+              - heading "WIC & FMNP" [level=2] [ref=e105]
+              - heading "SNAP" [level=2] [ref=e107]
+              - heading "SUN Bucks" [level=2] [ref=e109]
+              - heading "Medicaid IE&E" [level=2] [ref=e111]
+              - heading "TANF" [level=2] [ref=e113]
+              - heading "Child Services" [level=2] [ref=e115]
+              - heading "WIC & FMNP" [level=2] [ref=e117]
+              - heading "SNAP" [level=2] [ref=e119]
+              - heading "SUN Bucks" [level=2] [ref=e121]
+              - heading "Medicaid IE&E" [level=2] [ref=e123]
+              - heading "TANF" [level=2] [ref=e125]
+          - paragraph [ref=e126]: Providing a seamless experience for both staff and residents, ensuring smoother operations, improved engagement, and better outcomes.
+        - generic [ref=e127]:
+          - generic [ref=e128]:
+            - heading "Deploy faster than any other platform." [level=3] [ref=e129]
+            - paragraph [ref=e130]: 10x increase in speed to deliver public services.
+          - generic [ref=e131]:
+            - heading "Deliver the best experience for residents and workers." [level=3] [ref=e132]
+            - paragraph [ref=e133]: 5M+ people using our platform.
+          - generic [ref=e134]:
+            - heading "Long term, ROI positive deployments that you can grow with." [level=3] [ref=e135]
+            - paragraph [ref=e136]: Millions in cost savings for our partners.
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - generic:
+                  - img
+              - generic:
+                - generic:
+                  - generic: Sorry, your browser doesn't support embedded videos.
+      - generic [ref=e140]:
+        - heading "Trusted by governments nationwide to deliver real outcomes." [level=2] [ref=e141]:
+          - generic [ref=e143]: Trusted
+          - generic [ref=e145]: by
+          - generic [ref=e147]: governments
+          - generic [ref=e149]: nationwide
+          - generic [ref=e151]: to
+          - generic [ref=e153]: deliver
+          - generic [ref=e155]: real
+          - generic [ref=e157]: outcomes.
+        - link "Learn More About Our Impact" [ref=e158] [cursor=pointer]:
+          - /url: /company/blog
+      - generic [ref=e161]:
+        - generic [ref=e162]:
+          - heading "Designed with a human-centered approach." [level=2] [ref=e163]:
+            - generic [ref=e165]: Designed
+            - generic [ref=e167]: with
+            - generic [ref=e169]: a
+            - generic [ref=e171]: human-centered
+            - generic [ref=e173]: approach.
+          - paragraph [ref=e174]: Our deep understanding of participant needs and the work people do in government means we always deliver a top 1% user experience.
+        - img "a man and a boy playing with a toy" [ref=e176]
+      - generic [ref=e177]:
+        - generic [ref=e181]:
+          - generic [ref=e182]:
+            - heading "The first composable AI system, built for rapid policy change." [level=2] [ref=e183]:
+              - generic [ref=e185]: The
+              - generic [ref=e187]: first
+              - generic [ref=e189]: composable
+              - generic [ref=e191]: AI
+              - generic [ref=e193]: system,
+              - generic [ref=e195]: built
+              - generic [ref=e197]: for
+              - generic [ref=e199]: rapid
+              - generic [ref=e201]: policy
+              - generic [ref=e203]: change.
+            - paragraph [ref=e204]: Purpose-built for Health & Human Services and other government agencies.
+          - generic [ref=e209]: Sorry, your browser doesn't support embedded videos.
+        - generic [ref=e210]:
+          - generic [ref=e211]:
+            - heading "Privacy at the core." [level=3] [ref=e212]
+            - paragraph [ref=e213]: Built on a foundation of uncompromising standards and protocols, ensuring robust protection for sensitive data.
+          - generic [ref=e214]:
+            - heading "Success at scale." [level=3] [ref=e215]:
+              - text: Success
+              - text: at scale.
+            - paragraph [ref=e216]: Our cloud-native platform ensures compliance and effortless maintenance, so you can focus on benefit delivery.
+      - generic [ref=e221]:
+        - generic [ref=e222]:
+          - heading "Upgrade to a cost-effective system that delivers measurable ROI." [level=2] [ref=e223]:
+            - generic [ref=e225]: Upgrade
+            - generic [ref=e227]: to
+            - generic [ref=e229]: a
+            - generic [ref=e231]: cost-effective
+            - generic [ref=e233]: system
+            - generic [ref=e235]: that
+            - generic [ref=e237]: delivers
+            - generic [ref=e239]: measurable
+            - generic [ref=e241]: ROI.
+          - paragraph [ref=e242]: Reduce administrative burden, streamline workflows, and enhance service delivery, all while cutting costs.
+        - generic [ref=e244]: Sorry, your browser doesn't support embedded videos.
+      - generic [ref=e248]:
+        - heading "People love us and it shows." [level=2] [ref=e250]:
+          - generic [ref=e252]: People
+          - generic [ref=e254]: love
+          - generic [ref=e256]: us
+          - generic [ref=e258]: and
+          - generic [ref=e260]: it
+          - generic [ref=e262]: shows.
+        - generic [ref=e263]:
+          - generic [ref=e264]:
+            - img "Thumbs up"
+            - generic [ref=e265]: 220k+
+            - generic [ref=e266]: app store reviews*
+          - generic [ref=e268]:
+            - generic [ref=e269]:
+              - generic [ref=e270]: 50%
+              - generic [ref=e271]: of households in the State of Florida utilize Healthy Together.
+            - img "Florida Health" [ref=e272]
+          - generic [ref=e274]:
+            - generic [ref=e275]:
+              - img "4.75 Stars out of 5" [ref=e277]
+              - generic [ref=e278]: 4.9/5
+              - generic [ref=e279]: star rating*
+            - generic [ref=e282]: "*Across the iOS App Store and Google Play store"
+          - generic [ref=e283]:
+            - paragraph [ref=e284]: “After manually screening the campus population during the first wave of the pandemic, bringing in this app made my life better! It was impossible to keep up with the case load in a timely manner.”
+            - img "The University of Oklahoma" [ref=e285]
+      - generic [ref=e288]:
+        - heading "Their words speak for us." [level=2] [ref=e289]:
+          - generic [ref=e291]: Their
+          - generic [ref=e293]: words
+          - generic [ref=e295]: speak
+          - generic [ref=e297]: for
+          - generic [ref=e299]: us.
+        - generic [ref=e300]:
+          - generic [ref=e301]:
+            - button "Previous slide" [ref=e302] [cursor=pointer]:
+              - img "See previous reviews"
+            - button "Next slide" [ref=e303] [cursor=pointer]:
+              - img "See next reviews"
+          - list [ref=e305]:
+            - listitem [ref=e306]:
+              - generic [ref=e307]:
+                - generic [ref=e308]:
+                  - generic [ref=e309]: Luise Morales
+                  - img "5 Stars" [ref=e310]
+                - paragraph [ref=e311]: Great app. This system is fast an reliable!!!
+            - listitem [ref=e312]:
+              - generic [ref=e313]:
+                - generic [ref=e314]:
+                  - generic [ref=e315]: Delphenia Davis
+                  - img "5 Stars" [ref=e316]
+                - paragraph [ref=e317]: Great care, caring compassionate devoted staff treated me with great respect and concern as though I was one of their love ones or family members Gods blessings
+            - listitem [ref=e318]:
+              - generic [ref=e319]:
+                - generic [ref=e320]:
+                  - generic [ref=e321]: Sonofuku
+                  - img "5 Stars" [ref=e322]
+                - paragraph [ref=e323]: Great. Excellent treatment and very friendly staff that operate in Aventura Mall. And everything very fast
+            - listitem [ref=e324]:
+              - generic [ref=e325]:
+                - generic [ref=e326]:
+                  - generic [ref=e327]: Georgina 001
+                  - img "5 Stars" [ref=e328]
+                - paragraph [ref=e329]: Excellent, very good
+            - listitem [ref=e330]:
+              - generic [ref=e331]:
+                - generic [ref=e332]:
+                  - generic [ref=e333]: Elena De Jesus
+                  - img "5 Stars" [ref=e334]
+                - paragraph [ref=e335]: Magnificent, attention, Kindness, Quality. And Responsibility. Thank you very much, I would like with more details to know that it is the one I have. Thank you GOD Bless you, in this Pro/humanitarian work
+            - listitem [ref=e336]:
+              - generic [ref=e337]:
+                - generic [ref=e338]:
+                  - generic [ref=e339]: Andrea Bushy
+                  - img "5 Stars" [ref=e340]
+                - paragraph [ref=e341]: This app is fantastic User friendly. Excellent COVID related information. Both general information as well as information specific to Florida.
+            - listitem [ref=e342]:
+              - generic [ref=e343]:
+                - generic [ref=e344]:
+                  - generic [ref=e345]: Eduardo Chavez
+                  - img "5 Stars" [ref=e346]
+                - paragraph [ref=e347]: at they do a good job and are very helpful, the benefit that is obtained from them for our well-being is more and better, thank you very much.
+            - listitem [ref=e348]:
+              - generic [ref=e349]:
+                - generic [ref=e350]:
+                  - generic [ref=e351]: Mary Lee
+                  - img "5 Stars" [ref=e352]
+                - paragraph [ref=e353]: We appreciate the convenient location and the ease of signing up for and having the test, plus the good staff.
+            - listitem [ref=e354]:
+              - generic [ref=e355]:
+                - generic [ref=e356]:
+                  - generic [ref=e357]: Wanda Winter Haven
+                  - img "5 Stars" [ref=e358]
+                - paragraph [ref=e359]: Wow!! What a fast service! My son and I felt sick. Yesterday, Friday, June 15, 22, I call early in the morning to make an appointment for the same day. We took the test before 10 in the morning and today Saturday at 3:00 pm, I received the Negative results. The nurse was excellent with us and even made us laugh. He was very kind and empathetic. Thanks for your prompt reply!!
+            - listitem [ref=e360]:
+              - generic [ref=e361]:
+                - generic [ref=e362]:
+                  - generic [ref=e363]: Nicholas Dickerson
+                  - img "5 Stars" [ref=e364]
+                - paragraph [ref=e365]: Once I was notified that my results were available and I created my log in, my results were available along with instructions for care. Greatly appreciate the available information and discretion.
+            - listitem [ref=e366]:
+              - generic [ref=e367]:
+                - generic [ref=e368]:
+                  - generic [ref=e369]: Luise Morales
+                  - img "5 Stars" [ref=e370]
+                - paragraph [ref=e371]: Great app. This system is fast an reliable!!!
+            - listitem [ref=e372]:
+              - generic [ref=e373]:
+                - generic [ref=e374]:
+                  - generic [ref=e375]: Delphenia Davis
+                  - img "5 Stars" [ref=e376]
+                - paragraph [ref=e377]: Great care, caring compassionate devoted staff treated me with great respect and concern as though I was one of their love ones or family members Gods blessings
+            - listitem [ref=e378]:
+              - generic [ref=e379]:
+                - generic [ref=e380]:
+                  - generic [ref=e381]: Sonofuku
+                  - img "5 Stars" [ref=e382]
+                - paragraph [ref=e383]: Great. Excellent treatment and very friendly staff that operate in Aventura Mall. And everything very fast
+            - listitem [ref=e384]:
+              - generic [ref=e385]:
+                - generic [ref=e386]:
+                  - generic [ref=e387]: Georgina 001
+                  - img "5 Stars" [ref=e388]
+                - paragraph [ref=e389]: Excellent, very good
+            - listitem [ref=e390]:
+              - generic [ref=e391]:
+                - generic [ref=e392]:
+                  - generic [ref=e393]: Elena De Jesus
+                  - img "5 Stars" [ref=e394]
+                - paragraph [ref=e395]: Magnificent, attention, Kindness, Quality. And Responsibility. Thank you very much, I would like with more details to know that it is the one I have. Thank you GOD Bless you, in this Pro/humanitarian work
+            - listitem [ref=e396]:
+              - generic [ref=e397]:
+                - generic [ref=e398]:
+                  - generic [ref=e399]: Andrea Bushy
+                  - img "5 Stars" [ref=e400]
+                - paragraph [ref=e401]: This app is fantastic User friendly. Excellent COVID related information. Both general information as well as information specific to Florida.
+            - listitem [ref=e402]:
+              - generic [ref=e403]:
+                - generic [ref=e404]:
+                  - generic [ref=e405]: Eduardo Chavez
+                  - img "5 Stars" [ref=e406]
+                - paragraph [ref=e407]: at they do a good job and are very helpful, the benefit that is obtained from them for our well-being is more and better, thank you very much.
+            - listitem [ref=e408]:
+              - generic [ref=e409]:
+                - generic [ref=e410]:
+                  - generic [ref=e411]: Mary Lee
+                  - img "5 Stars" [ref=e412]
+                - paragraph [ref=e413]: We appreciate the convenient location and the ease of signing up for and having the test, plus the good staff.
+      - generic [ref=e419]:
+        - heading "Learn more about our solution." [level=2] [ref=e420]:
+          - generic [ref=e422]: Learn
+          - generic [ref=e424]: more
+          - generic [ref=e426]: about
+          - generic [ref=e428]: our
+          - generic [ref=e430]: solution.
+        - generic [ref=e432] [cursor=pointer]: Schedule a Demo
+    - contentinfo [ref=e434]:
+      - generic [ref=e438]:
+        - generic [ref=e439]:
+          - link:
+            - /url: /
+          - generic [ref=e440]:
+            - generic [ref=e441]:
+              - generic [ref=e442]: WIC
+              - link "Member Experience" [ref=e443] [cursor=pointer]:
+                - /url: /solutions/member-experience
+              - link "Messaging/Chatbot" [ref=e444] [cursor=pointer]:
+                - /url: /solutions/wic/smart-wic-messaging
+              - link "FMNP" [ref=e445] [cursor=pointer]:
+                - /url: /solutions/wic/fmnp
+              - link "SUN Bucks" [ref=e446] [cursor=pointer]:
+                - /url: /solutions/wic/sun-bucks-summer-ebt
+            - generic [ref=e447]:
+              - generic [ref=e448]:
+                - generic [ref=e449]: Medicaid
+                - link "Community Engagement Verification" [ref=e450] [cursor=pointer]:
+                  - /url: /solutions/medicaid-cevs
+                - link "IE&E" [ref=e451] [cursor=pointer]:
+                  - /url: /solutions/medicaid-iee
+              - generic [ref=e452]:
+                - generic [ref=e453]: Communications
+                - link "Comet" [ref=e454] [cursor=pointer]:
+                  - /url: /solutions/comet
+            - generic [ref=e455]:
+              - generic [ref=e456]: SNAP
+              - link "HHS Enrollment" [ref=e457] [cursor=pointer]:
+                - /url: /solutions/social-services/medicaid-enrollment
+              - link "Benefits" [ref=e458] [cursor=pointer]:
+                - /url: /solutions/social-services/snap-benefits
+              - link "Shopping & Delivery" [ref=e459] [cursor=pointer]:
+                - /url: /solutions/wic/shopping-delivery
+              - link "Referrals" [ref=e460] [cursor=pointer]:
+                - /url: /solutions/referral-systems/referrals
+            - generic [ref=e461]:
+              - generic [ref=e462]: Epi Management
+              - link "Epi Management" [ref=e463] [cursor=pointer]:
+                - /url: /solutions/epi-management/epidemic-management
+              - link "EDSS" [ref=e464] [cursor=pointer]:
+                - /url: /solutions/epi-management/edss
+              - link "IIS" [ref=e465] [cursor=pointer]:
+                - /url: /solutions/epi-management/immunization-information-system
+            - generic [ref=e467]:
+              - generic [ref=e468]: Crisis Management
+              - link "Emergency & Recovery Services" [ref=e469] [cursor=pointer]:
+                - /url: /solutions/crisis-management/emergency-recovery-services
+            - generic [ref=e470]:
+              - generic [ref=e471]: Referral Systems
+              - link "Referral Systems" [ref=e472] [cursor=pointer]:
+                - /url: /solutions/referral-systems/referrals
+              - link "Behavioral Health" [ref=e473] [cursor=pointer]:
+                - /url: /solutions/referral-systems/behavioral-health
+              - link "988" [ref=e474] [cursor=pointer]:
+                - /url: /solutions/referral-systems/988
+            - generic [ref=e475]:
+              - generic [ref=e476]:
+                - generic [ref=e477]: About Us
+                - link "Blog" [ref=e478] [cursor=pointer]:
+                  - /url: /company/blog
+                - link "Careers" [ref=e479] [cursor=pointer]:
+                  - /url: /company/careers
+              - generic [ref=e480]: Legal
+              - link "Privacy" [ref=e481] [cursor=pointer]:
+                - /url: /legal/privacy-policy
+              - link "Terms" [ref=e482] [cursor=pointer]:
+                - /url: /legal/user-terms-of-service
+              - link "Trust Center" [ref=e483] [cursor=pointer]:
+                - /url: https://trust.healthytogether.co/
+            - generic [ref=e484]:
+              - generic [ref=e485]:
+                - generic [ref=e486]: Support
+                - link "Help Center" [ref=e487] [cursor=pointer]:
+                  - /url: /support/help-center
+              - generic [ref=e488]: Downloads
+              - link "Android App" [ref=e489] [cursor=pointer]:
+                - /url: /support/download-healthy-together
+              - link "iOS App" [ref=e490] [cursor=pointer]:
+                - /url: /support/download-healthy-together
+        - generic [ref=e491]:
+          - generic [ref=e492]:
+            - link "Download on the App Store":
+              - /url: https://apps.apple.com/us/app/healthy-together/id1507570835
+              - img "Download on the App Store"
+            - link "Get it on Google Play":
+              - /url: https://play.google.com/store/apps/details?id=co.twenty.stop.spread&hl=en_US&gl=US
+              - img "Get it on Google Play"
+          - generic [ref=e493]: © 2026 Twenty Labs, LLC.
+  - generic:
+    - generic:
+      - generic [ref=e495]:
+        - iframe [ref=e496]:
+          - button "Cerrar mensaje de la compañía" [ref=f20e4] [cursor=pointer]:
+            - img [ref=f20e5]
+        - iframe [ref=e497]:
+          - button "Hi. Need any help?" [ref=f21e5] [cursor=pointer]
+      - iframe [ref=e498]:
+        - button "Abrir ventana de mensajería" [ref=f22e5] [cursor=pointer]:
+          - img [ref=f22e7]
+          - img [ref=f22e10]
