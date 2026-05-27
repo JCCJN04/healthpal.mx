@@ -28,8 +28,37 @@ export const DocumentViewer = ({ fileUrl, fileType = 'pdf', title }: DocumentVie
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(true)
   const [containerWidth, setContainerWidth] = useState(0)
+  // Blob URL for PDFs — avoids CORS issues with pdfjs worker making range requests
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
+
+  // Pre-fetch PDF as blob so pdfjs worker never makes cross-origin requests to storage
+  useEffect(() => {
+    if (fileType !== 'pdf' || !fileUrl) return
+    let revoked = false
+    setPdfBlobUrl(null)
+    setPdfLoading(true)
+    fetch(fileUrl)
+      .then(r => r.blob())
+      .then(blob => {
+        if (revoked) return
+        setPdfBlobUrl(URL.createObjectURL(blob))
+      })
+      .catch(() => {
+        if (!revoked) setPdfLoading(false)
+      })
+    return () => {
+      revoked = true
+    }
+  }, [fileUrl, fileType])
+
+  // Revoke blob URL on unmount or when it changes
+  useEffect(() => {
+    return () => {
+      if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl)
+    }
+  }, [pdfBlobUrl])
 
   // Track container width for responsive PDF rendering
   useEffect(() => {
@@ -162,7 +191,7 @@ export const DocumentViewer = ({ fileUrl, fileType = 'pdf', title }: DocumentVie
                   </div>
                 )}
                 <Document
-                  file={fileUrl}
+                  file={pdfBlobUrl}
                   onLoadSuccess={onDocumentLoadSuccess}
                   onLoadError={() => setPdfLoading(false)}
                   loading={null}
