@@ -74,6 +74,7 @@ function App() {
 
         <Route path="/solicitud/:token" element={<Suspense fallback={<PageLoader />}><SolicitudDocumento /></Suspense>} />
         <Route path="/privacidad" element={<Suspense fallback={<PageLoader />}><Privacidad /></Suspense>} />
+        <Route path="/politicas" element={<Suspense fallback={<PageLoader />}><Privacidad /></Suspense>} />
         <Route path="/legal" element={<Suspense fallback={<PageLoader />}><Legal /></Suspense>} />
 
         {/* Onboarding Routes */}

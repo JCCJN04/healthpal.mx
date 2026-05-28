@@ -1,20 +1,27 @@
-import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Download, FileText, Sparkles } from 'lucide-react'
-import mammoth from 'mammoth/mammoth.browser'
 
 type Highlight = {
   title: string
   description: string
 }
 
+type LegalSection = {
+  id: string
+  title: string
+  paragraphs: string[]
+  bullets?: string[]
+  note?: string
+}
+
 interface LegalDocPageProps {
   title: string
   subtitle: string
-  docxPath: string
-  downloadLabel: string
   intro: string
   highlights: Highlight[]
+  sections: LegalSection[]
+  sourceHref?: string
+  downloadLabel?: string
 }
 
 function MarketingHeader() {
@@ -68,48 +75,15 @@ function MarketingFooter() {
   )
 }
 
-export default function LegalDocPage({ title, subtitle, docxPath, downloadLabel, intro, highlights }: LegalDocPageProps) {
-  const [html, setHtml] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-
-  useEffect(() => {
-    let cancelled = false
-
-    async function loadDocument() {
-      setLoading(true)
-      setError('')
-
-      try {
-        const response = await fetch(docxPath)
-        if (!response.ok) {
-          throw new Error('No se encontró el documento.')
-        }
-
-        const buffer = await response.arrayBuffer()
-        const result = await mammoth.convertToHtml({ arrayBuffer: buffer })
-
-        if (!cancelled) {
-          setHtml(result.value)
-        }
-      } catch {
-        if (!cancelled) {
-          setError('No pudimos cargar el documento. Coloca el .docx en public/ para habilitar la vista completa.')
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false)
-        }
-      }
-    }
-
-    loadDocument()
-
-    return () => {
-      cancelled = true
-    }
-  }, [docxPath])
-
+export default function LegalDocPage({
+  title,
+  subtitle,
+  intro,
+  highlights,
+  sections,
+  sourceHref,
+  downloadLabel,
+}: LegalDocPageProps) {
   return (
     <div style={{ backgroundColor: '#f9f0ff', overflowX: 'hidden' }}>
       <MarketingHeader />
@@ -135,10 +109,12 @@ export default function LegalDocPage({ title, subtitle, docxPath, downloadLabel,
               </p>
 
               <div className="mt-8 flex flex-wrap items-center gap-4">
-                <a href={docxPath} download className="inline-flex items-center gap-2 rounded-full bg-[#0097a9] px-6 py-3.5 text-[14px] font-semibold text-white transition-all hover:bg-[#007f89] hover:scale-[1.02] active:scale-95">
-                  <Download size={16} />
-                  {downloadLabel}
-                </a>
+                {sourceHref ? (
+                  <a href={sourceHref} download className="inline-flex items-center gap-2 rounded-full bg-[#0097a9] px-6 py-3.5 text-[14px] font-semibold text-white transition-all hover:bg-[#007f89] hover:scale-[1.02] active:scale-95">
+                    <Download size={16} />
+                    {downloadLabel || 'Descargar documento'}
+                  </a>
+                ) : null}
                 <Link to="/" className="inline-flex items-center gap-2 rounded-full border border-white/15 px-6 py-3.5 text-[14px] font-semibold text-white/80 transition-colors hover:text-white hover:border-white/30">
                   <ArrowLeft size={16} />
                   Volver a la landing
@@ -149,8 +125,8 @@ export default function LegalDocPage({ title, subtitle, docxPath, downloadLabel,
         </section>
 
         <section className="py-14 md:py-18 px-6">
-          <div className="max-w-[1200px] mx-auto grid gap-8 lg:grid-cols-[0.92fr_1.08fr] items-start">
-            <div className="space-y-6">
+          <div className="max-w-[1200px] mx-auto grid gap-8 lg:grid-cols-[0.86fr_1.14fr] items-start">
+            <aside className="space-y-6 lg:sticky lg:top-[92px]">
               <div className="rounded-[28px] bg-white p-7 shadow-[0_24px_70px_rgba(16,23,34,0.08)] border border-gray-100">
                 <p className="text-[12px] font-semibold tracking-[0.18em] uppercase text-[#0097a9] mb-3">Resumen</p>
                 <h2 className="text-2xl font-black text-[#101722] mb-4">Lo esencial, explicado desde aquí.</h2>
@@ -170,16 +146,36 @@ export default function LegalDocPage({ title, subtitle, docxPath, downloadLabel,
               </div>
 
               <div className="rounded-[28px] bg-white p-7 shadow-[0_24px_70px_rgba(16,23,34,0.08)] border border-gray-100">
-                <p className="text-[12px] font-semibold tracking-[0.18em] uppercase text-[#0097a9] mb-3">Descarga</p>
-                <p className="text-[15px] leading-7 text-gray-600 mb-5">Si prefieres revisar el archivo original, aquí está disponible para descarga directa.</p>
-                <a href={docxPath} download className="inline-flex items-center gap-2 rounded-full bg-[#0097a9] px-6 py-3 text-[14px] font-semibold text-white transition-all hover:bg-[#007f89] hover:scale-[1.02] active:scale-95">
-                  <FileText size={16} />
-                  Descargar documento
-                </a>
+                <p className="text-[12px] font-semibold tracking-[0.18em] uppercase text-[#0097a9] mb-3">Contenido</p>
+                <div className="space-y-3">
+                  {sections.map((section, index) => (
+                    <a
+                      key={section.id}
+                      href={`#${section.id}`}
+                      className="flex items-start gap-3 rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 text-left transition-colors hover:border-[#0097a9]/30 hover:bg-white"
+                    >
+                      <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#101722] text-[11px] font-bold text-white">
+                        {String(index + 1).padStart(2, '0')}
+                      </span>
+                      <span className="text-[13px] font-semibold leading-5 text-[#101722]">{section.title}</span>
+                    </a>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            <div className="rounded-[30px] bg-white shadow-[0_24px_70px_rgba(16,23,34,0.08)] border border-gray-100 overflow-hidden">
+              {sourceHref ? (
+                <div className="rounded-[28px] bg-white p-7 shadow-[0_24px_70px_rgba(16,23,34,0.08)] border border-gray-100">
+                  <p className="text-[12px] font-semibold tracking-[0.18em] uppercase text-[#0097a9] mb-3">Descarga</p>
+                  <p className="text-[15px] leading-7 text-gray-600 mb-5">Si prefieres revisar el archivo original, aquí está disponible para descarga directa.</p>
+                  <a href={sourceHref} download className="inline-flex items-center gap-2 rounded-full bg-[#0097a9] px-6 py-3 text-[14px] font-semibold text-white transition-all hover:bg-[#007f89] hover:scale-[1.02] active:scale-95">
+                    <FileText size={16} />
+                    {downloadLabel || 'Descargar documento'}
+                  </a>
+                </div>
+              ) : null}
+            </aside>
+
+            <article className="rounded-[30px] bg-white shadow-[0_24px_70px_rgba(16,23,34,0.08)] border border-gray-100 overflow-hidden">
               <div className="bg-[#101722] px-5 py-4 flex items-center gap-3 text-white">
                 <div className="flex gap-1.5 shrink-0">
                   <div className="w-3 h-3 rounded-full bg-[#ff5f57]" />
@@ -188,25 +184,43 @@ export default function LegalDocPage({ title, subtitle, docxPath, downloadLabel,
                 </div>
                 <div>
                   <p className="text-[13px] font-semibold">Vista del documento</p>
-                  <p className="text-[12px] text-white/50">{loading ? 'Cargando contenido...' : 'Contenido renderizado desde el .docx'}</p>
+                  <p className="text-[12px] text-white/50">Formato editorial tipo artículo para lectura rápida y navegación por secciones</p>
                 </div>
               </div>
 
-              <div className="p-6 md:p-8">
-                {error ? (
-                  <div className="rounded-[22px] border border-dashed border-gray-300 bg-gray-50 p-6 text-gray-600 leading-7">
-                    <p className="font-semibold text-[#101722] mb-2">Vista previa no disponible</p>
-                    <p>{error}</p>
-                    <p className="mt-4 text-sm">En cuanto subas el archivo a <strong>public/</strong>, esta página mostrará el contenido completo.</p>
-                  </div>
-                ) : (
-                  <article
-                    className="legal-doc-content text-[15px] leading-7 text-gray-700 space-y-5 [&_h1]:text-[2rem] [&_h1]:font-black [&_h1]:leading-tight [&_h1]:text-[#101722] [&_h2]:text-[1.5rem] [&_h2]:font-black [&_h2]:leading-tight [&_h2]:text-[#101722] [&_h3]:text-[1.15rem] [&_h3]:font-bold [&_h3]:text-[#101722] [&_p]:mb-4 [&_p]:text-gray-700 [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:space-y-2 [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:space-y-2 [&_a]:text-[#0097a9] [&_a]:underline [&_blockquote]:border-l-4 [&_blockquote]:border-[#0097a9] [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-gray-600 [&_table]:w-full [&_table]:border-collapse [&_table]:text-sm [&_th]:border [&_th]:border-gray-200 [&_th]:bg-gray-50 [&_th]:px-3 [&_th]:py-2 [&_td]:border [&_td]:border-gray-200 [&_td]:px-3 [&_td]:py-2"
-                    dangerouslySetInnerHTML={{ __html: html || '<p></p>' }}
-                  />
-                )}
+              <div className="p-6 md:p-8 lg:p-10">
+                <div className="space-y-8">
+                  {sections.map((section) => (
+                    <section key={section.id} id={section.id} className="scroll-mt-28">
+                      <div className="border-l-4 border-[#0097a9] pl-4 mb-5">
+                        <p className="text-[12px] font-semibold tracking-[0.18em] uppercase text-[#0097a9] mb-2">Sección</p>
+                        <h3 className="text-[1.5rem] md:text-[1.7rem] font-black leading-tight text-[#101722]">{section.title}</h3>
+                      </div>
+
+                      <div className="space-y-4 text-[15px] leading-8 text-gray-700">
+                        {section.paragraphs.map((paragraph) => (
+                          <p key={paragraph}>{paragraph}</p>
+                        ))}
+
+                        {section.bullets ? (
+                          <ul className="space-y-3 pl-6 list-disc">
+                            {section.bullets.map((bullet) => (
+                              <li key={bullet}>{bullet}</li>
+                            ))}
+                          </ul>
+                        ) : null}
+
+                        {section.note ? (
+                          <div className="rounded-2xl border border-[#0097a9]/15 bg-[#0097a9]/6 px-5 py-4 text-[14px] leading-7 text-gray-700">
+                            {section.note}
+                          </div>
+                        ) : null}
+                      </div>
+                    </section>
+                  ))}
+                </div>
               </div>
-            </div>
+            </article>
           </div>
         </section>
       </main>

@@ -239,9 +239,9 @@ function Navbar() {
         </Link>
 
         <nav className="hidden md:flex items-center gap-8 text-[14px] font-medium text-white/70">
-          {['Soluciones', 'Empresa', 'Recursos'].map(item => (
-            <button key={item} className="hover:text-white transition-colors cursor-pointer">{item}</button>
-          ))}
+          <a href="#plataforma" className="hover:text-white transition-colors">Plataforma</a>
+          <a href="#como-funciona" className="hover:text-white transition-colors">Cómo funciona</a>
+          <a href="#seguridad" className="hover:text-white transition-colors">Seguridad</a>
         </nav>
 
         <div className="hidden md:flex items-center gap-4">
@@ -265,9 +265,9 @@ function Navbar() {
         style={{ backgroundColor: 'rgba(16,23,34,0.98)' }}
       >
         <div className="px-6 pb-6 pt-3 space-y-1 border-t border-white/10">
-          {['Soluciones', 'Empresa', 'Recursos'].map(item => (
-            <button key={item} className="flex w-full py-3 text-sm font-medium text-white/70 hover:text-white transition-colors">{item}</button>
-          ))}
+          <a href="#plataforma" className="flex w-full py-3 text-sm font-medium text-white/70 hover:text-white transition-colors">Plataforma</a>
+          <a href="#como-funciona" className="flex w-full py-3 text-sm font-medium text-white/70 hover:text-white transition-colors">Cómo funciona</a>
+          <a href="#seguridad" className="flex w-full py-3 text-sm font-medium text-white/70 hover:text-white transition-colors">Seguridad</a>
           <div className="pt-4 flex gap-3">
             <Link to="/login" className="flex-1">
               <button className="w-full border border-white/20 text-white text-sm py-2.5 rounded-full">Iniciar sesión</button>
@@ -290,13 +290,13 @@ function Hero() {
   useEffect(() => { const t = setTimeout(() => setMounted(true), 1000); return () => clearTimeout(t) }, [])
 
   return (
-    <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden" style={{ backgroundColor: '#0f0e19' }}>
+    <section id="plataforma" className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden" style={{ backgroundColor: '#0f0e19' }}>
       <HeroRibbon />
 
       <div className="relative z-20 text-center px-6 max-w-[1000px] mx-auto pt-[68px]">
         {/* Hero heading - word-by-word on mount */}
         <h1
-          className="text-[4rem] sm:text-[5.5rem] md:text-[7rem] lg:text-[7.5rem] font-black text-white leading-[0.92] tracking-[-0.04em]"
+          className="text-[3.2rem] sm:text-[4.5rem] md:text-[6.8rem] lg:text-[7.5rem] font-black text-white leading-[0.92] tracking-[-0.04em]"
           style={{ willChange: 'transform' }}
         >
           {['Tus', 'expedientes,', 'siempre', 'contigo.'].map((word, i) => (
@@ -318,7 +318,7 @@ function Hero() {
         </h1>
 
         <p
-          className="mt-8 text-[1.05rem] md:text-[1.15rem] text-white/50 leading-relaxed max-w-[480px] mx-auto"
+          className="mt-8 text-[0.98rem] sm:text-[1.05rem] md:text-[1.15rem] text-white/50 leading-relaxed max-w-[480px] mx-auto"
           style={{
             opacity: mounted ? 1 : 0,
             transform: mounted ? 'translateY(0)' : 'translateY(20px)',
@@ -329,44 +329,24 @@ function Hero() {
         </p>
 
         <div
-          className="mt-10 flex flex-wrap items-center justify-center gap-4"
+          className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4"
           style={{
             opacity: mounted ? 1 : 0,
             transform: mounted ? 'translateY(0)' : 'translateY(16px)',
             transition: 'opacity 0.7s ease 1.9s, transform 0.7s cubic-bezier(0.16,1,0.3,1) 1.9s',
           }}
         >
-          <Link to="/register">
-            <button className="bg-[#0097a9] text-white text-[15px] font-semibold px-8 py-3.5 rounded-full hover:bg-[#007f89] transition-all hover:scale-105 active:scale-95">
+          <Link to="/register" className="w-full sm:w-auto">
+            <button className="w-full sm:w-auto bg-[#0097a9] text-white text-[15px] font-semibold px-8 py-3.5 rounded-full hover:bg-[#007f89] transition-all hover:scale-105 active:scale-95">
               Crear cuenta gratis
             </button>
           </Link>
-          <Link to="/login" className="text-white/50 text-[14px] font-medium hover:text-white transition-colors">
+          <Link to="/login" className="w-full sm:w-auto text-center text-white/50 text-[14px] font-medium hover:text-white transition-colors">
             Iniciar sesión
           </Link>
         </div>
       </div>
     </section>
-  )
-}
-
-/* ─────────────────────────────────────────────
-   Logo Ticker (Swiper autoplay speed:1000ms, loop)
-───────────────────────────────────────────── */
-const LOGOS = ['Médica Sur', 'Hospital Ángeles', 'Salud Digna', 'Cruz Roja México', 'UNAM Facultad de Medicina', 'Christus Muguerza', 'Star Médica', 'TecSalud', 'Grupo Ángeles', 'IMSS Bienestar']
-
-function LogoTicker() {
-  const doubled = [...LOGOS, ...LOGOS]
-  return (
-    <div className="overflow-hidden py-6" style={{ backgroundColor: '#0097a9' }}>
-      <div className="ht-ticker-track flex items-center gap-16 whitespace-nowrap">
-        {doubled.map((logo, i) => (
-          <span key={i} className="text-white font-semibold text-[13px] opacity-70 shrink-0 uppercase tracking-[0.12em]">
-            {logo}
-          </span>
-        ))}
-      </div>
-    </div>
   )
 }
 
@@ -402,7 +382,7 @@ function SpeedSection() {
   const { ref: mockupRef, style: mockupStyle } = useFadeUp(150)
 
   return (
-    <section className="pt-8 pb-0 overflow-hidden" style={{ backgroundColor: '#f9f0ff' }}>
+    <section id="como-funciona" className="pt-8 pb-0 overflow-hidden" style={{ backgroundColor: '#f9f0ff' }}>
       <div className="max-w-[1100px] mx-auto px-6">
         <div ref={titleRef} style={titleStyle} className="text-center">
           <h2 className="text-[3.5rem] sm:text-[5rem] md:text-[6.5rem] font-black leading-[0.95] tracking-[-0.04em] mb-6">
@@ -435,10 +415,10 @@ function SpeedSection() {
 
           {/* Desktop: side-by-side. Mobile: dashboard full-width, phone centered below */}
           <div className="flex flex-col md:flex-row justify-center items-end gap-6">
-            <div className="relative z-10 w-full md:max-w-[840px] lg:max-w-[980px]">
+            <div className="relative z-10 w-full max-w-[520px] sm:max-w-[640px] md:max-w-[840px] lg:max-w-[980px] mx-auto md:mx-0">
               <DashboardMockup />
             </div>
-            <div className="relative z-20 w-full flex justify-center md:w-auto md:block md:-mb-8 md:-ml-10">
+            <div className="relative z-20 hidden md:flex justify-center md:w-auto md:block md:-mb-8 md:-ml-10">
               <PhoneMockup />
             </div>
           </div>
@@ -461,7 +441,7 @@ function DashboardMockup() {
         <div className="flex-1 bg-[#2a2a3e] rounded h-6 flex items-center px-3 text-[10px] text-white/30 min-w-0">healthpal.mx/dashboard</div>
       </div>
 
-      <div className="bg-white" style={{ minHeight: '320px' }}>
+      <div className="bg-white min-h-[220px] sm:min-h-[280px] md:min-h-[320px]">
         <img
           src="/CapturaDashboardHP.png"
           alt="Captura del dashboard de HealthPal"
@@ -507,51 +487,56 @@ function PhoneMockup() {
 ───────────────────────────────────────────── */
 function HumanCenteredSection() {
   const { ref, style } = useFadeUp(0)
+  const whatsappUrl =
+    'https://web.whatsapp.com/send?phone=528132443754&text=Hola%20HealthPal%2C%20quiero%20conocer%20c%C3%B3mo%20funciona%20la%20plataforma.'
+
   return (
     <section className="bg-white overflow-hidden">
-      <div ref={ref} style={style} className="max-w-[1200px] mx-auto grid lg:grid-cols-2 items-center">
-        {/* Photo placeholder with floating card */}
-        <div className="h-[420px] lg:h-[580px] relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #e8d5ff 0%, #ffd9f0 50%, #d9e8ff 100%)' }}>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="relative">
-              <div className="w-32 h-32 rounded-full mb-4 mx-auto" style={{ background: 'linear-gradient(135deg, #d4b8e0, #c8a8d8)' }} />
-              <div className="w-48 h-64 rounded-t-full mx-auto" style={{ background: 'linear-gradient(180deg, #c4a0d0, #b090c0)' }} />
-            </div>
-          </div>
-          {/* Floating testimonial card */}
-          <div className="lp-float-alt absolute bottom-8 left-6 right-6">
-            <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-5 shadow-lg">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-8 h-8 rounded-full" style={{ background: 'linear-gradient(135deg, #ff3eb5, #8b3fff)' }} />
-                <div>
-                  <p className="text-[11px] font-bold text-gray-900">María García</p>
-                  <p className="text-[10px] text-gray-400">Paciente · CDMX</p>
-                </div>
-                <div className="ml-auto flex gap-0.5">
-                  {[...Array(5)].map((_, i) => <Star key={i} size={11} className="text-yellow-400 fill-yellow-400" />)}
-                </div>
+      <div ref={ref} style={style} className="max-w-[1200px] mx-auto grid lg:grid-cols-2 items-center gap-0">
+        <div className="h-[420px] lg:h-[580px] relative overflow-hidden">
+          <div className="absolute inset-0 flex items-center justify-center px-6">
+            <div className="w-full max-w-[520px]">
+              <div className="relative mx-auto w-full max-w-[240px] sm:max-w-[280px] lg:max-w-[320px] overflow-hidden rounded-[22px] bg-[#0b0d16] aspect-[9/16]">
+                <iframe
+                  className="absolute inset-0 h-full w-full"
+                  src="https://www.youtube.com/embed/POBEtHq4JwU"
+                  title="Video de HealthPal"
+                  loading="lazy"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                />
               </div>
-              <p className="text-[11px] text-gray-600 leading-relaxed">"Llevaba mis estudios en una bolsa. Ahora los comparto por WhatsApp en segundos."</p>
             </div>
           </div>
         </div>
-        {/* Text */}
+
         <div className="px-10 py-16 lg:px-16 lg:py-20">
-          <WordReveal
-            tag="h2"
-            className="text-[2.8rem] md:text-[3.8rem] lg:text-[4.5rem] font-black leading-[0.95] tracking-[-0.04em] mb-8"
-            stagger={55}
-          >
-            Hecho para médicos mexicanos. Diseñado para sus pacientes.
-          </WordReveal>
-          <p className="text-[15px] leading-relaxed mb-8" style={{ color: '#666' }}>
-            HealthPal nació en México para resolver un problema real: médicos y pacientes sin un expediente compartido. Panel de control, agenda, documentos y mensajería en un solo lugar.
+          <div className="inline-flex items-center gap-2 rounded-full border border-[#101722]/10 bg-[#101722]/5 px-4 py-2 text-[12px] font-semibold text-[#101722]/70 mb-6">
+            Conoce cómo funciona la plataforma
+          </div>
+          <h2 className="text-[2.8rem] md:text-[3.8rem] lg:text-[4.5rem] font-black leading-[0.95] tracking-[-0.04em] mb-8 text-[#101722] max-w-[10ch]">
+            Todo lo que necesitas, en un solo lugar.
+          </h2>
+          <p className="text-[15px] leading-relaxed mb-8 text-[#666] max-w-[540px]">
+            1. Mira el video para entender cómo funciona la plataforma.
+            <br />
+            2. Abre WhatsApp y ponte en contacto con nosotros con un simple click.
           </p>
-          <Link to="/register" state={{ role: 'patient' }}>
-            <button className="text-white text-[14px] font-semibold px-7 py-3 rounded-full hover:opacity-90 transition-all hover:scale-105 active:scale-95" style={{ backgroundColor: '#0097a9' }}>
-              Registra tu consultorio gratis
-            </button>
-          </Link>
+          <div className="flex flex-wrap items-center gap-4">
+            <a
+              href={whatsappUrl}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="inline-flex items-center justify-center rounded-full bg-[#25D366] px-7 py-3.5 text-[14px] font-semibold text-[#0f0e19] transition-all hover:scale-105 active:scale-95"
+            >
+              Contactar por WhatsApp Web
+            </a>
+            <Link to="/register" state={{ role: 'patient' }}>
+              <button className="rounded-full border border-[#101722]/10 px-7 py-3.5 text-[14px] font-semibold text-[#101722] transition-all hover:border-[#101722]/20 hover:bg-[#101722]/5">
+                Registra tu consultorio gratis
+              </button>
+            </Link>
+          </div>
         </div>
       </div>
     </section>
@@ -564,7 +549,7 @@ function HumanCenteredSection() {
 function AISection() {
   const { ref, style } = useFadeUp(0)
   return (
-    <section className="overflow-hidden relative" style={{ backgroundColor: '#d9c6ff' }}>
+    <section id="seguridad" className="overflow-hidden relative" style={{ backgroundColor: '#d9c6ff' }}>
       {/* Animated ribbon decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <svg viewBox="0 0 800 700" className="absolute left-0 top-0 h-full w-auto opacity-25">
@@ -872,7 +857,6 @@ export default function Landing() {
       <AnnouncementBar />
       <Navbar />
       <Hero />
-      <LogoTicker />
       <ProblemCard />
       <SpeedSection />
       <HumanCenteredSection />
