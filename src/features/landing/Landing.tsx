@@ -413,10 +413,13 @@ function SpeedSection() {
           <div className="lp-float-alt hidden md:block absolute left-[9%] top-[55%] opacity-55" style={{ width: 0, height: 0, borderLeft: '14px solid transparent', borderRight: '14px solid transparent', borderBottom: '26px solid #ff3eb5' }} />
           <div className="lp-float-rev hidden md:block absolute right-[5%] top-[8%] w-10 h-10 rounded-full opacity-50" style={{ background: 'linear-gradient(135deg, #ff3eb5, #8b3fff)' }} />
 
-          {/* Desktop: side-by-side. Mobile: dashboard full-width, phone centered below */}
+          {/* Desktop: side-by-side. Mobile: phone image centered */}
           <div className="flex flex-col md:flex-row justify-center items-end gap-6">
-            <div className="relative z-10 w-full max-w-[520px] sm:max-w-[640px] md:max-w-[840px] lg:max-w-[980px] mx-auto md:mx-0">
+            <div className="hidden md:block relative z-10 w-full max-w-[520px] sm:max-w-[640px] md:max-w-[840px] lg:max-w-[980px] mx-auto md:mx-0">
               <DashboardMockup />
+            </div>
+            <div className="flex justify-center md:hidden">
+              <PhoneMockup />
             </div>
             <div className="relative z-20 hidden md:flex justify-center md:w-auto md:block md:-mb-8 md:-ml-10">
               <PhoneMockup />
@@ -478,15 +481,7 @@ function HumanCenteredSection() {
         <div className="h-[420px] lg:h-[580px] relative overflow-hidden">
           <div className="absolute inset-0 flex items-center justify-center px-6">
             <div className="w-full max-w-[520px]">
-              {/* Mobile: phone image; Desktop: YouTube iframe */}
-              <div className="lg:hidden flex justify-center">
-                <img
-                  src="/iphone17pro.png"
-                  alt="App de HealthPal en iPhone"
-                  className="h-[340px] w-auto object-contain drop-shadow-xl"
-                />
-              </div>
-              <div className="hidden lg:block relative mx-auto w-full max-w-[320px] overflow-hidden rounded-[22px] bg-[#0b0d16] aspect-[9/16]">
+              <div className="relative mx-auto w-full max-w-[240px] sm:max-w-[280px] lg:max-w-[320px] overflow-hidden rounded-[22px] bg-[#0b0d16] aspect-[9/16]">
                 <iframe
                   className="absolute inset-0 h-full w-full"
                   src="https://www.youtube-nocookie.com/embed/POBEtHq4JwU?rel=0"
