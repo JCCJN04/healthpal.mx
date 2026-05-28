@@ -253,9 +253,9 @@ Este formulario puede utilizarse como referencia para el registro de doctores, p
         </Link>
 
         <h1 className="mt-8 text-[2.4rem] sm:text-[3rem] md:text-[3.4rem] font-black tracking-[-0.03em] text-[#0097a9]">
-          Terminos y condiciones
+          Términos y condiciones
         </h1>
-        <p className="mt-2 text-[13px] text-gray-500">Ultima modificacion: {lastUpdated}</p>
+        <p className="mt-2 text-[13px] text-gray-500">Última modificación: {lastUpdated}</p>
 
         <div className="mt-10 whitespace-pre-wrap text-[15px] leading-7 text-gray-500">
           {termsText}
