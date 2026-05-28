@@ -9,12 +9,7 @@ import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
 import { DicomViewer } from './DicomViewer'
 
-// Dev: CDN string (no Vite asset transform); Prod: copied by vite plugin to /assets/
-if (import.meta.env.DEV) {
-  pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
-} else {
-  pdfjs.GlobalWorkerOptions.workerSrc = '/assets/pdf.worker.min.mjs'
-}
+pdfjs.GlobalWorkerOptions.workerSrc = '/assets/pdf.worker.min.mjs'
 
 interface DocumentViewerProps {
   fileUrl?: string

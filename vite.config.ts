@@ -1,25 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
-import { copyFileSync, mkdirSync, existsSync } from 'fs'
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     react(),
-    {
-      name: 'copy-pdfjs-worker',
-      closeBundle() {
-        const base = path.resolve('node_modules/pdfjs-dist/build/pdf.worker.min')
-        const src = existsSync(base + '.mjs') ? base + '.mjs'
-          : existsSync(base + '.js') ? base + '.js'
-          : null
-        if (!src) { console.warn('[copy-pdfjs-worker] worker not found'); return }
-        const destDir = path.resolve('dist/assets')
-        mkdirSync(destDir, { recursive: true })
-        copyFileSync(src, path.resolve(destDir, 'pdf.worker.min.mjs'))
-      },
-    },
   ],
   resolve: {
     alias: {
