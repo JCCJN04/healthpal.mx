@@ -102,21 +102,25 @@ export async function fulfillDocumentRequest(
   patientId: string,
   documentId: string,
 ): Promise<{ error: string | null }> {
-  const { error } = await supabase
-    .from('document_requests')
-    .update({
-      status: 'fulfilled',
-      patient_id: patientId,
-      document_id: documentId,
-      fulfilled_at: new Date().toISOString(),
+  const { data, error } = await supabase
+    .rpc('fulfill_document_request_by_token', {
+      p_token: token,
+      p_patient_id: patientId,
+      p_document_id: documentId,
     })
-    .eq('token', token)
-    .eq('status', 'pending')
 
   if (error) {
     logger.error('documentRequests:fulfill', error)
     return { error: 'No se pudo registrar el documento' }
   }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (data && !(data as any).success) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    logger.warn('documentRequests:fulfill:notFound', (data as any).error)
+    // Non-fatal: request may already be fulfilled from a prior attempt
+  }
+
   return { error: null }
 }
 
@@ -162,11 +166,19 @@ export async function getFulfilledRequestDocsByPatient(
 
 /** Patient: revoke a doctor's access that was granted via a fulfilled document_request.
  *  Sets document_id = null and status = 'expired' so the doctor's RLS access disappears.
+ *  Also deletes the matching document_shares row created during solicitud fulfillment.
  */
 export async function revokeRequestAccess(
   requestId: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    // Fetch first so we can clean up the matching document_shares row
+    const { data: req } = await supabase
+      .from('document_requests')
+      .select('document_id, doctor_id')
+      .eq('id', requestId)
+      .maybeSingle()
+
     const { error } = await supabase
       .from('document_requests')
       .update({ document_id: null, status: 'expired' })
@@ -177,6 +189,16 @@ export async function revokeRequestAccess(
       logger.error('revokeRequestAccess', error)
       return { success: false, error: 'No se pudo revocar el acceso' }
     }
+
+    // Also delete the document_shares row for this (document, doctor) pair
+    if (req?.document_id && req?.doctor_id) {
+      await supabase
+        .from('document_shares')
+        .delete()
+        .eq('document_id', req.document_id)
+        .eq('shared_with', req.doctor_id)
+    }
+
     return { success: true }
   } catch (err) {
     logger.error('revokeRequestAccess:catch', err)

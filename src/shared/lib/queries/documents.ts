@@ -1057,6 +1057,13 @@ export async function revokeShareById(
   }
 
   try {
+    // Fetch first so we can also clean up any matching document_requests
+    const { data: shareRow } = await supabase
+      .from('document_shares')
+      .select('document_id, shared_with')
+      .eq('id', shareId)
+      .maybeSingle()
+
     const { error, count } = await supabase
       .from('document_shares')
       .delete({ count: 'exact' })
@@ -1069,6 +1076,16 @@ export async function revokeShareById(
 
     if ((count || 0) === 0) {
       return { success: false, error: 'No se encontró el acceso a revocar' }
+    }
+
+    // Also expire any fulfilled document_requests for this (document, doctor) pair
+    if (shareRow?.document_id && shareRow?.shared_with) {
+      await supabase
+        .from('document_requests')
+        .update({ document_id: null, status: 'expired' })
+        .eq('document_id', shareRow.document_id)
+        .eq('doctor_id', shareRow.shared_with)
+        .eq('status', 'fulfilled')
     }
 
     return { success: true }

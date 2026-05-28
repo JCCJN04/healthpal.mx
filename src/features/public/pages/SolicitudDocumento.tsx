@@ -216,11 +216,14 @@ export default function SolicitudDocumento() {
 
         // Share each document with the doctor
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (supabase.from('document_shares') as any).insert({
+        const { error: shareError } = await (supabase.from('document_shares') as any).insert({
           document_id: result.documentId,
           shared_with: request.doctor_id,
           shared_by: currentUserId,
         })
+        if (shareError && shareError.code !== '23505') {
+          logger.error('solicitud:document_shares', shareError)
+        }
 
         setUploadProgress(Math.round(((i + 1) / selectedFiles.length) * 100))
       }
