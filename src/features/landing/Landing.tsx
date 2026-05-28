@@ -478,7 +478,7 @@ function HumanCenteredSection() {
   return (
     <section className="bg-white overflow-hidden">
       <div ref={ref} style={style} className="max-w-[1200px] mx-auto grid lg:grid-cols-2 items-center gap-0">
-        <div className="h-[420px] lg:h-[580px] relative overflow-hidden">
+        <div className="hidden lg:block h-[420px] lg:h-[580px] relative overflow-hidden">
           <div className="absolute inset-0 flex items-center justify-center px-6">
             <div className="w-full max-w-[520px]">
               <div className="relative mx-auto w-full max-w-[240px] sm:max-w-[280px] lg:max-w-[320px] overflow-hidden rounded-[22px] bg-[#0b0d16] aspect-[9/16]">
