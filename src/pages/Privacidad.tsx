@@ -242,7 +242,7 @@ Sitio web: https://www.healthpal.mx/.
         <h1 className="mt-8 text-[2.4rem] sm:text-[3rem] md:text-[3.4rem] font-black tracking-[-0.03em] text-[#0097a9]">
           Aviso de privacidad
         </h1>
-        <p className="mt-2 text-[13px] text-gray-500">Ultima modificacion: {lastUpdated}</p>
+        <p className="mt-2 text-[13px] text-gray-500">Última modificación: {lastUpdated}</p>
 
         <div className="mt-10 whitespace-pre-wrap text-[15px] leading-7 text-gray-500">
           {privacyText}
