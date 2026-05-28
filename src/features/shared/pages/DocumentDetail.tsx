@@ -60,7 +60,7 @@ export default function DocumentDetail() {
       loadDocumentData(id)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id])
+  }, [id, privateKey])
 
   const loadDocumentData = async (docId: string) => {
     setLoading(true)
@@ -79,6 +79,9 @@ export default function DocumentDetail() {
           } else {
             setLoadError(true)
           }
+        } else if ((doc as Document & { is_encrypted?: boolean }).is_encrypted && !privateKey) {
+          // Encrypted but no private key in memory (session restored without password)
+          setLoadError(true)
         } else {
           const url = await getDocumentDownloadUrl(doc)
           if (url) {
@@ -616,7 +619,7 @@ export default function DocumentDetail() {
                 </div>
                 <div>
                   <p className="font-bold text-gray-900 mb-1">No se pudo cargar el documento</p>
-                  <p className="text-sm text-gray-500">El enlace seguro expiró o no tienes permisos.</p>
+                  <p className="text-sm text-gray-500">Cierra sesión e inicia sesión de nuevo para descifrar tus documentos.</p>
                 </div>
                 <button
                   onClick={() => loadDocumentData(id!)}
