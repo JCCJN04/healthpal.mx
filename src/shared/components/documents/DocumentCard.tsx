@@ -12,10 +12,11 @@ import { getDocumentDownloadUrl, getDecryptedDocumentUrl } from '@/shared/lib/qu
 import { useCrypto } from '@/context/CryptoContext'
 import type { Database } from '@/shared/types/database'
 
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url,
-).toString()
+if (import.meta.env.DEV) {
+  pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
+} else {
+  pdfjs.GlobalWorkerOptions.workerSrc = '/assets/pdf.worker.min.mjs'
+}
 
 type Document = Database['public']['Tables']['documents']['Row']
 type DocCategory = Database['public']['Enums']['doc_category']
