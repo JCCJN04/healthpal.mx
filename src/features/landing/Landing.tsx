@@ -418,7 +418,7 @@ function SpeedSection() {
             <div className="hidden md:block relative z-10 w-full max-w-[520px] sm:max-w-[640px] md:max-w-[840px] lg:max-w-[980px] mx-auto md:mx-0">
               <DashboardMockup />
             </div>
-            <div className="flex justify-center md:hidden">
+            <div className="flex justify-center items-center w-full md:hidden py-4">
               <PhoneMockup />
             </div>
             <div className="relative z-20 hidden md:flex justify-center md:w-auto md:block md:-mb-8 md:-ml-10">
@@ -478,7 +478,7 @@ function HumanCenteredSection() {
   return (
     <section className="bg-white overflow-hidden">
       <div ref={ref} style={style} className="max-w-[1200px] mx-auto grid lg:grid-cols-2 items-center gap-0">
-        <div className="hidden lg:block h-[420px] lg:h-[580px] relative overflow-hidden">
+        <div className="h-[420px] lg:h-[580px] relative overflow-hidden">
           <div className="absolute inset-0 flex items-center justify-center px-6">
             <div className="w-full max-w-[520px]">
               <div className="relative mx-auto w-full max-w-[240px] sm:max-w-[280px] lg:max-w-[320px] overflow-hidden rounded-[22px] bg-[#0b0d16] aspect-[9/16]">
