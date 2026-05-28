@@ -198,14 +198,14 @@ export default function LegalDocPage({
                       </div>
 
                       <div className="space-y-4 text-[15px] leading-8 text-gray-700">
-                        {section.paragraphs.map((paragraph) => (
-                          <p key={paragraph}>{paragraph}</p>
+                        {section.paragraphs.map((paragraph, paragraphIndex) => (
+                          <p key={`${section.id}-p-${paragraphIndex}`}>{paragraph}</p>
                         ))}
 
                         {section.bullets ? (
                           <ul className="space-y-3 pl-6 list-disc">
-                            {section.bullets.map((bullet) => (
-                              <li key={bullet}>{bullet}</li>
+                            {section.bullets.map((bullet, bulletIndex) => (
+                              <li key={`${section.id}-b-${bulletIndex}`}>{bullet}</li>
                             ))}
                           </ul>
                         ) : null}
