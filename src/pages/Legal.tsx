@@ -2,8 +2,7 @@ import { Link } from 'react-router-dom'
 
 export default function Legal() {
   const lastUpdated = '27 de mayo de 2026'
-  const termsText = `
-Bienvenido a Healthpal.mx, en lo sucesivo referido como “Healthpal”, “Healthpal.mx”, “nosotros”, “nuestro” o “la plataforma”, proyecto digital operado por Daniel Vázquez y Juan Carlos Mendoza, con correo electrónico de contacto healthpalmx@gmail.com y sitio web https://www.healthpal.mx/.
+  const termsText = `Bienvenido a Healthpal.mx, en lo sucesivo referido como “Healthpal”, “Healthpal.mx”, “nosotros”, “nuestro” o “la plataforma”, proyecto digital operado por Daniel Vázquez y Juan Carlos Mendoza, con correo electrónico de contacto healthpalmx@gmail.com y sitio web https://www.healthpal.mx/.
 Estos Términos y Condiciones regulan el acceso, navegación y uso de Healthpal.mx, incluyendo su sitio web, plataforma digital, formularios, funcionalidades, servicios beta, comunicaciones electrónicas y cualquier herramienta relacionada con la plataforma.
 Al acceder, registrarte o utilizar Healthpal.mx, aceptas estos Términos y Condiciones, así como nuestro Aviso de Privacidad. Si no estás de acuerdo con ellos, deberás abstenerte de utilizar la plataforma.
 
