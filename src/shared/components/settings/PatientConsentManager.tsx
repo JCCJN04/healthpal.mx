@@ -4,6 +4,7 @@ import {
   Loader2, XCircle,
 } from 'lucide-react'
 import { useAuth } from '@/app/providers/AuthContext'
+import { useCrypto } from '@/context/CryptoContext'
 import {
   getPatientPendingRequests,
   getPatientDoctorAccess,
@@ -12,6 +13,7 @@ import {
   revokeConsentAccess,
   ConsentWithProfile,
 } from '@/shared/lib/queries/consent'
+import { getUserDocuments, shareEncryptedDocumentKey } from '@/shared/lib/queries/documents'
 import { linkDoctorToPatient, unlinkDoctorFromPatient } from '@/features/patient/services/doctors'
 import { showToast } from '@/shared/components/ui/Toast'
 import { logger } from '@/shared/lib/logger'
@@ -26,6 +28,7 @@ const FULL_ACCESS = {
 
 export default function PatientConsentManager() {
   const { user } = useAuth()
+  const { privateKey } = useCrypto()
   const [pending, setPending] = useState<ConsentWithProfile[]>([])
   const [active, setActive] = useState<ConsentWithProfile[]>([])
   const [loading, setLoading] = useState(true)
@@ -36,6 +39,31 @@ export default function PatientConsentManager() {
     if (user?.id) loadAll()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id])
+
+  // Retroactively share document keys with all doctors that already have accepted consent
+  useEffect(() => {
+    if (!user?.id || !privateKey) return
+    const syncExistingKeys = async () => {
+      try {
+        const all = await getPatientDoctorAccess(user.id)
+        const accepted = all.filter((c) => c.status === 'accepted')
+        if (accepted.length === 0) return
+        const docs = await getUserDocuments(user.id, null, true)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const encrypted = docs.filter((d) => (d as any).is_encrypted)
+        if (encrypted.length === 0) return
+        for (const consent of accepted) {
+          await Promise.allSettled(
+            encrypted.map((d) => shareEncryptedDocumentKey(d.id, privateKey, consent.doctor_id))
+          )
+        }
+      } catch (err) {
+        logger.error('PatientConsentManager.syncExistingKeys', err)
+      }
+    }
+    syncExistingKeys()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, privateKey])
 
   async function loadAll() {
     setLoading(true)
@@ -59,6 +87,20 @@ export default function PatientConsentManager() {
     const { ok, error } = await acceptConsentRequest(confirmingRow.id, FULL_ACCESS)
     if (ok) {
       await linkDoctorToPatient(user.id, confirmingRow.doctor_id)
+      // Share encrypted document keys with the doctor so they can decrypt files
+      if (privateKey) {
+        try {
+          const docs = await getUserDocuments(user.id, null, true)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const encrypted = docs.filter((d) => (d as any).is_encrypted)
+          await Promise.allSettled(
+            encrypted.map((d) => shareEncryptedDocumentKey(d.id, privateKey, confirmingRow.doctor_id))
+          )
+        } catch (err) {
+          logger.error('PatientConsentManager.shareKeys', err)
+          // Non-fatal: consent still granted, keys can be shared later
+        }
+      }
       showToast('Acceso concedido al expediente', 'success')
       await loadAll()
     } else {

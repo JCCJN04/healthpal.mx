@@ -9,10 +9,7 @@ import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
 import { DicomViewer } from './DicomViewer'
 
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url,
-).toString()
+pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
 
 interface DocumentViewerProps {
   fileUrl?: string
@@ -31,8 +28,37 @@ export const DocumentViewer = ({ fileUrl, fileType = 'pdf', title }: DocumentVie
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(true)
   const [containerWidth, setContainerWidth] = useState(0)
+  // Blob URL for PDFs — avoids CORS issues with pdfjs worker making range requests
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
+
+  // Pre-fetch PDF as blob so pdfjs worker never makes cross-origin requests to storage
+  useEffect(() => {
+    if (fileType !== 'pdf' || !fileUrl) return
+    let revoked = false
+    setPdfBlobUrl(null)
+    setPdfLoading(true)
+    fetch(fileUrl)
+      .then(r => r.blob())
+      .then(blob => {
+        if (revoked) return
+        setPdfBlobUrl(URL.createObjectURL(blob))
+      })
+      .catch(() => {
+        if (!revoked) setPdfLoading(false)
+      })
+    return () => {
+      revoked = true
+    }
+  }, [fileUrl, fileType])
+
+  // Revoke blob URL on unmount or when it changes
+  useEffect(() => {
+    return () => {
+      if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl)
+    }
+  }, [pdfBlobUrl])
 
   // Track container width for responsive PDF rendering
   useEffect(() => {
@@ -158,14 +184,14 @@ export const DocumentViewer = ({ fileUrl, fileType = 'pdf', title }: DocumentVie
             {/* PDF */}
             {fileType === 'pdf' && (
               <div className="w-full flex flex-col items-center gap-0">
-                {pdfLoading && (
+                {(pdfLoading || !pdfBlobUrl) && (
                   <div className="flex flex-col items-center gap-3 py-20 text-gray-400">
                     <Loader2 className="w-8 h-8 animate-spin text-primary" />
                     <span className="text-sm">Cargando PDF...</span>
                   </div>
                 )}
-                <Document
-                  file={fileUrl}
+                {pdfBlobUrl && <Document
+                  file={pdfBlobUrl}
                   onLoadSuccess={onDocumentLoadSuccess}
                   onLoadError={() => setPdfLoading(false)}
                   loading={null}
@@ -185,7 +211,7 @@ export const DocumentViewer = ({ fileUrl, fileType = 'pdf', title }: DocumentVie
                     renderAnnotationLayer
                     className="overflow-hidden"
                   />
-                </Document>
+                </Document>}
               </div>
             )}
 

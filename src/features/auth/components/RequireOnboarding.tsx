@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '@/app/providers/AuthContext'
 import { getMyProfile } from '@/shared/lib/queries/profile'
@@ -24,86 +24,50 @@ interface RequireOnboardingProps {
  *  - Profile fetch fails: retry directly after 6s, then show error (NOT redirect to onboarding)
  *  - onAuthStateChange fires (TOKEN_REFRESHED): resolvedRef prevents spurious re-checks
  */
+function getOnboardingRedirect(p: Profile): string {
+  if (p.onboarding_step === 'basic')   return '/onboarding/basic'
+  if (p.onboarding_step === 'contact') return '/onboarding/contact'
+  if (p.onboarding_step === 'details') return p.role === 'doctor' ? '/onboarding/doctor' : '/onboarding/patient'
+  if (p.onboarding_step === 'done')    return '/onboarding/done'
+  return '/onboarding/role'
+}
+
 export default function RequireOnboarding({ children }: RequireOnboardingProps) {
   const { user, profile, loading: authLoading, refreshProfile } = useAuth()
-  const [resolved, setResolved] = useState(false)
-  const [onboardingComplete, setOnboardingComplete] = useState(false)
-  const [redirectTo, setRedirectTo] = useState<string | null>(null)
+  const [fetchedProfile, setFetchedProfile] = useState<Profile | null>(null)
   const [fetchError, setFetchError] = useState(false)
-  const resolvedRef = useRef(false)
+  const fetchingRef = useRef(false)
 
-  const resolveOnboarding = useCallback((p: Profile) => {
-    if (resolvedRef.current && onboardingComplete) return
-    resolvedRef.current = true
-
-    if (p.onboarding_completed) {
-      setOnboardingComplete(true)
-      setResolved(true)
-      return
-    }
-
-    let targetRoute = '/onboarding/role'
-    if (p.onboarding_step === 'basic') {
-      targetRoute = '/onboarding/basic'
-    } else if (p.onboarding_step === 'contact') {
-      targetRoute = '/onboarding/contact'
-    } else if (p.onboarding_step === 'details') {
-      targetRoute = p.role === 'doctor' ? '/onboarding/doctor' : '/onboarding/patient'
-    } else if (p.onboarding_step === 'done') {
-      targetRoute = '/onboarding/done'
-    }
-
-    setRedirectTo(targetRoute)
-    setResolved(true)
-  }, [onboardingComplete])
-
-  // Main check: runs when auth state or profile changes
+  // Eager fetch when auth is done but AuthContext profile hasn't arrived yet
   useEffect(() => {
-    if (authLoading) return
-    if (!user) return
-    if (!profile) return
-    resolveOnboarding(profile)
-  }, [user, profile, authLoading, resolveOnboarding])
-
-  // Safety timeout: if profile doesn't arrive in 6s, fetch directly
-  // (AuthContext background fetch swallows errors silently — we need a fallback)
-  useEffect(() => {
-    if (!user || profile || authLoading) return
-
-    const timeout = setTimeout(async () => {
-      logger.warn('RequireOnboarding: profile not loaded in 6s, fetching directly')
-      try {
-        const directProfile = await getMyProfile()
-        resolveOnboarding(directProfile)
-        // Update AuthContext in background so rest of app has profile
+    if (authLoading || !user || profile || fetchingRef.current) return
+    fetchingRef.current = true
+    getMyProfile()
+      .then(p => {
+        setFetchedProfile(p)
         refreshProfile().catch(() => {/* best-effort */})
-      } catch (err) {
-        logger.error('RequireOnboarding:manualFetch', err)
+      })
+      .catch(err => {
+        logger.error('RequireOnboarding:eagerFetch', err)
         setFetchError(true)
-        setResolved(true)
-      }
-    }, 6000)
+      })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, user?.id, profile])
 
-    return () => clearTimeout(timeout)
-  }, [user, profile, authLoading, resolveOnboarding, refreshProfile])
+  // Auth still initializing
+  if (authLoading) return <Spinner />
 
-  // Still initializing auth
-  if (authLoading) {
-    return <Spinner />
-  }
+  // No user — RequireAuth handles redirect
+  if (!user) return <>{children}</>
 
-  // User not logged in — RequireAuth handles this
-  if (!user) {
-    return <>{children}</>
-  }
+  // Use whichever profile arrived first
+  const resolvedProfile = profile ?? fetchedProfile
 
-  // Profile hasn't arrived yet — keep spinner, don't redirect prematurely
-  if (!profile && !resolved) {
-    return <Spinner />
-  }
+  // Profile not yet available — show spinner
+  if (!resolvedProfile && !fetchError) return <Spinner />
 
-  // Profile fetch failed after timeout — show error with retry
-  if (fetchError) {
+  // Profile fetch failed
+  if (fetchError && !resolvedProfile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center max-w-sm px-6">
@@ -125,14 +89,9 @@ export default function RequireOnboarding({ children }: RequireOnboardingProps) 
     )
   }
 
-  // Redirect to the appropriate onboarding step
-  if (resolved && !onboardingComplete && redirectTo) {
-    return <Navigate to={redirectTo} replace />
-  }
-
-  // Still resolving (shouldn't normally reach here)
-  if (!resolved) {
-    return <Spinner />
+  // Onboarding not complete — redirect synchronously
+  if (resolvedProfile && !resolvedProfile.onboarding_completed) {
+    return <Navigate to={getOnboardingRedirect(resolvedProfile)} replace />
   }
 
   return <>{children}</>

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { AlertTriangle, Trash2, CheckCircle, XCircle } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { AlertTriangle, Trash2, CheckCircle, XCircle, Save, Loader2 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthContext';
 import { supabase } from '@/shared/lib/supabase';
 import { getMyProfile, updateMyProfile, uploadAvatar, deleteMyAccount } from '@/shared/lib/queries/profile';
@@ -14,7 +14,8 @@ import PatientProfileWizard from '@/features/patient/components/PatientProfileWi
 import { getPatientProfile, upsertPatientProfile } from '@/features/patient/services/patientProfile';
 import { getDoctorProfile } from '@/shared/lib/queries/profile';
 import DoctorVerificationCard from '@/shared/components/settings/DoctorVerificationCard';
-import PatientConsentManager from '@/shared/components/settings/PatientConsentManager';
+import PatientConsentManager from '@/shared/components/settings/PatientConsentManager'
+import GoogleCalendarCard from '@/shared/components/settings/GoogleCalendarCard';
 import { countPendingRequests } from '@/shared/lib/queries/consent';
 import { PatientProfile, DoctorProfile } from '@/shared/types/database';
 import { logger } from '@/shared/lib/logger';
@@ -46,6 +47,16 @@ export default function Configuracion() {
 
   // Wizard state
   const [isWizardOpen, setIsWizardOpen] = useState(false);
+
+  // Medical form state
+  const [medicalForm, setMedicalForm] = useState({
+    allergies: '',
+    chronic_conditions: '',
+    current_medications: '',
+    notes_for_doctor: '',
+  });
+  const [isSavingMedical, setIsSavingMedical] = useState(false);
+  const medicalFormInitialized = useRef(false);
 
   // Consent pending count (patients only)
   const [pendingConsentCount, setPendingConsentCount] = useState(0);
@@ -82,6 +93,19 @@ export default function Configuracion() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  // Sync medical form when patient profile loads
+  useEffect(() => {
+    if (patientProfile && !medicalFormInitialized.current) {
+      medicalFormInitialized.current = true;
+      setMedicalForm({
+        allergies: patientProfile.allergies ?? '',
+        chronic_conditions: patientProfile.chronic_conditions ?? '',
+        current_medications: patientProfile.current_medications ?? '',
+        notes_for_doctor: patientProfile.notes_for_doctor ?? '',
+      });
+    }
+  }, [patientProfile]);
 
   // Fetch patient profile
   async function loadPatientProfile() {
@@ -250,6 +274,15 @@ export default function Configuracion() {
     }
   };
 
+  const handleSaveMedical = async () => {
+    try {
+      setIsSavingMedical(true);
+      await handleSavePatientProfile(medicalForm);
+    } finally {
+      setIsSavingMedical(false);
+    }
+  };
+
   // Calculate age from birthdate
   const calculateAge = (birthdate: string | null): number => {
     if (!birthdate) return 0;
@@ -306,7 +339,7 @@ export default function Configuracion() {
     ? [
         { id: 'general', label: 'General', enabled: true },
         { id: 'permissions', label: 'Permisos', enabled: true, badge: pendingConsentCount },
-        { id: 'medical', label: 'Registro médico', enabled: false },
+        { id: 'medical', label: 'Registro médico', enabled: true },
         { id: 'documents', label: 'Documentos del paciente', enabled: false },
       ]
     : [
@@ -419,6 +452,11 @@ export default function Configuracion() {
                 />
               )}
 
+              {/* Google Calendar Integration */}
+              <GoogleCalendarCard
+                onToast={(msg, type) => setToast({ message: msg, type })}
+              />
+
               {/* Danger Zone */}
               <div className="bg-red-50 border-2 border-red-100 rounded-xl p-6">
                 <div className="flex items-start gap-4">
@@ -448,15 +486,90 @@ export default function Configuracion() {
             <PatientConsentManager />
           )}
 
-          {activeTab === 'medical' && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-              <div className="w-16 h-16 bg-gradient-to-br from-teal-100 to-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <AlertTriangle className="w-8 h-8 text-[#33C7BE]" />
+          {activeTab === 'medical' && isPatient && (
+            <div className="space-y-6">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <div className="mb-6">
+                  <h2 className="text-lg font-bold text-gray-900">Datos clínicos</h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Esta información es visible para los médicos que tengan acceso a tu expediente.
+                  </p>
+                </div>
+
+                <div className="space-y-5">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                      Alergias conocidas
+                    </label>
+                    <textarea
+                      value={medicalForm.allergies}
+                      onChange={(e) => setMedicalForm(f => ({ ...f, allergies: e.target.value }))}
+                      placeholder="Ej: Penicilina, aspirina, látex, cacahuates..."
+                      rows={3}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] resize-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                      Condiciones crónicas
+                    </label>
+                    <textarea
+                      value={medicalForm.chronic_conditions}
+                      onChange={(e) => setMedicalForm(f => ({ ...f, chronic_conditions: e.target.value }))}
+                      placeholder="Ej: Diabetes tipo 2, hipertensión, hipotiroidismo..."
+                      rows={3}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] resize-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                      Medicación activa
+                    </label>
+                    <textarea
+                      value={medicalForm.current_medications}
+                      onChange={(e) => setMedicalForm(f => ({ ...f, current_medications: e.target.value }))}
+                      placeholder="Ej: Metformina 850mg, losartán 50mg, levotiroxina 100mcg..."
+                      rows={3}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] resize-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                      Mensaje para el médico
+                    </label>
+                    <textarea
+                      value={medicalForm.notes_for_doctor}
+                      onChange={(e) => setMedicalForm(f => ({ ...f, notes_for_doctor: e.target.value }))}
+                      placeholder="Información adicional que quieras que tu médico conozca..."
+                      rows={4}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] resize-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-6 flex justify-end">
+                  <button
+                    onClick={handleSaveMedical}
+                    disabled={isSavingMedical}
+                    className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#33C7BE] text-white font-semibold rounded-xl hover:bg-[#2ab5ac] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {isSavingMedical ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Guardando...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        Guardar cambios
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Próximamente</h3>
-              <p className="text-gray-600">
-                La sección de registro médico estará disponible pronto
-              </p>
             </div>
           )}
 
