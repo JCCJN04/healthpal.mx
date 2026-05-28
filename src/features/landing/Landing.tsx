@@ -499,7 +499,7 @@ function HumanCenteredSection() {
               <div className="relative mx-auto w-full max-w-[240px] sm:max-w-[280px] lg:max-w-[320px] overflow-hidden rounded-[22px] bg-[#0b0d16] aspect-[9/16]">
                 <iframe
                   className="absolute inset-0 h-full w-full"
-                  src="https://www.youtube.com/embed/POBEtHq4JwU"
+                  src="https://www.youtube-nocookie.com/embed/POBEtHq4JwU?rel=0"
                   title="Video de HealthPal"
                   loading="lazy"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
