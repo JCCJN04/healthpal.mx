@@ -27,6 +27,9 @@ const Doctores = lazy(() => import('@/features/patient/pages/Doctores'))
 const DoctorDetail = lazy(() => import('@/features/patient/pages/DoctorDetail'))
 const Pacientes = lazy(() => import('@/features/doctor/pages/Pacientes'))
 const PatientDetail = lazy(() => import('@/features/doctor/pages/PatientDetail'))
+const Consultas = lazy(() => import('@/features/patient/pages/Consultas'))
+const NuevaConsulta = lazy(() => import('@/features/patient/pages/NuevaConsulta'))
+const Agenda = lazy(() => import('@/features/doctor/pages/Agenda'))
 
 // Public pages (no auth required)
 const SolicitudDocumento = lazy(() => import('@/features/public/pages/SolicitudDocumento'))
@@ -96,6 +99,9 @@ function App() {
         {/* Doctor-only routes */}
         <Route path="/dashboard/pacientes" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['doctor']}><Suspense fallback={<PageLoader />}><Pacientes /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/pacientes/:id" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['doctor']}><Suspense fallback={<PageLoader />}><PatientDetail /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
+        <Route path="/dashboard/consultas" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['patient']}><Suspense fallback={<PageLoader />}><Consultas /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
+        <Route path="/dashboard/consultas/nueva" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['patient']}><Suspense fallback={<PageLoader />}><NuevaConsulta /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
+        <Route path="/dashboard/agenda" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['doctor']}><Suspense fallback={<PageLoader />}><Agenda /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/configuracion" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><Configuracion /></Suspense></RequireOnboarding></RequireAuth>} />
       </Routes>
     </AuthProvider>

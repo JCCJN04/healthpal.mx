@@ -28,7 +28,7 @@ import { DocumentViewer } from '@/shared/components/documents/DocumentViewer'
 import { NotesPanel } from '@/shared/components/documents/NotesPanel'
 import { ShareModal } from '@/shared/components/documents/ShareModal'
 import { RenameDocumentModal, MoveDocumentModal } from '@/shared/components/documents/DocumentModals'
-import { getDocumentById, getDocumentDownloadUrl, deleteDocument, updateDocument, downloadDocumentFile, shareDocumentWithUser, buildDeterministicDocumentPath, getDecryptedDocumentUrl, downloadDocumentFileDecrypted } from '@/shared/lib/queries/documents'
+import { getDocumentById, getDocumentDownloadUrl, deleteDocument, updateDocument, downloadDocumentFile, shareDocumentWithUser, shareEncryptedDocumentKey, buildDeterministicDocumentPath, getDecryptedDocumentUrl, downloadDocumentFileDecrypted } from '@/shared/lib/queries/documents'
 import { showToast } from '@/shared/components/ui/Toast'
 import { extractDocumentInfo } from '@/shared/lib/gemini'
 import { useAuth } from '@/app/providers/AuthContext'
@@ -213,6 +213,11 @@ export default function DocumentDetail() {
     )
 
     if (result.success) {
+      // For encrypted documents, also share the decryption key with the recipient
+      const isEncrypted = (document as Document & { is_encrypted?: boolean }).is_encrypted
+      if (isEncrypted && privateKey && result.sharedWithUserId) {
+        await shareEncryptedDocumentKey(document.id, privateKey, result.sharedWithUserId)
+      }
       showToast('Documento compartido', 'success')
       return { success: true }
     }

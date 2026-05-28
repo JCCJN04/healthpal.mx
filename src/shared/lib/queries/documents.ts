@@ -280,7 +280,7 @@ export async function getDocumentsSharedWithMe(userId: string) {
         document_id,
         document:documents (*),
         sender:profiles!document_shares_shared_by_fkey (
-          id, full_name, email, avatar_url, role,
+          id, full_name, email, phone, avatar_url, role,
           doctor_profile:doctor_profiles(specialty)
         )
       `)
@@ -987,7 +987,7 @@ export async function shareDocumentWithUser(
   target: { userId?: string; email?: string },
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   opts?: { document?: Document; senderProfile?: { full_name?: string | null; email?: string | null } }
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; sharedWithUserId?: string }> {
   if (checkInMemoryDemoDocuments()) {
     logger.info('demo:shareDocumentWithUser', { documentId, sharedById, target })
     return { success: true }
@@ -1024,7 +1024,7 @@ export async function shareDocumentWithUser(
 
     if (existing) {
       logger.debug('shareDocumentWithUser: already shared')
-      return { success: true }
+      return { success: true, sharedWithUserId: targetUserId }
     }
 
     const { error } = await supabase
@@ -1037,7 +1037,7 @@ export async function shareDocumentWithUser(
     }
 
     logger.debug('shareDocumentWithUser: success')
-    return { success: true }
+    return { success: true, sharedWithUserId: targetUserId }
   } catch (err) {
     logger.error('shareDocumentWithUser', err)
     return { success: false, error: 'No se pudo compartir el documento' }
@@ -1900,17 +1900,19 @@ export async function shareEncryptedDocumentKey(
     const recipientPublicKey = await importPublicKey(public_key_spki)
     const recipientWrappedKey = await wrapDocumentKey(docKey, recipientPublicKey)
 
-    // 5. Upsert the document key row for the recipient
+    // 5. Insert the document key row for the recipient.
+    // Plain INSERT (not upsert) — PostgREST checks UPDATE policies even for ON CONFLICT DO NOTHING,
+    // which would block the patient from updating the doctor's row. Treat 23505 (unique_violation) as success.
     const { error: insertError } = await supabase
       .from('document_keys')
-      .upsert({
+      .insert({
         document_id: documentId,
         user_id: recipientUserId,
         wrapped_key: recipientWrappedKey,
         doc_iv: doc_iv,
-      }, { onConflict: 'document_id,user_id' })
+      })
 
-    if (insertError) {
+    if (insertError && insertError.code !== '23505') {
       logger.error('shareEncryptedDocumentKey.insert', insertError)
       return { success: false, error: insertError.message }
     }

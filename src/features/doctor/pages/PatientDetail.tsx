@@ -628,12 +628,12 @@ export default function PatientDetail() {
                         <div className="bg-white border-b border-gray-200 px-4 sm:px-6 flex gap-0 flex-shrink-0">
                             {[
                                 { id: 'summary', label: 'Resumen', icon: Activity, enabled: true },
-                                { id: 'expediente', label: 'Expediente', icon: FileText, enabled: scopes.share_documents },
+                                { id: 'expediente', label: 'Expediente', icon: FileText, enabled: scopes.share_documents, navigateTo: `/dashboard/documentos?folder=shared-${id}` },
                                 { id: 'notes', label: 'Notas', icon: StickyNote, enabled: scopes.share_medical_notes },
                             ].filter(t => t.enabled).map((tab) => (
                                 <button
                                     key={tab.id}
-                                    onClick={() => setActiveTab(tab.id as TabType)}
+                                    onClick={() => (tab as { navigateTo?: string }).navigateTo ? navigate((tab as { navigateTo?: string }).navigateTo!) : setActiveTab(tab.id as TabType)}
                                     className={`flex items-center gap-2 px-4 py-3.5 text-sm font-semibold border-b-2 transition-all ${
                                         activeTab === tab.id
                                             ? 'border-[#33C7BE] text-[#33C7BE]'

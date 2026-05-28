@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { AlertTriangle, Trash2, CheckCircle, XCircle, Save, Loader2 } from 'lucide-react';
+import { AlertTriangle, Trash2, CheckCircle, XCircle, Save, Loader2, Activity, Pill, ShieldCheck, Phone, User, Heart, ClipboardPlus } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthContext';
 import { supabase } from '@/shared/lib/supabase';
 import { getMyProfile, updateMyProfile, uploadAvatar, deleteMyAccount } from '@/shared/lib/queries/profile';
@@ -50,10 +50,16 @@ export default function Configuracion() {
 
   // Medical form state
   const [medicalForm, setMedicalForm] = useState({
+    height_cm: '' as string | number,
+    weight_kg: '' as string | number,
+    blood_type: '',
     allergies: '',
     chronic_conditions: '',
     current_medications: '',
     notes_for_doctor: '',
+    insurance_provider: '',
+    emergency_contact_name: '',
+    emergency_contact_phone: '',
   });
   const [isSavingMedical, setIsSavingMedical] = useState(false);
   const medicalFormInitialized = useRef(false);
@@ -99,10 +105,16 @@ export default function Configuracion() {
     if (patientProfile && !medicalFormInitialized.current) {
       medicalFormInitialized.current = true;
       setMedicalForm({
+        height_cm: patientProfile.height_cm ?? '',
+        weight_kg: patientProfile.weight_kg ?? '',
+        blood_type: patientProfile.blood_type ?? '',
         allergies: patientProfile.allergies ?? '',
         chronic_conditions: patientProfile.chronic_conditions ?? '',
         current_medications: patientProfile.current_medications ?? '',
         notes_for_doctor: patientProfile.notes_for_doctor ?? '',
+        insurance_provider: patientProfile.insurance_provider ?? '',
+        emergency_contact_name: '',
+        emergency_contact_phone: '',
       });
     }
   }, [patientProfile]);
@@ -277,7 +289,11 @@ export default function Configuracion() {
   const handleSaveMedical = async () => {
     try {
       setIsSavingMedical(true);
-      await handleSavePatientProfile(medicalForm);
+      await handleSavePatientProfile({
+        ...medicalForm,
+        height_cm: medicalForm.height_cm !== '' ? Number(medicalForm.height_cm) : null,
+        weight_kg: medicalForm.weight_kg !== '' ? Number(medicalForm.weight_kg) : null,
+      });
     } finally {
       setIsSavingMedical(false);
     }
@@ -487,88 +503,183 @@ export default function Configuracion() {
           )}
 
           {activeTab === 'medical' && isPatient && (
-            <div className="space-y-6">
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <div className="mb-6">
-                  <h2 className="text-lg font-bold text-gray-900">Datos clínicos</h2>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Esta información es visible para los médicos que tengan acceso a tu expediente.
-                  </p>
-                </div>
+            <div className="space-y-4">
 
-                <div className="space-y-5">
+              {/* Physical measurements */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-7 h-7 rounded-lg bg-teal-50 flex items-center justify-center">
+                    <Activity className="w-4 h-4 text-[#33C7BE]" />
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-900">Medidas físicas</h3>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                      Alergias conocidas
+                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">Altura (cm)</label>
+                    <input
+                      type="number"
+                      min={0} max={300}
+                      value={medicalForm.height_cm}
+                      onChange={e => setMedicalForm(f => ({ ...f, height_cm: e.target.value }))}
+                      placeholder="170"
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">Peso (kg)</label>
+                    <input
+                      type="number"
+                      min={0} max={500}
+                      value={medicalForm.weight_kg}
+                      onChange={e => setMedicalForm(f => ({ ...f, weight_kg: e.target.value }))}
+                      placeholder="70"
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">Tipo de sangre</label>
+                    <select
+                      value={medicalForm.blood_type}
+                      onChange={e => setMedicalForm(f => ({ ...f, blood_type: e.target.value }))}
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] bg-white"
+                    >
+                      <option value="">--</option>
+                      {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(t => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Clinical info */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center">
+                    <Heart className="w-4 h-4 text-red-500" />
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-900">Información clínica</h3>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1.5 flex items-center gap-1.5">
+                      <AlertTriangle className="w-3 h-3 text-amber-500" /> Alergias conocidas
                     </label>
                     <textarea
                       value={medicalForm.allergies}
-                      onChange={(e) => setMedicalForm(f => ({ ...f, allergies: e.target.value }))}
+                      onChange={e => setMedicalForm(f => ({ ...f, allergies: e.target.value }))}
                       placeholder="Ej: Penicilina, aspirina, látex, cacahuates..."
-                      rows={3}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] resize-none"
+                      rows={2}
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] resize-none"
                     />
                   </div>
-
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                      Condiciones crónicas
+                    <label className="block text-xs font-semibold text-gray-500 mb-1.5 flex items-center gap-1.5">
+                      <Activity className="w-3 h-3 text-blue-500" /> Condiciones crónicas
                     </label>
                     <textarea
                       value={medicalForm.chronic_conditions}
-                      onChange={(e) => setMedicalForm(f => ({ ...f, chronic_conditions: e.target.value }))}
+                      onChange={e => setMedicalForm(f => ({ ...f, chronic_conditions: e.target.value }))}
                       placeholder="Ej: Diabetes tipo 2, hipertensión, hipotiroidismo..."
-                      rows={3}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] resize-none"
+                      rows={2}
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] resize-none"
                     />
                   </div>
-
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                      Medicación activa
+                    <label className="block text-xs font-semibold text-gray-500 mb-1.5 flex items-center gap-1.5">
+                      <Pill className="w-3 h-3 text-purple-500" /> Medicación activa
                     </label>
                     <textarea
                       value={medicalForm.current_medications}
-                      onChange={(e) => setMedicalForm(f => ({ ...f, current_medications: e.target.value }))}
+                      onChange={e => setMedicalForm(f => ({ ...f, current_medications: e.target.value }))}
                       placeholder="Ej: Metformina 850mg, losartán 50mg, levotiroxina 100mcg..."
-                      rows={3}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] resize-none"
+                      rows={2}
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] resize-none"
                     />
                   </div>
-
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                      Mensaje para el médico
+                    <label className="block text-xs font-semibold text-gray-500 mb-1.5 flex items-center gap-1.5">
+                      <ClipboardPlus className="w-3 h-3 text-teal-500" /> Notas para el médico
                     </label>
                     <textarea
                       value={medicalForm.notes_for_doctor}
-                      onChange={(e) => setMedicalForm(f => ({ ...f, notes_for_doctor: e.target.value }))}
+                      onChange={e => setMedicalForm(f => ({ ...f, notes_for_doctor: e.target.value }))}
                       placeholder="Información adicional que quieras que tu médico conozca..."
-                      rows={4}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] resize-none"
+                      rows={3}
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] resize-none"
                     />
                   </div>
                 </div>
+              </div>
 
-                <div className="mt-6 flex justify-end">
-                  <button
-                    onClick={handleSaveMedical}
-                    disabled={isSavingMedical}
-                    className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#33C7BE] text-white font-semibold rounded-xl hover:bg-[#2ab5ac] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {isSavingMedical ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Guardando...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="w-4 h-4" />
-                        Guardar cambios
-                      </>
-                    )}
-                  </button>
+              {/* Insurance */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center">
+                    <ShieldCheck className="w-4 h-4 text-blue-500" />
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-900">Seguro médico</h3>
                 </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1.5">Aseguradora</label>
+                  <input
+                    type="text"
+                    value={medicalForm.insurance_provider}
+                    onChange={e => setMedicalForm(f => ({ ...f, insurance_provider: e.target.value }))}
+                    placeholder="Ej: IMSS, GNP, AXA, Monterrey Azul..."
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]"
+                  />
+                </div>
+              </div>
+
+              {/* Emergency contact */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-7 h-7 rounded-lg bg-orange-50 flex items-center justify-center">
+                    <Phone className="w-4 h-4 text-orange-500" />
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-900">Contacto de emergencia</h3>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1.5 flex items-center gap-1.5">
+                      <User className="w-3 h-3" /> Nombre
+                    </label>
+                    <input
+                      type="text"
+                      value={medicalForm.emergency_contact_name}
+                      onChange={e => setMedicalForm(f => ({ ...f, emergency_contact_name: e.target.value }))}
+                      placeholder="Nombre completo"
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1.5 flex items-center gap-1.5">
+                      <Phone className="w-3 h-3" /> Teléfono
+                    </label>
+                    <input
+                      type="tel"
+                      value={medicalForm.emergency_contact_phone}
+                      onChange={e => setMedicalForm(f => ({ ...f, emergency_contact_phone: e.target.value }))}
+                      placeholder="52 81 XXXX XXXX"
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  onClick={handleSaveMedical}
+                  disabled={isSavingMedical}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#33C7BE] text-white font-semibold rounded-xl hover:bg-[#2ab5ac] transition-colors disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
+                >
+                  {isSavingMedical ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" />Guardando...</>
+                  ) : (
+                    <><Save className="w-4 h-4" />Guardar cambios</>
+                  )}
+                </button>
               </div>
             </div>
           )}

@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react'
-import { Upload, Search, FileText, Loader2, Plus, FileUp, X, Copy, Check, Activity, Pill, Microscope, ShieldCheck, Users, Link2, MessageCircle, Share2, ChevronLeft, UserCircle, UserPlus } from 'lucide-react'
+import React, { useState, useEffect, useRef } from 'react'
+import { Upload, Search, FileText, Loader2, Plus, FileUp, X, Activity, Pill, Microscope, ShieldCheck, Users, Link2, Share2, ChevronLeft, UserCircle, UserPlus } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import ViewToggle from '@/shared/components/ui/ViewToggle'
 import DocumentsTable from '@/shared/components/documents/DocumentsTable'
@@ -8,10 +9,11 @@ import { DocumentPreviewModal } from '@/shared/components/documents/DocumentPrev
 import { ShareModal, type KnownDoctor } from '@/shared/components/documents/ShareModal'
 import { AccessPanel } from '@/shared/components/documents/AccessPanel'
 import { useAuth } from '@/app/providers/AuthContext'
-import { getUserDocuments, getDocumentsSharedWithMe, getDocumentsSharedByMeWith, uploadDocument, uploadDocumentEncrypted, deleteDocument, getFolders, createFolder, deleteFolder, updateFolder, updateDocument, shareDocumentWithUser, saveExternalUrlDocument, findProfileByEmail } from '@/shared/lib/queries/documents'
+import { getUserDocuments, getDocumentsSharedWithMe, getDocumentsSharedByMeWith, uploadDocument, uploadDocumentEncrypted, deleteDocument, getFolders, createFolder, deleteFolder, updateFolder, updateDocument, shareDocumentWithUser, shareEncryptedDocumentKey, saveExternalUrlDocument, findProfileByEmail } from '@/shared/lib/queries/documents'
 import { useCrypto } from '@/context/CryptoContext'
 import { getPatientDoctorAccess, getDoctorConsentRequests, requestPatientAccess, reRequestAccess } from '@/shared/lib/queries/consent'
 import { createDocumentRequest, getFulfilledRequestDocsByPatient, getPatientsWithFulfilledRequests } from '@/shared/lib/queries/documentRequests'
+import { supabase } from '@/shared/lib/supabase'
 import { showToast } from '@/shared/components/ui/Toast'
 import { validateFile } from '@/shared/lib/errors'
 import { isDemoMode } from '@/context/DemoContext'
@@ -37,6 +39,7 @@ type SharedEntry = {
     id: string
     full_name: string | null
     email: string | null
+    phone: string | null
     avatar_url: string | null
     role: string | null
     doctor_profile?: { specialty: string | null } | null
@@ -70,7 +73,9 @@ function getCategoryIcon(value: string) {
 
 export default function Documentos() {
   const { user, profile } = useAuth()
-  const { publicKey: cryptoPublicKey } = useCrypto()
+  const { publicKey: cryptoPublicKey, privateKey } = useCrypto()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialFolderApplied = useRef(false)
   const [view, setView] = useState<'list' | 'grid'>('grid')
   const [documents, setDocuments] = useState<Document[]>([])
   const [folders, setFolders] = useState<Folder[]>([])
@@ -83,13 +88,19 @@ export default function Documentos() {
   const [folderModalOpen, setFolderModalOpen] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
   const [uploading, setUploading] = useState(false)
-  const [currentFolder, setCurrentFolder] = useState<{ id: string | null; name: string }>({ id: null, name: 'Mis Documentos' })
-  const [navHistory, setNavHistory] = useState<{ id: string | null; name: string }[]>([])
+  const initialFolderParam = searchParams.get('folder')
+  const [currentFolder, setCurrentFolder] = useState<{ id: string | null; name: string }>(
+    initialFolderParam ? { id: initialFolderParam, name: '…' } : { id: null, name: 'Mis Documentos' }
+  )
+  const [navHistory, setNavHistory] = useState<{ id: string | null; name: string }[]>(
+    initialFolderParam ? [{ id: null, name: 'Mis Documentos' }] : []
+  )
   const [currentFolderInfo, setCurrentFolderInfo] = useState<{ avatarUrl?: string | null; subtitle?: string | null } | null>(null)
   const [sharedDocs, setSharedDocs] = useState<Array<{ doc: Document; senderId: string }>>([])
   const [, setSharedFolders] = useState<Folder[]>([])
   const [movingDocId, setMovingDocId] = useState<string | null>(null)
   const [senderEmailMap, setSenderEmailMap] = useState<Map<string, string>>(new Map())
+  const [senderPhoneMap, setSenderPhoneMap] = useState<Map<string, string>>(new Map())
 
   // Request patient access modal (doctor only)
   const [accessReqOpen, setAccessReqOpen] = useState(false)
@@ -99,12 +110,11 @@ export default function Documentos() {
 
   // Document request modal (doctor only)
   const [docReqOpen, setDocReqOpen] = useState(false)
+  const [docReqId, setDocReqId] = useState<string | null>(null)
   const [docReqEmail, setDocReqEmail] = useState('')
+  const [docReqPhone, setDocReqPhone] = useState('')
   const [docReqType, setDocReqType] = useState('')
-  const [docReqDesc, setDocReqDesc] = useState('')
-  const [docReqLoading, setDocReqLoading] = useState(false)
-  const [docReqLink, setDocReqLink] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
+  const [docReqWaLoading, setDocReqWaLoading] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const [sortBy, setSortBy] = useState<'date' | 'name'>('date')
 
@@ -198,16 +208,22 @@ export default function Documentos() {
         senderId: s.sender?.id || (s as any).shared_by || 'shared',
         senderName: s.sender?.full_name || s.sender?.email || 'Compartido',
         senderEmail: s.sender?.email || '',
+        senderPhone: s.sender?.phone || '',
         senderAvatarUrl: s.sender?.avatar_url || null,
         senderRole: s.sender?.role || null,
         senderSpecialty: s.sender?.doctor_profile?.specialty || null,
       }))
       .filter(entry => !!entry.doc)
 
-    // Build email map for doc request pre-fill
+    // Build email/phone maps for doc request pre-fill
     const emailMap = new Map<string, string>()
-    sharedEntries.forEach(entry => { if (entry.senderEmail) emailMap.set(entry.senderId, entry.senderEmail) })
+    const phoneMap = new Map<string, string>()
+    sharedEntries.forEach(entry => {
+      if (entry.senderEmail) emailMap.set(entry.senderId, entry.senderEmail)
+      if (entry.senderPhone) phoneMap.set(entry.senderId, entry.senderPhone)
+    })
     setSenderEmailMap(emailMap)
+    setSenderPhoneMap(phoneMap)
 
     // Build synthetic shared folders by sender
     const senderMetaMap = new Map<string, { name: string; avatarUrl: string | null; role: string | null; specialty: string | null }>()
@@ -347,6 +363,19 @@ export default function Documentos() {
     setDocuments(docsForView)
     setFolders(dedupFolders)
     setLoading(false)
+
+    // Update folder name once data is loaded (was set to '…' during init from URL param)
+    if (!initialFolderApplied.current && folderId) {
+      const paramFolder = searchParams.get('folder')
+      if (paramFolder && folderId === paramFolder) {
+        initialFolderApplied.current = true
+        const match = syntheticSharedFolders.find(f => f.id === paramFolder)
+        if (match) {
+          setCurrentFolder({ id: match.id, name: match.name })
+        }
+        setSearchParams({}, { replace: true })
+      }
+    }
   }
 
   const filterContent = () => {
@@ -617,38 +646,76 @@ export default function Documentos() {
     }
   }
 
-  const handleCreateDocRequest = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!user) return
-    setDocReqLoading(true)
-    try {
-      const { data, error } = await createDocumentRequest(user.id, docReqEmail, docReqType, docReqDesc)
-      if (error || !data) {
-        showToast(error || 'Error al crear la solicitud', 'error')
-        return
-      }
-      setDocReqLink(`${window.location.origin}/solicitud/${data.token}`)
-    } catch {
-      showToast('Error inesperado', 'error')
-    } finally {
-      setDocReqLoading(false)
-    }
+  const normalizePhone = (raw: string): string => {
+    const digits = raw.replace(/[\s\-().+]/g, '')
+    if (digits.startsWith('52') && digits.length === 12) return digits
+    if (digits.startsWith('1') && digits.length === 11) return digits
+    if (digits.length === 10) return `52${digits}`
+    return digits
   }
 
-  const handleCopyDocReqLink = () => {
-    if (!docReqLink) return
-    navigator.clipboard.writeText(docReqLink)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+  const isPhoneValid = (raw: string): boolean => {
+    const digits = raw.replace(/[\s\-().+]/g, '')
+    return (
+      (digits.startsWith('52') && digits.length === 12) ||
+      (digits.startsWith('1') && digits.length === 11) ||
+      digits.length === 10
+    )
+  }
+
+  const handleSendWhatsApp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user || !profile) return
+    setDocReqWaLoading(true)
+    try {
+      const phone = normalizePhone(docReqPhone)
+      let requestId = docReqId
+      if (!requestId) {
+        const { data, error } = await createDocumentRequest(user.id, docReqEmail, docReqType, '', phone)
+        if (error || !data) {
+          showToast(error || 'Error al crear la solicitud', 'error', 3000)
+          return
+        }
+        requestId = data.id
+        setDocReqId(requestId)
+      }
+
+      const { error: fnErr } = await supabase.functions.invoke('send-document-request-whatsapp', {
+        body: {
+          document_request_id: requestId,
+          patient_phone: phone,
+          doctor_name: profile.full_name ?? 'Doctor',
+          document_type: docReqType,
+          doctor_id: user.id,
+        },
+      })
+
+      if (fnErr) {
+        let detail = 'Error al enviar WhatsApp'
+        try {
+          const fnErrWithContext = fnErr as { context?: { json?: () => Promise<unknown> } }
+          const body = await fnErrWithContext.context?.json?.()
+          const bodyData = body as { detail?: string; error?: string } | null
+          detail = bodyData?.detail ?? bodyData?.error ?? detail
+        } catch { /* ignore */ }
+        showToast(`❌ ${detail}`, 'error', 6000)
+      } else {
+        showToast('✅ Solicitud enviada por WhatsApp al paciente', 'success', 4000)
+        resetDocReqModal()
+      }
+    } catch (err) {
+      showToast('❌ Error inesperado al enviar WhatsApp', 'error', 4000)
+    } finally {
+      setDocReqWaLoading(false)
+    }
   }
 
   const resetDocReqModal = () => {
     setDocReqOpen(false)
-    setDocReqLink(null)
+    setDocReqId(null)
     setDocReqEmail('')
+    setDocReqPhone('')
     setDocReqType('')
-    setDocReqDesc('')
-    setCopied(false)
   }
 
   const handleSaveUrl = async (e: React.FormEvent) => {
@@ -685,13 +752,6 @@ export default function Documentos() {
     } else {
       showToast(result.error || 'Error al guardar el enlace', 'error')
     }
-  }
-
-  const handleShareViaWhatsApp = () => {
-    if (!docReqLink) return
-    const doctorName = profile?.full_name ? `Dr(a). ${profile.full_name}` : 'Tu médico'
-    const text = `Hola, ${doctorName} te solicita que subas un documento médico de forma segura.\n\n📎 *Documento:* ${docReqType}\n\n🔗 Haz clic aquí para subirlo:\n${docReqLink}\n\n_El enlace vence en 7 días._`
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener')
   }
 
   // ─── Sharing handlers ─────────────────────────────────────────────────────
@@ -731,6 +791,13 @@ export default function Documentos() {
     const lastError = [...results].reverse().find(r => !r.success)?.error
 
     if (!lastError) {
+      // For encrypted documents, also share the decryption key with the recipient
+      const recipientId = results.find(r => r.sharedWithUserId)?.sharedWithUserId
+      if (privateKey && recipientId) {
+        await Promise.allSettled(
+          ids.map(docId => shareEncryptedDocumentKey(docId, privateKey, recipientId))
+        )
+      }
       showToast(
         shareTarget.type === 'folder'
           ? `Carpeta compartida con ${email}`
@@ -929,6 +996,7 @@ export default function Documentos() {
                   onClick={() => {
                     const senderId = currentFolder.id!.replace('shared-', '')
                     setDocReqEmail(senderEmailMap.get(senderId) || '')
+                    setDocReqPhone(senderPhoneMap.get(senderId) || '')
                     setDocReqOpen(true)
                   }}
                   className="inline-flex items-center gap-1.5 px-4 py-2 bg-white/20 hover:bg-white/30 border border-white/20 text-white text-sm font-semibold rounded-xl transition-all backdrop-blur-sm"
@@ -1625,73 +1693,69 @@ export default function Documentos() {
         </div>
       )}
       {/* Document Request Modal */}
-      {docReqOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <div className="flex items-center gap-2">
-                <FileUp size={18} className="text-primary" />
-                <h2 className="text-base font-bold text-gray-900">Solicitar documento al paciente</h2>
-              </div>
-              <button onClick={resetDocReqModal} className="p-1 hover:bg-gray-100 rounded-lg">
-                <X size={18} className="text-gray-500" />
-              </button>
-            </div>
-
-            {docReqLink ? (
-              <div className="p-5 space-y-4">
-                <p className="text-sm text-gray-600">
-                  Comparte este enlace con tu paciente. Al abrirlo, se le pedirá crear una cuenta (si no tiene) y subir el documento.
-                </p>
-                <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5">
-                  <span className="text-xs text-gray-700 truncate flex-1 font-mono">{docReqLink}</span>
-                  <button
-                    onClick={handleCopyDocReqLink}
-                    className="shrink-0 flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary/80"
-                  >
-                    {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
-                    {copied ? 'Copiado' : 'Copiar'}
-                  </button>
+      {docReqOpen && (() => {
+        const WaIcon = ({ size = 16 }: { size?: number }) => (
+          <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor" aria-hidden="true">
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+          </svg>
+        )
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-[#25D366]/10 flex items-center justify-center text-[#25D366]">
+                    <WaIcon size={16} />
+                  </div>
+                  <h2 className="text-sm font-bold text-gray-900">Solicitar documento</h2>
                 </div>
-                <p className="text-xs text-gray-400">El enlace expira en 7 días.</p>
-                <button
-                  onClick={handleShareViaWhatsApp}
-                  className="w-full py-2.5 text-sm font-semibold text-white bg-[#25D366] hover:bg-[#20bc5a] rounded-lg transition-colors flex items-center justify-center gap-2"
-                >
-                  <MessageCircle size={16} />
-                  Enviar por WhatsApp
-                </button>
-                <button
-                  onClick={resetDocReqModal}
-                  className="w-full py-2.5 text-sm font-semibold text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Listo
+                <button onClick={resetDocReqModal} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+                  <X size={16} className="text-gray-400" />
                 </button>
               </div>
-            ) : (
-              <form onSubmit={handleCreateDocRequest} className="p-5 space-y-4">
+
+              <form onSubmit={handleSendWhatsApp} className="p-5 space-y-3.5">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Correo del paciente</label>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1.5">WhatsApp del paciente</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                      <WaIcon size={14} />
+                    </span>
+                    <input
+                      type="tel"
+                      value={docReqPhone}
+                      onChange={e => setDocReqPhone(e.target.value)}
+                      placeholder="52 81 XXXX XXXX"
+                      required
+                      readOnly={!!senderPhoneMap.get(currentFolder.id?.replace('shared-', '') ?? '')}
+                      className={`w-full pl-9 pr-3 py-2.5 text-base sm:text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#25D366]/30 focus:border-[#25D366] ${
+                        senderPhoneMap.get(currentFolder.id?.replace('shared-', '') ?? '')
+                          ? 'bg-gray-50 border-gray-200 text-gray-500'
+                          : 'border-gray-200'
+                      }`}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1.5">Correo (opcional)</label>
                   <input
                     type="email"
                     value={docReqEmail}
                     onChange={e => setDocReqEmail(e.target.value)}
                     placeholder="paciente@correo.com"
-                    required
-                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    className="w-full px-3 py-2.5 text-base sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
                   />
-                  <p className="text-xs text-gray-400 mt-1">No necesita tener cuenta — se le pedirá crearla al abrir el enlace.</p>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">¿Qué documento necesitas?</label>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1.5">Documento solicitado</label>
                   <input
                     type="text"
                     list="doc-type-options-docs"
                     value={docReqType}
                     onChange={e => setDocReqType(e.target.value)}
-                    placeholder="Selecciona o escribe el tipo de documento…"
+                    placeholder="Ej. Análisis de sangre, Radiografía…"
                     required
-                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    className="w-full px-3 py-2.5 text-base sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
                   />
                   <datalist id="doc-type-options-docs">
                     <option value="Análisis de sangre completo" />
@@ -1708,29 +1772,23 @@ export default function Documentos() {
                     <option value="Expediente de vacunación" />
                   </datalist>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Instrucción adicional (opcional)</label>
-                  <textarea
-                    value={docReqDesc}
-                    onChange={e => setDocReqDesc(e.target.value)}
-                    placeholder="Ej. Análisis de sangre completo del 15 de abril"
-                    rows={2}
-                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
-                  />
-                </div>
                 <button
                   type="submit"
-                  disabled={docReqLoading}
-                  className="w-full py-2.5 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                  disabled={docReqWaLoading || !isPhoneValid(docReqPhone)}
+                  className={`w-full py-3 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm mt-1 ${
+                    isPhoneValid(docReqPhone) && !docReqWaLoading
+                      ? 'bg-[#25D366] hover:bg-[#1db954] text-white active:scale-[0.98]'
+                      : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  }`}
                 >
-                  {docReqLoading ? <Loader2 size={15} className="animate-spin" /> : <FileUp size={15} />}
-                  Generar enlace
+                  {docReqWaLoading ? <Loader2 size={15} className="animate-spin" /> : <WaIcon size={16} />}
+                  Enviar por WhatsApp
                 </button>
               </form>
-            )}
+            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
       {/* New Folder Modal */}
       {folderModalOpen && (
         <div
