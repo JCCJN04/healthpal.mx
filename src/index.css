@@ -1,5 +1,4 @@
 @import url('https://db.onlinewebfonts.com/c/440b53b1a1c65037f944ff19259d8014?family=Nokia+Cellphone+FC+Small');
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -29,6 +28,18 @@ body {
   transform-origin: 50% 50%;
 }
 
+/* ── HT Clone: Logo ticker ── */
+@keyframes ht-ticker {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.ht-ticker-track {
+  animation: ht-ticker 28s linear infinite;
+  will-change: transform;
+}
+.ht-ticker-track:hover {
+  animation-play-state: paused;
+}
 
 /* ── HT Clone: Word reveal ── */
 @keyframes word-up {
