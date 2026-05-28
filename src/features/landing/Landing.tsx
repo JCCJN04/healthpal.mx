@@ -478,7 +478,15 @@ function HumanCenteredSection() {
         <div className="h-[420px] lg:h-[580px] relative overflow-hidden">
           <div className="absolute inset-0 flex items-center justify-center px-6">
             <div className="w-full max-w-[520px]">
-              <div className="relative mx-auto w-full max-w-[240px] sm:max-w-[280px] lg:max-w-[320px] overflow-hidden rounded-[22px] bg-[#0b0d16] aspect-[9/16]">
+              {/* Mobile: phone image; Desktop: YouTube iframe */}
+              <div className="lg:hidden flex justify-center">
+                <img
+                  src="/iphone17pro.png"
+                  alt="App de HealthPal en iPhone"
+                  className="h-[340px] w-auto object-contain drop-shadow-xl"
+                />
+              </div>
+              <div className="hidden lg:block relative mx-auto w-full max-w-[320px] overflow-hidden rounded-[22px] bg-[#0b0d16] aspect-[9/16]">
                 <iframe
                   className="absolute inset-0 h-full w-full"
                   src="https://www.youtube-nocookie.com/embed/POBEtHq4JwU?rel=0"
