@@ -456,28 +456,10 @@ function PhoneMockup() {
   return (
     <div className="flex-shrink-0 relative" style={{ width: '250px', maxWidth: '100%' }}>
       <img
-        src="/iphonesinfondo.png"
-        alt="Mockup de iPhone"
+        src="/iphone17pro.png"
+        alt="Mockup de iPhone con documentos"
         className="block w-full h-auto"
       />
-
-      <div
-        className="absolute overflow-hidden"
-        style={{
-          left: '10.3%',
-          top: '4.9%',
-          width: '79.2%',
-          height: '90.3%',
-          borderRadius: '4.1%',
-          backgroundColor: '#000',
-        }}
-      >
-        <img
-          src="/CapturaDashboardHPTelefono.png"
-          alt="Captura del dashboard de HealthPal en teléfono"
-          style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top' }}
-        />
-      </div>
     </div>
   )
 }
