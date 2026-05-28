@@ -36,12 +36,17 @@ export const DocumentViewer = ({ fileUrl, fileType = 'pdf', title }: DocumentVie
   const containerRef = useRef<HTMLDivElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
 
-  // Pre-fetch PDF as blob so pdfjs worker never makes cross-origin requests to storage
+  // Pre-fetch PDF as blob so pdfjs worker never makes cross-origin requests to storage.
+  // If fileUrl is already a blob (in-browser decryption result), use it directly.
   useEffect(() => {
     if (fileType !== 'pdf' || !fileUrl) return
+    setPdfLoading(true)
+    if (fileUrl.startsWith('blob:')) {
+      setPdfBlobUrl(fileUrl)
+      return
+    }
     let revoked = false
     setPdfBlobUrl(null)
-    setPdfLoading(true)
     fetch(fileUrl)
       .then(r => r.blob())
       .then(blob => {
