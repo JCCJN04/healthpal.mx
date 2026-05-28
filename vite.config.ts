@@ -1,10 +1,22 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
+import { copyFileSync, mkdirSync } from 'fs'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: 'copy-pdfjs-worker',
+      closeBundle() {
+        const src = path.resolve('node_modules/pdfjs-dist/build/pdf.worker.min.mjs')
+        const destDir = path.resolve('dist/assets')
+        mkdirSync(destDir, { recursive: true })
+        copyFileSync(src, path.resolve(destDir, 'pdf.worker.min.mjs'))
+      },
+    },
+  ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
