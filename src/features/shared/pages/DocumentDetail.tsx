@@ -28,7 +28,7 @@ import { DocumentViewer } from '@/shared/components/documents/DocumentViewer'
 import { NotesPanel } from '@/shared/components/documents/NotesPanel'
 import { ShareModal } from '@/shared/components/documents/ShareModal'
 import { RenameDocumentModal, MoveDocumentModal } from '@/shared/components/documents/DocumentModals'
-import { getDocumentById, getDocumentDownloadUrl, deleteDocument, updateDocument, downloadDocumentFile, shareDocumentWithUser, shareEncryptedDocumentKey, buildDeterministicDocumentPath, getDecryptedDocumentUrl, downloadDocumentFileDecrypted } from '@/shared/lib/queries/documents'
+import { getDocumentById, getDocumentDownloadUrl, deleteDocument, updateDocument, downloadDocumentFile, shareDocumentWithUser, shareEncryptedDocumentKey, buildDeterministicDocumentPath, getDecryptedDocumentUrl, downloadDocumentFileDecrypted, getDocumentNotes, addDocumentNote } from '@/shared/lib/queries/documents'
 import { showToast } from '@/shared/components/ui/Toast'
 import { extractDocumentInfo } from '@/shared/lib/gemini'
 import { useAuth } from '@/app/providers/AuthContext'
@@ -54,10 +54,15 @@ export default function DocumentDetail() {
   const [isAskingAI, setIsAskingAI] = useState(false)
   const [activeTab, setActiveTab] = useState<'info' | 'notas'>('info')
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [dbNotes, setDbNotes] = useState<Array<{
+    id: string; author_id: string; content: string; created_at: string;
+    author: { full_name: string | null; avatar_url: string | null; role: string | null } | null
+  }>>([])
 
   useEffect(() => {
     if (id) {
       loadDocumentData(id)
+      getDocumentNotes(id).then(setDbNotes)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, privateKey])
@@ -255,65 +260,27 @@ export default function DocumentDetail() {
     authorInitial: string
     timeAgo: string
     content: string
-    timestamp: string // Changed from createdAt
+    timestamp: string
   }
 
-  // Parse notes from string (JSON or plain text)
-  const parseNotes = (notesData: string | null): Note[] => {
-    if (!notesData) return []
-    try {
-      const parsed = JSON.parse(notesData)
-      if (Array.isArray(parsed)) {
-        return parsed.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-      }
-      return [] // If valid JSON but not array, fallback
-    } catch (e) {
-      // Not JSON, treat as legacy plain text note if not empty
-      if (notesData.trim()) {
-        return [{
-          id: 'legacy',
-          author: 'Sistema',
-          authorInitial: 'S',
-          timeAgo: 'Nota antigua',
-          content: notesData,
-          timestamp: new Date().toISOString()
-        }]
-      }
-      return []
-    }
+  const formatTimeAgo = (iso: string) => {
+    const diff = Date.now() - new Date(iso).getTime()
+    const mins = Math.floor(diff / 60000)
+    if (mins < 1) return 'Justo ahora'
+    if (mins < 60) return `Hace ${mins} min`
+    const hrs = Math.floor(mins / 60)
+    if (hrs < 24) return `Hace ${hrs} h`
+    return `Hace ${Math.floor(hrs / 24)} días`
   }
 
   const handleAddNote = async (content: string) => {
     if (!user || !document) return
-
-    // Create new note object
-    const newNote: Note = {
-      id: crypto.randomUUID(),
-      author: profile?.full_name || user.email || 'Usuario',
-      authorInitial: (profile?.full_name || user.email || 'U').charAt(0).toUpperCase(),
-      timeAgo: 'Justo ahora',
-      content: content,
-      timestamp: new Date().toISOString()
-    }
-
-    // Get current notes
-    const currentNotes = parseNotes(document.notes)
-
-    // Update locally
-    const updatedNotes = [newNote, ...currentNotes]
-    const notesString = JSON.stringify(updatedNotes)
-
-    // Optimistic update
-    const previousNotesString = document.notes
-    setDocument({ ...document, notes: notesString })
-
-    const result = await updateDocument(document.id, user.id, { notes: notesString })
-
+    const result = await addDocumentNote(document.id, user.id, content)
     if (result.success) {
       showToast('Nota guardada', 'success')
+      const updated = await getDocumentNotes(document.id)
+      setDbNotes(updated)
     } else {
-      // Revert if failed
-      setDocument({ ...document, notes: previousNotesString })
       showToast(result.error || 'Error al guardar la nota', 'error')
     }
   }
@@ -491,7 +458,14 @@ export default function DocumentDetail() {
     }
   }
 
-  const notesList = parseNotes(document.notes)
+  const notesList: Note[] = dbNotes.map(n => ({
+    id: n.id,
+    author: n.author?.full_name || 'Usuario',
+    authorInitial: (n.author?.full_name || 'U').charAt(0).toUpperCase(),
+    timeAgo: formatTimeAgo(n.created_at),
+    content: n.content,
+    timestamp: n.created_at,
+  }))
   const fileType  = getFileType(document.mime_type)
 
   return (

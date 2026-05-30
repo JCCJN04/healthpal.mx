@@ -241,6 +241,7 @@ export async function getPatientsWithFulfilledRequests(
     .eq('doctor_id', doctorId)
     .eq('status', 'fulfilled')
     .not('patient_id', 'is', null)
+    .not('document_id', 'is', null)
 
   if (error) {
     logger.error('documentRequests:patientsWithFulfilled', error)

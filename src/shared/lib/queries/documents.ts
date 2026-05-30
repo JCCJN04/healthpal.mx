@@ -1037,6 +1037,33 @@ export async function shareDocumentWithUser(
     }
 
     logger.debug('shareDocumentWithUser: success')
+
+    // Auto-link: if patient shares with doctor, add to care_links so doctor appears in "Mis Doctores"
+    try {
+      const { data: roles } = await supabase
+        .from('profiles')
+        .select('id, role')
+        .in('id', [sharedById, targetUserId])
+      if (roles && roles.length === 2) {
+        const sharer = roles.find(r => r.id === sharedById)
+        const target = roles.find(r => r.id === targetUserId)
+        let patientId: string | null = null
+        let doctorId: string | null = null
+        if (sharer?.role === 'patient' && target?.role === 'doctor') {
+          patientId = sharedById; doctorId = targetUserId
+        } else if (sharer?.role === 'doctor' && target?.role === 'patient') {
+          patientId = targetUserId; doctorId = sharedById
+        }
+        if (patientId && doctorId) {
+          await supabase
+            .from('care_links')
+            .upsert({ patient_id: patientId, doctor_id: doctorId, status: 'active', created_by: sharedById }, { onConflict: 'doctor_id,patient_id', ignoreDuplicates: false })
+        }
+      }
+    } catch (linkErr) {
+      logger.warn('shareDocumentWithUser: care_links upsert failed (non-fatal)', linkErr)
+    }
+
     return { success: true, sharedWithUserId: targetUserId }
   } catch (err) {
     logger.error('shareDocumentWithUser', err)
@@ -1060,7 +1087,7 @@ export async function revokeShareById(
     // Fetch first so we can also clean up any matching document_requests
     const { data: shareRow } = await supabase
       .from('document_shares')
-      .select('document_id, shared_with')
+      .select('document_id, shared_by, shared_with')
       .eq('id', shareId)
       .maybeSingle()
 
@@ -1088,10 +1115,72 @@ export async function revokeShareById(
         .eq('status', 'fulfilled')
     }
 
+    // If no more docs shared between this pair (either direction), deactivate care_link
+    if (shareRow?.shared_by && shareRow?.shared_with) {
+      const idA = shareRow.shared_by
+      const idB = shareRow.shared_with
+      const [res1, res2] = await Promise.all([
+        supabase.from('document_shares').select('id', { count: 'exact', head: true }).eq('shared_by', idA).eq('shared_with', idB),
+        supabase.from('document_shares').select('id', { count: 'exact', head: true }).eq('shared_by', idB).eq('shared_with', idA),
+      ])
+      const totalRemaining = (res1.count ?? 0) + (res2.count ?? 0)
+      if (totalRemaining === 0) {
+        // Deactivate care_link regardless of which side is patient/doctor
+        await Promise.all([
+          supabase.from('care_links').update({ status: 'inactive' }).eq('patient_id', idA).eq('doctor_id', idB),
+          supabase.from('care_links').update({ status: 'inactive' }).eq('patient_id', idB).eq('doctor_id', idA),
+        ])
+      }
+    }
+
     return { success: true }
   } catch (err) {
     logger.error('revokeShareById', err)
     return { success: false, error: 'No se pudo revocar el acceso' }
+  }
+}
+
+/**
+ * Get all notes for a document (owner + anyone with shared access can read).
+ */
+export async function getDocumentNotes(documentId: string): Promise<Array<{
+  id: string
+  author_id: string
+  content: string
+  created_at: string
+  author: { full_name: string | null; avatar_url: string | null; role: string | null } | null
+}>> {
+  try {
+    const { data, error } = await supabase
+      .from('document_notes')
+      .select('id, author_id, content, created_at, author:profiles!document_notes_author_id_fkey(full_name, avatar_url, role)')
+      .eq('document_id', documentId)
+      .order('created_at', { ascending: false })
+    if (error) { logger.error('getDocumentNotes', error); return [] }
+    return (data || []) as Array<{ id: string; author_id: string; content: string; created_at: string; author: { full_name: string | null; avatar_url: string | null; role: string | null } | null }>
+  } catch (err) {
+    logger.error('getDocumentNotes', err)
+    return []
+  }
+}
+
+/**
+ * Add a note to a document. Works for owners and shared users.
+ */
+export async function addDocumentNote(
+  documentId: string,
+  authorId: string,
+  content: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabase
+      .from('document_notes')
+      .insert({ document_id: documentId, author_id: authorId, content })
+    if (error) { logger.error('addDocumentNote', error); return { success: false, error: error.message } }
+    return { success: true }
+  } catch (err) {
+    logger.error('addDocumentNote', err)
+    return { success: false, error: 'No se pudo guardar la nota' }
   }
 }
 

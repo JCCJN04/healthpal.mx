@@ -201,12 +201,12 @@ export default function Documentos() {
       (!doc.patient_id || doc.patient_id === user.id)
     )
 
-    const sharedEntries = (shared as SharedEntry[])
+    const rawEntries = (shared as SharedEntry[])
       .map((s) => ({
         doc: s.document as Document,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         senderId: s.sender?.id || (s as any).shared_by || 'shared',
-        senderName: s.sender?.full_name || s.sender?.email || 'Compartido',
+        senderName: s.sender?.full_name || s.sender?.email || '',
         senderEmail: s.sender?.email || '',
         senderPhone: s.sender?.phone || '',
         senderAvatarUrl: s.sender?.avatar_url || null,
@@ -214,6 +214,33 @@ export default function Documentos() {
         senderSpecialty: s.sender?.doctor_profile?.specialty || null,
       }))
       .filter(entry => !!entry.doc)
+
+    // Fallback: if sender join was blocked by RLS, fetch profiles directly by ID
+    const missingProfileIds = [...new Set(
+      rawEntries.filter(e => !e.senderName && e.senderId !== 'shared').map(e => e.senderId)
+    )]
+    const fallbackProfileMap = new Map<string, { full_name: string | null; email: string | null; avatar_url: string | null; role: string | null }>()
+    if (missingProfileIds.length > 0) {
+      const { data: fallbackProfiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, avatar_url, role')
+        .in('id', missingProfileIds)
+      ;(fallbackProfiles || []).forEach((p: { id: string; full_name: string | null; email: string | null; avatar_url: string | null; role: string | null }) => fallbackProfileMap.set(p.id, p))
+    }
+
+    const sharedEntries = rawEntries.map(entry => {
+      if (!entry.senderName && fallbackProfileMap.has(entry.senderId)) {
+        const fp = fallbackProfileMap.get(entry.senderId)!
+        return {
+          ...entry,
+          senderName: fp.full_name || fp.email || 'Compartido',
+          senderEmail: entry.senderEmail || fp.email || '',
+          senderAvatarUrl: entry.senderAvatarUrl ?? fp.avatar_url,
+          senderRole: entry.senderRole || fp.role,
+        }
+      }
+      return { ...entry, senderName: entry.senderName || 'Compartido' }
+    })
 
     // Build email/phone maps for doc request pre-fill
     const emailMap = new Map<string, string>()
@@ -260,12 +287,17 @@ export default function Documentos() {
       hasNew: (Date.now() - (latestDocBySender.get(senderId) ?? 0)) < NEW_THRESHOLD_MS,
     }))
 
-    // For doctors at root level: also include consented patients who haven't shared docs yet
+    // For doctors at root level: also include consented patients, care-linked patients,
     // and patients with fulfilled document requests
     if (profile?.role === 'doctor' && !folderId) {
-      const [consentedPatients, requestPatientIds] = await Promise.all([
+      const [consentedPatients, requestPatientIds, careLinksRes] = await Promise.all([
         getDoctorConsentRequests(user.id),
         getPatientsWithFulfilledRequests(user.id),
+        supabase
+          .from('care_links')
+          .select('patient_id, patient:profiles!care_links_patient_id_fkey(id, full_name, avatar_url, email)')
+          .eq('doctor_id', user.id)
+          .eq('status', 'active'),
       ])
       const existingIds = new Set(syntheticSharedFolders.map(f => f.id))
 
@@ -287,6 +319,29 @@ export default function Documentos() {
             })
           }
         })
+
+      // Add care-linked patients (auto-linked when patient shares a document)
+      const careLinkedPatients = (careLinksRes.data || []) as Array<{
+        patient_id: string
+        patient: { id: string; full_name: string | null; avatar_url: string | null; email: string | null } | null
+      }>
+      careLinkedPatients.forEach(link => {
+        const pid = link.patient_id
+        const fid = `shared-${pid}`
+        if (!existingIds.has(fid)) {
+          existingIds.add(fid)
+          syntheticSharedFolders.push({
+            id: fid,
+            name: link.patient?.full_name || link.patient?.email || 'Paciente',
+            color: '#33C7BE',
+            created_at: new Date().toISOString(),
+            avatarUrl: link.patient?.avatar_url ?? null,
+            subtitle: null,
+            docCount: docCountBySender.get(pid) ?? 0,
+            hasNew: false,
+          })
+        }
+      })
 
       // Add patients who sent docs via document_request but may not have a consent record
       requestPatientIds.forEach(pid => {
