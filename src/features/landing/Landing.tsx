@@ -451,11 +451,13 @@ function HumanCenteredSection() {
           <div className="absolute inset-0 flex items-center justify-center px-6">
             <div className="w-full max-w-[520px]">
               <div className="relative mx-auto w-full max-w-[240px] sm:max-w-[280px] lg:max-w-[320px] overflow-hidden rounded-[22px] bg-[#0b0d16] aspect-[9/16]">
-                <img
-                  src="/CapturaDashboardHPTelefono.png"
-                  alt="HealthPal en móvil — expediente clínico digital"
-                  className="absolute inset-0 h-full w-full object-cover"
+                <iframe
+                  className="absolute inset-0 h-full w-full"
+                  src="https://www.youtube-nocookie.com/embed/POBEtHq4JwU?rel=0"
+                  title="Video de HealthPal"
                   loading="lazy"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
                 />
               </div>
             </div>
