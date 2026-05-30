@@ -185,39 +185,6 @@ function PageLoader() {
 }
 
 /* ─────────────────────────────────────────────
-   Announcement Bar (slides down on mount)
-───────────────────────────────────────────── */
-function AnnouncementBar() {
-  const [dismissed, setDismissed] = useState(false)
-  const [visible, setVisible] = useState(false)
-  useEffect(() => { const t = setTimeout(() => setVisible(true), 200); return () => clearTimeout(t) }, [])
-  if (dismissed) return null
-  return (
-    <div
-      className="bg-[#ef6e74] text-white relative z-50 overflow-hidden"
-      style={{
-        maxHeight: visible ? '60px' : '0px',
-        opacity: visible ? 1 : 0,
-        transition: 'max-height 0.5s cubic-bezier(0.16,1,0.3,1), opacity 0.4s ease',
-      }}
-    >
-      <div className="max-w-[1200px] mx-auto px-6 py-2.5 flex items-center justify-between gap-4 text-[13px] font-medium">
-        <span className="hidden sm:block shrink-0">HealthPal ya está disponible para médicos en México 🇲🇽</span>
-        <span className="text-center flex-1">
-          Digitaliza tu consultorio gratis — Expediente clínico, agenda y WhatsApp en un solo lugar
-        </span>
-        <button
-          onClick={() => setDismissed(true)}
-          className="shrink-0 p-1 hover:opacity-70 transition-opacity cursor-pointer"
-        >
-          <X size={16} />
-        </button>
-      </div>
-    </div>
-  )
-}
-
-/* ─────────────────────────────────────────────
    Navbar
 ───────────────────────────────────────────── */
 function Navbar() {
@@ -839,7 +806,6 @@ export default function Landing() {
   return (
     <div style={{ backgroundColor: '#f9f0ff', overflowX: 'hidden' }}>
       <PageLoader />
-      <AnnouncementBar />
       <Navbar />
       <Hero />
       <ProblemCard />
