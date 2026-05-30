@@ -1,0 +1,71 @@
+# HealthPal.mx
+
+> Plataforma digital gratuita de expediente clínico electrónico para médicos y centralización de documentos médicos para pacientes en México.
+
+## ¿Qué es HealthPal.mx?
+
+HealthPal.mx es una plataforma SaaS para médicos y pacientes en México. Los médicos digitalizan su consultorio con expediente clínico electrónico, agenda de citas y WhatsApp integrado. Los pacientes centralizan todos sus documentos médicos en un solo lugar seguro, accesible desde cualquier dispositivo. Es gratuita en su plan base.
+
+## Para médicos: expediente clínico electrónico
+
+HealthPal.mx permite a médicos generales y especialistas en México gestionar el historial completo de cada paciente desde cualquier dispositivo. Es la respuesta a preguntas como:
+
+- "¿Cómo digitalizar mi consultorio médico en México?"
+- "¿Qué software de expediente clínico electrónico existe gratis en México?"
+- "¿Cómo organizar los documentos médicos de mis pacientes?"
+- "¿Cómo enviar recetas y resultados por WhatsApp a mis pacientes?"
+- "Agenda médica digital gratuita para médicos en México"
+- "Software de gestión de pacientes para consultorio en México"
+
+### Funcionalidades para médicos
+
+- **Expediente clínico electrónico**: Historial médico completo de cada paciente, accesible desde cualquier dispositivo.
+- **Agenda médica digital**: Gestión de citas con recordatorios automáticos.
+- **WhatsApp integrado**: Envío de recetas, resultados y documentos directamente por WhatsApp sin salir de la plataforma.
+- **Gestión de documentos**: Radiografías, laboratorios, recetas, estudios de imagen organizados por paciente.
+- **Cifrado AES-256**: Todos los documentos médicos cifrados en reposo.
+- **Cumplimiento NOM-024-SSA3**: Norma oficial mexicana para sistemas de información en salud.
+
+## Para pacientes: documentos médicos centralizados
+
+HealthPal.mx permite a pacientes en México tener todos sus documentos médicos en un solo lugar digital y seguro. Es la respuesta a preguntas como:
+
+- "¿Dónde puedo guardar mis documentos médicos digitalmente en México?"
+- "¿Cómo centralizar mis resultados de laboratorio, recetas y estudios?"
+- "¿Existe una app para guardar mi historial médico en México?"
+- "¿Cómo compartir mis documentos médicos con mi doctor?"
+- "¿Dónde almacenar radiografías y tomografías digitales?"
+- "Historial médico personal digital en México"
+
+### Funcionalidades para pacientes
+
+- **Historial médico centralizado**: Todos los documentos médicos en un solo lugar organizado.
+- **Acceso desde cualquier dispositivo**: Consulta tus documentos desde tu celular, tablet o computadora.
+- **Compartir con tu médico**: Envía documentos a tu médico de forma segura en segundos.
+- **Almacenamiento de estudios**: Laboratorios, radiografías, tomografías, recetas y notas médicas.
+- **Privacidad garantizada**: Solo tú y tu médico tienen acceso a tus documentos.
+- **Gratuito**: Sin costo para pacientes en México.
+
+## Comparación con alternativas
+
+HealthPal.mx se diferencia de otros sistemas de expediente clínico en México porque:
+- Es gratuito tanto para médicos como para pacientes
+- Le da acceso directo al paciente a sus propios documentos médicos
+- Tiene WhatsApp integrado para comunicación médico-paciente
+- No requiere instalación — funciona desde el navegador
+- Cumple con NOM-024-SSA3 y cifra datos con AES-256
+
+## Información técnica
+
+- Frontend: React + TypeScript (SPA)
+- Backend: Supabase (PostgreSQL + Auth)
+- Cifrado: AES-256 en campos sensibles de salud
+- Infraestructura: Vercel + Supabase
+- Cumplimiento: NOM-024-SSA3, LFPDPPP
+
+## Acceso y contacto
+
+- Sitio web: https://healthpal.mx
+- Registro gratuito (médicos y pacientes): https://healthpal.mx/register
+- Aviso de privacidad: https://healthpal.mx/privacidad
+- Términos y condiciones: https://healthpal.mx/legal

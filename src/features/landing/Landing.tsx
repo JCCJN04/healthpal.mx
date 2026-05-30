@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
+import { Helmet } from 'react-helmet-async'
 import { X, Menu, ChevronLeft, ChevronRight, Star } from 'lucide-react'
 import Lenis from 'lenis'
 
@@ -263,6 +264,7 @@ function Hero() {
       <div className="relative z-20 text-center px-6 max-w-[1000px] mx-auto pt-[68px]">
         {/* Hero heading - word-by-word on mount */}
         <h1
+          aria-label="Tus expedientes, siempre contigo."
           className="text-[3.2rem] sm:text-[4.5rem] md:text-[6.8rem] lg:text-[7.5rem] font-black text-white leading-[0.92] tracking-[-0.04em]"
           style={{ willChange: 'transform' }}
         >
@@ -449,13 +451,11 @@ function HumanCenteredSection() {
           <div className="absolute inset-0 flex items-center justify-center px-6">
             <div className="w-full max-w-[520px]">
               <div className="relative mx-auto w-full max-w-[240px] sm:max-w-[280px] lg:max-w-[320px] overflow-hidden rounded-[22px] bg-[#0b0d16] aspect-[9/16]">
-                <iframe
-                  className="absolute inset-0 h-full w-full"
-                  src="https://www.youtube-nocookie.com/embed/POBEtHq4JwU?rel=0"
-                  title="Video de HealthPal"
+                <img
+                  src="/CapturaDashboardHPTelefono.png"
+                  alt="HealthPal en móvil — expediente clínico digital"
+                  className="absolute inset-0 h-full w-full object-cover"
                   loading="lazy"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowFullScreen
                 />
               </div>
             </div>
@@ -470,9 +470,9 @@ function HumanCenteredSection() {
             Todo lo que necesitas, en un solo lugar.
           </h2>
           <p className="text-[15px] leading-relaxed mb-8 text-[#666] max-w-[540px]">
-            1. Mira el video para entender cómo funciona la plataforma.
-            <br />
-            2. Abre WhatsApp y ponte en contacto con nosotros con un simple click.
+            Gestiona expedientes, agenda citas y comparte documentos médicos con tus pacientes — todo desde tu celular o computadora.
+            <br /><br />
+            Ponte en contacto con nosotros para comenzar.
           </p>
           <div className="flex flex-wrap items-center gap-4">
             <a
@@ -800,11 +800,101 @@ void TestimonialsSection
 /* ─────────────────────────────────────────────
    Landing — main
 ───────────────────────────────────────────── */
+const SCHEMA_ORG = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'SoftwareApplication',
+      name: 'HealthPal.mx',
+      url: 'https://healthpal.mx',
+      applicationCategory: 'HealthApplication',
+      operatingSystem: 'Web',
+      offers: { '@type': 'Offer', price: '0', priceCurrency: 'MXN' },
+      description: 'Plataforma de expediente clínico electrónico para médicos y centralización de documentos médicos para pacientes en México. Gratis.',
+      inLanguage: 'es-MX',
+      screenshot: 'https://healthpal.mx/CapturaDashboardHP.png',
+      featureList: [
+        'Expediente clínico electrónico',
+        'Agenda médica digital',
+        'WhatsApp integrado para documentos médicos',
+        'Centralización de documentos médicos para pacientes',
+        'Cifrado AES-256',
+        'Cumplimiento NOM-024-SSA3',
+      ],
+      audience: [
+        { '@type': 'Audience', audienceType: 'Médicos y especialistas en México' },
+        { '@type': 'Audience', audienceType: 'Pacientes en México' },
+      ],
+    },
+    {
+      '@type': 'MedicalOrganization',
+      name: 'HealthPal.mx',
+      url: 'https://healthpal.mx',
+      logo: 'https://healthpal.mx/logo.png',
+      description: 'Software de expediente clínico electrónico y gestión de documentos médicos para médicos y pacientes en México.',
+      areaServed: { '@type': 'Country', name: 'México' },
+      availableService: [
+        { '@type': 'MedicalTherapy', name: 'Expediente Clínico Electrónico' },
+        { '@type': 'MedicalTherapy', name: 'Agenda Médica Digital' },
+        { '@type': 'MedicalTherapy', name: 'Gestión de Documentos Médicos para Pacientes' },
+      ],
+    },
+    {
+      '@type': 'FAQPage',
+      mainEntity: [
+        {
+          '@type': 'Question',
+          name: '¿Qué es HealthPal.mx?',
+          acceptedAnswer: { '@type': 'Answer', text: 'HealthPal.mx es una plataforma digital gratuita para médicos y pacientes en México. Los médicos gestionan expedientes clínicos electrónicos, agenda y comunicación con pacientes. Los pacientes centralizan todos sus documentos médicos en un solo lugar seguro y accesible desde cualquier dispositivo.' },
+        },
+        {
+          '@type': 'Question',
+          name: '¿Cómo digitalizar mi consultorio con expediente clínico electrónico en México?',
+          acceptedAnswer: { '@type': 'Answer', text: 'Con HealthPal.mx puedes digitalizar tu consultorio en minutos: crea una cuenta gratis, registra tus pacientes y gestiona expedientes clínicos electrónicos, agenda de citas y comunicación por WhatsApp desde un solo lugar. No requiere tarjeta de crédito.' },
+        },
+        {
+          '@type': 'Question',
+          name: '¿Dónde puedo guardar y centralizar mis documentos médicos en México?',
+          acceptedAnswer: { '@type': 'Answer', text: 'HealthPal.mx te permite centralizar todos tus documentos médicos: laboratorios, radiografías, tomografías, recetas y estudios, de forma segura y accesible desde tu celular. Es gratis para pacientes en México.' },
+        },
+        {
+          '@type': 'Question',
+          name: '¿Existe un software de expediente clínico electrónico gratuito para médicos en México?',
+          acceptedAnswer: { '@type': 'Answer', text: 'Sí. HealthPal.mx es gratuito para médicos generales y especialistas en México. Incluye expediente clínico electrónico completo, agenda médica digital y WhatsApp integrado para compartir documentos con pacientes.' },
+        },
+        {
+          '@type': 'Question',
+          name: '¿Cómo compartir documentos médicos con mi médico en México?',
+          acceptedAnswer: { '@type': 'Answer', text: 'Con HealthPal.mx puedes compartir documentos médicos directamente con tu médico desde la plataforma o por WhatsApp integrado. Los archivos se envían cifrados y solo tu médico y tú tienen acceso.' },
+        },
+        {
+          '@type': 'Question',
+          name: '¿HealthPal.mx cumple con la NOM-024-SSA3?',
+          acceptedAnswer: { '@type': 'Answer', text: 'Sí. HealthPal.mx cumple con la NOM-024-SSA3, la norma oficial mexicana para sistemas de información en salud. Todos los datos médicos se almacenan con cifrado AES-256 y acceso estrictamente controlado por rol.' },
+        },
+      ],
+    },
+  ],
+})
+
 export default function Landing() {
   useLenis()
 
   return (
     <div style={{ backgroundColor: '#f9f0ff', overflowX: 'hidden' }}>
+      <Helmet>
+        <title>HealthPal.mx — Expediente clínico electrónico para médicos y pacientes en México</title>
+        <meta name="description" content="Médicos: digitaliza tu consultorio con expediente clínico electrónico, agenda y WhatsApp. Pacientes: centraliza tus documentos médicos en un solo lugar. Gratis en México." />
+        <meta name="keywords" content="expediente clínico electrónico México, software expediente médico gratis, centralizar documentos médicos paciente, historial médico digital México, agenda médica digital, documentos médicos en la nube, plataforma médico paciente México" />
+        <link rel="canonical" href="https://healthpal.mx/" />
+        <meta property="og:title" content="HealthPal.mx — Expediente clínico electrónico para médicos y pacientes en México" />
+        <meta property="og:description" content="Médicos: digitaliza tu consultorio gratis. Pacientes: centraliza tus documentos médicos. Todo en un solo lugar." />
+        <meta property="og:url" content="https://healthpal.mx/" />
+        <meta property="og:image" content="https://healthpal.mx/CapturaDashboardHP.png" />
+        <meta property="og:type" content="website" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <script type="application/ld+json">{SCHEMA_ORG}</script>
+      </Helmet>
       <PageLoader />
       <Navbar />
       <Hero />

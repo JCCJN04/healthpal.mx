@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Allow: /privacidad
+Allow: /politicas
+Allow: /legal
+
+Disallow: /dashboard/
+Disallow: /onboarding/
+Disallow: /demo/
+Disallow: /solicitud/
+Disallow: /reset-password
+Disallow: /verify-email
+
+Sitemap: https://healthpal.mx/sitemap.xml

@@ -119,7 +119,14 @@ export default function OnboardingContact() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       logger.error('Error saving contact:', error)
-      showToast(error.message || 'Error al guardar teléfono', 'error')
+      const isPhoneTaken =
+        error?.code === '23505' ||
+        (typeof error?.message === 'string' && error.message.includes('profiles_phone_unique'))
+      if (isPhoneTaken) {
+        setError('Este número de teléfono ya está registrado en otra cuenta.')
+      } else {
+        showToast(error.message || 'Error al guardar teléfono', 'error')
+      }
     } finally {
       setLoading(false)
     }
