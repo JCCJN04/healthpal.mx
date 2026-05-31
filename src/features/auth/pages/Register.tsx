@@ -1,8 +1,8 @@
 ﻿import { useState, FormEvent } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { User, Lock, CheckCircle, ArrowLeft, Eye, EyeOff } from 'lucide-react'
 import { supabase } from '@/shared/lib/supabase'
-import { showToast } from '@/shared/components/ui/Toast'
+
 import { logger } from '@/shared/lib/logger'
 import { useCrypto } from '@/context/CryptoContext'
 
@@ -16,7 +16,7 @@ interface FormErrors {
 }
 
 export default function Register() {
-  const navigate = useNavigate()
+
   const location = useLocation()
   const { setupCrypto } = useCrypto()
   const initialRole = (location.state as { role?: string })?.role === 'doctor' ? 'doctor' : 'patient'
@@ -28,6 +28,7 @@ export default function Register() {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [emailSent, setEmailSent] = useState(false)
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {}
@@ -86,13 +87,11 @@ export default function Register() {
 
       if (data.user) {
         if (data.session) {
-          showToast('Registro exitoso. Redirigiendo...', 'success')
+          setEmailSent(true)
           // Set up E2E encryption keypair for new user (non-blocking — failure is safe)
           setupCrypto(password, data.user.id).catch(() => {/* silently ignore */})
-          navigate('/onboarding/role')
         } else {
-          showToast(`Te enviamos un correo de verificación a ${email}. Revisa tu bandeja de entrada.`, 'success')
-          navigate('/verify-email', { state: { email }, replace: true })
+          setEmailSent(true)
         }
       }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -248,6 +247,18 @@ export default function Register() {
               </div>
               {errors.confirmPassword && <p className="text-red-300 text-xs mt-1.5 ml-4">{errors.confirmPassword}</p>}
             </div>
+
+            {/* Email sent confirmation banner */}
+            {emailSent && (
+              <div className="bg-green-500/20 border border-green-400 rounded-xl p-3 flex items-start gap-3 backdrop-blur-sm">
+                <svg className="w-5 h-5 text-green-300 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                <p className="text-sm text-green-100">
+                  Te enviamos un correo de confirmación a <span className="font-semibold">{email}</span>. Revisa tu bandeja de entrada.
+                </p>
+              </div>
+            )}
 
             {/* Submit Button */}
             <button 
