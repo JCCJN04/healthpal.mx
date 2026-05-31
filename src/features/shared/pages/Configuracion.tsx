@@ -375,14 +375,14 @@ export default function Configuracion() {
           </div>
 
           {/* Tab Navigation */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-1">
-            <div className="flex space-x-1">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-1 overflow-x-auto">
+            <div className="flex min-w-max gap-1">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   disabled={!tab.enabled}
-                  className={`flex-1 px-6 py-3 text-sm font-semibold rounded-lg transition-all ${activeTab === tab.id
+                  className={`whitespace-nowrap px-4 py-3 text-sm font-semibold rounded-lg transition-all ${activeTab === tab.id
                     ? 'bg-[#33C7BE] text-white shadow-sm'
                     : tab.enabled
                       ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'

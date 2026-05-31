@@ -91,6 +91,7 @@ export default function Register() {
           setupCrypto(password, data.user.id).catch(() => {/* silently ignore */})
           navigate('/onboarding/role')
         } else {
+          showToast(`Te enviamos un correo de verificación a ${email}. Revisa tu bandeja de entrada.`, 'success')
           navigate('/verify-email', { state: { email }, replace: true })
         }
       }

@@ -142,7 +142,6 @@ export default function OnboardingContact() {
       <form onSubmit={handleSubmit} className="space-y-6">
         <PhoneField
           label="Número de Teléfono"
-          required
           value={phone}
           onChange={setPhone}
           countryCode={countryCode}

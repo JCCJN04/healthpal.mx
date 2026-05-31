@@ -54,13 +54,7 @@ export default function OnboardingDoctor() {
       newErrors.specialty = 'La especialidad es requerida'
     }
 
-    if (!formData.professional_license.trim()) {
-      newErrors.professional_license = 'La cédula profesional es requerida'
-    }
-
-    if (!formData.years_experience) {
-      newErrors.years_experience = 'Los años de experiencia son requeridos'
-    } else if (parseInt(formData.years_experience) < 0) {
+    if (formData.years_experience && parseInt(formData.years_experience) < 0) {
       newErrors.years_experience = 'Los años de experiencia no pueden ser negativos'
     }
 
@@ -78,8 +72,8 @@ export default function OnboardingDoctor() {
     try {
       await upsertDoctorProfile(userId, {
         specialty: formData.specialty,
-        professional_license: formData.professional_license.trim(),
-        years_experience: parseInt(formData.years_experience),
+        professional_license: formData.professional_license.trim() || null,
+        years_experience: formData.years_experience ? parseInt(formData.years_experience) : null,
       })
       await saveOnboardingStep('done')
 
@@ -125,7 +119,6 @@ export default function OnboardingDoctor() {
         <InputField
           label="Cédula Profesional"
           type="text"
-          required
           value={formData.professional_license}
           onChange={(e) => {
             setFormData({ ...formData, professional_license: e.target.value })
@@ -139,7 +132,6 @@ export default function OnboardingDoctor() {
         <InputField
           label="Años de Experiencia"
           type="number"
-          required
           min="0"
           max="70"
           value={formData.years_experience}

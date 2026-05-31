@@ -143,7 +143,7 @@ export function PhoneField({
         <select
           value={countryCode}
           onChange={(e) => onCountryChange?.(e.target.value)}
-          className="px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 bg-white"
+          className="w-28 shrink-0 px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 bg-white"
         >
           {COUNTRIES.map((country) => (
             <option key={country.code} value={country.code}>
@@ -156,7 +156,7 @@ export function PhoneField({
           value={value}
           onChange={handleChange}
           placeholder="55 1234 5678"
-          className={`flex-1 px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all ${
+          className={`flex-1 min-w-0 px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all ${
             error ? 'border-red-500' : 'border-gray-300'
           }`}
         />
