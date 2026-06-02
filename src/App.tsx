@@ -37,6 +37,7 @@ const SolicitudDocumento = lazy(() => import('@/features/public/pages/SolicitudD
 const DemoDoctor = lazy(() => import('@/pages/DemoDoctor'))
 const Privacidad = lazy(() => import('@/pages/Privacidad'))
 const Legal = lazy(() => import('@/pages/Legal'))
+const GoogleCalendarCallback = lazy(() => import('@/features/auth/pages/GoogleCalendarCallback'))
 
 // Lazy load onboarding pages
 const OnboardingRole = lazy(() => import('@/features/auth/pages/onboarding/OnboardingRole'))
@@ -71,6 +72,7 @@ function App() {
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/register" element={<Register />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/auth/google/callback" element={<Suspense fallback={<PageLoader />}><GoogleCalendarCallback /></Suspense>} />
 
         {/* Demo doctor route (direct URL access only) */}
         <Route path="/demo/doctor/*" element={<Suspense fallback={<PageLoader />}><DemoDoctor /></Suspense>} />
