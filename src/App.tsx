@@ -90,7 +90,7 @@ function App() {
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/register" element={<Register />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
-        <Route path="/auth/google/callback" element={<Suspense fallback={<PageLoader />}><GoogleCalendarCallback /></Suspense>} />
+        <Route path="/auth/gcal/callback" element={<Suspense fallback={<PageLoader />}><GoogleCalendarCallback /></Suspense>} />
 
         {/* Demo doctor route (direct URL access only) */}
         <Route path="/demo/doctor/*" element={<Suspense fallback={<PageLoader />}><DemoDoctor /></Suspense>} />

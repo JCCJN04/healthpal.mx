@@ -59,7 +59,7 @@ export default function GoogleCalendarCallback() {
           body: {
             code,
             verifier,
-            redirectUri: `${window.location.origin}/auth/google/callback`,
+            redirectUri: `${window.location.origin}/auth/gcal/callback`,
           },
         }
       )

@@ -64,7 +64,7 @@ const SCOPES = [
  */
 export async function initiateGoogleOAuth(): Promise<void> {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
-  const redirectUri = `${window.location.origin}/auth/google/callback`
+  const redirectUri = `${window.location.origin}/auth/gcal/callback`
 
   if (!clientId) {
     throw new Error('VITE_GOOGLE_CLIENT_ID no está configurado')
