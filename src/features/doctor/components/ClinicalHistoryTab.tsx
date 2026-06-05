@@ -370,7 +370,7 @@ function migrateFH(raw: Record<string, unknown>): FamilyHistory {
             if (existing && typeof existing === 'object') {
                 base[key] = {
                     diseases: Array.isArray(existing.diseases) ? existing.diseases : [],
-                    notes: existing.notes || '',
+                    notes: (existing.notes as string) || '',
                 }
             }
         })
@@ -901,7 +901,7 @@ const setFH = useCallback((key: string, value: FHMemberRecord) => {
             const saveData: FormData = {
                 ...data,
                 systems_review: JSON.stringify(systemsReview),
-                allergies: allergyItems.length > 0 ? JSON.stringify(allergyItems) : null,
+                allergies: allergyItems.length > 0 ? JSON.stringify(allergyItems) : '',
                 pathological_history: {
                     ...data.pathological_history,
                     medications: {

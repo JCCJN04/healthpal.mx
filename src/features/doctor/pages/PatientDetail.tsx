@@ -228,24 +228,26 @@ export default function PatientDetail() {
 
             if (s.share_medical_notes) {
                 promises.push(
-                    supabase.from('patient_biometric_history')
-                        .select('*').eq('patient_id', id!)
-                        .order('recorded_at', { ascending: false }).limit(5)
-                        .then(({ data }) => data ?? [])
-                        .catch(() => [])
+                    Promise.resolve(
+                        supabase.from('patient_biometric_history')
+                            .select('*').eq('patient_id', id!)
+                            .order('recorded_at', { ascending: false }).limit(5)
+                            .then(({ data }) => data ?? [])
+                    ).catch(() => [])
                 )
                 keys.push('biometrics')
             }
 
             // Always fetch upcoming appointments for this patient+doctor
             promises.push(
-                supabase.from('appointments')
-                    .select('*').eq('doctor_id', user!.id).eq('patient_id', id!)
-                    .neq('status', 'cancelled')
-                    .gte('scheduled_at', new Date().toISOString())
-                    .order('scheduled_at', { ascending: true }).limit(5)
-                    .then(({ data }) => data ?? [])
-                    .catch(() => [])
+                Promise.resolve(
+                    supabase.from('appointments')
+                        .select('*').eq('doctor_id', user!.id).eq('patient_id', id!)
+                        .neq('status', 'cancelled')
+                        .gte('scheduled_at', new Date().toISOString())
+                        .order('scheduled_at', { ascending: true }).limit(5)
+                        .then(({ data }) => data ?? [])
+                ).catch(() => [])
             )
             keys.push('upcoming')
 
