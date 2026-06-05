@@ -25,10 +25,11 @@ interface RequireOnboardingProps {
  *  - onAuthStateChange fires (TOKEN_REFRESHED): resolvedRef prevents spurious re-checks
  */
 function getOnboardingRedirect(p: Profile): string {
-  if (p.onboarding_step === 'basic')   return '/onboarding/basic'
-  if (p.onboarding_step === 'contact') return '/onboarding/contact'
-  if (p.onboarding_step === 'details') return p.role === 'doctor' ? '/onboarding/doctor' : '/onboarding/patient'
-  if (p.onboarding_step === 'done')    return '/onboarding/done'
+  if (p.onboarding_step === 'basic')     return '/onboarding/basic'
+  if (p.onboarding_step === 'contact')   return '/onboarding/contact'
+  if (p.onboarding_step === 'assistant') return '/onboarding/assistant'
+  if (p.onboarding_step === 'details')   return p.role === 'doctor' ? '/onboarding/doctor' : '/onboarding/patient'
+  if (p.onboarding_step === 'done')      return '/onboarding/done'
   return '/onboarding/role'
 }
 

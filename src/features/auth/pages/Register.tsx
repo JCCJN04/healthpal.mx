@@ -6,7 +6,7 @@ import { supabase } from '@/shared/lib/supabase'
 import { logger } from '@/shared/lib/logger'
 import { useCrypto } from '@/context/CryptoContext'
 
-type UserRole = 'doctor' | 'patient'
+type UserRole = 'doctor' | 'patient' | 'assistant'
 
 interface FormErrors {
   general?: string
@@ -19,7 +19,11 @@ export default function Register() {
 
   const location = useLocation()
   const { setupCrypto } = useCrypto()
-  const initialRole = (location.state as { role?: string })?.role === 'doctor' ? 'doctor' : 'patient'
+  const initialRole: UserRole = (location.state as { role?: string })?.role === 'doctor'
+    ? 'doctor'
+    : (location.state as { role?: string })?.role === 'assistant'
+    ? 'assistant'
+    : 'patient'
   const [role, setRole] = useState<UserRole>(initialRole)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -131,8 +135,8 @@ export default function Register() {
               onClick={() => setRole('doctor')}
               type="button"
               className={`flex-1 rounded-full py-2 text-sm font-semibold transition-all ${
-                role === 'doctor' 
-                  ? 'bg-primary text-white shadow-md' 
+                role === 'doctor'
+                  ? 'bg-primary text-white shadow-md'
                   : 'text-white/70 hover:text-white hover:bg-white/10'
               }`}
             >
@@ -142,12 +146,23 @@ export default function Register() {
               onClick={() => setRole('patient')}
               type="button"
               className={`flex-1 rounded-full py-2 text-sm font-semibold transition-all ${
-                role === 'patient' 
-                  ? 'bg-primary text-white shadow-md' 
+                role === 'patient'
+                  ? 'bg-primary text-white shadow-md'
                   : 'text-white/70 hover:text-white hover:bg-white/10'
               }`}
             >
               Soy Paciente
+            </button>
+            <button
+              onClick={() => setRole('assistant')}
+              type="button"
+              className={`flex-1 rounded-full py-2 text-sm font-semibold transition-all ${
+                role === 'assistant'
+                  ? 'bg-primary text-white shadow-md'
+                  : 'text-white/70 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              Soy Asistente
             </button>
           </div>
 

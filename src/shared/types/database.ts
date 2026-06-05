@@ -11,7 +11,7 @@ export type Json =
   | Json[]
 
 // Enums from database
-export type UserRole = 'patient' | 'doctor' | 'admin'
+export type UserRole = 'patient' | 'doctor' | 'admin' | 'assistant'
 export type SexType = 'male' | 'female' | 'other' | 'unspecified'
 export type DocCategory = 'radiology' | 'prescription' | 'history' | 'lab' | 'insurance' | 'vaccine' | 'referral' | 'surgery' | 'consultation' | 'other'
 
@@ -63,6 +63,55 @@ export interface Database {
           last_seen_at?: string | null
           created_at?: string
           updated_at?: string
+        }
+      }
+      clinical_histories: {
+        Row: {
+          id: string
+          patient_id: string
+          allergies: string | null
+          referral_source: string | null
+          consultation_reason: string | null
+          patient_observations: string | null
+          family_history: Json | null
+          pathological_history: Json | null
+          non_pathological_history: Json | null
+          gynecological_history: Json | null
+          systems_review: string | null
+          last_edited_by: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          patient_id: string
+          allergies?: string | null
+          referral_source?: string | null
+          consultation_reason?: string | null
+          patient_observations?: string | null
+          family_history?: Json | null
+          pathological_history?: Json | null
+          non_pathological_history?: Json | null
+          gynecological_history?: Json | null
+          systems_review?: string | null
+          last_edited_by?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          patient_id?: string
+          allergies?: string | null
+          referral_source?: string | null
+          consultation_reason?: string | null
+          patient_observations?: string | null
+          family_history?: Json | null
+          pathological_history?: Json | null
+          non_pathological_history?: Json | null
+          gynecological_history?: Json | null
+          systems_review?: string | null
+          last_edited_by?: string | null
+          updated_at?: string | null
         }
       }
       doctor_profiles: {
@@ -128,6 +177,8 @@ export interface Database {
           chronic_conditions: string | null
           current_medications: string | null
           notes_for_doctor: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
           created_at: string
           updated_at: string
         }
@@ -143,6 +194,8 @@ export interface Database {
           chronic_conditions?: string | null
           current_medications?: string | null
           notes_for_doctor?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -158,6 +211,8 @@ export interface Database {
           chronic_conditions?: string | null
           current_medications?: string | null
           notes_for_doctor?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -313,6 +368,7 @@ export interface Database {
           share_documents: boolean
           share_appointments: boolean
           share_medical_notes: boolean
+          share_insurance: boolean
           request_reason: string | null
           access_expires_at: string | null
           requested_at: string
@@ -330,6 +386,7 @@ export interface Database {
           share_documents?: boolean
           share_appointments?: boolean
           share_medical_notes?: boolean
+          share_insurance?: boolean
           request_reason?: string | null
           access_expires_at?: string | null
           requested_at?: string
@@ -347,11 +404,73 @@ export interface Database {
           share_documents?: boolean
           share_appointments?: boolean
           share_medical_notes?: boolean
+          share_insurance?: boolean
           request_reason?: string | null
           access_expires_at?: string | null
           requested_at?: string
           responded_at?: string | null
           created_at?: string
+          updated_at?: string
+        }
+      }
+      patient_insurances: {
+        Row: {
+          id: string
+          patient_id: string
+          provider_name: string
+          provider_other: string | null
+          policy_number: string | null
+          group_number: string | null
+          member_id: string | null
+          holder_name: string | null
+          holder_relationship: string | null
+          phone_claims: string | null
+          phone_emergency: string | null
+          valid_from: string | null
+          valid_until: string | null
+          coverage_type: string | null
+          is_primary: boolean
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          patient_id: string
+          provider_name: string
+          provider_other?: string | null
+          policy_number?: string | null
+          group_number?: string | null
+          member_id?: string | null
+          holder_name?: string | null
+          holder_relationship?: string | null
+          phone_claims?: string | null
+          phone_emergency?: string | null
+          valid_from?: string | null
+          valid_until?: string | null
+          coverage_type?: string | null
+          is_primary?: boolean
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          patient_id?: string
+          provider_name?: string
+          provider_other?: string | null
+          policy_number?: string | null
+          group_number?: string | null
+          member_id?: string | null
+          holder_name?: string | null
+          holder_relationship?: string | null
+          phone_claims?: string | null
+          phone_emergency?: string | null
+          valid_from?: string | null
+          valid_until?: string | null
+          coverage_type?: string | null
+          is_primary?: boolean
+          notes?: string | null
           updated_at?: string
         }
       }
@@ -520,5 +639,21 @@ export type DoctorPatientConsent = Database['public']['Tables']['doctor_patient_
 export type DoctorPatientConsentInsert = Database['public']['Tables']['doctor_patient_consent']['Insert']
 export type DoctorPatientConsentUpdate = Database['public']['Tables']['doctor_patient_consent']['Update']
 export type ConsentStatus = 'requested' | 'accepted' | 'rejected' | 'revoked'
-export type ConsentScope = 'share_basic_profile' | 'share_contact' | 'share_documents' | 'share_appointments' | 'share_medical_notes'
+export type ConsentScope = 'share_basic_profile' | 'share_contact' | 'share_documents' | 'share_appointments' | 'share_medical_notes' | 'share_insurance'
+export type PatientInsurance = Database['public']['Tables']['patient_insurances']['Row']
+export type PatientInsuranceInsert = Database['public']['Tables']['patient_insurances']['Insert']
+export type PatientInsuranceUpdate = Database['public']['Tables']['patient_insurances']['Update']
+
+// Biometric history (not in generated schema yet — use manual type)
+export interface BiometricRecord {
+  id: string
+  patient_id: string
+  recorded_at: string
+  height_cm: number | null
+  weight_kg: number | null
+  blood_type: string | null
+  notes: string | null
+  created_at: string
+}
+export type BiometricRecordInsert = Omit<BiometricRecord, 'id' | 'created_at'>
 

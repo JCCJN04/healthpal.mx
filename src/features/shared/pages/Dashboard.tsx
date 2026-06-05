@@ -1,6 +1,6 @@
 import { FileText, Upload, Clock, Share2, Plus, FlaskConical, Pill, ClipboardList, ShieldCheck, ScanLine, Users } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useNavigate, Navigate } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
 import React from 'react'
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import { showToast } from '@/shared/components/ui/Toast'
@@ -140,6 +140,7 @@ const DoctorHome = ({ profile, loading, summaryData, recentDocs, patientSnapshot
 export default function Dashboard() {
   const navigate = useNavigate()
   const { user, profile } = useAuth()
+
   const { privateKey } = useCrypto()
   const [loading, setLoading] = useState(true)
   const [recentDocs, setRecentDocs] = useState<Doc[]>([])
@@ -150,6 +151,8 @@ export default function Dashboard() {
     activePatients: 0,
     sharedDocumentCount: 0,
   })
+  // Cache fetched docs so the key-sync effect can reuse them without an extra network call
+  const allDocsRef = useRef<Doc[]>([])
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadDashboardData() }, [user])
@@ -159,8 +162,13 @@ export default function Dashboard() {
     if (!user?.id || !privateKey || profile?.role !== 'patient') return
     const syncKeys = async () => {
       try {
+        // Reuse docs already fetched by loadDashboardData (avoids duplicate network call).
+        // If ref is empty (crypto ready before data load), fetch fresh.
+        const docsPromise = allDocsRef.current.length > 0
+          ? Promise.resolve(allDocsRef.current)
+          : getUserDocuments(user.id, null, true)
         const [docs, consents] = await Promise.all([
-          getUserDocuments(user.id, null, true),
+          docsPromise,
           getPatientDoctorAccess(user.id),
         ])
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -192,6 +200,7 @@ export default function Dashboard() {
         isDoctor ? listDoctorPatients(user.id) : Promise.resolve([]),
       ])
 
+      allDocsRef.current = documentsData || []
       const docMap = new Map<string, Doc>()
       ;(documentsData || []).forEach((doc) => docMap.set(doc.id, doc))
       ;(sharedDocuments as SharedEntry[]).forEach((entry) => {
@@ -213,6 +222,10 @@ export default function Dashboard() {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (profile?.role === 'assistant') {
+    return <Navigate to="/dashboard/assistant" replace />
   }
 
   const isDoctor = profile?.role === 'doctor'

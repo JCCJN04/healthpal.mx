@@ -27,6 +27,7 @@ interface DocumentGridProps {
   onShareDocument?: (docId: string, title: string) => void
   onShareFolder?: (folderId: string, folderName: string) => void
   onPreviewDocument?: (document: Document) => void
+  showSecurityFooter?: boolean
 }
 
 export const DocumentGrid = ({
@@ -41,6 +42,7 @@ export const DocumentGrid = ({
   onShareDocument,
   onShareFolder,
   onPreviewDocument,
+  showSecurityFooter = false,
 }: DocumentGridProps) => {
   if (documents.length === 0 && folders.length === 0) {
     return (
@@ -126,7 +128,7 @@ export const DocumentGrid = ({
       )}
 
       {/* Security footer */}
-      {(documents.length > 0 || folders.length > 0) && (
+      {showSecurityFooter && (documents.length > 0 || folders.length > 0) && (
         <div className="mt-6 p-5 rounded-3xl bg-primary/5 flex flex-col sm:flex-row items-center gap-4 border border-primary/10">
           <div className="w-11 h-11 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
             <ShieldCheck size={20} className="text-primary" />

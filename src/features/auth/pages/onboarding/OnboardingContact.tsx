@@ -9,7 +9,7 @@ import { showToast } from '@/shared/components/ui/Toast'
 import { logger } from '@/shared/lib/logger'
 import { supabase } from '@/shared/lib/supabase'
 
-const STEPS = ['Rol', 'Información', 'Contacto', 'Detalles', 'Listo']
+const STEPS = ['Rol', 'Información', 'Contacto', 'Detalles', 'Legal', 'Listo']
 
 export default function OnboardingContact() {
   const navigate = useNavigate()
@@ -96,7 +96,7 @@ export default function OnboardingContact() {
           } else if (role === 'patient') {
             navigate('/onboarding/patient')
           } else {
-            navigate('/onboarding/done')
+            navigate('/onboarding/legal')
           }
           return
         }
@@ -114,7 +114,7 @@ export default function OnboardingContact() {
       } else if (role === 'patient') {
         navigate('/onboarding/patient')
       } else {
-        navigate('/onboarding/done')
+        navigate('/onboarding/legal')
       }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
@@ -137,7 +137,7 @@ export default function OnboardingContact() {
       title="Información de Contacto"
       description="¿Cómo podemos comunicarnos contigo?"
     >
-      <Stepper currentStep={3} totalSteps={5} steps={STEPS} />
+      <Stepper currentStep={3} totalSteps={6} steps={STEPS} />
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <PhoneField

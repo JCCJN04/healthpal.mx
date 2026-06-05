@@ -83,6 +83,7 @@ export default function Documentos() {
   const [filteredFolders, setFilteredFolders] = useState<Folder[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
   const [folderModalOpen, setFolderModalOpen] = useState(false)
@@ -161,10 +162,16 @@ export default function Documentos() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, currentFolder.id])
 
+  // Debounce search input — filter runs 200ms after typing stops
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchQuery), 200)
+    return () => clearTimeout(t)
+  }, [searchQuery])
+
   useEffect(() => {
     filterContent()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [documents, folders, searchQuery, selectedCategory, currentFolder.id, sortBy])
+  }, [documents, folders, debouncedSearch, selectedCategory, currentFolder.id, sortBy])
 
   // Load known doctors for patient quick-select in ShareModal
   useEffect(() => {
@@ -438,8 +445,8 @@ export default function Documentos() {
     let filtFlds = [...folders]
 
     // Filter by search
-    if (searchQuery) {
-      const search = searchQuery.toLowerCase()
+    if (debouncedSearch) {
+      const search = debouncedSearch.toLowerCase()
       filtDocs = filtDocs.filter(doc =>
         doc.title.toLowerCase().includes(search) ||
         doc.notes?.toLowerCase().includes(search)
@@ -538,7 +545,7 @@ export default function Documentos() {
         )
         setCurrentFolder({ id: null, name: 'Mis Documentos' })
         setNavHistory([])
-        setSearchQuery('')
+        setSearchQuery(''); setDebouncedSearch('')
         setSelectedCategory('all')
       } else {
         showToast(
@@ -648,7 +655,7 @@ export default function Documentos() {
     setNavHistory(prev => [...prev, currentFolder])
     setCurrentFolder({ id, name })
     setSelectedCategory('all')
-    setSearchQuery('')
+    setSearchQuery(''); setDebouncedSearch('')
     const folderMeta = folders.find(f => f.id === id)
     setCurrentFolderInfo(folderMeta ? { avatarUrl: folderMeta.avatarUrl, subtitle: folderMeta.subtitle } : null)
   }
@@ -664,7 +671,7 @@ export default function Documentos() {
     }
     setCurrentFolderInfo(null)
     setSelectedCategory('all')
-    setSearchQuery('')
+    setSearchQuery(''); setDebouncedSearch('')
   }
 
   const handleRequestPatientAccess = async (e: React.FormEvent) => {
@@ -1336,7 +1343,7 @@ export default function Documentos() {
                   onShareFolder={profile?.role === 'patient' ? handleShareFolder : undefined}
                 />
               )}
-              {years.map(year => (
+              {years.map((year, idx) => (
                 <div key={year}>
                   {showYearGroups && (
                     <div className="flex items-center gap-3 mb-3">
@@ -1356,6 +1363,7 @@ export default function Documentos() {
                     movingDocId={movingDocId}
                     onShareDocument={handleShareDocument}
                     onShareFolder={profile?.role === 'patient' ? handleShareFolder : undefined}
+                    showSecurityFooter={idx === years.length - 1}
                   />
                 </div>
               ))}

@@ -1,4 +1,4 @@
-import { Edit2, Plus, FileText, Activity, MapPin } from 'lucide-react';
+import { Edit2, Plus, FileText, MapPin } from 'lucide-react';
 import { PatientProfile } from '@/shared/types/database';
 
 interface PatientProfileInfoCardProps {
@@ -9,8 +9,7 @@ interface PatientProfileInfoCardProps {
 
 const PatientProfileInfoCard = ({ data, onEdit, isLoading = false }: PatientProfileInfoCardProps) => {
     // Check if profile is complete (basic check)
-    const isComplete = data &&
-    (data.height_cm || data.weight_kg || data.blood_type || data.address_text);
+    const isComplete = data && !!data.address_text;
 
     if (isLoading) {
         return (
@@ -75,66 +74,28 @@ const PatientProfileInfoCard = ({ data, onEdit, isLoading = false }: PatientProf
                         </button>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
                         {/* Address */}
                         <div className="bg-gray-50 rounded-lg p-4">
-                            <div className="flex items-center gap-2 mb-3">
+                            <div className="flex items-center gap-2 mb-2">
                                 <MapPin className="w-4 h-4 text-gray-500" />
                                 <h4 className="text-sm font-semibold text-gray-900">Dirección</h4>
                             </div>
                             {data.address_text ? (
-                                <div>
-                                    <p className="text-sm font-medium text-gray-900">{data.address_text}</p>
-                                </div>
+                                <p className="text-sm font-medium text-gray-900">{data.address_text}</p>
                             ) : (
                                 <p className="text-sm text-gray-400 italic">No especificado</p>
                             )}
                         </div>
 
-                        {/* Basic Metrics */}
-                        <div className="bg-gray-50 rounded-lg p-4">
-                            <div className="flex items-center gap-2 mb-3">
-                                <Activity className="w-4 h-4 text-gray-500" />
-                                <h4 className="text-sm font-semibold text-gray-900">Datos básicos</h4>
-                            </div>
-                            <div className="grid grid-cols-3 gap-2 text-center">
-                                <div className="bg-white p-2 rounded border border-gray-100">
-                                    <span className="block text-xs text-gray-400 uppercase">Altura</span>
-                                    <span className="block text-sm font-semibold text-gray-900">
-                                        {data.height_cm ? `${data.height_cm} cm` : '--'}
-                                    </span>
-                                </div>
-                                <div className="bg-white p-2 rounded border border-gray-100">
-                                    <span className="block text-xs text-gray-400 uppercase">Peso</span>
-                                    <span className="block text-sm font-semibold text-gray-900">
-                                        {data.weight_kg ? `${data.weight_kg} kg` : '--'}
-                                    </span>
-                                </div>
-                                <div className="bg-white p-2 rounded border border-gray-100">
-                                    <span className="block text-xs text-gray-400 uppercase">Sangre</span>
-                                    <span className="block text-sm font-semibold text-gray-900">
-                                        {data.blood_type || '--'}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Insurance & Notes */}
+                        {/* Insurance */}
                         {data.insurance_provider && (
-                            <div className="md:col-span-2 bg-gray-50 rounded-lg p-4">
-                                <div className="flex items-center gap-2 mb-3">
+                            <div className="bg-gray-50 rounded-lg p-4">
+                                <div className="flex items-center gap-2 mb-2">
                                     <FileText className="w-4 h-4 text-gray-500" />
-                                    <h4 className="text-sm font-semibold text-gray-900">Información adicional</h4>
+                                    <h4 className="text-sm font-semibold text-gray-900">Seguro médico</h4>
                                 </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {data.insurance_provider && (
-                                        <div>
-                                            <span className="block text-xs text-gray-400 uppercase mb-1">Seguro Médico</span>
-                                            <p className="text-sm font-medium text-gray-900">{data.insurance_provider}</p>
-                                        </div>
-                                    )}
-                                </div>
+                                <p className="text-sm font-medium text-gray-900">{data.insurance_provider}</p>
                             </div>
                         )}
                     </div>

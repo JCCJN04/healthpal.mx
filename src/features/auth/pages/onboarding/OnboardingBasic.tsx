@@ -8,7 +8,7 @@ import { getMyProfile, updateMyProfile, saveOnboardingStep } from '@/shared/lib/
 import { showToast } from '@/shared/components/ui/Toast'
 import { logger } from '@/shared/lib/logger'
 
-const STEPS = ['Rol', 'Información', 'Contacto', 'Detalles', 'Listo']
+const STEPS = ['Rol', 'Información', 'Contacto', 'Detalles', 'Legal', 'Listo']
 
 export default function OnboardingBasic() {
   const navigate = useNavigate()
@@ -97,7 +97,7 @@ export default function OnboardingBasic() {
       title="Información Básica"
       description="Ayúdanos a conocerte mejor"
     >
-      <Stepper currentStep={2} totalSteps={5} steps={STEPS} />
+      <Stepper currentStep={2} totalSteps={6} steps={STEPS} />
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <InputField

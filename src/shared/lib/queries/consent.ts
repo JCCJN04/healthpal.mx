@@ -34,6 +34,8 @@ export interface ConsentScopes {
   share_documents: boolean
   share_appointments: boolean
   share_medical_notes: boolean
+  share_insurance: boolean
+  edit_clinical_history: boolean
 }
 
 const DEFAULT_SCOPES: ConsentScopes = {
@@ -42,6 +44,8 @@ const DEFAULT_SCOPES: ConsentScopes = {
   share_documents: false,
   share_appointments: false,
   share_medical_notes: false,
+  share_insurance: false,
+  edit_clinical_history: false,
 }
 
 function buildDemoConsent(doctorId: string, patientId: string, status: ConsentStatus = 'accepted'): DoctorPatientConsent {
@@ -57,9 +61,11 @@ function buildDemoConsent(doctorId: string, patientId: string, status: ConsentSt
     share_documents: true,
     share_appointments: true,
     share_medical_notes: true,
+    share_insurance: true,
+    edit_clinical_history: true,
     requested_at: now,
     responded_at: now,
-    expires_at: null,
+    access_expires_at: null,
     created_at: now,
     updated_at: now,
   } as DoctorPatientConsent

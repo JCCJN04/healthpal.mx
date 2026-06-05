@@ -82,8 +82,6 @@ Deno.serve(async (req: Request) => {
             const encoded = new TextEncoder().encode(body)
             const cipherBuffer = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, aesKey, encoded)
             const cipherBytes = new Uint8Array(cipherBuffer)
-            const hashBuffer = await crypto.subtle.digest('SHA-256', encoded)
-            const hashBytes = new Uint8Array(hashBuffer)
 
             const { data, error } = await supabase
                 .from('patient_notes')
@@ -95,7 +93,6 @@ Deno.serve(async (req: Request) => {
                     body_nonce: toHex(iv),
                     body_kid: keyId,
                     body_ver: keyVer,
-                    body_hash: toHex(hashBytes),
                 })
                 .select()
                 .single()

@@ -14,19 +14,23 @@ function getCorsHeaders(req: Request) {
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const PHONE_RE = /^\d{10,15}$/
 
-// In-memory rate limit: 20 WA requests per doctor per hour
-const doctorRateLimit = new Map<string, { count: number; resetAt: number }>()
-
-function checkRateLimit(key: string, max: number, windowMs: number): boolean {
-  const now = Date.now()
-  const entry = doctorRateLimit.get(key)
-  if (!entry || now > entry.resetAt) {
-    doctorRateLimit.set(key, { count: 1, resetAt: now + windowMs })
-    return true
+async function checkRateLimit(
+  supabase: ReturnType<typeof createClient>,
+  key: string,
+  max: number,
+): Promise<boolean> {
+  const resetAt = new Date(
+    Math.ceil(Date.now() / 3_600_000) * 3_600_000,
+  ).toISOString()
+  const { data, error } = await supabase.rpc('increment_rate_limit_bucket', {
+    p_key: key,
+    p_reset_at: resetAt,
+  })
+  if (error) {
+    console.warn('rate_limit rpc error (allowing):', error.message)
+    return true // fail open — don't block on infra error
   }
-  if (entry.count >= max) return false
-  entry.count++
-  return true
+  return (data as number) <= max
 }
 
 function sanitizeText(input: unknown, maxLen: number): string {
@@ -101,8 +105,8 @@ serve(async (req) => {
       )
     }
 
-    // Rate limit: 20 requests per doctor per hour
-    if (!checkRateLimit(user.id, 20, 60 * 60 * 1000)) {
+    // Rate limit: 20 requests per doctor per hour (DB-backed, survives cold starts)
+    if (!await checkRateLimit(supabase, `send-doc-wa:${user.id}`, 20)) {
       return new Response(
         JSON.stringify({ error: 'Rate limit exceeded. Try again later.' }),
         { status: 429, headers: { ...cors, 'Content-Type': 'application/json' } },

@@ -70,19 +70,22 @@ const ALLOWED_MIMES = new Set([
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
 
-// Rate limit: 10 media messages per phone per hour
-const phoneRateLimit = new Map<string, { count: number; resetAt: number }>();
-
-function checkRateLimit(phone: string): boolean {
-  const now = Date.now();
-  const entry = phoneRateLimit.get(phone);
-  if (!entry || now > entry.resetAt) {
-    phoneRateLimit.set(phone, { count: 1, resetAt: now + 60 * 60 * 1000 });
-    return true;
+async function checkRateLimit(
+  supabase: ReturnType<typeof createClient>,
+  phone: string,
+): Promise<boolean> {
+  const resetAt = new Date(
+    Math.ceil(Date.now() / 3_600_000) * 3_600_000,
+  ).toISOString()
+  const { data, error } = await supabase.rpc('increment_rate_limit_bucket', {
+    p_key: `whatsapp-webhook:${phone}`,
+    p_reset_at: resetAt,
+  })
+  if (error) {
+    console.warn('rate_limit rpc error (allowing):', error.message)
+    return true // fail open — don't block on infra error
   }
-  if (entry.count >= 10) return false;
-  entry.count++;
-  return true;
+  return (data as number) <= 10
 }
 
 /**
@@ -198,21 +201,15 @@ serve(async (req: Request) => {
     const reqUrl = new URL(req.url);
     const webhookUrl = `${reqUrl.protocol}//${reqUrl.host}${reqUrl.pathname}`;
 
-    console.log("webhookUrl:", webhookUrl, "hasSig:", !!twilioSig);
-
-    const skipSigCheck = Deno.env.get("TWILIO_SKIP_SIG_CHECK") === "1";
-    const sigValid = skipSigCheck || await validateTwilioSignature(
+    const sigValid = await validateTwilioSignature(
       twilioAuthToken,
       webhookUrl,
       params,
       twilioSig,
     );
 
-    console.log("sigValid:", sigValid, "skipSigCheck:", skipSigCheck);
-
     if (!sigValid) {
-      console.warn("Invalid Twilio signature — rejecting request");
-      // Return 200 to avoid Twilio retry loops, but don't process
+      console.warn("Invalid Twilio signature — request rejected");
       return new Response(null, { status: 204 });
     }
 
@@ -246,8 +243,8 @@ serve(async (req: Request) => {
     // Strip "whatsapp:+" prefix → raw digits for DB lookups (e.g. 521XXXXXXXXXX)
     const senderPhone = fromRaw.replace(/^whatsapp:\+?/, "");
 
-    // Rate limit per sender phone
-    if (!checkRateLimit(senderPhone)) {
+    // Rate limit per sender phone (DB-backed, survives cold starts)
+    if (!await checkRateLimit(supabase, senderPhone)) {
       console.warn(`Rate limit exceeded for phone: ${senderPhone}`);
       return new Response(null, { status: 204 });
     }

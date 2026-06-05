@@ -7,6 +7,7 @@ import {
   X,
   LogOut,
   CalendarDays,
+  ClipboardList,
 } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '@/app/providers/AuthContext'
@@ -39,8 +40,8 @@ export default function Sidebar({ onClose }: SidebarProps) {
   }
 
   const navItems = useMemo<NavItem[]>(() => {
-    const isDoctor = profile?.role === 'doctor'
-    if (isDoctor) {
+    const role = profile?.role
+    if (role === 'doctor') {
       return [
         { label: 'Inicio', path: '/dashboard', icon: <Home size={20} /> },
         { label: 'Agenda', path: '/dashboard/agenda', icon: <CalendarDays size={20} /> },
@@ -50,11 +51,21 @@ export default function Sidebar({ onClose }: SidebarProps) {
       ]
     }
 
+    if (role === 'assistant') {
+      return [
+        { label: 'Inicio',     path: '/dashboard/assistant',           icon: <Home size={20} /> },
+        { label: 'Agenda',     path: '/dashboard/assistant/agenda',    icon: <CalendarDays size={20} /> },
+        { label: 'Pacientes',  path: '/dashboard/assistant/pacientes', icon: <Users size={20} /> },
+        { label: 'Configuracion', path: '/dashboard/configuracion',    icon: <Settings size={20} /> },
+      ]
+    }
+
     return [
       { label: 'Inicio', path: '/dashboard', icon: <Home size={20} /> },
       { label: 'Consultas', path: '/dashboard/consultas', icon: <CalendarDays size={20} /> },
       { label: 'Doctores', path: '/dashboard/doctores', icon: <Users size={20} /> },
       { label: 'Documentos', path: '/dashboard/documentos', icon: <FileText size={20} /> },
+      { label: 'Historial Clínico', path: '/dashboard/historial', icon: <ClipboardList size={20} /> },
       { label: 'Configuracion', path: '/dashboard/configuracion', icon: <Settings size={20} /> },
     ]
   }, [profile])

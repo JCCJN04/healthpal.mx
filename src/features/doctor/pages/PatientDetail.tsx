@@ -28,6 +28,7 @@ import {
     Stethoscope,
     RefreshCw,
     CalendarDays,
+    ClipboardList,
 } from 'lucide-react'
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import { getPatientFullProfile, getPatientNotes, addPatientNote, getPatientContactInfo } from '@/features/doctor/services/patients'
@@ -35,6 +36,8 @@ import { getPatientProfile } from '@/shared/lib/queries/profile'
 import { getUserDocuments, getDocumentDownloadUrl, uploadDocumentForPatient, getDoctorDocumentsForPatient, getDocumentsSharedByPatientWithDoctor } from '@/shared/lib/queries/documents'
 import { createDocumentRequest } from '@/shared/lib/queries/documentRequests'
 import { getConsentForPatient, requestPatientAccess, ConsentScopes } from '@/shared/lib/queries/consent'
+import { getPatientInsurancesForDoctor, insuranceDisplayName } from '@/shared/lib/queries/insurance'
+import type { PatientInsurance } from '@/shared/types/database'
 import { useAuth } from '@/app/providers/AuthContext'
 import { supabase } from '@/shared/lib/supabase'
 import { showToast } from '@/shared/components/ui/Toast'
@@ -43,9 +46,11 @@ import { mapDashboardPath } from '@/context/DemoContext'
 import { validateFile } from '@/shared/lib/errors'
 import type { DocCategory } from '@/shared/types/database'
 import AgendarCitaModal from '@/shared/components/appointments/AgendarCitaModal'
+import ClinicalHistoryTab from '@/features/doctor/components/ClinicalHistoryTab'
+import MedicalReportTab from '@/features/doctor/components/MedicalReportTab'
 import { generatePatientSummary } from '@/shared/lib/openai'
 
-type TabType = 'summary' | 'notes' | 'expediente'
+type TabType = 'summary' | 'notes' | 'expediente' | 'historia' | 'informes'
 type ConsentGate = 'loading' | 'no-consent' | 'requested' | 'rejected' | 'revoked' | 'accepted'
 
 export default function PatientDetail() {
@@ -77,11 +82,18 @@ export default function PatientDetail() {
         share_documents: true,
         share_appointments: true,
         share_medical_notes: true,
+        share_insurance: false,
+        edit_clinical_history: false,
     })
+    const [patientInsurances, setPatientInsurances] = useState<PatientInsurance[]>([])
     const [contactInfo, setContactInfo] = useState<{ email?: string; phone?: string } | null>(null)
     const [requestingAccess, setRequestingAccess] = useState(false)
     const [requestReason, setRequestReason] = useState('')
     const [showAgendarModal, setShowAgendarModal] = useState(false)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [biometricHistory, setBiometricHistory] = useState<any[]>([])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [upcomingAppointments, setUpcomingAppointments] = useState<any[]>([])
     const [aiSummary, setAiSummary] = useState<string | null>(null)
     const [aiSummaryLoading, setAiSummaryLoading] = useState(false)
 
@@ -146,13 +158,16 @@ export default function PatientDetail() {
                 return
             }
 
-            // Status === 'accepted' — full access to EMR, all scopes enabled
+            // Status === 'accepted' — read actual scopes from consent row
             const liveScopes: ConsentScopes = {
-                share_basic_profile: true,
-                share_contact: true,
-                share_documents: true,
-                share_appointments: true,
-                share_medical_notes: true,
+                share_basic_profile: consent.share_basic_profile ?? true,
+                share_contact: consent.share_contact ?? false,
+                share_documents: consent.share_documents ?? false,
+                share_appointments: consent.share_appointments ?? false,
+                share_medical_notes: consent.share_medical_notes ?? false,
+                share_insurance: consent.share_insurance ?? false,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                edit_clinical_history: (consent as any).edit_clinical_history ?? false,
             }
             setConsentGate('accepted')
             setScopes(liveScopes)
@@ -206,6 +221,34 @@ export default function PatientDetail() {
                 keys.push('contact')
             }
 
+            if (s.share_insurance) {
+                promises.push(getPatientInsurancesForDoctor(id!).catch(e => { logger.error('PatientDetail.insurances', e); return [] }))
+                keys.push('insurances')
+            }
+
+            if (s.share_medical_notes) {
+                promises.push(
+                    supabase.from('patient_biometric_history')
+                        .select('*').eq('patient_id', id!)
+                        .order('recorded_at', { ascending: false }).limit(5)
+                        .then(({ data }) => data ?? [])
+                        .catch(() => [])
+                )
+                keys.push('biometrics')
+            }
+
+            // Always fetch upcoming appointments for this patient+doctor
+            promises.push(
+                supabase.from('appointments')
+                    .select('*').eq('doctor_id', user!.id).eq('patient_id', id!)
+                    .neq('status', 'cancelled')
+                    .gte('scheduled_at', new Date().toISOString())
+                    .order('scheduled_at', { ascending: true }).limit(5)
+                    .then(({ data }) => data ?? [])
+                    .catch(() => [])
+            )
+            keys.push('upcoming')
+
             const results = await Promise.all(promises)
             keys.forEach((key, i) => {
                 switch (key) {
@@ -215,6 +258,9 @@ export default function PatientDetail() {
                     case 'doctorDocs': setDoctorDocs(results[i] || []); break
                     case 'patientSharedDocs': setPatientSharedDocs(results[i] || []); break
                     case 'contact': setContactInfo(results[i]); break
+                    case 'insurances': setPatientInsurances(results[i] || []); break
+                    case 'biometrics': setBiometricHistory(results[i] || []); break
+                    case 'upcoming': setUpcomingAppointments(results[i] || []); break
                 }
             })
         } catch (err) {
@@ -520,12 +566,25 @@ export default function PatientDetail() {
                                     </a>
                                 )}
                                 {contactInfo?.phone && (
-                                    <a href={`tel:${contactInfo.phone}`} className="flex items-center gap-2.5 text-sm text-gray-700 hover:text-[#33C7BE] transition-colors group">
-                                        <div className="w-7 h-7 rounded-lg bg-gray-100 group-hover:bg-teal-50 flex items-center justify-center flex-shrink-0 transition-colors">
-                                            <Phone size={12} className="text-gray-400 group-hover:text-[#33C7BE]" />
-                                        </div>
-                                        <span className="text-xs">{contactInfo.phone}</span>
-                                    </a>
+                                    <div className="flex items-center gap-2">
+                                        <a href={`tel:${contactInfo.phone}`} className="flex items-center gap-2.5 text-sm text-gray-700 hover:text-[#33C7BE] transition-colors group flex-1">
+                                            <div className="w-7 h-7 rounded-lg bg-gray-100 group-hover:bg-teal-50 flex items-center justify-center flex-shrink-0 transition-colors">
+                                                <Phone size={12} className="text-gray-400 group-hover:text-[#33C7BE]" />
+                                            </div>
+                                            <span className="text-xs">{contactInfo.phone}</span>
+                                        </a>
+                                        <a
+                                            href={`https://wa.me/${contactInfo.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola ${patient.full_name?.split(' ')[0] ?? ''}, le contacto de parte de su médico.`)}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            title="WhatsApp"
+                                            className="w-7 h-7 rounded-lg bg-green-50 hover:bg-green-100 flex items-center justify-center flex-shrink-0 transition-colors"
+                                        >
+                                            <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 text-green-600" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                                            </svg>
+                                        </a>
+                                    </div>
                                 )}
                             </div>
                         )}
@@ -567,13 +626,108 @@ export default function PatientDetail() {
                         </div>
 
                         {/* Insurance */}
-                        {scopes.share_medical_notes && (medProfile?.insurance_provider || pProfile.insurance_provider) && (
+                        {scopes.share_insurance && patientInsurances.length > 0 && (
                             <div className="p-4 border-b border-gray-100">
                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Seguro médico</p>
-                                <p className="text-sm font-bold text-gray-900">{medProfile?.insurance_provider || pProfile.insurance_provider}</p>
+                                {patientInsurances.map((ins) => (
+                                    <div key={ins.id} className="mb-2 last:mb-0">
+                                        <p className="text-sm font-bold text-gray-900">{insuranceDisplayName(ins)}</p>
+                                        {ins.policy_number && <p className="text-[11px] text-gray-500">Póliza: {ins.policy_number}</p>}
+                                        {ins.member_id && <p className="text-[11px] text-gray-500">ID: {ins.member_id}</p>}
+                                        {ins.valid_until && <p className="text-[11px] text-gray-500">Vigente hasta: {ins.valid_until}</p>}
+                                        {ins.phone_emergency && (
+                                            <a href={`tel:${ins.phone_emergency}`} className="text-[11px] text-teal-600 hover:underline">
+                                                Urgencias: {ins.phone_emergency}
+                                            </a>
+                                        )}
+                                        <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full">
+                                            <ShieldCheck size={9} /> Activo
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        {/* Fallback: show simple insurance_provider if share_insurance not granted but share_medical_notes is */}
+                        {!scopes.share_insurance && scopes.share_medical_notes && (medProfile?.insurance_provider || pProfile?.insurance_provider) && (
+                            <div className="p-4 border-b border-gray-100">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Seguro médico</p>
+                                <p className="text-sm font-bold text-gray-900">{medProfile?.insurance_provider || pProfile?.insurance_provider}</p>
                                 <span className="inline-flex items-center gap-1 mt-1.5 text-[10px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full">
                                     <ShieldCheck size={9} /> Activo
                                 </span>
+                            </div>
+                        )}
+
+                        {/* Emergency contact */}
+                        {scopes.share_contact && (medProfile?.emergency_contact_name || medProfile?.emergency_contact_phone) && (
+                            <div className="p-4 border-b border-gray-100 space-y-2">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Contacto de emergencia</p>
+                                {medProfile?.emergency_contact_name && (
+                                    <p className="text-xs font-semibold text-gray-700">{medProfile.emergency_contact_name}</p>
+                                )}
+                                {medProfile?.emergency_contact_phone && (
+                                    <div className="flex items-center gap-2">
+                                        <a href={`tel:${medProfile.emergency_contact_phone}`} className="flex items-center gap-2 text-xs text-gray-600 hover:text-primary transition-colors flex-1">
+                                            <Phone size={11} className="text-gray-400" />
+                                            {medProfile.emergency_contact_phone}
+                                        </a>
+                                        <a
+                                            href={`https://wa.me/${medProfile.emergency_contact_phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola, le contactamos por el paciente ${patient.full_name ?? ''}.`)}`}
+                                            target="_blank" rel="noopener noreferrer"
+                                            className="w-6 h-6 rounded-lg bg-green-50 hover:bg-green-100 flex items-center justify-center transition-colors"
+                                        >
+                                            <svg viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 text-green-600">
+                                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                                            </svg>
+                                        </a>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Biometric history */}
+                        {scopes.share_medical_notes && biometricHistory.length > 0 && (
+                            <div className="p-4 border-b border-gray-100">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2.5">Historial biométrico</p>
+                                <div className="space-y-2">
+                                    {biometricHistory.slice(0, 3).map((b, i) => (
+                                        <div key={b.id} className={`flex items-center gap-2 px-3 py-2 rounded-xl ${i === 0 ? 'bg-teal-50 border border-teal-100' : 'bg-gray-50'}`}>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[10px] text-gray-400">{new Date(b.recorded_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                                                <div className="flex gap-3 mt-0.5">
+                                                    {b.weight_kg && <span className="text-xs font-bold text-gray-700">{b.weight_kg} kg</span>}
+                                                    {b.height_cm && <span className="text-xs font-bold text-gray-700">{b.height_cm} cm</span>}
+                                                </div>
+                                            </div>
+                                            {i === 0 && <span className="text-[9px] font-bold text-teal-600 bg-teal-100 px-1.5 py-0.5 rounded-full">Reciente</span>}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Upcoming appointments */}
+                        {upcomingAppointments.length > 0 && (
+                            <div className="p-4 border-b border-gray-100">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2.5">Próximas citas</p>
+                                <div className="space-y-2">
+                                    {upcomingAppointments.slice(0, 3).map((appt) => (
+                                        <div key={appt.id} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl">
+                                            <CalendarDays size={12} className="text-primary flex-shrink-0" />
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-xs font-semibold text-gray-700">
+                                                    {new Date(appt.scheduled_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
+                                                    {' · '}
+                                                    {new Date(appt.scheduled_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Mexico_City' })}
+                                                </p>
+                                                <p className="text-[10px] text-gray-400 capitalize">{appt.mode === 'in_person' ? 'Presencial' : appt.mode === 'video' ? 'Video' : 'Llamada'}</p>
+                                            </div>
+                                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${appt.status === 'confirmed' ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'}`}>
+                                                {appt.status === 'confirmed' ? 'Confirmada' : 'Pendiente'}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         )}
 
@@ -628,6 +782,8 @@ export default function PatientDetail() {
                         <div className="bg-white border-b border-gray-200 px-4 sm:px-6 flex gap-0 flex-shrink-0">
                             {[
                                 { id: 'summary', label: 'Resumen', icon: Activity, enabled: true },
+                                { id: 'historia', label: 'Historial Clínico', icon: ClipboardList, enabled: true },
+                                { id: 'informes', label: 'Informes', icon: FileText, enabled: true },
                                 { id: 'expediente', label: 'Expediente', icon: FileText, enabled: scopes.share_documents, navigateTo: `/dashboard/documentos?folder=shared-${id}` },
                                 { id: 'notes', label: 'Notas', icon: StickyNote, enabled: scopes.share_medical_notes },
                             ].filter(t => t.enabled).map((tab) => (
@@ -806,6 +962,24 @@ export default function PatientDetail() {
                                     patientEmail={contactInfo?.email}
                                     onUpload={() => loadPatientData()}
                                 />
+                            )}
+
+                            {activeTab === 'historia' && (
+                                scopes.share_medical_notes
+                                    ? <ClinicalHistoryTab patientId={id!} editorId={user!.id} readOnly={!scopes.edit_clinical_history} />
+                                    : (
+                                        <div className="flex flex-col items-center justify-center py-16 text-center">
+                                            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                                                <ClipboardList size={22} className="text-gray-400" />
+                                            </div>
+                                            <p className="text-sm font-semibold text-gray-700 mb-1">Acceso no autorizado</p>
+                                            <p className="text-xs text-gray-400 max-w-xs">El paciente no ha compartido su historial clínico contigo. Solicítale que te otorgue acceso desde su apartado de Permisos.</p>
+                                        </div>
+                                    )
+                            )}
+
+                            {activeTab === 'informes' && (
+                                <MedicalReportTab patientId={id!} doctorId={user!.id} patient={patient} medProfile={medProfile} />
                             )}
 
                             {activeTab === 'notes' && scopes.share_medical_notes && (

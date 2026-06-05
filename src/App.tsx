@@ -1,8 +1,19 @@
 import { Routes, Route } from 'react-router-dom'
 import { Suspense, lazy } from 'react'
 import { Analytics } from '@vercel/analytics/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from '@/app/providers/AuthContext'
 import { CryptoProvider } from '@/context/CryptoContext'
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5,   // 5 min — don't refetch if data is fresh
+      gcTime:    1000 * 60 * 10,  // 10 min — keep unused cache in memory
+      retry: 1,
+    },
+  },
+})
 import RequireAuth from '@/features/auth/components/RequireAuth'
 import RequireOnboarding from '@/features/auth/components/RequireOnboarding'
 import RequireRole from '@/features/auth/components/RequireRole'
@@ -23,6 +34,7 @@ const Documentos = lazy(() => import('@/features/shared/pages/Documentos'))
 const DocumentDetail = lazy(() => import('@/features/shared/pages/DocumentDetail'))
 const Busqueda = lazy(() => import('@/features/shared/pages/Busqueda'))
 const Configuracion = lazy(() => import('@/features/shared/pages/Configuracion'))
+const HistorialClinico = lazy(() => import('@/features/shared/pages/HistorialClinico'))
 const Doctores = lazy(() => import('@/features/patient/pages/Doctores'))
 const DoctorDetail = lazy(() => import('@/features/patient/pages/DoctorDetail'))
 const Pacientes = lazy(() => import('@/features/doctor/pages/Pacientes'))
@@ -46,6 +58,11 @@ const OnboardingContact = lazy(() => import('@/features/auth/pages/onboarding/On
 const OnboardingDoctor = lazy(() => import('@/features/auth/pages/onboarding/OnboardingDoctor'))
 const OnboardingPatient = lazy(() => import('@/features/auth/pages/onboarding/OnboardingPatient'))
 const OnboardingDone = lazy(() => import('@/features/auth/pages/onboarding/OnboardingDone'))
+const OnboardingLegal = lazy(() => import('@/features/auth/pages/onboarding/OnboardingLegal'))
+const OnboardingAssistant = lazy(() => import('@/features/auth/pages/onboarding/OnboardingAssistant'))
+const AssistantAgenda = lazy(() => import('@/features/assistant/pages/AssistantAgenda'))
+const AssistantDashboard = lazy(() => import('@/features/assistant/pages/AssistantDashboard'))
+const AssistantPacientes = lazy(() => import('@/features/assistant/pages/AssistantPacientes'))
 
 // Loading fallback component
 const PageLoader = () => (
@@ -60,6 +77,7 @@ const PageLoader = () => (
 function App() {
 
   return (
+    <QueryClientProvider client={queryClient}>
     <CryptoProvider>
     <AuthProvider>
       <Analytics />
@@ -88,6 +106,8 @@ function App() {
         <Route path="/onboarding/contact" element={<RequireAuth><OnlyOnboarding><Suspense fallback={<PageLoader />}><OnboardingContact /></Suspense></OnlyOnboarding></RequireAuth>} />
         <Route path="/onboarding/doctor" element={<RequireAuth><OnlyOnboarding><Suspense fallback={<PageLoader />}><OnboardingDoctor /></Suspense></OnlyOnboarding></RequireAuth>} />
         <Route path="/onboarding/patient" element={<RequireAuth><OnlyOnboarding><Suspense fallback={<PageLoader />}><OnboardingPatient /></Suspense></OnlyOnboarding></RequireAuth>} />
+        <Route path="/onboarding/assistant" element={<RequireAuth><OnlyOnboarding><Suspense fallback={<PageLoader />}><OnboardingAssistant /></Suspense></OnlyOnboarding></RequireAuth>} />
+        <Route path="/onboarding/legal" element={<RequireAuth><OnlyOnboarding><Suspense fallback={<PageLoader />}><OnboardingLegal /></Suspense></OnlyOnboarding></RequireAuth>} />
         <Route path="/onboarding/done" element={<RequireAuth><OnlyOnboarding><Suspense fallback={<PageLoader />}><OnboardingDone /></Suspense></OnlyOnboarding></RequireAuth>} />
 
         {/* Dashboard Routes */}
@@ -104,10 +124,15 @@ function App() {
         <Route path="/dashboard/consultas" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['patient']}><Suspense fallback={<PageLoader />}><Consultas /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/consultas/nueva" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['patient']}><Suspense fallback={<PageLoader />}><NuevaConsulta /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/agenda" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['doctor']}><Suspense fallback={<PageLoader />}><Agenda /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
+        <Route path="/dashboard/assistant" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['assistant']}><Suspense fallback={<PageLoader />}><AssistantDashboard /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
+        <Route path="/dashboard/assistant/agenda" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['assistant']}><Suspense fallback={<PageLoader />}><AssistantAgenda /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
+        <Route path="/dashboard/assistant/pacientes" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['assistant']}><Suspense fallback={<PageLoader />}><AssistantPacientes /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/configuracion" element={<RequireAuth><RequireOnboarding><Suspense fallback={<PageLoader />}><Configuracion /></Suspense></RequireOnboarding></RequireAuth>} />
+        <Route path="/dashboard/historial" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['patient']}><Suspense fallback={<PageLoader />}><HistorialClinico /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
       </Routes>
     </AuthProvider>
     </CryptoProvider>
+    </QueryClientProvider>
   )
 }
 

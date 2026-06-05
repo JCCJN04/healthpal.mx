@@ -12,7 +12,7 @@ import { showToast } from '@/shared/components/ui/Toast'
 import { logger } from '@/shared/lib/logger'
 import { SPECIALTIES } from '@/shared/lib/specialties'
 
-const STEPS = ['Rol', 'Información', 'Contacto', 'Detalles', 'Listo']
+const STEPS = ['Rol', 'Información', 'Contacto', 'Detalles', 'Legal', 'Listo']
 
 export default function OnboardingDoctor() {
   const navigate = useNavigate()
@@ -82,7 +82,7 @@ export default function OnboardingDoctor() {
       // Wait briefly for Supabase to process
       await new Promise(resolve => setTimeout(resolve, 50))
 
-      navigate('/onboarding/done')
+      navigate('/onboarding/legal')
     } catch (error: unknown) {
       logger.error('Error saving doctor profile:', error)
       showToast((error as Error).message || 'Error al guardar perfil', 'error')
@@ -96,7 +96,7 @@ export default function OnboardingDoctor() {
       title="Perfil Profesional"
       description="Información sobre tu práctica médica"
     >
-      <Stepper currentStep={4} totalSteps={5} steps={STEPS} />
+      <Stepper currentStep={4} totalSteps={6} steps={STEPS} />
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* ── Specialty (searchable) ── */}

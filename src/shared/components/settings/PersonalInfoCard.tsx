@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Edit2, Save, X, Mail, Phone, Calendar, User, Loader2 } from 'lucide-react';
+import { Edit2, Save, X, Mail, Phone, Calendar, User, MapPin, Loader2 } from 'lucide-react';
 import { logger } from '@/shared/lib/logger';
 
 interface PersonalInfo {
@@ -8,6 +8,7 @@ interface PersonalInfo {
   email: string;
   phone: string;
   bio: string;
+  address: string;
 }
 
 interface PersonalInfoCardProps {
@@ -250,6 +251,29 @@ const PersonalInfoCard = ({ initialData, onSave, isLoading = false, saveError = 
                 </div>
               ) : (
                 <p className="text-base font-semibold text-gray-900">{formData.phone}</p>
+              )}
+            </div>
+
+            {/* Address */}
+            <div className="md:col-span-2">
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                Dirección
+              </label>
+              {isEditing ? (
+                <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus-within:border-[#33C7BE] focus-within:bg-white transition-colors">
+                  <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <input
+                    type="text"
+                    value={formData.address}
+                    onChange={(e) => handleChange('address', e.target.value)}
+                    className="flex-1 bg-transparent outline-none text-gray-900"
+                    placeholder="Calle, colonia, ciudad"
+                  />
+                </div>
+              ) : (
+                <p className="text-base font-semibold text-gray-900">
+                  {formData.address || <span className="text-gray-400 font-normal italic">No especificada</span>}
+                </p>
               )}
             </div>
 

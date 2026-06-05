@@ -27,21 +27,37 @@ Deno.serve(async (req) => {
         const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || Deno.env.get('VITE_SUPABASE_ANON_KEY');
         const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
 
-        if (!documentId || !filePath) throw new Error('Parámetros faltantes');
-        if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey) throw new Error('Supabase credenciales faltantes');
-        if (!geminiApiKey) throw new Error('GEMINI_API_KEY no configurada');
+        if (!documentId || !filePath) {
+            return new Response(JSON.stringify({ success: false, error: 'Parámetros faltantes' }), {
+                headers: { ...cors, 'Content-Type': 'application/json' }, status: 400,
+            });
+        }
+        if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey) {
+            return new Response(JSON.stringify({ success: false, error: 'Configuración del servidor incompleta' }), {
+                headers: { ...cors, 'Content-Type': 'application/json' }, status: 500,
+            });
+        }
+        if (!geminiApiKey) {
+            return new Response(JSON.stringify({ success: false, error: 'Servicio de IA no configurado' }), {
+                headers: { ...cors, 'Content-Type': 'application/json' }, status: 503,
+            });
+        }
 
-        // Autenticación manual: Verificar que el usuario que llama es válido
         const authHeader = req.headers.get('Authorization');
-        if (!authHeader) throw new Error('No autorizado: Falta token');
+        if (!authHeader) {
+            return new Response(JSON.stringify({ success: false, error: 'No autorizado' }), {
+                headers: { ...cors, 'Content-Type': 'application/json' }, status: 401,
+            });
+        }
         const token = authHeader.replace(/^Bearer\s+/i, '').trim();
-        
+
         const userClient = createClient(supabaseUrl, supabaseAnonKey);
         const { data: { user }, error: authErr } = await userClient.auth.getUser(token);
-        
+
         if (authErr || !user) {
-            console.error('[AUTH ERROR]', authErr);
-            throw new Error(`No autorizado: ${authErr?.message || 'Token inválido'}`);
+            return new Response(JSON.stringify({ success: false, error: 'No autorizado' }), {
+                headers: { ...cors, 'Content-Type': 'application/json' }, status: 401,
+            });
         }
 
         // Cliente con permisos completos para interactuar con Storage y Base de Datos (bypassing RLS)
@@ -116,8 +132,11 @@ Genera tu respuesta estrictamente en formato Markdown, con un tono profesional, 
         });
 
         if (!geminiRes.ok) {
-            const gError = await geminiRes.json();
-            throw new Error(`Error de IA: ${gError.error?.message || 'Fallo inesperado'}`);
+            const gError = await geminiRes.json().catch(() => ({}));
+            console.error('[GEMINI ERROR]', geminiRes.status, gError);
+            return new Response(JSON.stringify({ success: false, error: 'El servicio de IA no está disponible en este momento' }), {
+                headers: { ...cors, 'Content-Type': 'application/json' }, status: 502,
+            });
         }
 
         const gData = await geminiRes.json();
@@ -155,9 +174,9 @@ Genera tu respuesta estrictamente en formato Markdown, con un tono profesional, 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
         console.error('[CRITICAL]', err.message);
-        return new Response(JSON.stringify({ success: false, error: err.message }), {
+        return new Response(JSON.stringify({ success: false, error: 'Error interno del servidor' }), {
             headers: { ...cors, 'Content-Type': 'application/json' },
-            status: 200, // Retornamos 200 para capturar el error en el frontend
+            status: 500,
         });
     }
 });

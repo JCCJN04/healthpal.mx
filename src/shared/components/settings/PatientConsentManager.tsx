@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import {
   ShieldCheck, ShieldAlert, ShieldX, Clock, UserCheck, UserX,
-  Loader2, XCircle,
+  Loader2, XCircle, ChevronDown, ChevronUp, Save,
+  FileText, Phone, StickyNote, CalendarDays, ShieldPlus,
 } from 'lucide-react'
 import { useAuth } from '@/app/providers/AuthContext'
 import { useCrypto } from '@/context/CryptoContext'
@@ -11,19 +12,83 @@ import {
   acceptConsentRequest,
   rejectConsentRequest,
   revokeConsentAccess,
+  updateConsentScopes,
   ConsentWithProfile,
+  ConsentScopes,
 } from '@/shared/lib/queries/consent'
 import { getUserDocuments, shareEncryptedDocumentKey } from '@/shared/lib/queries/documents'
 import { linkDoctorToPatient, unlinkDoctorFromPatient } from '@/features/patient/services/doctors'
 import { showToast } from '@/shared/components/ui/Toast'
 import { logger } from '@/shared/lib/logger'
 
-const FULL_ACCESS = {
+const SCOPE_META: Array<{
+  key: keyof ConsentScopes
+  label: string
+  description: string
+  Icon: React.ElementType
+  color: string
+}> = [
+  {
+    key: 'share_basic_profile',
+    label: 'Perfil básico',
+    description: 'Nombre, edad, sexo, tipo de sangre',
+    Icon: UserCheck,
+    color: 'text-gray-500',
+  },
+  {
+    key: 'share_contact',
+    label: 'Contacto',
+    description: 'Correo electrónico y teléfono',
+    Icon: Phone,
+    color: 'text-blue-500',
+  },
+  {
+    key: 'share_documents',
+    label: 'Expediente / Documentos',
+    description: 'Estudios, recetas y archivos médicos',
+    Icon: FileText,
+    color: 'text-purple-500',
+  },
+  {
+    key: 'share_appointments',
+    label: 'Citas',
+    description: 'Historial de consultas',
+    Icon: CalendarDays,
+    color: 'text-teal-500',
+  },
+  {
+    key: 'share_medical_notes',
+    label: 'Notas clínicas',
+    description: 'Notas y observaciones médicas',
+    Icon: StickyNote,
+    color: 'text-orange-500',
+  },
+  {
+    key: 'share_insurance',
+    label: 'Seguro médico',
+    description: 'Aseguradora, póliza y datos de cobertura',
+    Icon: ShieldPlus,
+    color: 'text-green-500',
+  },
+  {
+    key: 'edit_clinical_history',
+    label: 'Editar historial clínico',
+    description: 'Permite al médico modificar tu historial clínico',
+    Icon: FileText,
+    color: 'text-red-500',
+  },
+]
+
+const REQUIRED_SCOPES: Array<keyof ConsentScopes> = ['share_basic_profile']
+
+const DEFAULT_ACCEPT_SCOPES: ConsentScopes = {
   share_basic_profile: true,
-  share_contact: true,
-  share_documents: true,
-  share_appointments: true,
-  share_medical_notes: true,
+  share_contact: false,
+  share_documents: false,
+  share_appointments: false,
+  share_medical_notes: false,
+  share_insurance: false,
+  edit_clinical_history: false,
 }
 
 export default function PatientConsentManager() {
@@ -33,7 +98,15 @@ export default function PatientConsentManager() {
   const [active, setActive] = useState<ConsentWithProfile[]>([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+
+  // Accept modal state
   const [confirmingRow, setConfirmingRow] = useState<ConsentWithProfile | null>(null)
+  const [acceptScopes, setAcceptScopes] = useState<ConsentScopes>(DEFAULT_ACCEPT_SCOPES)
+
+  // Per-consent scope editing
+  const [editingScopes, setEditingScopes] = useState<string | null>(null) // consent id
+  const [editScopeValues, setEditScopeValues] = useState<ConsentScopes>(DEFAULT_ACCEPT_SCOPES)
+  const [savingScopes, setSavingScopes] = useState(false)
 
   useEffect(() => {
     if (user?.id) loadAll()
@@ -81,14 +154,18 @@ export default function PatientConsentManager() {
     }
   }
 
+  const openAcceptModal = (row: ConsentWithProfile) => {
+    setConfirmingRow(row)
+    setAcceptScopes(DEFAULT_ACCEPT_SCOPES)
+  }
+
   const confirmAccept = async () => {
     if (!confirmingRow || !user?.id) return
     setActionLoading(confirmingRow.id)
-    const { ok, error } = await acceptConsentRequest(confirmingRow.id, FULL_ACCESS)
+    const { ok, error } = await acceptConsentRequest(confirmingRow.id, acceptScopes)
     if (ok) {
       await linkDoctorToPatient(user.id, confirmingRow.doctor_id)
-      // Share encrypted document keys with the doctor so they can decrypt files
-      if (privateKey) {
+      if (privateKey && acceptScopes.share_documents) {
         try {
           const docs = await getUserDocuments(user.id, null, true)
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -98,10 +175,9 @@ export default function PatientConsentManager() {
           )
         } catch (err) {
           logger.error('PatientConsentManager.shareKeys', err)
-          // Non-fatal: consent still granted, keys can be shared later
         }
       }
-      showToast('Acceso concedido al expediente', 'success')
+      showToast('Acceso concedido', 'success')
       await loadAll()
     } else {
       showToast(error || 'Error', 'error')
@@ -136,6 +212,92 @@ export default function PatientConsentManager() {
     }
     setActionLoading(null)
   }
+
+  const openEditScopes = (row: ConsentWithProfile) => {
+    setEditingScopes(row.id)
+    setEditScopeValues({
+      share_basic_profile: row.share_basic_profile ?? true,
+      share_contact: row.share_contact ?? false,
+      share_documents: row.share_documents ?? false,
+      share_appointments: row.share_appointments ?? false,
+      share_medical_notes: row.share_medical_notes ?? false,
+      share_insurance: row.share_insurance ?? false,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      edit_clinical_history: (row as any).edit_clinical_history ?? false,
+    })
+  }
+
+  const handleSaveScopes = async (consentId: string, doctorId: string) => {
+    setSavingScopes(true)
+    try {
+      const { ok, error } = await updateConsentScopes(consentId, editScopeValues)
+      if (ok) {
+        // If documents scope changed, re-sync keys
+        if (editScopeValues.share_documents && user?.id && privateKey) {
+          try {
+            const docs = await getUserDocuments(user.id, null, true)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const encrypted = docs.filter((d) => (d as any).is_encrypted)
+            await Promise.allSettled(
+              encrypted.map((d) => shareEncryptedDocumentKey(d.id, privateKey, doctorId))
+            )
+          } catch (err) {
+            logger.error('PatientConsentManager.resyncKeys', err)
+          }
+        }
+        showToast('Permisos actualizados', 'success')
+        setEditingScopes(null)
+        await loadAll()
+      } else {
+        showToast(error || 'Error al actualizar', 'error')
+      }
+    } finally {
+      setSavingScopes(false)
+    }
+  }
+
+  const ScopesPanel = ({
+    scopes,
+    onChange,
+    disabled = false,
+  }: {
+    scopes: ConsentScopes
+    onChange: (key: keyof ConsentScopes, value: boolean) => void
+    disabled?: boolean
+  }) => (
+    <div className="space-y-2">
+      {SCOPE_META.map(({ key, label, description, Icon, color }) => {
+        const isRequired = REQUIRED_SCOPES.includes(key)
+        const checked = scopes[key]
+        return (
+          <label
+            key={key}
+            className={`flex items-start gap-3 p-3 rounded-xl border transition-colors cursor-pointer ${
+              checked ? 'bg-teal-50/60 border-teal-200' : 'bg-gray-50 border-gray-200'
+            } ${isRequired || disabled ? 'cursor-not-allowed opacity-80' : ''}`}
+          >
+            <input
+              type="checkbox"
+              checked={checked}
+              disabled={isRequired || disabled}
+              onChange={(e) => onChange(key, e.target.checked)}
+              className="mt-0.5 rounded accent-[#33C7BE]"
+            />
+            <div className="flex items-center gap-2 min-w-0">
+              <Icon className={`w-4 h-4 flex-shrink-0 ${color}`} />
+              <div>
+                <p className="text-sm font-semibold text-gray-900">
+                  {label}
+                  {isRequired && <span className="ml-1.5 text-[10px] text-gray-400">(requerido)</span>}
+                </p>
+                <p className="text-[11px] text-gray-500">{description}</p>
+              </div>
+            </div>
+          </label>
+        )
+      })}
+    </div>
+  )
 
   const StatusBadge = ({ status }: { status: string }) => {
     const map: Record<string, { bg: string; text: string; label: string; Icon: React.ElementType }> = {
@@ -208,7 +370,7 @@ export default function PatientConsentManager() {
 
                   <div className="flex gap-2 flex-shrink-0">
                     <button
-                      onClick={() => setConfirmingRow(row)}
+                      onClick={() => openAcceptModal(row)}
                       disabled={actionLoading === row.id}
                       className="inline-flex items-center gap-1.5 px-3 py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-teal-600 disabled:opacity-50 transition-colors"
                     >
@@ -235,22 +397,30 @@ export default function PatientConsentManager() {
         )}
       </section>
 
-      {/* ── Accept confirmation modal ─────────────────── */}
+      {/* ── Accept modal with granular scopes ─────────── */}
       {confirmingRow && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setConfirmingRow(null)}>
           <div
-            className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 space-y-4"
+            className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3">
-              <ShieldCheck className="w-6 h-6 text-primary" />
-              <h3 className="text-lg font-bold text-gray-900">Conceder acceso</h3>
+              <ShieldCheck className="w-6 h-6 text-primary flex-shrink-0" />
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Conceder acceso</h3>
+                <p className="text-xs text-gray-500">{confirmingRow.doctor?.full_name || 'Este doctor'}</p>
+              </div>
             </div>
+
             <p className="text-sm text-gray-600">
-              <strong>{confirmingRow.doctor?.full_name || 'Este doctor'}</strong> podrá ver tu expediente médico electrónico: documentos, historial de consultas y notas clínicas.
-              <br /><br />
-              Puedes revocar el acceso en cualquier momento.
+              Elige qué información puede ver este doctor. Puedes modificar o revocar el acceso en cualquier momento.
             </p>
+
+            <ScopesPanel
+              scopes={acceptScopes}
+              onChange={(key, value) => setAcceptScopes(s => ({ ...s, [key]: value }))}
+            />
+
             <div className="flex justify-end gap-2 pt-1">
               <button
                 onClick={() => setConfirmingRow(null)}
@@ -289,46 +459,106 @@ export default function PatientConsentManager() {
           </div>
         ) : (
           <div className="space-y-3">
-            {active.map((row) => (
-              <div key={row.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-                <div className="flex items-center gap-4">
-                  <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold flex-shrink-0 overflow-hidden">
-                    {row.doctor?.avatar_url ? (
-                      <img src={row.doctor.avatar_url} alt="" className="w-full h-full object-cover rounded-full" />
-                    ) : (
-                      (row.doctor?.full_name?.charAt(0) || 'D').toUpperCase()
-                    )}
-                  </div>
+            {active.map((row) => {
+              const isEditing = editingScopes === row.id
+              const activeScopes = {
+                share_basic_profile: row.share_basic_profile ?? true,
+                share_contact: row.share_contact ?? false,
+                share_documents: row.share_documents ?? false,
+                share_appointments: row.share_appointments ?? false,
+                share_medical_notes: row.share_medical_notes ?? false,
+                share_insurance: row.share_insurance ?? false,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                edit_clinical_history: (row as any).edit_clinical_history ?? false,
+              }
+              const activeCount = Object.values(activeScopes).filter(Boolean).length
 
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="font-bold text-gray-900">{row.doctor?.full_name || 'Doctor'}</p>
-                      <StatusBadge status={row.status} />
-                    </div>
-                    {row.responded_at && (
-                      <p className="text-[11px] text-gray-400 mt-0.5">
-                        Desde {new Date(row.responded_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
-                      </p>
-                    )}
-                  </div>
-
-                  {row.status === 'accepted' && (
-                    <button
-                      onClick={() => handleRevoke(row.id, row.doctor_id)}
-                      disabled={actionLoading === row.id}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors flex-shrink-0"
-                    >
-                      {actionLoading === row.id ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              return (
+                <div key={row.id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="flex items-center gap-4 p-5">
+                    <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold flex-shrink-0 overflow-hidden">
+                      {row.doctor?.avatar_url ? (
+                        <img src={row.doctor.avatar_url} alt="" className="w-full h-full object-cover rounded-full" />
                       ) : (
-                        <XCircle className="w-3.5 h-3.5" />
+                        (row.doctor?.full_name?.charAt(0) || 'D').toUpperCase()
                       )}
-                      Revocar
-                    </button>
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold text-gray-900">{row.doctor?.full_name || 'Doctor'}</p>
+                        <StatusBadge status={row.status} />
+                      </div>
+                      {row.responded_at && (
+                        <p className="text-[11px] text-gray-400 mt-0.5">
+                          Desde {new Date(row.responded_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </p>
+                      )}
+                      {row.status === 'accepted' && (
+                        <p className="text-[11px] text-gray-400 mt-0.5">
+                          {activeCount} {activeCount === 1 ? 'permiso' : 'permisos'} activos
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {row.status === 'accepted' && (
+                        <button
+                          onClick={() => isEditing ? setEditingScopes(null) : openEditScopes(row)}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                          {isEditing ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                          Permisos
+                        </button>
+                      )}
+                      {row.status === 'accepted' && (
+                        <button
+                          onClick={() => handleRevoke(row.id, row.doctor_id)}
+                          disabled={actionLoading === row.id}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors"
+                        >
+                          {actionLoading === row.id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <XCircle className="w-3.5 h-3.5" />
+                          )}
+                          Revocar
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Scope editor for accepted consents */}
+                  {isEditing && row.status === 'accepted' && (
+                    <div className="border-t border-gray-100 p-5 bg-gray-50/50 space-y-4">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Editar permisos</p>
+                      <ScopesPanel
+                        scopes={editScopeValues}
+                        onChange={(key, value) => setEditScopeValues(s => ({ ...s, [key]: value }))}
+                        disabled={savingScopes}
+                      />
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => setEditingScopes(null)}
+                          className="px-3 py-1.5 text-sm text-gray-500 rounded-lg hover:bg-gray-100"
+                          disabled={savingScopes}
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={() => handleSaveScopes(row.id, row.doctor_id)}
+                          disabled={savingScopes}
+                          className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-teal-600 disabled:opacity-50 transition-colors"
+                        >
+                          {savingScopes ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                          Guardar permisos
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </section>

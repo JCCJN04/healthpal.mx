@@ -9,7 +9,7 @@ import { showToast } from '@/shared/components/ui/Toast'
 import { logger } from '@/shared/lib/logger'
 import { CheckCircle } from 'lucide-react'
 
-const STEPS = ['Rol', 'Información', 'Contacto', 'Detalles', 'Listo']
+const STEPS = ['Rol', 'Información', 'Contacto', 'Detalles', 'Legal', 'Listo']
 
 export default function OnboardingDone() {
   const navigate = useNavigate()
@@ -42,7 +42,7 @@ export default function OnboardingDone() {
       title="¡Todo Listo!"
       description="Tu perfil ha sido configurado exitosamente"
     >
-      <Stepper currentStep={5} totalSteps={5} steps={STEPS} />
+      <Stepper currentStep={6} totalSteps={6} steps={STEPS} />
 
       <div className="text-center py-8">
         {/* Success Icon */}

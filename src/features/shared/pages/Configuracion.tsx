@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { AlertTriangle, Trash2, CheckCircle, XCircle, Save, Loader2, Activity, Pill, ShieldCheck, Phone, User, Heart, ClipboardPlus } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { AlertTriangle, Trash2, CheckCircle, XCircle, Save, Loader2, Phone, UserCircle2, Plus, X } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthContext';
 import { supabase } from '@/shared/lib/supabase';
 import { getMyProfile, updateMyProfile, uploadAvatar, deleteMyAccount } from '@/shared/lib/queries/profile';
@@ -9,23 +9,23 @@ import ProfileCard from '@/shared/components/settings/ProfileCard';
 import PersonalInfoCard from '@/shared/components/settings/PersonalInfoCard';
 import SecurityCard from '@/shared/components/settings/SecurityCard';
 import PreferencesCard from '@/shared/components/settings/PreferencesCard';
-import PatientProfileInfoCard from '@/features/patient/components/PatientProfileInfoCard';
-import PatientProfileWizard from '@/features/patient/components/PatientProfileWizard';
 import { getPatientProfile, upsertPatientProfile } from '@/features/patient/services/patientProfile';
 import { getDoctorProfile } from '@/shared/lib/queries/profile';
 import DoctorVerificationCard from '@/shared/components/settings/DoctorVerificationCard';
 import PatientConsentManager from '@/shared/components/settings/PatientConsentManager'
 import GoogleCalendarCard from '@/shared/components/settings/GoogleCalendarCard';
 import { countPendingRequests } from '@/shared/lib/queries/consent';
+import { getDoctorAssistants, addAssistant, removeAssistant, type DoctorAssistant } from '@/shared/lib/queries/assistants';
 import { PatientProfile, DoctorProfile } from '@/shared/types/database';
 import { logger } from '@/shared/lib/logger';
 
-type TabType = 'general' | 'medical' | 'documents' | 'permissions';
+type TabType = 'general' | 'documents' | 'permissions' | 'assistants';
 
 export default function Configuracion() {
   const { user, profile: authProfile, refreshProfile, signOut } = useAuth();
   const isPatient = authProfile?.role === 'patient';
   const isDoctor = authProfile?.role === 'doctor';
+  const isAssistant = authProfile?.role === 'assistant';
   const [activeTab, setActiveTab] = useState<TabType>('general');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
@@ -45,27 +45,21 @@ export default function Configuracion() {
   // Error states
   const [profileError, setProfileError] = useState<string | null>(null);
 
-  // Wizard state
-  const [isWizardOpen, setIsWizardOpen] = useState(false);
-
-  // Medical form state
+  // Emergency contact form state
   const [medicalForm, setMedicalForm] = useState({
-    height_cm: '' as string | number,
-    weight_kg: '' as string | number,
-    blood_type: '',
-    allergies: '',
-    chronic_conditions: '',
-    current_medications: '',
-    notes_for_doctor: '',
-    insurance_provider: '',
     emergency_contact_name: '',
     emergency_contact_phone: '',
   });
-  const [isSavingMedical, setIsSavingMedical] = useState(false);
-  const medicalFormInitialized = useRef(false);
+  const [isSavingEmergency, setIsSavingEmergency] = useState(false);
 
   // Consent pending count (patients only)
   const [pendingConsentCount, setPendingConsentCount] = useState(0);
+
+  // Assistants (doctors only)
+  const [assistants, setAssistants] = useState<DoctorAssistant[]>([]);
+  const [assistantsLoading, setAssistantsLoading] = useState(false);
+  const [newAssistantEmail, setNewAssistantEmail] = useState('');
+  const [addingAssistant, setAddingAssistant] = useState(false);
 
   // Toast state
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -90,31 +84,56 @@ export default function Configuracion() {
       loadProfile();
       if (isPatient) {
         loadPatientProfile();
-        // Load pending consent count for badge
         countPendingRequests(user.id).then(setPendingConsentCount).catch(() => {});
       }
       if (isDoctor) {
         loadDoctorProfile();
+        loadAssistants();
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  // Sync medical form when patient profile loads
+  const loadAssistants = async () => {
+    if (!user) return;
+    setAssistantsLoading(true);
+    getDoctorAssistants(user.id).then(data => {
+      setAssistants(data);
+      setAssistantsLoading(false);
+    });
+  };
+
+  const handleAddAssistant = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !newAssistantEmail.trim()) return;
+    setAddingAssistant(true);
+    const result = await addAssistant(user.id, newAssistantEmail.trim());
+    if (result.ok) {
+      setToast({ message: 'Asistente agregado. Se le notificará al aceptar la invitación.', type: 'success' });
+      setNewAssistantEmail('');
+      loadAssistants();
+    } else {
+      setToast({ message: result.error ?? 'Error al agregar asistente', type: 'error' });
+    }
+    setAddingAssistant(false);
+  };
+
+  const handleRemoveAssistant = async (id: string) => {
+    const result = await removeAssistant(id);
+    if (result.ok) {
+      setAssistants(prev => prev.filter(a => a.id !== id));
+      setToast({ message: 'Asistente eliminado', type: 'success' });
+    } else {
+      setToast({ message: result.error ?? 'Error al eliminar', type: 'error' });
+    }
+  };
+
+  // Sync emergency contact form when patient profile loads
   useEffect(() => {
-    if (patientProfile && !medicalFormInitialized.current) {
-      medicalFormInitialized.current = true;
+    if (patientProfile) {
       setMedicalForm({
-        height_cm: patientProfile.height_cm ?? '',
-        weight_kg: patientProfile.weight_kg ?? '',
-        blood_type: patientProfile.blood_type ?? '',
-        allergies: patientProfile.allergies ?? '',
-        chronic_conditions: patientProfile.chronic_conditions ?? '',
-        current_medications: patientProfile.current_medications ?? '',
-        notes_for_doctor: patientProfile.notes_for_doctor ?? '',
-        insurance_provider: patientProfile.insurance_provider ?? '',
-        emergency_contact_name: '',
-        emergency_contact_phone: '',
+        emergency_contact_name: patientProfile.emergency_contact_name ?? '',
+        emergency_contact_phone: patientProfile.emergency_contact_phone ?? '',
       });
     }
   }, [patientProfile]);
@@ -189,17 +208,22 @@ export default function Configuracion() {
     }
   };
 
-  const handleSavePersonalInfo = async (data: { fullName: string; birthDate: string; email: string; phone: string; bio: string }) => {
+  const handleSavePersonalInfo = async (data: { fullName: string; birthDate: string; email: string; phone: string; bio: string; address: string }) => {
     try {
       setProfileError(null);
 
-      // Update profile in Supabase
       const updated = await updateMyProfile({
         full_name: data.fullName,
         birthdate: data.birthDate,
         email: data.email,
         phone: data.phone,
       });
+
+      // Save address to role-specific profile table
+      if (user && isPatient) {
+        await upsertPatientProfile(user.id, { address_text: data.address || null });
+        setPatientProfile(prev => prev ? { ...prev, address_text: data.address || null } : prev);
+      }
 
       setProfile(updated);
       setToast({ message: '¡Perfil actualizado exitosamente!', type: 'success' });
@@ -209,7 +233,7 @@ export default function Configuracion() {
       const errorMessage = 'Error al actualizar el perfil. Intenta nuevamente.';
       setProfileError(errorMessage);
       setToast({ message: errorMessage, type: 'error' });
-      throw error; // Re-throw so component can handle it
+      throw error;
     }
   };
 
@@ -286,18 +310,32 @@ export default function Configuracion() {
     }
   };
 
-  const handleSaveMedical = async () => {
+  const handleSaveEmergency = async () => {
+    if (medicalForm.emergency_contact_phone && !validatePhone(medicalForm.emergency_contact_phone)) {
+      setToast({ message: 'Teléfono de contacto inválido (10–15 dígitos)', type: 'error' });
+      return;
+    }
     try {
-      setIsSavingMedical(true);
+      setIsSavingEmergency(true);
       await handleSavePatientProfile({
-        ...medicalForm,
-        height_cm: medicalForm.height_cm !== '' ? Number(medicalForm.height_cm) : null,
-        weight_kg: medicalForm.weight_kg !== '' ? Number(medicalForm.weight_kg) : null,
+        emergency_contact_name: medicalForm.emergency_contact_name || null,
+        emergency_contact_phone: medicalForm.emergency_contact_phone || null,
       });
     } finally {
-      setIsSavingMedical(false);
+      setIsSavingEmergency(false);
     }
   };
+
+  // Validates a phone string: strips formatting, expects 10–15 digits
+  const validatePhone = (val: string): boolean => {
+    if (!val) return true; // optional field
+    const digits = val.replace(/\D/g, '');
+    return digits.length >= 10 && digits.length <= 15;
+  };
+
+  // Sanitizes phone input: only allow +, digits, spaces, dashes, parens
+  const sanitizePhone = (val: string): string =>
+    val.replace(/[^\d+\s\-()]/g, '').slice(0, 20);
 
   // Calculate age from birthdate
   const calculateAge = (birthdate: string | null): number => {
@@ -342,7 +380,10 @@ export default function Configuracion() {
     birthDate: profile.birthdate || '',
     email: profile.email || '',
     phone: profile.phone || '',
-    bio: '', // patients don't have bio in base profile
+    bio: '',
+    address: isPatient
+      ? (patientProfile?.address_text || '')
+      : (doctorProfile?.address_text || ''),
   } : null;
 
   const preferences = settings ? {
@@ -355,8 +396,12 @@ export default function Configuracion() {
     ? [
         { id: 'general', label: 'General', enabled: true },
         { id: 'permissions', label: 'Permisos', enabled: true, badge: pendingConsentCount },
-        { id: 'medical', label: 'Registro médico', enabled: true },
         { id: 'documents', label: 'Documentos del paciente', enabled: false },
+      ]
+    : isDoctor
+    ? [
+        { id: 'general',    label: 'General',    enabled: true },
+        { id: 'assistants', label: 'Asistentes', enabled: true },
       ]
     : [
         { id: 'general', label: 'General', enabled: true },
@@ -432,15 +477,6 @@ export default function Configuracion() {
                 />
               )}
 
-              {/* Patient Profile Data — only shown to patients */}
-              {isPatient && (
-                <PatientProfileInfoCard
-                  data={patientProfile}
-                  onEdit={() => setIsWizardOpen(true)}
-                  isLoading={isLoadingProfile}
-                />
-              )}
-
               {/* Personal Information Card */}
               <div id="personal-info">
                 {personalInfo && (
@@ -452,6 +488,56 @@ export default function Configuracion() {
                   />
                 )}
               </div>
+
+              {/* Emergency Contact — patients only */}
+              {isPatient && (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="w-9 h-9 rounded-xl bg-orange-50 flex items-center justify-center flex-shrink-0">
+                      <Phone className="w-5 h-5 text-orange-500" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-gray-900">Contacto de emergencia</h3>
+                      <p className="text-xs text-gray-500">Persona a contactar en caso de urgencia</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 mb-1.5">Nombre completo</label>
+                      <input
+                        type="text"
+                        value={medicalForm.emergency_contact_name}
+                        onChange={e => setMedicalForm(f => ({ ...f, emergency_contact_name: e.target.value }))}
+                        placeholder="Nombre del contacto"
+                        className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 mb-1.5">Teléfono</label>
+                      <input
+                        type="tel"
+                        value={medicalForm.emergency_contact_phone}
+                        onChange={e => setMedicalForm(f => ({ ...f, emergency_contact_phone: sanitizePhone(e.target.value) }))}
+                        placeholder="55 1234 5678"
+                        maxLength={20}
+                        className={`w-full px-3 py-2.5 border rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] ${medicalForm.emergency_contact_phone && !validatePhone(medicalForm.emergency_contact_phone) ? 'border-red-400' : 'border-gray-200'}`}
+                      />
+                      {medicalForm.emergency_contact_phone && !validatePhone(medicalForm.emergency_contact_phone) && (
+                        <p className="text-[11px] text-red-500 mt-1">Debe tener 10–15 dígitos</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex justify-end mt-4">
+                    <button
+                      onClick={handleSaveEmergency}
+                      disabled={isSavingEmergency || (!!medicalForm.emergency_contact_phone && !validatePhone(medicalForm.emergency_contact_phone))}
+                      className="inline-flex items-center gap-2 px-5 py-2 bg-[#33C7BE] text-white text-sm font-semibold rounded-xl hover:bg-[#2ab5ac] transition-colors disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
+                    >
+                      {isSavingEmergency ? <><Loader2 className="w-4 h-4 animate-spin" />Guardando...</> : <><Save className="w-4 h-4" />Guardar</>}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Security Card */}
               <SecurityCard
@@ -468,13 +554,15 @@ export default function Configuracion() {
                 />
               )}
 
-              {/* Google Calendar Integration */}
-              <GoogleCalendarCard
-                onToast={(msg, type) => setToast({ message: msg, type })}
-              />
+              {/* Google Calendar Integration — doctors only */}
+              {isDoctor && (
+                <GoogleCalendarCard
+                  onToast={(msg, type) => setToast({ message: msg, type })}
+                />
+              )}
 
               {/* Danger Zone */}
-              <div className="bg-red-50 border-2 border-red-100 rounded-xl p-6">
+              {!isAssistant && <div className="bg-red-50 border-2 border-red-100 rounded-xl p-6">
                 <div className="flex items-start gap-4">
                   <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
                     <AlertTriangle className="w-5 h-5 text-red-600" />
@@ -494,7 +582,7 @@ export default function Configuracion() {
                     </button>
                   </div>
                 </div>
-              </div>
+              </div>}
             </div>
           )}
 
@@ -502,184 +590,78 @@ export default function Configuracion() {
             <PatientConsentManager />
           )}
 
-          {activeTab === 'medical' && isPatient && (
-            <div className="space-y-4">
+          {activeTab === 'assistants' && isDoctor && (
+            <div className="space-y-5">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <h2 className="text-lg font-bold text-gray-900 mb-1">Asistentes</h2>
+                <p className="text-sm text-gray-500 mb-5">
+                  Tus asistentes solo pueden ver y gestionar tu agenda. No tienen acceso a información clínica ni documentos de pacientes.
+                </p>
 
-              {/* Physical measurements */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-7 h-7 rounded-lg bg-teal-50 flex items-center justify-center">
-                    <Activity className="w-4 h-4 text-[#33C7BE]" />
-                  </div>
-                  <h3 className="text-sm font-bold text-gray-900">Medidas físicas</h3>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">Altura (cm)</label>
-                    <input
-                      type="number"
-                      min={0} max={300}
-                      value={medicalForm.height_cm}
-                      onChange={e => setMedicalForm(f => ({ ...f, height_cm: e.target.value }))}
-                      placeholder="170"
-                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">Peso (kg)</label>
-                    <input
-                      type="number"
-                      min={0} max={500}
-                      value={medicalForm.weight_kg}
-                      onChange={e => setMedicalForm(f => ({ ...f, weight_kg: e.target.value }))}
-                      placeholder="70"
-                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">Tipo de sangre</label>
-                    <select
-                      value={medicalForm.blood_type}
-                      onChange={e => setMedicalForm(f => ({ ...f, blood_type: e.target.value }))}
-                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] bg-white"
-                    >
-                      <option value="">--</option>
-                      {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(t => (
-                        <option key={t} value={t}>{t}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Clinical info */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center">
-                    <Heart className="w-4 h-4 text-red-500" />
-                  </div>
-                  <h3 className="text-sm font-bold text-gray-900">Información clínica</h3>
-                </div>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1.5 flex items-center gap-1.5">
-                      <AlertTriangle className="w-3 h-3 text-amber-500" /> Alergias conocidas
-                    </label>
-                    <textarea
-                      value={medicalForm.allergies}
-                      onChange={e => setMedicalForm(f => ({ ...f, allergies: e.target.value }))}
-                      placeholder="Ej: Penicilina, aspirina, látex, cacahuates..."
-                      rows={2}
-                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] resize-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1.5 flex items-center gap-1.5">
-                      <Activity className="w-3 h-3 text-blue-500" /> Condiciones crónicas
-                    </label>
-                    <textarea
-                      value={medicalForm.chronic_conditions}
-                      onChange={e => setMedicalForm(f => ({ ...f, chronic_conditions: e.target.value }))}
-                      placeholder="Ej: Diabetes tipo 2, hipertensión, hipotiroidismo..."
-                      rows={2}
-                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] resize-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1.5 flex items-center gap-1.5">
-                      <Pill className="w-3 h-3 text-purple-500" /> Medicación activa
-                    </label>
-                    <textarea
-                      value={medicalForm.current_medications}
-                      onChange={e => setMedicalForm(f => ({ ...f, current_medications: e.target.value }))}
-                      placeholder="Ej: Metformina 850mg, losartán 50mg, levotiroxina 100mcg..."
-                      rows={2}
-                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] resize-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1.5 flex items-center gap-1.5">
-                      <ClipboardPlus className="w-3 h-3 text-teal-500" /> Notas para el médico
-                    </label>
-                    <textarea
-                      value={medicalForm.notes_for_doctor}
-                      onChange={e => setMedicalForm(f => ({ ...f, notes_for_doctor: e.target.value }))}
-                      placeholder="Información adicional que quieras que tu médico conozca..."
-                      rows={3}
-                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] resize-none"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Insurance */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center">
-                    <ShieldCheck className="w-4 h-4 text-blue-500" />
-                  </div>
-                  <h3 className="text-sm font-bold text-gray-900">Seguro médico</h3>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1.5">Aseguradora</label>
+                {/* Add assistant form */}
+                <form onSubmit={handleAddAssistant} className="flex gap-3 mb-6">
                   <input
-                    type="text"
-                    value={medicalForm.insurance_provider}
-                    onChange={e => setMedicalForm(f => ({ ...f, insurance_provider: e.target.value }))}
-                    placeholder="Ej: IMSS, GNP, AXA, Monterrey Azul..."
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]"
+                    type="email"
+                    placeholder="Correo del asistente"
+                    value={newAssistantEmail}
+                    onChange={e => setNewAssistantEmail(e.target.value)}
+                    className="flex-1 px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
+                    required
                   />
-                </div>
-              </div>
+                  <button
+                    type="submit"
+                    disabled={addingAssistant || !newAssistantEmail.trim()}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                  >
+                    {addingAssistant ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
+                    Agregar
+                  </button>
+                </form>
 
-              {/* Emergency contact */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-7 h-7 rounded-lg bg-orange-50 flex items-center justify-center">
-                    <Phone className="w-4 h-4 text-orange-500" />
+                {/* Assistants list */}
+                {assistantsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 size={20} className="animate-spin text-gray-400" />
                   </div>
-                  <h3 className="text-sm font-bold text-gray-900">Contacto de emergencia</h3>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1.5 flex items-center gap-1.5">
-                      <User className="w-3 h-3" /> Nombre
-                    </label>
-                    <input
-                      type="text"
-                      value={medicalForm.emergency_contact_name}
-                      onChange={e => setMedicalForm(f => ({ ...f, emergency_contact_name: e.target.value }))}
-                      placeholder="Nombre completo"
-                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]"
-                    />
+                ) : assistants.length === 0 ? (
+                  <div className="text-center py-8 text-gray-400">
+                    <UserCircle2 size={32} className="mx-auto mb-2 text-gray-200" />
+                    <p className="text-sm">Aún no tienes asistentes registrados</p>
                   </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1.5 flex items-center gap-1.5">
-                      <Phone className="w-3 h-3" /> Teléfono
-                    </label>
-                    <input
-                      type="tel"
-                      value={medicalForm.emergency_contact_phone}
-                      onChange={e => setMedicalForm(f => ({ ...f, emergency_contact_phone: e.target.value }))}
-                      placeholder="52 81 XXXX XXXX"
-                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]"
-                    />
+                ) : (
+                  <div className="space-y-3">
+                    {assistants.map(a => (
+                      <div key={a.id} className="flex items-center gap-3 p-3 rounded-xl border border-gray-100">
+                        <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                          {a.assistant?.avatar_url
+                            ? <img src={a.assistant.avatar_url} className="w-9 h-9 object-cover" />
+                            : <UserCircle2 size={18} className="text-gray-400" />
+                          }
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-900 truncate">
+                            {a.assistant?.full_name ?? a.assistant_email}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate">{a.assistant_email}</p>
+                        </div>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border flex-shrink-0 ${
+                          a.status === 'active'    ? 'bg-green-50 text-green-600 border-green-100' :
+                          a.status === 'pending'   ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                                                     'bg-gray-100 text-gray-500 border-gray-200'
+                        }`}>
+                          {a.status === 'active' ? 'Activo' : a.status === 'pending' ? 'Pendiente' : 'Suspendido'}
+                        </span>
+                        <button
+                          onClick={() => handleRemoveAssistant(a.id)}
+                          title="Eliminar asistente"
+                          className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+                        >
+                          <X size={15} />
+                        </button>
+                      </div>
+                    ))}
                   </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end">
-                <button
-                  onClick={handleSaveMedical}
-                  disabled={isSavingMedical}
-                  className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#33C7BE] text-white font-semibold rounded-xl hover:bg-[#2ab5ac] transition-colors disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
-                >
-                  {isSavingMedical ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" />Guardando...</>
-                  ) : (
-                    <><Save className="w-4 h-4" />Guardar cambios</>
-                  )}
-                </button>
+                )}
               </div>
             </div>
           )}
@@ -777,13 +759,6 @@ export default function Configuracion() {
         </div>
       )}
 
-      {/* Patient Profile Wizard */}
-      <PatientProfileWizard
-        initialData={patientProfile}
-        isOpen={isWizardOpen}
-        onClose={() => setIsWizardOpen(false)}
-        onSave={handleSavePatientProfile}
-      />
     </DashboardLayout>
   );
 }
