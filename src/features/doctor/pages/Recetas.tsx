@@ -569,7 +569,7 @@ function TabMedico({ doctor, onChange, onSaveToProfile, saving }: {
         </div>
         <div>
           <p className="text-sm font-bold text-gray-800 leading-tight">Datos del médico</p>
-          <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">Configura tu nombre, especialidad, cédula y logo. Esta información aparecerá en el encabezado de todas tus recetas impresas. Se guarda automáticamente en tu perfil.</p>
+          <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">Nombre, especialidad, cédula y logo. Aparece en el encabezado de tus recetas.</p>
         </div>
       </div>
       {/* Datos básicos */}
@@ -688,7 +688,7 @@ function TabDiseno({ design, onChange }: { design: DesignConfig; onChange: (d: D
         </div>
         <div>
           <p className="text-sm font-bold text-gray-800 leading-tight">Diseño de la receta</p>
-          <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">Personaliza el estilo visual, colores, tipografía y disposición de tu receta impresa. El diseño se aplica a todas las recetas nuevas.</p>
+          <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">Elige colores, tipografía y estilo. Se aplica a todas tus recetas.</p>
         </div>
       </div>
       {/* Style */}
@@ -856,7 +856,7 @@ function TabReceta({
         </div>
         <div>
           <p className="text-sm font-bold text-gray-800 leading-tight">Prescripción médica</p>
-          <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">Llena los datos del paciente, agrega los medicamentos con dosis e indicaciones, y presiona <strong>Guardar</strong> para generar la receta. Usa <strong>Imprimir</strong> para obtener la versión impresa.</p>
+          <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">Paciente, medicamentos y dosis. Guarda para registrar, imprime para entregar.</p>
         </div>
       </div>
       {/* Patient */}
@@ -907,11 +907,11 @@ function TabReceta({
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Peso</label>
             <input className={smallInp} placeholder="70 kg" value={draft.patient_weight} onChange={e => set('patient_weight', e.target.value)} />
           </div>
-          <div>
+          <div className="col-span-2 sm:col-span-1">
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Fecha *</label>
-            <input type="date" className={smallInp} value={draft.issued_at} onChange={e => set('issued_at', e.target.value)} />
+            <input type="date" className={`${smallInp} w-full min-w-0`} value={draft.issued_at} onChange={e => set('issued_at', e.target.value)} />
           </div>
-          <div>
+          <div className="col-span-2 sm:col-span-1">
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Folio</label>
             <input className={smallInp} value={draft.folio} onChange={e => set('folio', e.target.value)} />
           </div>
