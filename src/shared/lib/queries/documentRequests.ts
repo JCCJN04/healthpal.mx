@@ -29,18 +29,20 @@ export type DocumentRequestWithDoctor = DocumentRequest & {
 
 /** Doctor: create a new document request link */
 export async function createDocumentRequest(
-  doctorId: string,
   patientEmail: string,
   documentType: string,
   description?: string,
   patientPhone?: string,
 ): Promise<{ data: DocumentRequest | null; error: string | null }> {
   try {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return { data: null, error: 'No hay sesión activa' }
+
     const trimmedEmail = patientEmail.trim()
     const { data, error } = await supabase
       .from('document_requests')
       .insert({
-        doctor_id: doctorId,
+        doctor_id: session.user.id,
         patient_email: trimmedEmail ? trimmedEmail.toLowerCase() : null,
         document_type: documentType,
         description: description || null,
@@ -61,13 +63,10 @@ export async function createDocumentRequest(
 }
 
 /** Doctor: list all requests they sent */
-export async function getDoctorDocumentRequests(
-  doctorId: string,
-): Promise<DocumentRequest[]> {
+export async function getDoctorDocumentRequests(): Promise<DocumentRequest[]> {
   const { data, error } = await supabase
     .from('document_requests')
     .select('*')
-    .eq('doctor_id', doctorId)
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -125,13 +124,10 @@ export async function fulfillDocumentRequest(
 }
 
 /** Doctor: get fulfilled requests (to show docs in patient view) */
-export async function getFulfilledRequestsByDoctor(
-  doctorId: string,
-): Promise<DocumentRequest[]> {
+export async function getFulfilledRequestsByDoctor(): Promise<DocumentRequest[]> {
   const { data, error } = await supabase
     .from('document_requests')
     .select('*')
-    .eq('doctor_id', doctorId)
     .eq('status', 'fulfilled')
     .not('document_id', 'is', null)
 
@@ -144,14 +140,12 @@ export async function getFulfilledRequestsByDoctor(
 
 /** Doctor: get documents from fulfilled requests for a specific patient */
 export async function getFulfilledRequestDocsByPatient(
-  doctorId: string,
   patientId: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any[]> {
   const { data, error } = await supabase
     .from('document_requests')
     .select('document_id, document:documents(*)')
-    .eq('doctor_id', doctorId)
     .eq('patient_id', patientId)
     .eq('status', 'fulfilled')
     .not('document_id', 'is', null)
@@ -232,13 +226,10 @@ export async function getFulfilledRequestsByPatient(
 }
 
 /** Doctor: get distinct patient IDs that have fulfilled document requests */
-export async function getPatientsWithFulfilledRequests(
-  doctorId: string,
-): Promise<string[]> {
+export async function getPatientsWithFulfilledRequests(): Promise<string[]> {
   const { data, error } = await supabase
     .from('document_requests')
     .select('patient_id')
-    .eq('doctor_id', doctorId)
     .eq('status', 'fulfilled')
     .not('patient_id', 'is', null)
     .not('document_id', 'is', null)

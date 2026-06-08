@@ -18,10 +18,23 @@ export interface PatientSummaryInput {
   medications?: string | null
   height?: number | null
   weight?: number | null
+  bmi?: number | null
   documentCount?: number | null
   noteCount?: number | null
   lastNoteDate?: string | null
   upcomingAppointments?: number | null
+  totalAppointments?: number | null
+  lastAppointmentDate?: string | null
+  psychiatricDiagnoses?: string | null
+  psychiatricMeds?: string | null
+  developmentalNotes?: string | null
+  smokingStatus?: string | null
+  alcoholUse?: string | null
+  familyHistory?: string | null
+  recentNotesSummary?: string | null
+  patientObservations?: string | null
+  surgeries?: string | null
+  hospitalizations?: string | null
 }
 
 export interface PatientRecordContext {
@@ -37,24 +50,32 @@ export interface ChatTurn {
 
 // ── Proxy helper ──────────────────────────────────────────────────────────────
 
+export type ProxyResult = { value: string | null; noApiKey?: boolean; llmError?: string }
+
 async function invokeProxy<T extends object>(
   action: string,
   data: T,
-): Promise<string | null> {
+): Promise<ProxyResult> {
   try {
-    const { data: res, error } = await supabase.functions.invoke<{ result: string | null }>('ai-proxy', {
+    const { data: res, error } = await supabase.functions.invoke<{ result: string | null; error?: string }>('ai-proxy', {
       body: { action, data },
     })
 
     if (error) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const body = await (error as any).context?.json?.().catch?.(() => null) as { error?: string } | null
+      const code = body?.error ?? ''
+      if (code === 'NO_API_KEY' || code === 'LLM_AUTH_ERROR' || code === 'LLM_QUOTA_ERROR' || code.startsWith('LLM_')) {
+        return { value: null, noApiKey: code === 'NO_API_KEY', llmError: code }
+      }
       logger.error('ai-proxy: invoke error', error)
-      return null
+      return { value: null }
     }
 
-    return res?.result ?? null
+    return { value: res?.result ?? null }
   } catch (err) {
     logger.error('ai-proxy: fetch error', err)
-    return null
+    return { value: null }
   }
 }
 
@@ -62,11 +83,11 @@ async function invokeProxy<T extends object>(
 
 /**
  * Generates a concise clinical summary for a doctor about a patient.
- * Returns the summary string or null on failure.
+ * Returns ProxyResult: { value: string | null, noApiKey?: boolean }
  */
 export async function generatePatientSummary(
   data: PatientSummaryInput,
-): Promise<string | null> {
+): Promise<ProxyResult> {
   return invokeProxy('patient_summary', data)
 }
 
@@ -78,7 +99,7 @@ export async function chatWithPatientRecord(
   question: string,
   context: PatientRecordContext,
   history: ChatTurn[] = [],
-): Promise<string | null> {
+): Promise<ProxyResult> {
   return invokeProxy('patient_chat', {
     question,
     patient: context.patient,

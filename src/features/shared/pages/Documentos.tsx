@@ -18,6 +18,8 @@ import { showToast } from '@/shared/components/ui/Toast'
 import { validateFile } from '@/shared/lib/errors'
 import { isDemoMode } from '@/context/DemoContext'
 import type { Database } from '@/shared/types/database'
+import { PatientPrescriptionModal } from '@/features/patient/components/PatientPrescriptionModal'
+import type { Prescription } from '@/shared/lib/queries/prescriptions'
 
 type Document = Database['public']['Tables']['documents']['Row']
 type DocCategory = Database['public']['Enums']['doc_category']
@@ -132,6 +134,12 @@ export default function Documentos() {
   // Document preview modal
   const [previewDoc, setPreviewDoc] = useState<Document | null>(null)
 
+  // Patient prescriptions tab
+  const [mainTab, setMainTab] = useState<'docs' | 'recetas'>('docs')
+  const [prescriptions, setPrescriptions] = useState<Prescription[]>([])
+  const [prescriptionsLoading, setPrescriptionsLoading] = useState(false)
+  const [viewingPrescription, setViewingPrescription] = useState<Prescription | null>(null)
+
   const [uploadForm, setUploadForm] = useState<{
     files: File[]
     title: string
@@ -188,6 +196,21 @@ export default function Documentos() {
       setKnownDoctors(doctors)
     })
   }, [user, profile?.role])
+
+  // Load patient prescriptions when tab is selected
+  useEffect(() => {
+    if (profile?.role !== 'patient' || mainTab !== 'recetas' || prescriptions.length > 0) return
+    setPrescriptionsLoading(true)
+    supabase
+      .from('prescriptions')
+      .select('*')
+      .eq('is_template', false)
+      .order('issued_at', { ascending: false })
+      .then(({ data, error }) => {
+        if (!error) setPrescriptions((data ?? []) as Prescription[])
+        setPrescriptionsLoading(false)
+      })
+  }, [profile?.role, mainTab, prescriptions.length])
 
   const loadContent = async (folderId: string | null = currentFolder.id) => {
     if (!user) return
@@ -299,7 +322,7 @@ export default function Documentos() {
     if (profile?.role === 'doctor' && !folderId) {
       const [consentedPatients, requestPatientIds, careLinksRes] = await Promise.all([
         getDoctorConsentRequests(user.id),
-        getPatientsWithFulfilledRequests(user.id),
+        getPatientsWithFulfilledRequests(),
         supabase
           .from('care_links')
           .select('patient_id, patient:profiles!care_links_patient_id_fkey(id, full_name, avatar_url, email)')
@@ -399,7 +422,7 @@ export default function Documentos() {
 
       // Also include documents uploaded via fulfilled document_requests (WhatsApp / token link)
       const requestDocs = profile?.role === 'doctor'
-        ? await getFulfilledRequestDocsByPatient(user.id, targetSenderId)
+        ? await getFulfilledRequestDocsByPatient(targetSenderId)
         : []
 
       // Merge and deduplicate by doc ID
@@ -526,9 +549,14 @@ export default function Documentos() {
 
         if (currentFolder.id?.startsWith('shared-')) {
           const patientId = currentFolder.id.replace('shared-', '')
-          await shareDocumentWithUser(result.documentId, user.id, { userId: patientId }, {
+          const shareResult = await shareDocumentWithUser(result.documentId, user.id, { userId: patientId }, {
             senderProfile: { full_name: profile?.full_name, email: user.email },
           })
+          // If doc was encrypted, re-wrap the DEK with the patient's public key so they can decrypt it
+          const recipientId = shareResult?.sharedWithUserId ?? patientId
+          if (cryptoPublicKey && privateKey && recipientId) {
+            await shareEncryptedDocumentKey(result.documentId, privateKey, recipientId).catch(() => {})
+          }
         }
       } else {
         showToast(`${file.name}: ${result.error || 'Error al subir'}`, 'error')
@@ -733,7 +761,7 @@ export default function Documentos() {
       const phone = normalizePhone(docReqPhone)
       let requestId = docReqId
       if (!requestId) {
-        const { data, error } = await createDocumentRequest(user.id, docReqEmail, docReqType, '', phone)
+        const { data, error } = await createDocumentRequest(docReqEmail, docReqType, '', phone)
         if (error || !data) {
           showToast(error || 'Error al crear la solicitud', 'error', 3000)
           return
@@ -959,6 +987,25 @@ export default function Documentos() {
                 <p className="text-2xl font-black text-gray-900">{folders.filter(f => f.id.startsWith('shared-')).length}</p>
                 <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">Médicos</p>
               </div>
+              <div className="bg-primary/10 rounded-2xl px-4 py-2.5 text-center border border-primary/10">
+                <p className="text-2xl font-black text-gray-900">{prescriptions.length || '—'}</p>
+                <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">Recetas</p>
+              </div>
+            </div>
+            {/* Tabs */}
+            <div className="flex gap-1 mt-4 bg-gray-100 rounded-xl p-1 w-fit">
+              <button
+                onClick={() => setMainTab('docs')}
+                className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${mainTab === 'docs' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                Documentos
+              </button>
+              <button
+                onClick={() => setMainTab('recetas')}
+                className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${mainTab === 'recetas' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                Mis Recetas
+              </button>
             </div>
           </div>
 
@@ -1096,8 +1143,51 @@ export default function Documentos() {
           </div>
         )}
 
-        {/* Search + Filter row */}
-        <div className="space-y-2.5">
+        {/* ── Patient: Recetas tab content ── */}
+        {profile?.role === 'patient' && !currentFolder.id && mainTab === 'recetas' && (
+          <div>
+            {prescriptionsLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 size={24} className="animate-spin text-primary" />
+              </div>
+            ) : prescriptions.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center">
+                <Pill size={36} className="text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500 font-medium">Aún no tienes recetas</p>
+                <p className="text-gray-400 text-sm mt-1">Cuando tu médico te genere una receta aparecerá aquí</p>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {prescriptions.map(rx => (
+                  <button
+                    key={rx.id}
+                    onClick={() => setViewingPrescription(rx)}
+                    className="bg-white rounded-2xl border border-gray-100 p-4 text-left hover:border-primary/40 hover:shadow-md transition-all group"
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors">
+                        <Pill size={16} className="text-primary" />
+                      </div>
+                      {rx.folio && <span className="text-[10px] font-mono text-gray-400">#{rx.folio}</span>}
+                    </div>
+                    <p className="text-sm font-bold text-gray-900 leading-tight">
+                      {rx.medications.length} medicamento{rx.medications.length !== 1 ? 's' : ''}
+                    </p>
+                    {rx.diagnosis && (
+                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{rx.diagnosis}</p>
+                    )}
+                    <p className="text-xs text-gray-400 mt-2">
+                      {new Date(rx.issued_at + 'T12:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Search + Filter row — hidden when showing recetas tab */}
+        {!(profile?.role === 'patient' && !currentFolder.id && mainTab === 'recetas') && <div className="space-y-2.5">
           {/* Row 1: Search */}
           <div className="relative">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
@@ -1157,8 +1247,10 @@ export default function Documentos() {
             </div>
             <ViewToggle view={view} onViewChange={setView} />
           </div>
-        </div>
+        </div>}
 
+        {/* Breadcrumbs + Documents — hidden when showing recetas tab */}
+        {!(profile?.role === 'patient' && !currentFolder.id && mainTab === 'recetas') && <>
         {/* Breadcrumbs */}
         <div className="flex items-center gap-1.5 text-sm text-gray-400 overflow-x-auto py-0.5 no-scrollbar">
           <button
@@ -1370,7 +1462,16 @@ export default function Documentos() {
             </div>
           )
         })()}
+        </>}
       </div>
+
+      {/* Prescription viewer modal */}
+      {viewingPrescription && (
+        <PatientPrescriptionModal
+          prescription={viewingPrescription}
+          onClose={() => setViewingPrescription(null)}
+        />
+      )}
 
       {/* Document Preview Modal */}
       <DocumentPreviewModal

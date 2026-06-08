@@ -100,6 +100,32 @@ export async function createAppointmentForPatient(data: {
 
 // ─── Read ─────────────────────────────────────────────────────────────────────
 
+export async function getAppointmentById(appointmentId: string): Promise<AppointmentWithPatient | null> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const { data: appt, error } = await supabase
+    .from('appointments')
+    .select('*')
+    .eq('id', appointmentId)
+    .eq('doctor_id', user.id)
+    .single()
+
+  if (error || !appt) { logger.error('getAppointmentById', error); return null }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('full_name, avatar_url')
+    .eq('id', appt.patient_id)
+    .single()
+
+  return {
+    ...appt,
+    patient_name: profile?.full_name ?? null,
+    patient_avatar: profile?.avatar_url ?? null,
+  } as AppointmentWithPatient
+}
+
 export async function getPatientAppointments(): Promise<AppointmentWithDoctor[]> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return []

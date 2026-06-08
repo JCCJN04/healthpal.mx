@@ -8,6 +8,7 @@ import {
   LogOut,
   CalendarDays,
   ClipboardList,
+  Stethoscope,
 } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '@/app/providers/AuthContext'
@@ -46,6 +47,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
         { label: 'Inicio', path: '/dashboard', icon: <Home size={20} /> },
         { label: 'Agenda', path: '/dashboard/agenda', icon: <CalendarDays size={20} /> },
         { label: 'Pacientes', path: '/dashboard/pacientes', icon: <Users size={20} /> },
+        { label: 'Recetas', path: '/dashboard/recetas', icon: <Stethoscope size={20} /> },
         { label: 'Documentos', path: '/dashboard/documentos', icon: <FileText size={20} /> },
         { label: 'Configuracion', path: '/dashboard/configuracion', icon: <Settings size={20} /> },
       ]

@@ -370,6 +370,9 @@ port = 54327
 # Configure one of the supported backends: `postgres`, `bigquery`.
 backend = "postgres"
 
+[functions]
+import_map = "./functions/import_map.json"
+
 [functions.whatsapp-webhook]
 verify_jwt = false
 

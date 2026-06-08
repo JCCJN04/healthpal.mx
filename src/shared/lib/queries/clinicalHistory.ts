@@ -16,6 +16,10 @@ export interface ClinicalHistoryData {
     non_pathological_history: any
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     gynecological_history: any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    psychiatric_history: any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    developmental_history: any
     systems_review: string | null
     last_edited_by?: string | null
     updated_at?: string | null

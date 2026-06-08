@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
     ArrowLeft,
     FileText,
@@ -32,6 +32,7 @@ import {
 } from 'lucide-react'
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import { getPatientFullProfile, getPatientNotes, addPatientNote, getPatientContactInfo } from '@/features/doctor/services/patients'
+import { getClinicalHistory } from '@/shared/lib/queries/clinicalHistory'
 import { getPatientProfile } from '@/shared/lib/queries/profile'
 import { getUserDocuments, getDocumentDownloadUrl, uploadDocumentForPatient, getDoctorDocumentsForPatient, getDocumentsSharedByPatientWithDoctor } from '@/shared/lib/queries/documents'
 import { createDocumentRequest } from '@/shared/lib/queries/documentRequests'
@@ -49,8 +50,11 @@ import AgendarCitaModal from '@/shared/components/appointments/AgendarCitaModal'
 import ClinicalHistoryTab from '@/features/doctor/components/ClinicalHistoryTab'
 import MedicalReportTab from '@/features/doctor/components/MedicalReportTab'
 import { generatePatientSummary } from '@/shared/lib/openai'
+import type { ProxyResult } from '@/shared/lib/openai'
+import { getAppointmentNotesByPatient, createAppointmentNote, deleteAppointmentNote } from '@/shared/lib/queries/appointmentNotes'
+import type { AppointmentNote } from '@/shared/lib/queries/appointmentNotes'
 
-type TabType = 'summary' | 'notes' | 'expediente' | 'historia' | 'informes'
+type TabType = 'summary' | 'notes' | 'expediente' | 'historia' | 'informes' | 'consultas'
 type ConsentGate = 'loading' | 'no-consent' | 'requested' | 'rejected' | 'revoked' | 'accepted'
 
 export default function PatientDetail() {
@@ -96,6 +100,27 @@ export default function PatientDetail() {
     const [upcomingAppointments, setUpcomingAppointments] = useState<any[]>([])
     const [aiSummary, setAiSummary] = useState<string | null>(null)
     const [aiSummaryLoading, setAiSummaryLoading] = useState(false)
+    const [aiSummaryAttempted, setAiSummaryAttempted] = useState(false)
+    const [aiSummaryNoApiKey, setAiSummaryNoApiKey] = useState(false)
+    const [aiSummaryLlmError, setAiSummaryLlmError] = useState<string | null>(null)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [clinicalHistorySummary, setClinicalHistorySummary] = useState<any>(null)
+    // Consultation notes state
+    const [consultationNotes, setConsultationNotes] = useState<AppointmentNote[]>([])
+    const [pastAppointments, setPastAppointments] = useState<any[]>([]) // eslint-disable-line @typescript-eslint/no-explicit-any
+    const [expandedAppt, setExpandedAppt] = useState<string | null>(null)
+    const [newConsultNote, setNewConsultNote] = useState<Record<string, { title: string; body: string }>>({})
+    const [savingConsultNote, setSavingConsultNote] = useState<string | null>(null)
+    const [deletingConsultNote, setDeletingConsultNote] = useState<string | null>(null)
+    const [loadingConsultNotes, setLoadingConsultNotes] = useState(false)
+
+    const tabScrollRef = useRef<HTMLDivElement>(null)
+    const [tabsAtEnd, setTabsAtEnd] = useState(false)
+    const handleTabScroll = () => {
+        const el = tabScrollRef.current
+        if (!el) return
+        setTabsAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 4)
+    }
 
     useEffect(() => {
         if (id && user) {
@@ -104,27 +129,132 @@ export default function PatientDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id, user])
 
-    useEffect(() => {
-        if (!patient || loading) return
-        setAiSummary(null)
-        setAiSummaryLoading(true)
+    const buildSummaryInput = () => {
         const pProf = medProfile
-        generatePatientSummary({
+        const ch = clinicalHistorySummary
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ph = ch?.pathological_history as any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const psych = ch?.psychiatric_history as any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const dev = ch?.developmental_history as any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const nph = ch?.non_pathological_history as any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const fh = ch?.family_history as any
+
+        const cdDiseases = ph?.cd
+            ? Object.entries(ph.cd as Record<string, { present: boolean; year?: string }>)
+                .filter(([, v]) => v?.present)
+                .map(([k]) => k.replace(/_/g, ' '))
+            : []
+        const allergiesFromCH = (() => {
+            if (!ch?.allergies) return null
+            try {
+                const arr = JSON.parse(ch.allergies)
+                if (Array.isArray(arr)) return arr.map((a: { name: string }) => a.name).join(', ')
+            } catch { /* legacy */ }
+            return ch.allergies
+        })()
+        const medsFromCH = ph?.medications?.details || null
+        const psychiatricDiagnoses = psych?.applicable
+            ? [...(psych.diagnoses || []), psych.diagnoses_other].filter(Boolean).join(', ')
+            : null
+        const psychiatricMeds = psych?.applicable && psych.current_psychiatric_meds?.present
+            ? psych.current_psychiatric_meds.details
+            : null
+        const developmentalNotes = dev?.applicable
+            ? [
+                dev.birth_type ? `Parto ${dev.birth_type}` : null,
+                dev.motor_milestones && dev.motor_milestones !== 'normal' ? `Motor: ${dev.motor_milestones.replace(/_/g, ' ')}` : null,
+                dev.language_milestones && dev.language_milestones !== 'normal' ? `Lenguaje: ${dev.language_milestones.replace(/_/g, ' ')}` : null,
+                dev.cognitive_development && dev.cognitive_development !== 'normal' ? `Cognitivo: ${dev.cognitive_development.replace(/_/g, ' ')}` : null,
+            ].filter(Boolean).join('; ')
+            : null
+
+        // Non-pathological
+        const smokingMap: Record<string, string> = { never: 'No fumador', ex: 'Ex-fumador', occasional: 'Ocasional', moderate: 'Moderado', heavy: 'Fuerte' }
+        const smokingStatus = nph?.smoking?.present
+            ? `Fumador${nph.smoking.frequency ? ` (${smokingMap[nph.smoking.frequency] ?? nph.smoking.frequency})` : ''}${nph.smoking.details ? `: ${nph.smoking.details}` : ''}`
+            : (nph?.smoking ? 'No fumador' : null)
+        const alcoholUse = nph?.alcohol?.present
+            ? `Consume alcohol${nph.alcohol.frequency_per_week ? ` (${nph.alcohol.frequency_per_week} veces/semana)` : ''}${nph.alcohol.cups_per_day ? `, ${nph.alcohol.cups_per_day} copas/día` : ''}`
+            : null
+
+        // Family history
+        const familyDiseases = fh
+            ? Object.entries(fh as Record<string, { present: boolean; relative?: string }>)
+                .filter(([, v]) => (v as { present?: boolean })?.present)
+                .map(([k, v]) => `${k.replace(/_/g, ' ')}${(v as { relative?: string }).relative ? ` (${(v as { relative?: string }).relative})` : ''}`)
+            : []
+        const familyHistory = familyDiseases.length ? familyDiseases.join(', ') : null
+
+        // Surgeries / hospitalizations
+        const surgeries = ph?.surgeries?.present ? (ph.surgeries.details || 'Sí (sin detalle)') : null
+        const hospitalizations = ph?.hospitalizations?.present ? (ph.hospitalizations.details || 'Sí (sin detalle)') : null
+
+        // Recent notes content (last 3)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const recentNotesSummary = (notes as any[]).slice(0, 3)
+            .filter((n) => n.title || n.body)
+            .map((n) => `[${n.created_at ? new Date(n.created_at).toLocaleDateString('es-MX') : ''}] ${n.title || ''}: ${String(n.body || '').slice(0, 200)}`)
+            .join(' | ') || null
+
+        // BMI
+        const heightM = pProf?.height_cm ? pProf.height_cm / 100 : null
+        const bmi = heightM && pProf?.weight_kg ? Math.round((pProf.weight_kg / (heightM * heightM)) * 10) / 10 : null
+
+        // Last appointment
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const lastAppt = (pastAppointments as any[])[0]
+        const lastAppointmentDate = lastAppt?.scheduled_at
+            ? new Date(lastAppt.scheduled_at).toLocaleDateString('es-MX')
+            : null
+
+        return {
             name: patient.full_name,
-            age: patient.birth_date ? Math.floor((Date.now() - new Date(patient.birth_date).getTime()) / 31557600000) : null,
+            age: patient.birthdate ? Math.floor((Date.now() - new Date(patient.birthdate).getTime()) / 31557600000) : null,
             sex: patient.sex,
             bloodType: pProf?.blood_type,
             height: pProf?.height_cm,
             weight: pProf?.weight_kg,
-            chronicConditions: pProf?.chronic_conditions || null,
-            allergies: pProf?.allergies || null,
-            medications: pProf?.current_medications || null,
+            bmi,
+            chronicConditions: cdDiseases.length ? cdDiseases.join(', ') : (pProf?.chronic_conditions || null),
+            allergies: allergiesFromCH || pProf?.allergies || null,
+            medications: medsFromCH || pProf?.current_medications || null,
             documentCount: documents.length,
             noteCount: notes.length,
             lastNoteDate: notes[0]?.created_at ? new Date(notes[0].created_at).toLocaleDateString('es-MX') : null,
-        }).then(result => {
-            setAiSummary(result)
-        }).finally(() => {
+            upcomingAppointments: upcomingAppointments.length,
+            totalAppointments: pastAppointments.length,
+            lastAppointmentDate,
+            psychiatricDiagnoses: psychiatricDiagnoses || null,
+            psychiatricMeds: psychiatricMeds || null,
+            developmentalNotes: developmentalNotes || null,
+            smokingStatus,
+            alcoholUse,
+            familyHistory,
+            recentNotesSummary,
+            patientObservations: ch?.patient_observations || null,
+            surgeries,
+            hospitalizations,
+        }
+    }
+
+    const applyAiSummaryResult = (res: ProxyResult) => {
+        setAiSummaryNoApiKey(res.noApiKey === true)
+        setAiSummaryLlmError(res.llmError ?? null)
+        setAiSummary(res.value)
+    }
+
+    useEffect(() => {
+        if (!patient || loading) return
+        setAiSummary(null)
+        setAiSummaryNoApiKey(false)
+        setAiSummaryLlmError(null)
+        setAiSummaryLoading(true)
+        setAiSummaryAttempted(true)
+        generatePatientSummary(buildSummaryInput()).then(applyAiSummaryResult).finally(() => {
             setAiSummaryLoading(false)
         })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -210,7 +340,7 @@ export default function PatientDetail() {
             if (s.share_documents) {
                 promises.push(getUserDocuments(id!, null, true).catch(e => { logger.error('PatientDetail.docs', e); return [] }))
                 keys.push('documents')
-                promises.push(getDoctorDocumentsForPatient(user!.id, id!).catch(e => { logger.error('PatientDetail.doctorDocs', e); return [] }))
+                promises.push(getDoctorDocumentsForPatient(id!).catch(e => { logger.error('PatientDetail.doctorDocs', e); return [] }))
                 keys.push('doctorDocs')
                 promises.push(getDocumentsSharedByPatientWithDoctor(user!.id, id!).catch(e => { logger.error('PatientDetail.patientSharedDocs', e); return [] }))
                 keys.push('patientSharedDocs')
@@ -251,6 +381,23 @@ export default function PatientDetail() {
             )
             keys.push('upcoming')
 
+            // Past appointments for consultation notes
+            promises.push(
+                Promise.resolve(
+                    supabase.from('appointments')
+                        .select('*').eq('doctor_id', user!.id).eq('patient_id', id!)
+                        .neq('status', 'cancelled')
+                        .lt('scheduled_at', new Date().toISOString())
+                        .order('scheduled_at', { ascending: false }).limit(50)
+                        .then(({ data }) => data ?? [])
+                ).catch(() => [])
+            )
+            keys.push('pastAppointments')
+
+            // Clinical history for AI summary
+            promises.push(getClinicalHistory(id!).catch(() => null))
+            keys.push('clinicalHistory')
+
             const results = await Promise.all(promises)
             keys.forEach((key, i) => {
                 switch (key) {
@@ -263,6 +410,8 @@ export default function PatientDetail() {
                     case 'insurances': setPatientInsurances(results[i] || []); break
                     case 'biometrics': setBiometricHistory(results[i] || []); break
                     case 'upcoming': setUpcomingAppointments(results[i] || []); break
+                    case 'pastAppointments': setPastAppointments(results[i] || []); break
+                    case 'clinicalHistory': setClinicalHistorySummary(results[i]); break
                 }
             })
         } catch (err) {
@@ -300,6 +449,55 @@ export default function PatientDetail() {
             showToast('Error al guardar la nota', 'error')
         } finally {
             setSavingNote(false)
+        }
+    }
+
+    const loadConsultationNotes = async () => {
+        if (!id) return
+        setLoadingConsultNotes(true)
+        try {
+            const data = await getAppointmentNotesByPatient(id)
+            setConsultationNotes(data)
+        } catch (err) {
+            logger.error('loadConsultationNotes', err)
+        } finally {
+            setLoadingConsultNotes(false)
+        }
+    }
+
+    const handleSaveConsultNote = async (appointmentId: string) => {
+        const draft = newConsultNote[appointmentId]
+        if (!draft?.body?.trim()) return
+        setSavingConsultNote(appointmentId)
+        try {
+            const note = await createAppointmentNote(appointmentId, draft.body, draft.title || undefined)
+            setConsultationNotes(prev => [note, ...prev])
+            setNewConsultNote(prev => ({ ...prev, [appointmentId]: { title: '', body: '' } }))
+            showToast('Nota de consulta guardada', 'success')
+        } catch (err) {
+            showToast('Error al guardar la nota', 'error')
+        } finally {
+            setSavingConsultNote(null)
+        }
+    }
+
+    const handleDeleteConsultNote = async (noteId: string) => {
+        setDeletingConsultNote(noteId)
+        try {
+            await deleteAppointmentNote(noteId)
+            setConsultationNotes(prev => prev.filter(n => n.id !== noteId))
+            showToast('Nota eliminada', 'success')
+        } catch (err) {
+            showToast('Error al eliminar la nota', 'error')
+        } finally {
+            setDeletingConsultNote(null)
+        }
+    }
+
+    const handleTabChange = (tab: TabType) => {
+        setActiveTab(tab)
+        if (tab === 'consultas' && consultationNotes.length === 0 && !loadingConsultNotes) {
+            void loadConsultationNotes()
         }
     }
 
@@ -434,7 +632,7 @@ export default function PatientDetail() {
 
     return (
         <DashboardLayout>
-            <div className="min-h-full bg-gray-50/60 flex flex-col">
+            <div className="-m-4 md:-m-6 lg:-m-8 min-h-screen bg-gray-50/60 flex flex-col">
 
                 {/* ── Top bar ──────────────────────────────────────── */}
                 <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex items-center gap-3 flex-shrink-0">
@@ -530,29 +728,6 @@ export default function PatientDetail() {
                                     <p className="text-[9px] text-gray-400">kg</p>
                                 </div>
                             </div>
-                            {/* IMC */}
-                            {(() => {
-                                const h = medProfile?.height_cm ?? pProfile?.height_cm
-                                const w = medProfile?.weight_kg ?? pProfile?.weight_kg
-                                if (!h || !w || h <= 0) return null
-                                const bmi = w / Math.pow(h / 100, 2)
-                                const cat = bmi < 18.5 ? { label: 'Bajo peso', color: 'text-blue-600', bar: 'bg-blue-400', bg: 'bg-blue-50' }
-                                    : bmi < 25 ? { label: 'Normal', color: 'text-green-600', bar: 'bg-green-400', bg: 'bg-green-50' }
-                                    : bmi < 30 ? { label: 'Sobrepeso', color: 'text-yellow-600', bar: 'bg-yellow-400', bg: 'bg-yellow-50' }
-                                    : { label: 'Obesidad', color: 'text-red-600', bar: 'bg-red-400', bg: 'bg-red-50' }
-                                return (
-                                    <div className={`${cat.bg} rounded-xl p-3`}>
-                                        <div className="flex items-center justify-between mb-1.5">
-                                            <span className="text-[9px] font-bold text-gray-400 uppercase">IMC</span>
-                                            <span className={`text-[9px] font-bold ${cat.color}`}>{cat.label}</span>
-                                        </div>
-                                        <p className={`text-lg font-black ${cat.color}`}>{bmi.toFixed(1)} <span className="text-[9px] font-medium text-gray-400">kg/m²</span></p>
-                                        <div className="mt-1.5 h-1 bg-white/70 rounded-full overflow-hidden">
-                                            <div className={`h-full ${cat.bar} rounded-full`} style={{ width: `${Math.min((bmi / 40) * 100, 100)}%` }} />
-                                        </div>
-                                    </div>
-                                )
-                            })()}
                         </div>
 
                         {/* Contact */}
@@ -781,33 +956,47 @@ export default function PatientDetail() {
                         </div>
 
                         {/* Tab bar */}
-                        <div className="bg-white border-b border-gray-200 px-4 sm:px-6 flex gap-0 flex-shrink-0">
-                            {[
-                                { id: 'summary', label: 'Resumen', icon: Activity, enabled: true },
-                                { id: 'historia', label: 'Historial Clínico', icon: ClipboardList, enabled: true },
-                                { id: 'informes', label: 'Informes', icon: FileText, enabled: true },
-                                { id: 'expediente', label: 'Expediente', icon: FileText, enabled: scopes.share_documents, navigateTo: `/dashboard/documentos?folder=shared-${id}` },
-                                { id: 'notes', label: 'Notas', icon: StickyNote, enabled: scopes.share_medical_notes },
-                            ].filter(t => t.enabled).map((tab) => (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => (tab as { navigateTo?: string }).navigateTo ? navigate((tab as { navigateTo?: string }).navigateTo!) : setActiveTab(tab.id as TabType)}
-                                    className={`flex items-center gap-2 px-4 py-3.5 text-sm font-semibold border-b-2 transition-all ${
-                                        activeTab === tab.id
-                                            ? 'border-[#33C7BE] text-[#33C7BE]'
-                                            : 'border-transparent text-gray-500 hover:text-gray-800'
-                                    }`}
-                                >
-                                    <tab.icon size={14} />
-                                    {tab.label}
-                                    {tab.id === 'notes' && scopes.share_medical_notes && notes.length > 0 && (
-                                        <span className="bg-[#33C7BE]/15 text-[#33C7BE] text-[10px] font-bold px-1.5 py-0.5 rounded-full">{notes.length}</span>
-                                    )}
-                                    {tab.id === 'expediente' && scopes.share_documents && totalDocs > 0 && (
-                                        <span className="bg-blue-100 text-blue-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full">{totalDocs}</span>
-                                    )}
-                                </button>
-                            ))}
+                        <div className="relative flex-shrink-0 border-b border-gray-200 bg-white">
+                            <div
+                                ref={tabScrollRef}
+                                onScroll={handleTabScroll}
+                                className="flex gap-0 overflow-x-auto px-4 sm:px-6"
+                                style={{ scrollbarWidth: 'none' }}
+                            >
+                                {[
+                                    { id: 'summary', label: 'Resumen', icon: Activity, enabled: true },
+                                    { id: 'historia', label: 'Historial Clínico', icon: ClipboardList, enabled: true },
+                                    { id: 'consultas', label: 'Consultas', icon: CalendarDays, enabled: true },
+                                    { id: 'informes', label: 'Informes', icon: FileText, enabled: true },
+                                    { id: 'expediente', label: 'Expediente', icon: FileText, enabled: scopes.share_documents, navigateTo: `/dashboard/documentos?folder=shared-${id}` },
+                                    { id: 'notes', label: 'Notas', icon: StickyNote, enabled: scopes.share_medical_notes },
+                                ].filter(t => t.enabled).map((tab) => (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => (tab as { navigateTo?: string }).navigateTo ? navigate((tab as { navigateTo?: string }).navigateTo!) : handleTabChange(tab.id as TabType)}
+                                        className={`flex items-center gap-2 px-4 py-3.5 text-sm font-semibold border-b-2 transition-all flex-shrink-0 ${
+                                            activeTab === tab.id
+                                                ? 'border-[#33C7BE] text-[#33C7BE]'
+                                                : 'border-transparent text-gray-500 hover:text-gray-800'
+                                        }`}
+                                    >
+                                        <tab.icon size={14} />
+                                        {tab.label}
+                                        {tab.id === 'notes' && scopes.share_medical_notes && notes.length > 0 && (
+                                            <span className="bg-[#33C7BE]/15 text-[#33C7BE] text-[10px] font-bold px-1.5 py-0.5 rounded-full">{notes.length}</span>
+                                        )}
+                                        {tab.id === 'expediente' && scopes.share_documents && totalDocs > 0 && (
+                                            <span className="bg-blue-100 text-blue-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full">{totalDocs}</span>
+                                        )}
+                                    </button>
+                                ))}
+                            </div>
+                            {/* Scroll hint: right fade + chevron, hidden on lg or when scrolled to end */}
+                            <div
+                                className={`pointer-events-none absolute right-0 top-0 bottom-0 w-10 flex items-center justify-end pr-1 bg-gradient-to-l from-white via-white/80 to-transparent transition-opacity duration-200 lg:hidden ${tabsAtEnd ? 'opacity-0' : 'opacity-100'}`}
+                            >
+                                <ChevronRight size={14} className="text-gray-400" />
+                            </div>
                         </div>
 
                         {/* Tab content */}
@@ -829,21 +1018,11 @@ export default function PatientDetail() {
                                                     onClick={() => {
                                                         if (!patient) return
                                                         setAiSummary(null)
+                                                        setAiSummaryNoApiKey(false)
+                                                        setAiSummaryLlmError(null)
                                                         setAiSummaryLoading(true)
-                                                        generatePatientSummary({
-                                                            name: patient.full_name,
-                                                            age: patient.birth_date ? Math.floor((Date.now() - new Date(patient.birth_date).getTime()) / 31557600000) : null,
-                                                            sex: patient.sex,
-                                                            bloodType: medProfile?.blood_type,
-                                                            height: medProfile?.height_cm,
-                                                            weight: medProfile?.weight_kg,
-                                                            chronicConditions: medProfile?.chronic_conditions || null,
-                                                            allergies: medProfile?.allergies || null,
-                                                            medications: medProfile?.current_medications || null,
-                                                            documentCount: documents.length,
-                                                            noteCount: notes.length,
-                                                            lastNoteDate: notes[0]?.created_at ? new Date(notes[0].created_at).toLocaleDateString('es-MX') : null,
-                                                        }).then(setAiSummary).finally(() => setAiSummaryLoading(false))
+                                                        setAiSummaryAttempted(true)
+                                                        generatePatientSummary(buildSummaryInput()).then(applyAiSummaryResult).finally(() => setAiSummaryLoading(false))
                                                     }}
                                                     className="text-[10px] font-semibold text-[#33C7BE] hover:text-teal-700 flex items-center gap-1 flex-shrink-0"
                                                 >
@@ -858,28 +1037,73 @@ export default function PatientDetail() {
                                             </div>
                                         ) : aiSummary ? (
                                             <p className="text-sm text-gray-700 leading-relaxed">{aiSummary}</p>
+                                        ) : aiSummaryNoApiKey ? (
+                                            <p className="text-sm text-amber-600 italic">Servicio de IA no configurado. Contacta al administrador para activar la clave de API.</p>
+                                        ) : aiSummaryLlmError === 'LLM_WRONG_ENDPOINT' ? (
+                                            <p className="text-sm text-amber-600 italic">Configuración incorrecta: clave de OpenRouter pero endpoint apunta a OpenAI. Configura OPENAI_BASE_URL=https://openrouter.ai/api/v1 en Supabase.</p>
+                                        ) : aiSummaryLlmError === 'LLM_AUTH_ERROR' ? (
+                                            <p className="text-sm text-amber-600 italic">Clave de API de IA inválida o revocada. Verifica la configuración.</p>
+                                        ) : aiSummaryLlmError === 'LLM_QUOTA_ERROR' ? (
+                                            <p className="text-sm text-amber-600 italic">Cuota de API de IA agotada. Recarga créditos en platform.openai.com.</p>
+                                        ) : aiSummaryAttempted ? (
+                                            <p className="text-sm text-amber-600 italic">No se pudo generar el resumen. Intenta de nuevo.</p>
                                         ) : (
-                                            <p className="text-sm text-gray-400 italic">No se pudo generar el resumen.</p>
+                                            <p className="text-sm text-gray-400 italic">Generando resumen clínico...</p>
                                         )}
                                     </div>
 
                                     {/* Clinical data row */}
-                                    <div className="space-y-2.5">
-                                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Datos Clínicos</h3>
-                                        {[
-                                            { emoji: '🫀', label: 'Condiciones crónicas', value: medProfile?.chronic_conditions || pProfile?.chronic_conditions || 'Ninguna registrada', accent: 'border-l-orange-400' },
-                                            { emoji: '⚠️', label: 'Alergias conocidas', value: medProfile?.allergies || pProfile?.allergies || 'Ninguna conocida', accent: 'border-l-red-400' },
-                                            { emoji: '💊', label: 'Medicación activa', value: medProfile?.current_medications || pProfile?.current_medications || 'Ninguna', accent: 'border-l-blue-400' },
-                                        ].map((item, i) => (
-                                            <div key={i} className={`flex items-center gap-3 p-3.5 bg-white border border-gray-100 border-l-4 ${item.accent} rounded-xl shadow-sm`}>
-                                                <span className="text-xl leading-none flex-shrink-0">{item.emoji}</span>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{item.label}</p>
-                                                    <p className="text-sm font-semibold text-gray-800 mt-0.5">{item.value}</p>
-                                                </div>
+                                    {(() => {
+                                        const ch = clinicalHistorySummary
+                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                        const ph = ch?.pathological_history as any
+
+                                        const chConditions = ph?.cd
+                                            ? Object.entries(ph.cd as Record<string, { present: boolean }>)
+                                                .filter(([, v]) => v?.present)
+                                                .map(([k]) => k.replace(/_/g, ' '))
+                                                .join(', ')
+                                            : null
+                                        const chOtherDiseases = ph?.other_diseases?.present ? ph.other_diseases.details : null
+                                        const conditionValue = chConditions
+                                            ? (chOtherDiseases ? `${chConditions}, ${chOtherDiseases}` : chConditions)
+                                            : (chOtherDiseases || medProfile?.chronic_conditions || pProfile?.chronic_conditions || null)
+
+                                        const chAllergies = (() => {
+                                            if (!ch?.allergies) return null
+                                            try {
+                                                const arr = JSON.parse(ch.allergies)
+                                                if (Array.isArray(arr) && arr.length > 0) return arr.map((a: { name: string }) => a.name).join(', ')
+                                                if (Array.isArray(arr) && arr.length === 0) return null
+                                            } catch { /* legacy string */ }
+                                            return ch.allergies || null
+                                        })()
+                                        const allergyValue = chAllergies || medProfile?.allergies || pProfile?.allergies || null
+
+                                        const medsValue = (ph?.medications?.present ? ph.medications.details : null)
+                                            || medProfile?.current_medications || pProfile?.current_medications || null
+
+                                        const items = [
+                                            { emoji: '🫀', label: 'Condiciones crónicas', value: conditionValue, fallback: 'Ninguna registrada', accent: 'border-l-orange-400' },
+                                            { emoji: '⚠️', label: 'Alergias conocidas', value: allergyValue, fallback: 'Ninguna conocida', accent: 'border-l-red-400' },
+                                            { emoji: '💊', label: 'Medicación activa', value: medsValue, fallback: 'Ninguna', accent: 'border-l-blue-400' },
+                                        ]
+
+                                        return (
+                                            <div className="space-y-2.5">
+                                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Datos Clínicos</h3>
+                                                {items.map((item, i) => (
+                                                    <div key={i} className={`flex items-center gap-3 p-3.5 bg-white border border-gray-100 border-l-4 ${item.accent} rounded-xl shadow-sm`}>
+                                                        <span className="text-xl leading-none flex-shrink-0">{item.emoji}</span>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{item.label}</p>
+                                                            <p className={`text-sm font-semibold mt-0.5 ${item.value ? 'text-gray-800' : 'text-gray-400'}`}>{item.value || item.fallback}</p>
+                                                        </div>
+                                                    </div>
+                                                ))}
                                             </div>
-                                        ))}
-                                    </div>
+                                        )
+                                    })()}
 
                                     {/* Notes for doctor */}
                                     {(medProfile?.notes_for_doctor || pProfile?.notes_for_doctor) && (
@@ -960,7 +1184,6 @@ export default function PatientDetail() {
                                     patientSharedDocs={patientSharedDocs}
                                     patientName={patient.full_name}
                                     patientId={patient.id}
-                                    doctorId={user!.id}
                                     patientEmail={contactInfo?.email}
                                     onUpload={() => loadPatientData()}
                                 />
@@ -983,6 +1206,148 @@ export default function PatientDetail() {
                             {activeTab === 'informes' && (
                                 <MedicalReportTab patientId={id!} doctorId={user!.id} patient={patient} medProfile={medProfile} />
                             )}
+
+                            {activeTab === 'consultas' && (() => {
+                                const now = new Date()
+                                const allAppts = [
+                                    ...upcomingAppointments.map(a => ({ ...a, _upcoming: true })),
+                                    ...pastAppointments.map(a => ({ ...a, _upcoming: false })),
+                                ].sort((a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime())
+
+                                return (
+                                    <div className="max-w-2xl space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="text-sm font-bold text-gray-700 uppercase tracking-widest">Consultas</h3>
+                                            {loadingConsultNotes && <Loader2 size={15} className="animate-spin text-[#33C7BE]" />}
+                                        </div>
+
+                                        {allAppts.length === 0 && !loadingConsultNotes && (
+                                            <div className="text-center py-12 bg-white rounded-2xl border border-gray-100">
+                                                <div className="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                                                    <CalendarDays size={24} className="text-gray-300" />
+                                                </div>
+                                                <p className="text-sm font-semibold text-gray-500">Sin consultas registradas</p>
+                                                <p className="text-xs text-gray-400 mt-1">Las citas con este paciente aparecerán aquí</p>
+                                            </div>
+                                        )}
+
+                                        {allAppts.map((appt) => {
+                                            const isPastAppt = !appt._upcoming && new Date(appt.scheduled_at) < now
+                                            const apptNotes = consultationNotes.filter(n => n.appointment_id === appt.id)
+                                            const isExpanded = expandedAppt === appt.id
+                                            const draft = newConsultNote[appt.id] || { title: '', body: '' }
+                                            const modeLabel = appt.mode === 'video' ? 'Videoconsulta' : appt.mode === 'phone' ? 'Telefónica' : 'Presencial'
+                                            const apptDate = new Date(appt.scheduled_at)
+                                            const statusLabel = appt.status === 'completed' ? 'Completada' : appt.status === 'confirmed' ? 'Confirmada' : appt.status === 'pending' ? 'Pendiente' : appt.status
+                                            const statusColor = appt.status === 'completed' ? 'bg-gray-100 text-gray-500' : appt.status === 'confirmed' ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'
+                                            return (
+                                                <div key={appt.id} className="border border-gray-200 rounded-2xl bg-white overflow-hidden">
+                                                    <button
+                                                        onClick={() => setExpandedAppt(isExpanded ? null : appt.id)}
+                                                        className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors text-left"
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${isPastAppt ? 'bg-gray-100' : 'bg-[#33C7BE]/10'}`}>
+                                                                <CalendarDays size={16} className={isPastAppt ? 'text-gray-400' : 'text-[#33C7BE]'} />
+                                                            </div>
+                                                            <div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <p className="text-sm font-bold text-gray-900">
+                                                                        {apptDate.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                                                    </p>
+                                                                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${statusColor}`}>{statusLabel}</span>
+                                                                </div>
+                                                                <p className="text-xs text-gray-500">{modeLabel} · {apptDate.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}</p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            {apptNotes.length > 0 && (
+                                                                <span className="bg-[#33C7BE]/15 text-[#33C7BE] text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                                                    {apptNotes.length} {apptNotes.length === 1 ? 'nota' : 'notas'}
+                                                                </span>
+                                                            )}
+                                                            <ChevronRight size={14} className={`text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                                                        </div>
+                                                    </button>
+
+                                                    {isExpanded && (
+                                                        <div className="border-t border-gray-100 px-4 py-4 space-y-4">
+                                                            {appt.reason && (
+                                                                <div className="bg-gray-50 rounded-xl p-3">
+                                                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Motivo</p>
+                                                                    <p className="text-xs text-gray-600">{appt.reason}</p>
+                                                                </div>
+                                                            )}
+
+                                                            {isPastAppt ? (
+                                                                <>
+                                                                    {apptNotes.length > 0 && (
+                                                                        <div className="space-y-3">
+                                                                            {apptNotes.map((note) => (
+                                                                                <div key={note.id} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                                                                                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                                                                                        <span className="text-xs font-bold text-gray-700">{note.title || 'Nota de consulta'}</span>
+                                                                                        <div className="flex items-center gap-2 flex-shrink-0">
+                                                                                            <span className="text-[10px] text-gray-400">
+                                                                                                {new Date(note.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
+                                                                                            </span>
+                                                                                            <button
+                                                                                                onClick={() => handleDeleteConsultNote(note.id)}
+                                                                                                disabled={deletingConsultNote === note.id}
+                                                                                                className="text-gray-300 hover:text-red-400 transition-colors"
+                                                                                            >
+                                                                                                {deletingConsultNote === note.id ? <Loader2 size={12} className="animate-spin" /> : <X size={12} />}
+                                                                                            </button>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    <p className="text-xs text-gray-600 leading-relaxed whitespace-pre-wrap">{note.body}</p>
+                                                                                    <p className="text-[10px] text-gray-400 mt-2 flex items-center gap-1">
+                                                                                        <Lock size={9} /> Cifrada AES-256
+                                                                                    </p>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    )}
+
+                                                                    <div className="space-y-2 pt-1">
+                                                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Agregar nota</p>
+                                                                        <input
+                                                                            placeholder="Título (ej: Diagnóstico, Plan de tratamiento)"
+                                                                            className="w-full px-3 py-2 border border-gray-200 bg-white rounded-xl text-xs focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none"
+                                                                            value={draft.title}
+                                                                            onChange={e => setNewConsultNote(prev => ({ ...prev, [appt.id]: { ...draft, title: e.target.value } }))}
+                                                                        />
+                                                                        <textarea
+                                                                            placeholder="Evolución, hallazgos, indicaciones, plan..."
+                                                                            rows={3}
+                                                                            className="w-full px-3 py-2 border border-gray-200 bg-white rounded-xl text-xs focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none resize-none"
+                                                                            value={draft.body}
+                                                                            onChange={e => setNewConsultNote(prev => ({ ...prev, [appt.id]: { ...draft, body: e.target.value } }))}
+                                                                        />
+                                                                        <div className="flex items-center justify-between">
+                                                                            <p className="text-[10px] text-gray-400 flex items-center gap-1"><Lock size={9} /> Cifrada AES-256</p>
+                                                                            <button
+                                                                                onClick={() => handleSaveConsultNote(appt.id)}
+                                                                                disabled={savingConsultNote === appt.id || !draft.body.trim()}
+                                                                                className="px-4 py-1.5 bg-[#33C7BE] text-white text-xs font-bold rounded-xl hover:bg-teal-600 disabled:opacity-50 transition-all flex items-center gap-1.5"
+                                                                            >
+                                                                                {savingConsultNote === appt.id ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+                                                                                Guardar
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                </>
+                                                            ) : (
+                                                                <p className="text-xs text-gray-400 text-center py-2">Consulta próxima — las notas estarán disponibles después de la cita</p>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                )
+                            })()}
 
                             {activeTab === 'notes' && scopes.share_medical_notes && (
                                 <div className="max-w-2xl space-y-5">
@@ -1180,7 +1545,6 @@ function ExpedienteDigital({
     patientSharedDocs,
     patientName,
     patientId,
-    doctorId,
     patientEmail,
     onUpload,
 }: {
@@ -1192,7 +1556,6 @@ function ExpedienteDigital({
     patientSharedDocs: any[]
     patientName: string
     patientId: string
-    doctorId: string
     patientEmail?: string
     onUpload: () => void
 }) {
@@ -1219,7 +1582,7 @@ function ExpedienteDigital({
         setDocReqLoading(true)
         try {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const { data, error } = await (createDocumentRequest as any)(doctorId, docReqEmail, docReqType, docReqDesc)
+            const { data, error } = await createDocumentRequest(docReqEmail, docReqType, docReqDesc)
             if (error || !data) {
                 showToast(error || 'Error al crear la solicitud', 'error', 3000)
                 return
@@ -1311,7 +1674,6 @@ function ExpedienteDigital({
         setUploading(true)
         const result = await uploadDocumentForPatient(
             uploadForm.file,
-            doctorId,
             patientId,
             { title: uploadForm.title || uploadForm.file.name, category: uploadForm.category, notes: uploadForm.notes || undefined }
         )

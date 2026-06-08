@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
-const ALLOWED_ORIGINS = new Set(['https://healthpal.mx', 'https://www.healthpal.mx'])
+const ALLOWED_ORIGINS = new Set(['https://healthpal.mx', 'https://www.healthpal.mx', 'http://localhost:3000', 'http://localhost:5173'])
 
 function getCorsHeaders(req: Request) {
     const origin = req.headers.get('origin') ?? ''
@@ -71,7 +71,8 @@ Deno.serve(async (req: Request) => {
                 })
             }
 
-            const { data: { user }, error: userError } = await supabase.auth.getUser()
+            const token = authHeader.replace('Bearer ', '')
+            const { data: { user }, error: userError } = await supabase.auth.getUser(token)
             if (userError || !user) {
                 return new Response(JSON.stringify({ error: 'No autorizado' }), {
                     status: 401, headers: { ...cors, 'Content-Type': 'application/json' }

@@ -50,22 +50,23 @@ function sanitizeInput(raw: unknown, maxLen = 300): string {
 function sanitizeOutput(raw: string | null | undefined): string | null {
   if (!raw) return null;
   const clean = raw
-    // Remove fenced and inline code blocks
+    // Remove fenced code blocks
     .replace(/```[\s\S]*?```/g, "")
     .replace(/`[^`\n]{1,200}`/g, "")
-    // Remove JSON-like structures > 30 chars (likely exfil attempts)
-    .replace(/\{[^}]{30,}\}/g, "")
-    .replace(/\[[^\]]{30,}\]/g, "")
     // Remove URLs
     .replace(/https?:\/\/[^\s]{1,200}/g, "")
+    // Remove obvious JSON objects (curly braces with key:value pattern)
+    .replace(/\{(?:[^{}]*"[^"]+"\s*:){1,}[^{}]*\}/g, "")
     // Normalize whitespace
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
-  // Hard reject if response still looks like code or structured data
-  if (/^\s*[{[<]/.test(clean)) return null;
+  // Hard reject if response starts with code/JSON structure
+  if (/^\s*\{/.test(clean)) return null;
+  // Reject if response is too short to be a meaningful clinical summary
+  if (clean.length < 10) return null;
 
-  return clean.slice(0, 1200); // cap at 1200 chars
+  return clean.slice(0, 2000); // cap at 2000 chars
 }
 
 // ── Per-user rate limiting (DB-backed, persistent across cold starts) ─────────
@@ -120,14 +121,26 @@ async function callLLM(
 
   if (!apiKey) {
     console.error("ai-proxy: OPENAI_API_KEY not configured");
-    return null;
+    throw new Error("NO_API_KEY");
   }
+
+  // Detect misconfiguration: OpenRouter key sent to OpenAI endpoint
+  const isOpenRouterKey = apiKey.startsWith("sk-or-");
+  const isOpenAiEndpoint = baseUrl.includes("api.openai.com");
+  if (isOpenRouterKey && isOpenAiEndpoint) {
+    console.error("ai-proxy: OpenRouter key detected but OPENAI_BASE_URL points to OpenAI. Set OPENAI_BASE_URL=https://openrouter.ai/api/v1");
+    throw new Error("LLM_WRONG_ENDPOINT");
+  }
+
+  console.log(`ai-proxy: calling ${baseUrl}/chat/completions model=${model}`);
 
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
+      "HTTP-Referer": "https://healthpal.mx",
+      "X-Title": "HealthPal.mx",
     },
     body: JSON.stringify({
       model,
@@ -138,8 +151,11 @@ async function callLLM(
   });
 
   if (!res.ok) {
-    console.error("ai-proxy: LLM request failed", res.status);
-    return null;
+    const errBody = await res.text().catch(() => "");
+    console.error("ai-proxy: LLM request failed", res.status, errBody.slice(0, 300));
+    if (res.status === 401 || res.status === 403) throw new Error("LLM_AUTH_ERROR");
+    if (res.status === 429) throw new Error("LLM_QUOTA_ERROR");
+    throw new Error(`LLM_ERROR_${res.status}`);
   }
 
   const data = await res.json();
@@ -158,10 +174,23 @@ interface PatientSummaryInput {
   medications?: string | null;
   height?: number | null;
   weight?: number | null;
+  bmi?: number | null;
   documentCount?: number | null;
   noteCount?: number | null;
   lastNoteDate?: string | null;
   upcomingAppointments?: number | null;
+  totalAppointments?: number | null;
+  lastAppointmentDate?: string | null;
+  psychiatricDiagnoses?: string | null;
+  psychiatricMeds?: string | null;
+  developmentalNotes?: string | null;
+  smokingStatus?: string | null;
+  alcoholUse?: string | null;
+  familyHistory?: string | null;
+  recentNotesSummary?: string | null;
+  patientObservations?: string | null;
+  surgeries?: string | null;
+  hospitalizations?: string | null;
 }
 
 async function handlePatientSummary(
@@ -169,35 +198,70 @@ async function handlePatientSummary(
 ): Promise<string | null> {
   const lines: string[] = [];
 
-  // Sanitize every text field before it enters the prompt
+  // Demographics
   if (raw.name)               lines.push(`Nombre: ${sanitizeInput(raw.name, 100)}`);
   if (raw.age)                lines.push(`Edad: ${Number(raw.age)} años`);
   if (raw.sex)                lines.push(`Sexo: ${sanitizeInput(raw.sex, 20)}`);
   if (raw.bloodType)          lines.push(`Tipo de sangre: ${sanitizeInput(raw.bloodType, 10)}`);
   if (raw.height)             lines.push(`Altura: ${Number(raw.height)} cm`);
   if (raw.weight)             lines.push(`Peso: ${Number(raw.weight)} kg`);
+  if (raw.bmi != null)        lines.push(`IMC: ${Number(raw.bmi)}`);
+
+  // Clinical
   if (raw.chronicConditions)  lines.push(`Condiciones crónicas: ${sanitizeInput(raw.chronicConditions)}`);
   if (raw.allergies)          lines.push(`Alergias: ${sanitizeInput(raw.allergies)}`);
   if (raw.medications)        lines.push(`Medicación activa: ${sanitizeInput(raw.medications)}`);
-  if (raw.documentCount != null) lines.push(`Documentos: ${Number(raw.documentCount)}`);
+  if (raw.surgeries)          lines.push(`Cirugías previas: ${sanitizeInput(raw.surgeries, 200)}`);
+  if (raw.hospitalizations)   lines.push(`Hospitalizaciones: ${sanitizeInput(raw.hospitalizations, 200)}`);
+
+  // Psychiatric / developmental
+  if (raw.psychiatricDiagnoses) lines.push(`Antecedentes psiquiátricos: ${sanitizeInput(raw.psychiatricDiagnoses, 300)}`);
+  if (raw.psychiatricMeds)      lines.push(`Medicación psiquiátrica: ${sanitizeInput(raw.psychiatricMeds, 200)}`);
+  if (raw.developmentalNotes)   lines.push(`Antecedentes de desarrollo: ${sanitizeInput(raw.developmentalNotes, 200)}`);
+
+  // Non-pathological habits
+  if (raw.smokingStatus)      lines.push(`Tabaquismo: ${sanitizeInput(raw.smokingStatus, 100)}`);
+  if (raw.alcoholUse)         lines.push(`Alcoholismo: ${sanitizeInput(raw.alcoholUse, 100)}`);
+
+  // Family history
+  if (raw.familyHistory)      lines.push(`Antecedentes heredofamiliares: ${sanitizeInput(raw.familyHistory, 300)}`);
+
+  // Appointments & notes
+  if (raw.totalAppointments != null) lines.push(`Consultas totales con usted: ${Number(raw.totalAppointments)}`);
+  if (raw.lastAppointmentDate) lines.push(`Última consulta: ${sanitizeInput(raw.lastAppointmentDate, 30)}`);
+  if (raw.upcomingAppointments != null && raw.upcomingAppointments > 0)
+    lines.push(`Citas próximas: ${Number(raw.upcomingAppointments)}`);
   if (raw.noteCount != null)  lines.push(`Notas clínicas: ${Number(raw.noteCount)}`);
   if (raw.lastNoteDate)       lines.push(`Última nota: ${sanitizeInput(raw.lastNoteDate, 30)}`);
+  if (raw.documentCount != null) lines.push(`Documentos en expediente: ${Number(raw.documentCount)}`);
+
+  // Patient observations from clinical history
+  if (raw.patientObservations) lines.push(`Observaciones del paciente: ${sanitizeInput(raw.patientObservations, 300)}`);
+
+  // Recent notes content
+  if (raw.recentNotesSummary) lines.push(`Contenido notas recientes: ${sanitizeInput(raw.recentNotesSummary, 500)}`);
 
   const systemPrompt =
-    "Eres un asistente clínico de HealthPal.mx. Tu única función es generar resúmenes clínicos concisos para médicos. " +
-    "Responde SOLAMENTE con el resumen clínico en español, máximo 3 oraciones. " +
-    "No generes código, JSON, URLs, listas de instrucciones ni ningún otro tipo de contenido. " +
-    "Si no tienes datos suficientes, responde con una oración indicándolo.";
+    "Eres un asistente clínico de HealthPal.mx. Generas resúmenes clínicos estructurados para el médico tratante. " +
+    "El resumen se muestra directamente al médico que atiende al paciente, por lo que debes referirte a las consultas como 'con usted' en lugar de 'con este médico'. " +
+    "Escribe un resumen en español en texto plano, sin listas con guiones, sin markdown, sin numeración. " +
+    "Usa 3 a 5 oraciones que cubran en orden: identificación del paciente y datos antropométricos relevantes, " +
+    "condiciones crónicas y alergias críticas, hábitos (tabaco/alcohol) si aplica, " +
+    "antecedentes heredofamiliares relevantes si los hay, " +
+    "cirugías u hospitalizaciones previas si las hay, " +
+    "medicación activa, y actividad clínica reciente (número de consultas con usted, última visita, resumen de notas si existen). " +
+    "Omite secciones sin datos. Sé preciso y clínico. Máximo 6 oraciones. " +
+    "No generes código, JSON, URLs, listas ni instrucciones adicionales.";
 
   const userPrompt =
-    `Genera el resumen clínico para el médico tratante basándote en los siguientes datos del paciente:\n${lines.join("\n")}`;
+    `Genera el resumen clínico para el médico tratante:\n${lines.join("\n")}`;
 
   const raw_output = await callLLM(
     [
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
     ],
-    { temperature: 0.2, max_tokens: 300 },
+    { temperature: 0.2, max_tokens: 500 },
   );
 
   return sanitizeOutput(raw_output);
@@ -341,15 +405,27 @@ serve(async (req: Request) => {
 
     let result: string | null = null;
 
-    if (body.action === "patient_summary") {
-      result = await handlePatientSummary(body.data ?? {});
-    } else if (body.action === "patient_chat") {
-      result = await handlePatientChat(body.data ?? {});
-    } else {
-      return new Response(JSON.stringify({ error: "action no reconocida" }), {
-        status: 400,
-        headers: { ...cors, "Content-Type": "application/json" },
-      });
+    try {
+      if (body.action === "patient_summary") {
+        result = await handlePatientSummary(body.data ?? {});
+      } else if (body.action === "patient_chat") {
+        result = await handlePatientChat(body.data ?? {});
+      } else {
+        return new Response(JSON.stringify({ error: "action no reconocida" }), {
+          status: 400,
+          headers: { ...cors, "Content-Type": "application/json" },
+        });
+      }
+    } catch (llmErr) {
+      const msg = (llmErr as Error).message;
+      const knownErrors = ["NO_API_KEY", "LLM_AUTH_ERROR", "LLM_QUOTA_ERROR", "LLM_WRONG_ENDPOINT"];
+      if (msg === "NO_API_KEY" || knownErrors.includes(msg) || msg.startsWith("LLM_")) {
+        return new Response(JSON.stringify({ error: msg }), {
+          status: 503,
+          headers: { ...cors, "Content-Type": "application/json" },
+        });
+      }
+      throw llmErr; // re-throw other errors
     }
 
     return new Response(JSON.stringify({ result }), {

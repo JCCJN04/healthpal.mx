@@ -21,13 +21,8 @@ type DemoContextValue = {
 const DemoContext = createContext<DemoContextValue>({ enabled: false })
 
 export function isDemoMode(): boolean {
-  if (typeof window === 'undefined') return false
-
-  if (window.location.pathname.startsWith('/demo/doctor')) {
-    return true
-  }
-
-  return window.sessionStorage.getItem(DEMO_MODE_STORAGE_KEY) === 'doctor'
+  return typeof window !== 'undefined' &&
+    window.location.pathname.startsWith('/demo/doctor')
 }
 
 export function enableDemoMode(): void {

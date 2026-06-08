@@ -332,6 +332,32 @@ interface GynecologicalHistory {
     details: string
 }
 
+interface PsychiatricHistory {
+    applicable: boolean
+    diagnoses: string[]
+    diagnoses_other: string
+    current_psychiatric_meds: ToggleItem
+    previous_psychiatric_meds: string
+    psychotherapy: ToggleItem
+    hospitalization_psychiatric: ToggleItem
+    suicide_attempts: ToggleItem
+    notes: string
+}
+
+interface DevelopmentalHistory {
+    applicable: boolean
+    birth_type: string
+    gestational_age_weeks: string
+    perinatal_complications: ToggleItem
+    neonatal_complications: string[]
+    motor_milestones: string
+    language_milestones: string
+    cognitive_development: string
+    school_performance: string
+    education_level: string
+    notes: string
+}
+
 interface FormData {
     patient_id: string
     allergies: string
@@ -342,6 +368,8 @@ interface FormData {
     pathological_history: PathologicalHistory
     non_pathological_history: NonPathologicalHistory
     gynecological_history: GynecologicalHistory
+    psychiatric_history: PsychiatricHistory
+    developmental_history: DevelopmentalHistory
     systems_review: string
     updated_at?: string
 }
@@ -486,6 +514,59 @@ const DEF_GYNECO: GynecologicalHistory = {
     details: '',
 }
 
+const PSYCHIATRIC_DIAGNOSES = [
+    'Depresión', 'Trastorno de ansiedad generalizada', 'Trastorno de pánico',
+    'Trastorno bipolar', 'Esquizofrenia', 'TDAH', 'TOC', 'TEPT',
+    'Trastorno de personalidad', 'Anorexia / Bulimia', 'Insomnio crónico',
+]
+
+const NEONATAL_COMPLICATIONS_LIST = [
+    'Ictericia neonatal', 'Incubadora', 'Suplemento de oxígeno',
+    'Convulsiones neonatales', 'Sepsis neonatal', 'Hipoglucemia neonatal',
+    'Bajo peso al nacer',
+]
+
+const MILESTONE_OPTIONS: FreqOption[] = [
+    { value: 'normal',           label: 'Normal' },
+    { value: 'leve_retraso',     label: 'Retraso leve' },
+    { value: 'moderado_retraso', label: 'Retraso moderado' },
+    { value: 'severo_retraso',   label: 'Retraso severo' },
+]
+
+const SCHOOL_PERF_OPTIONS: FreqOption[] = [
+    { value: 'excelente',  label: 'Excelente' },
+    { value: 'bueno',      label: 'Bueno' },
+    { value: 'regular',    label: 'Regular' },
+    { value: 'bajo',       label: 'Bajo' },
+    { value: 'repitencia', label: 'Repitencia escolar' },
+]
+
+const DEF_PSYCHIATRIC: PsychiatricHistory = {
+    applicable: false,
+    diagnoses: [],
+    diagnoses_other: '',
+    current_psychiatric_meds: { ...DEF_TOGGLE },
+    previous_psychiatric_meds: '',
+    psychotherapy: { ...DEF_TOGGLE },
+    hospitalization_psychiatric: { ...DEF_TOGGLE },
+    suicide_attempts: { ...DEF_TOGGLE },
+    notes: '',
+}
+
+const DEF_DEVELOPMENTAL: DevelopmentalHistory = {
+    applicable: false,
+    birth_type: '',
+    gestational_age_weeks: '',
+    perinatal_complications: { ...DEF_TOGGLE },
+    neonatal_complications: [],
+    motor_milestones: '',
+    language_milestones: '',
+    cognitive_development: '',
+    school_performance: '',
+    education_level: '',
+    notes: '',
+}
+
 function makeDefault(patientId: string): FormData {
     return {
         patient_id: patientId,
@@ -497,6 +578,8 @@ function makeDefault(patientId: string): FormData {
         pathological_history: { ...DEF_PATHO },
         non_pathological_history: { ...DEF_NON_PATHO },
         gynecological_history: { ...DEF_GYNECO },
+        psychiatric_history: { ...DEF_PSYCHIATRIC },
+        developmental_history: { ...DEF_DEVELOPMENTAL },
         systems_review: '',
     }
 }
@@ -849,6 +932,8 @@ export default function ClinicalHistoryTab({
                         pathological_history: migratePatho((existing.pathological_history as Record<string, unknown>) || {}),
                         non_pathological_history: { ...DEF_NON_PATHO, ...(existing.non_pathological_history || {}) },
                         gynecological_history: { ...DEF_GYNECO, ...(existing.gynecological_history || {}) },
+                        psychiatric_history: { ...DEF_PSYCHIATRIC, ...(existing.psychiatric_history || {}) },
+                        developmental_history: { ...DEF_DEVELOPMENTAL, ...(existing.developmental_history || {}) },
                     }
                     setData(loaded)
                     setAllergyItems(parseAllergies(existing.allergies ?? ''))
@@ -878,6 +963,14 @@ const setFH = useCallback((key: string, value: FHMemberRecord) => {
 
     const setGH = useCallback(<K extends keyof GynecologicalHistory>(key: K, value: GynecologicalHistory[K]) => {
         setData(prev => ({ ...prev, gynecological_history: { ...prev.gynecological_history, [key]: value } }))
+    }, [])
+
+    const setPsych = useCallback(<K extends keyof PsychiatricHistory>(key: K, value: PsychiatricHistory[K]) => {
+        setData(prev => ({ ...prev, psychiatric_history: { ...prev.psychiatric_history, [key]: value } }))
+    }, [])
+
+    const setDev = useCallback(<K extends keyof DevelopmentalHistory>(key: K, value: DevelopmentalHistory[K]) => {
+        setData(prev => ({ ...prev, developmental_history: { ...prev.developmental_history, [key]: value } }))
     }, [])
 
     const setSystemEntry = useCallback((key: SystemKey, patch: Partial<SystemEntry>) => {
@@ -947,6 +1040,8 @@ const setFH = useCallback((key: string, value: FHMemberRecord) => {
     const ph = data.pathological_history
     const nph = data.non_pathological_history
     const gh = data.gynecological_history
+    const psych = data.psychiatric_history
+    const dev = data.developmental_history
 
     const SaveBtn = ({ bottom = false }: { bottom?: boolean }) => (
         <button
@@ -1672,7 +1767,261 @@ const setFH = useCallback((key: string, value: FHMemberRecord) => {
                 )}
             </SectionCard>
 
-            {/* ── 6. Interrogatorio por Aparatos y Sistemas ── */}
+            {/* ── 6. Antecedentes Psiquiátricos ── */}
+            <SectionCard title="A. Psiquiátricos" defaultOpen={false} readOnly={readOnly}>
+                <Toggle
+                    label="Aplica a este paciente"
+                    checked={psych.applicable}
+                    onChange={v => setPsych('applicable', v)}
+                />
+
+                {psych.applicable && (
+                    <div className="space-y-4 pt-1">
+
+                        {/* Diagnósticos previos */}
+                        <div>
+                            <p className="text-xs font-semibold text-gray-500 mb-2">Diagnósticos psiquiátricos previos</p>
+                            <div className="flex flex-wrap gap-1.5 mb-2">
+                                {PSYCHIATRIC_DIAGNOSES.map(d => {
+                                    const active = psych.diagnoses.includes(d)
+                                    return (
+                                        <button
+                                            key={d}
+                                            type="button"
+                                            onClick={() => setPsych('diagnoses', active
+                                                ? psych.diagnoses.filter(x => x !== d)
+                                                : [...psych.diagnoses, d]
+                                            )}
+                                            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${active
+                                                ? 'bg-[#33C7BE] text-white'
+                                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                            }`}
+                                        >
+                                            {active && <span className="mr-1">✓</span>}{d}
+                                        </button>
+                                    )
+                                })}
+                            </div>
+                            <TextField
+                                value={psych.diagnoses_other}
+                                onChange={v => setPsych('diagnoses_other', v)}
+                                placeholder="Otro diagnóstico..."
+                            />
+                        </div>
+
+                        {/* Medicamentos psiquiátricos actuales */}
+                        <div className="space-y-2">
+                            <Toggle
+                                label="Medicamentos psiquiátricos actuales"
+                                checked={psych.current_psychiatric_meds.present}
+                                onChange={v => setPsych('current_psychiatric_meds', { ...psych.current_psychiatric_meds, present: v })}
+                            />
+                            {psych.current_psychiatric_meds.present && (
+                                <TextAreaField
+                                    value={psych.current_psychiatric_meds.details}
+                                    onChange={v => setPsych('current_psychiatric_meds', { ...psych.current_psychiatric_meds, details: v })}
+                                    placeholder="Nombre del medicamento, dosis, frecuencia..."
+                                />
+                            )}
+                        </div>
+
+                        {/* Medicamentos psiquiátricos previos */}
+                        <TextField
+                            label="Medicamentos psiquiátricos previos"
+                            value={psych.previous_psychiatric_meds}
+                            onChange={v => setPsych('previous_psychiatric_meds', v)}
+                            placeholder="Medicamentos utilizados anteriormente..."
+                        />
+
+                        {/* Psicoterapia */}
+                        <div className="space-y-2">
+                            <Toggle
+                                label="Ha recibido psicoterapia"
+                                checked={psych.psychotherapy.present}
+                                onChange={v => setPsych('psychotherapy', { ...psych.psychotherapy, present: v })}
+                            />
+                            {psych.psychotherapy.present && (
+                                <TextAreaField
+                                    value={psych.psychotherapy.details}
+                                    onChange={v => setPsych('psychotherapy', { ...psych.psychotherapy, details: v })}
+                                    placeholder="Tipo de terapia, duración, resultado..."
+                                />
+                            )}
+                        </div>
+
+                        {/* Hospitalización psiquiátrica */}
+                        <div className="space-y-2">
+                            <Toggle
+                                label="Hospitalización psiquiátrica previa"
+                                checked={psych.hospitalization_psychiatric.present}
+                                onChange={v => setPsych('hospitalization_psychiatric', { ...psych.hospitalization_psychiatric, present: v })}
+                            />
+                            {psych.hospitalization_psychiatric.present && (
+                                <TextAreaField
+                                    value={psych.hospitalization_psychiatric.details}
+                                    onChange={v => setPsych('hospitalization_psychiatric', { ...psych.hospitalization_psychiatric, details: v })}
+                                    placeholder="Institución, año, motivo..."
+                                />
+                            )}
+                        </div>
+
+                        {/* Intentos suicidas */}
+                        <div className="space-y-2">
+                            <Toggle
+                                label="Intentos suicidas previos"
+                                checked={psych.suicide_attempts.present}
+                                onChange={v => setPsych('suicide_attempts', { ...psych.suicide_attempts, present: v })}
+                            />
+                            {psych.suicide_attempts.present && (
+                                <TextAreaField
+                                    value={psych.suicide_attempts.details}
+                                    onChange={v => setPsych('suicide_attempts', { ...psych.suicide_attempts, details: v })}
+                                    placeholder="Número de intentos, método, año..."
+                                />
+                            )}
+                        </div>
+
+                        <TextAreaField
+                            label="Notas adicionales"
+                            value={psych.notes}
+                            onChange={v => setPsych('notes', v)}
+                        />
+                    </div>
+                )}
+            </SectionCard>
+
+            {/* ── 7. Antecedentes de Desarrollo ── */}
+            <SectionCard title="A. de Desarrollo" defaultOpen={false} readOnly={readOnly}>
+                <Toggle
+                    label="Aplica a este paciente"
+                    checked={dev.applicable}
+                    onChange={v => setDev('applicable', v)}
+                />
+
+                {dev.applicable && (
+                    <div className="space-y-4 pt-1">
+
+                        {/* Tipo de parto */}
+                        <FrequencyPills
+                            label="Tipo de parto"
+                            options={[
+                                { value: 'eutocico',  label: 'Eutócico' },
+                                { value: 'cesarea',   label: 'Cesárea' },
+                                { value: 'forceps',   label: 'Fórceps' },
+                                { value: 'vacuum',    label: 'Vacuum' },
+                                { value: 'otro',      label: 'Otro' },
+                            ]}
+                            value={dev.birth_type}
+                            onChange={v => setDev('birth_type', v)}
+                        />
+
+                        <TextField
+                            label="Edad gestacional al nacer (semanas)"
+                            value={dev.gestational_age_weeks}
+                            onChange={v => setDev('gestational_age_weeks', v)}
+                            placeholder="Ej. 38"
+                        />
+
+                        {/* Complicaciones perinatales */}
+                        <div className="space-y-2">
+                            <Toggle
+                                label="Complicaciones perinatales"
+                                checked={dev.perinatal_complications.present}
+                                onChange={v => setDev('perinatal_complications', { ...dev.perinatal_complications, present: v })}
+                            />
+                            {dev.perinatal_complications.present && (
+                                <TextAreaField
+                                    value={dev.perinatal_complications.details}
+                                    onChange={v => setDev('perinatal_complications', { ...dev.perinatal_complications, details: v })}
+                                    placeholder="Descripción de complicaciones..."
+                                />
+                            )}
+                        </div>
+
+                        {/* Complicaciones neonatales */}
+                        <div>
+                            <p className="text-xs font-semibold text-gray-500 mb-2">Complicaciones neonatales</p>
+                            <div className="flex flex-wrap gap-1.5">
+                                {NEONATAL_COMPLICATIONS_LIST.map(c => {
+                                    const active = dev.neonatal_complications.includes(c)
+                                    return (
+                                        <button
+                                            key={c}
+                                            type="button"
+                                            onClick={() => setDev('neonatal_complications', active
+                                                ? dev.neonatal_complications.filter(x => x !== c)
+                                                : [...dev.neonatal_complications, c]
+                                            )}
+                                            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${active
+                                                ? 'bg-[#33C7BE] text-white'
+                                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                            }`}
+                                        >
+                                            {active && <span className="mr-1">✓</span>}{c}
+                                        </button>
+                                    )
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Desarrollo psicomotor */}
+                        <div className="space-y-3">
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Desarrollo psicomotor</p>
+                            <FrequencyPills
+                                label="Desarrollo motor"
+                                options={MILESTONE_OPTIONS}
+                                value={dev.motor_milestones}
+                                onChange={v => setDev('motor_milestones', v)}
+                            />
+                            <FrequencyPills
+                                label="Desarrollo del lenguaje"
+                                options={MILESTONE_OPTIONS}
+                                value={dev.language_milestones}
+                                onChange={v => setDev('language_milestones', v)}
+                            />
+                            <FrequencyPills
+                                label="Desarrollo cognitivo"
+                                options={MILESTONE_OPTIONS}
+                                value={dev.cognitive_development}
+                                onChange={v => setDev('cognitive_development', v)}
+                            />
+                        </div>
+
+                        {/* Escolaridad */}
+                        <div className="space-y-3">
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Escolaridad</p>
+                            <FrequencyPills
+                                label="Rendimiento escolar"
+                                options={SCHOOL_PERF_OPTIONS}
+                                value={dev.school_performance}
+                                onChange={v => setDev('school_performance', v)}
+                            />
+                            <FrequencyPills
+                                label="Nivel máximo de estudios"
+                                options={[
+                                    { value: 'sin_escolaridad', label: 'Sin escolaridad' },
+                                    { value: 'primaria',        label: 'Primaria' },
+                                    { value: 'secundaria',      label: 'Secundaria' },
+                                    { value: 'preparatoria',    label: 'Preparatoria' },
+                                    { value: 'tecnico',         label: 'Técnico' },
+                                    { value: 'licenciatura',    label: 'Licenciatura' },
+                                    { value: 'posgrado',        label: 'Posgrado' },
+                                ]}
+                                value={dev.education_level}
+                                onChange={v => setDev('education_level', v)}
+                            />
+                        </div>
+
+                        <TextAreaField
+                            label="Notas adicionales"
+                            value={dev.notes}
+                            onChange={v => setDev('notes', v)}
+                        />
+                    </div>
+                )}
+            </SectionCard>
+
+            {/* ── 8. Interrogatorio por Aparatos y Sistemas ── */}
             <SectionCard title="Interrogatorio por Aparatos y Sistemas" defaultOpen={false} readOnly={readOnly}>
                 {/* "Mark all normal" shortcut */}
                 <div className="flex items-center justify-between -mt-1 mb-3">

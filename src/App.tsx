@@ -42,6 +42,8 @@ const PatientDetail = lazy(() => import('@/features/doctor/pages/PatientDetail')
 const Consultas = lazy(() => import('@/features/patient/pages/Consultas'))
 const NuevaConsulta = lazy(() => import('@/features/patient/pages/NuevaConsulta'))
 const Agenda = lazy(() => import('@/features/doctor/pages/Agenda'))
+const ConsultaActiva = lazy(() => import('@/features/doctor/pages/ConsultaActiva'))
+const Recetas = lazy(() => import('@/features/doctor/pages/Recetas'))
 
 // Public pages (no auth required)
 const SolicitudDocumento = lazy(() => import('@/features/public/pages/SolicitudDocumento'))
@@ -124,6 +126,8 @@ function App() {
         <Route path="/dashboard/consultas" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['patient']}><Suspense fallback={<PageLoader />}><Consultas /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/consultas/nueva" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['patient']}><Suspense fallback={<PageLoader />}><NuevaConsulta /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/agenda" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['doctor']}><Suspense fallback={<PageLoader />}><Agenda /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
+        <Route path="/dashboard/consulta/:appointmentId" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['doctor']}><Suspense fallback={<PageLoader />}><ConsultaActiva /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
+        <Route path="/dashboard/recetas" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['doctor']}><Suspense fallback={<PageLoader />}><Recetas /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/assistant" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['assistant']}><Suspense fallback={<PageLoader />}><AssistantDashboard /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/assistant/agenda" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['assistant']}><Suspense fallback={<PageLoader />}><AssistantAgenda /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />
         <Route path="/dashboard/assistant/pacientes" element={<RequireAuth><RequireOnboarding><RequireRole allowedRoles={['assistant']}><Suspense fallback={<PageLoader />}><AssistantPacientes /></Suspense></RequireRole></RequireOnboarding></RequireAuth>} />

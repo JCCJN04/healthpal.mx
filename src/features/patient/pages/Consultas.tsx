@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, CalendarDays, Clock, Building2, Video, Phone, Loader2, Inbox, Check, X, Search, ArrowLeft, ArrowRight, List, ChevronRight, FileText, StickyNote } from 'lucide-react'
+import { Plus, CalendarDays, Clock, Building2, Video, Phone, Loader2, Inbox, Check, X, Search, ArrowLeft, ArrowRight, List, ChevronRight, FileText, StickyNote, Lock } from 'lucide-react'
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import { getPatientAppointments, updateAppointmentStatus, type AppointmentWithDoctor, type AppointmentMode, type AppointmentStatus } from '@/shared/lib/queries/appointments'
 import { deleteAppointmentCalendarEvent } from '@/shared/lib/googleCalendar'
 import { useAuth } from '@/app/providers/AuthContext'
 import { getPatientDoctors, type DoctorWithProfile } from '@/features/patient/services/doctors'
+import { getAppointmentNotesByAppointment, type AppointmentNote } from '@/shared/lib/queries/appointmentNotes'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -85,6 +86,20 @@ function AppointmentDetailModal({
   onCancel: () => void
   onClose: () => void
 }) {
+  const [consultNotes, setConsultNotes] = useState<AppointmentNote[]>([])
+  const [notesLoading, setNotesLoading] = useState(false)
+
+  const showNotes = appt.status === 'completed' || isPast(appt.scheduled_at)
+
+  useEffect(() => {
+    if (!showNotes) return
+    setNotesLoading(true)
+    getAppointmentNotesByAppointment(appt.id)
+      .then(setConsultNotes)
+      .catch(() => setConsultNotes([]))
+      .finally(() => setNotesLoading(false))
+  }, [appt.id, showNotes])
+
   const initials = (appt.doctor_name ?? 'D').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
   const isDoctorProposed = appt.status === 'pending' && appt.initiated_by !== appt.patient_id
   const isPatientProposed = appt.status === 'pending' && appt.initiated_by === appt.patient_id
@@ -175,6 +190,36 @@ function AppointmentDetailModal({
                 <StickyNote className="w-3 h-3" /> Notas adicionales
               </p>
               <p className="text-sm text-gray-700 leading-relaxed">{appt.notes}</p>
+            </div>
+          )}
+
+          {showNotes && (
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                <Lock className="w-3 h-3" /> Notas del médico
+              </p>
+              {notesLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="w-5 h-5 text-[#33C7BE] animate-spin" />
+                </div>
+              ) : consultNotes.length === 0 ? (
+                <p className="text-xs text-gray-400 text-center py-3">Sin notas registradas</p>
+              ) : (
+                <div className="space-y-2">
+                  {consultNotes.map(note => (
+                    <div key={note.id} className="bg-teal-50 border border-teal-100 rounded-xl p-3">
+                      {note.title && (
+                        <p className="text-xs font-semibold text-teal-700 mb-1">{note.title}</p>
+                      )}
+                      <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{note.body}</p>
+                      <div className="flex items-center gap-1 mt-2">
+                        <Lock className="w-2.5 h-2.5 text-teal-400" />
+                        <span className="text-[10px] text-teal-400 font-medium">Cifrada AES-256</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

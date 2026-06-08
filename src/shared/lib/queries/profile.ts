@@ -400,7 +400,7 @@ export async function uploadAvatar(userId: string, file: File) {
     .upload(filePath, file, {
       contentType: file.type || 'image/jpeg',
       cacheControl: '3600',
-      upsert: true,
+      upsert: false,
     })
 
   if (uploadError) {

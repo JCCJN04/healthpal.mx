@@ -1475,7 +1475,6 @@ export async function getDocumentDownloadUrl(pathOrDocument: DocumentPathInput):
  */
 export async function uploadDocumentForPatient(
   file: File,
-  doctorId: string,
   patientId: string,
   metadata: {
     title: string
@@ -1484,6 +1483,10 @@ export async function uploadDocumentForPatient(
   }
 ): Promise<{ success: boolean; documentId?: string; error?: string }> {
   try {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return { success: false, error: 'No hay sesión activa' }
+    const doctorId = session.user.id
+
     const documentId = crypto.randomUUID()
     const filePath = buildDeterministicDocumentPath(doctorId, documentId)
 
@@ -1534,19 +1537,16 @@ export async function uploadDocumentForPatient(
 }
 
 /**
- * Fetch documents that a specific doctor has uploaded for a specific patient.
+ * Fetch documents that the authenticated doctor has uploaded for a specific patient.
  */
 export async function getDoctorDocumentsForPatient(
-  doctorId: string,
   patientId: string
 ): Promise<Document[]> {
   try {
     const { data, error } = await supabase
       .from('documents')
       .select('*')
-      .eq('owner_id', doctorId)
       .eq('patient_id', patientId)
-      .eq('uploaded_by', doctorId)
       .order('created_at', { ascending: false })
 
     if (error) {

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   User, Search, ShieldCheck, ShieldAlert,
-  Clock, Send, Loader2, ShieldX, X, ChevronRight,
+  Clock, Send, Loader2, ShieldX, X, ChevronRight, UserPlus,
 } from 'lucide-react'
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import { useAuth } from '@/app/providers/AuthContext'
@@ -37,6 +37,13 @@ export default function Pacientes() {
 
   // Consent requests sent by this doctor
   const [sentRequests, setSentRequests] = useState<ConsentWithProfile[]>([])
+
+  // Create patient modal
+  const [createOpen, setCreateOpen] = useState(false)
+  const [createName, setCreateName] = useState('')
+  const [createEmail, setCreateEmail] = useState('')
+  const [createPhone, setCreatePhone] = useState('')
+  const [createLoading, setCreateLoading] = useState(false)
 
   // Document request modal
   const [docReqOpen, setDocReqOpen] = useState(false)
@@ -143,7 +150,7 @@ export default function Pacientes() {
       // Create the document request first if not already done
       let requestId = docReqId
       if (!requestId) {
-        const { data, error } = await createDocumentRequest(user.id, docReqEmail, docReqType, '', phone)
+        const { data, error } = await createDocumentRequest(docReqEmail, docReqType, '', phone)
         if (error || !data) {
           showToast(error || 'Error al crear la solicitud', 'error', 3000)
           return
@@ -194,6 +201,48 @@ export default function Pacientes() {
     setDocReqEmail('')
     setDocReqPhone('')
     setDocReqType('')
+  }
+
+  const handleCreatePatient = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user) return
+    setCreateLoading(true)
+    try {
+      const { error: fnErr, data } = await supabase.functions.invoke('create-patient-direct', {
+        body: {
+          email: createEmail.trim().toLowerCase(),
+          full_name: createName.trim(),
+          phone: createPhone.trim() || undefined,
+        },
+      })
+      if (fnErr) {
+        let detail = 'Error al crear el paciente'
+        try {
+          const fnErrWithContext = fnErr as { context?: { json?: () => Promise<unknown> } }
+          const body = await fnErrWithContext.context?.json?.()
+          const bodyData = body as { error?: string } | null
+          detail = bodyData?.error ?? detail
+        } catch { /* ignore */ }
+        showToast(detail, 'error', 4000)
+        return
+      }
+      const result = data as { patient_id: string; created: boolean }
+      showToast(
+        result.created ? '✅ Paciente creado y vinculado' : '✅ Paciente vinculado a tu lista',
+        'success',
+        4000,
+      )
+      setCreateOpen(false)
+      setCreateName('')
+      setCreateEmail('')
+      setCreatePhone('')
+      await loadAll()
+    } catch (err) {
+      logger.error('Pacientes.createPatient', err)
+      showToast('Error inesperado al crear paciente', 'error', 4000)
+    } finally {
+      setCreateLoading(false)
+    }
   }
 
   const canManage = useMemo(() => profile?.role === 'doctor', [profile])
@@ -272,6 +321,19 @@ export default function Pacientes() {
               Buscar
             </button>
           </div>
+          <button
+            onClick={() => setCreateOpen(true)}
+            className="w-full flex items-center gap-3 px-4 py-3 bg-white border border-primary/30 hover:border-primary hover:bg-primary/5 rounded-xl transition-all group"
+          >
+            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0 group-hover:bg-primary/20 transition-colors">
+              <UserPlus size={17} />
+            </div>
+            <div className="text-left flex-1">
+              <p className="text-sm font-semibold text-gray-800 leading-tight">Crear paciente</p>
+              <p className="text-[11px] text-gray-400 leading-tight">Registra un paciente directamente</p>
+            </div>
+            <ChevronRight size={15} className="text-gray-300 group-hover:text-primary transition-colors shrink-0" />
+          </button>
           <button
             onClick={() => setDocReqOpen(true)}
             className="w-full flex items-center gap-3 px-4 py-3 bg-white border border-[#25D366]/40 hover:border-[#25D366] hover:bg-[#25D366]/5 rounded-xl transition-all group"
@@ -450,6 +512,73 @@ export default function Pacientes() {
           )}
         </div>
       </div>
+
+      {/* Create Patient Modal */}
+      {createOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                  <UserPlus size={16} />
+                </div>
+                <h2 className="text-sm font-bold text-gray-900">Crear paciente</h2>
+              </div>
+              <button
+                onClick={() => { setCreateOpen(false); setCreateName(''); setCreateEmail(''); setCreatePhone('') }}
+                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X size={16} className="text-gray-400" />
+              </button>
+            </div>
+            <form onSubmit={handleCreatePatient} className="p-5 space-y-3.5">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Nombre completo</label>
+                <input
+                  type="text"
+                  value={createName}
+                  onChange={e => setCreateName(e.target.value)}
+                  placeholder="Nombre del paciente"
+                  required
+                  className="w-full px-3 py-2.5 text-base sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Correo electrónico</label>
+                <input
+                  type="email"
+                  value={createEmail}
+                  onChange={e => setCreateEmail(e.target.value)}
+                  placeholder="paciente@correo.com"
+                  required
+                  className="w-full px-3 py-2.5 text-base sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Teléfono (opcional)</label>
+                <input
+                  type="tel"
+                  value={createPhone}
+                  onChange={e => setCreatePhone(e.target.value)}
+                  placeholder="52 81 XXXX XXXX"
+                  className="w-full px-3 py-2.5 text-base sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                />
+              </div>
+              <p className="text-[11px] text-gray-400 leading-relaxed">
+                Se creará una cuenta pre-registrada. El paciente podrá completar su perfil al iniciar sesión.
+              </p>
+              <button
+                type="submit"
+                disabled={createLoading || !createName.trim() || !createEmail.trim()}
+                className="w-full py-3 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm mt-1 bg-primary hover:bg-teal-600 text-white active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {createLoading ? <Loader2 size={15} className="animate-spin" /> : <UserPlus size={15} />}
+                Crear paciente
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Document Request Modal */}
       {docReqOpen && (

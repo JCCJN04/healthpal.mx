@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   CalendarDays, Clock, Building2, Video, Phone, Loader2, Inbox,
-  Check, X, List, ArrowLeft, ArrowRight, ChevronRight, FileText, StickyNote, Plus, Search,
+  Check, X, List, ArrowLeft, ArrowRight, ChevronRight, FileText, StickyNote, Plus, Search, Stethoscope,
 } from 'lucide-react'
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import {
@@ -189,12 +190,14 @@ function AppointmentDetailModal({
   onConfirm,
   onCancel,
   onClose,
+  onStartConsulta,
 }: {
   appt: AppointmentWithPatient
   actionLoading: boolean
   onConfirm: () => void
   onCancel: () => void
   onClose: () => void
+  onStartConsulta: () => void
 }) {
   const initials = (appt.patient_name ?? 'P').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
   const isPatientProposed = appt.initiated_by === appt.patient_id
@@ -284,6 +287,17 @@ function AppointmentDetailModal({
               </p>
               <p className="text-sm text-gray-700 leading-relaxed">{appt.notes}</p>
             </div>
+          )}
+
+          {/* Iniciar consulta */}
+          {appt.status === 'confirmed' && (
+            <button
+              onClick={onStartConsulta}
+              className="w-full flex items-center justify-center gap-2 py-3 bg-[#33C7BE] text-white font-semibold rounded-xl hover:bg-teal-600 transition-colors text-sm"
+            >
+              <Stethoscope className="w-4 h-4" />
+              Iniciar consulta
+            </button>
           )}
 
           {/* Proposed by label */}
@@ -670,6 +684,7 @@ type View = 'calendar' | 'list'
 
 export default function Agenda() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [appointments, setAppointments] = useState<AppointmentWithPatient[]>([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
@@ -884,6 +899,7 @@ export default function Agenda() {
           onConfirm={() => handleConfirm(selectedAppt)}
           onCancel={() => handleCancel(selectedAppt.id)}
           onClose={() => setSelectedAppt(null)}
+          onStartConsulta={() => navigate(`/dashboard/consulta/${selectedAppt.id}`)}
         />
       )}
     </DashboardLayout>

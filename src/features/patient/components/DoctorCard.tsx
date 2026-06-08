@@ -52,8 +52,11 @@ const DoctorCard: React.FC<DoctorCardProps> = ({ doctor, onRemoved }) => {
   const hasRating = false;
 
   return (
-    <div className="group relative bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden
-      hover:shadow-[0_24px_48px_rgba(21,28,39,0.06)] transition-all duration-300 flex flex-col">
+    <div
+      className="group relative bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden
+      hover:shadow-[0_24px_48px_rgba(21,28,39,0.06)] transition-all duration-300 flex flex-col cursor-pointer"
+      onClick={() => navigate(`/dashboard/doctores/${doctor.id}`, { state: { doctor } })}
+    >
 
       {/* Decorative circle */}
       <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700 pointer-events-none" />
@@ -155,7 +158,7 @@ const DoctorCard: React.FC<DoctorCardProps> = ({ doctor, onRemoved }) => {
         {/* CTA */}
         <div className="mt-auto pt-4 border-t border-gray-100 flex gap-2">
           <button
-            onClick={() => navigate(`/dashboard/consultas/nueva?doctor=${doctor.id}`)}
+            onClick={(e) => { e.stopPropagation(); navigate(`/dashboard/consultas/nueva?doctor=${doctor.id}`); }}
             className="flex-1 bg-primary text-white py-2.5 rounded-xl font-bold text-sm
               flex items-center justify-center gap-1.5 hover:bg-primary/90 active:scale-95 transition-all"
           >
@@ -163,7 +166,7 @@ const DoctorCard: React.FC<DoctorCardProps> = ({ doctor, onRemoved }) => {
             Agendar
           </button>
           <button
-            onClick={handleSendMessage}
+            onClick={(e) => { e.stopPropagation(); handleSendMessage(e); }}
             className="flex-1 bg-[#25D366]/10 text-[#075E54] py-2.5 rounded-xl font-bold text-sm
               flex items-center justify-center gap-1.5 hover:bg-[#25D366]/20 active:scale-95 transition-all"
           >
