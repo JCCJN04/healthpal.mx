@@ -562,6 +562,16 @@ function TabMedico({ doctor, onChange, onSaveToProfile, saving }: {
 
   return (
     <div className="space-y-5 max-w-2xl">
+      {/* Banner */}
+      <div className="bg-gradient-to-r from-[#33C7BE]/10 to-teal-50 border border-[#33C7BE]/20 rounded-2xl p-4 flex gap-3 items-start">
+        <div className="w-9 h-9 rounded-xl bg-[#33C7BE]/15 flex items-center justify-center shrink-0 text-[#33C7BE]">
+          <Stethoscope size={18} />
+        </div>
+        <div>
+          <p className="text-sm font-bold text-gray-800 leading-tight">Datos del médico</p>
+          <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">Configura tu nombre, especialidad, cédula y logo. Esta información aparecerá en el encabezado de todas tus recetas impresas. Se guarda automáticamente en tu perfil.</p>
+        </div>
+      </div>
       {/* Datos básicos */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Datos del médico</p>
@@ -671,6 +681,16 @@ function TabMedico({ doctor, onChange, onSaveToProfile, saving }: {
 function TabDiseno({ design, onChange }: { design: DesignConfig; onChange: (d: DesignConfig) => void }) {
   return (
     <div className="space-y-5 max-w-2xl">
+      {/* Banner */}
+      <div className="bg-gradient-to-r from-purple-50 to-violet-50 border border-purple-100 rounded-2xl p-4 flex gap-3 items-start">
+        <div className="w-9 h-9 rounded-xl bg-purple-100 flex items-center justify-center shrink-0 text-purple-500">
+          <FileText size={18} />
+        </div>
+        <div>
+          <p className="text-sm font-bold text-gray-800 leading-tight">Diseño de la receta</p>
+          <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">Personaliza el estilo visual, colores, tipografía y disposición de tu receta impresa. El diseño se aplica a todas las recetas nuevas.</p>
+        </div>
+      </div>
       {/* Style */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Estilo de hoja</p>
@@ -829,6 +849,16 @@ function TabReceta({
 
   return (
     <div className="space-y-4">
+      {/* Banner */}
+      <div className="bg-gradient-to-r from-blue-50 to-sky-50 border border-blue-100 rounded-2xl p-4 flex gap-3 items-start">
+        <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center shrink-0 text-blue-500">
+          <ClipboardList size={18} />
+        </div>
+        <div>
+          <p className="text-sm font-bold text-gray-800 leading-tight">Prescripción médica</p>
+          <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">Llena los datos del paciente, agrega los medicamentos con dosis e indicaciones, y presiona <strong>Guardar</strong> para generar la receta. Usa <strong>Imprimir</strong> para obtener la versión impresa.</p>
+        </div>
+      </div>
       {/* Patient */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1"><User className="w-3 h-3" /> Datos del paciente</p>
@@ -1456,7 +1486,7 @@ img { max-width: 100%; }
     setDeleting(null)
   }
 
-  function openNew() { setDraft(emptyDraft()); setEditingId(null); setMainTab('receta'); setView('editor') }
+  function openNew() { setDraft(emptyDraft()); setEditingId(null); setMainTab('medico'); setView('editor') }
   function openEdit(rx: Prescription) {
     setDraft({
       patient_id: rx.patient_id,
