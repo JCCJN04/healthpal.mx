@@ -889,31 +889,35 @@ function TabReceta({
           )}
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-          <div>
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Edad</label>
-            <input className={smallInp} placeholder="35 años" value={draft.patient_age} onChange={e => set('patient_age', e.target.value)} />
+        <div className="space-y-2">
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Edad</label>
+              <input className={smallInp} placeholder="35 años" value={draft.patient_age} onChange={e => set('patient_age', e.target.value)} />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Sexo</label>
+              <select className={smallInp} value={draft.patient_sex} onChange={e => set('patient_sex', e.target.value)}>
+                <option value="">—</option>
+                <option value="Masculino">Masc.</option>
+                <option value="Femenino">Fem.</option>
+                <option value="Indeterminado">Ind.</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Peso</label>
+              <input className={smallInp} placeholder="70 kg" value={draft.patient_weight} onChange={e => set('patient_weight', e.target.value)} />
+            </div>
           </div>
-          <div>
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Sexo</label>
-            <select className={smallInp} value={draft.patient_sex} onChange={e => set('patient_sex', e.target.value)}>
-              <option value="">—</option>
-              <option value="Masculino">Masc.</option>
-              <option value="Femenino">Fem.</option>
-              <option value="Indeterminado">Ind.</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Peso</label>
-            <input className={smallInp} placeholder="70 kg" value={draft.patient_weight} onChange={e => set('patient_weight', e.target.value)} />
-          </div>
-          <div className="col-span-2 sm:col-span-1">
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Fecha *</label>
-            <input type="date" className={`${smallInp} w-full min-w-0`} value={draft.issued_at} onChange={e => set('issued_at', e.target.value)} />
-          </div>
-          <div className="col-span-2 sm:col-span-1">
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Folio</label>
-            <input className={smallInp} value={draft.folio} onChange={e => set('folio', e.target.value)} />
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Fecha *</label>
+              <input type="date" className={`${smallInp} w-full`} value={draft.issued_at} onChange={e => set('issued_at', e.target.value)} />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Folio</label>
+              <input className={smallInp} value={draft.folio} onChange={e => set('folio', e.target.value)} />
+            </div>
           </div>
         </div>
 
