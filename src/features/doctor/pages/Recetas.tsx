@@ -912,7 +912,7 @@ function TabReceta({
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Fecha *</label>
-              <input type="date" className={`${smallInp} w-full`} value={draft.issued_at} onChange={e => set('issued_at', e.target.value)} />
+              <input type="date" className={`${smallInp} w-full bg-white appearance-none`} value={draft.issued_at} onChange={e => set('issued_at', e.target.value)} />
             </div>
             <div>
               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Folio</label>
