@@ -59,7 +59,7 @@ export default function DoctorDetail() {
   const [openingReportId, setOpeningReportId] = useState<string | null>(null);
   const [viewingReportUrl, setViewingReportUrl] = useState<string | null>(null);
   const [viewingReportName, setViewingReportName] = useState<string>('');
-  const reportBlobRef = useRef<string | null>(null);
+
   const [geocodedCoords, setGeocodedCoords] = useState<DoctorLocation | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('consultas');
   const [tabsAtEnd, setTabsAtEnd] = useState(false);
@@ -141,15 +141,8 @@ export default function DoctorDetail() {
     setOpeningReportId(report.id);
     try {
       const signedUrl = await getReportPdfSignedUrl(report.pdf_storage_path);
-      // Fetch as blob to bypass X-Frame-Options / CSP in production
-      const res = await fetch(signedUrl);
-      const blob = await res.blob();
-      // Revoke previous blob URL if any
-      if (reportBlobRef.current) URL.revokeObjectURL(reportBlobRef.current);
-      const blobUrl = URL.createObjectURL(blob);
-      reportBlobRef.current = blobUrl;
       setViewingReportName(report.aseguradora);
-      setViewingReportUrl(blobUrl);
+      setViewingReportUrl(signedUrl);
     } catch {
       // silently ignore
     } finally {
@@ -158,10 +151,6 @@ export default function DoctorDetail() {
   };
 
   const handleCloseReport = () => {
-    if (reportBlobRef.current) {
-      URL.revokeObjectURL(reportBlobRef.current);
-      reportBlobRef.current = null;
-    }
     setViewingReportUrl(null);
   };
 
@@ -567,7 +556,7 @@ export default function DoctorDetail() {
       )}
 
       {viewingReportUrl && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-black/60" onClick={handleCloseReport}>
+        <div className="fixed inset-0 z-[9999] flex flex-col bg-black/60" onClick={handleCloseReport}>
           <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0" onClick={e => e.stopPropagation()}>
             <div>
               <p className="text-sm font-bold text-gray-900">Informe médico</p>

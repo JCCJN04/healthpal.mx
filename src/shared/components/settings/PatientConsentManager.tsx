@@ -475,34 +475,36 @@ export default function PatientConsentManager() {
 
               return (
                 <div key={row.id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                  <div className="flex items-center gap-4 p-5">
-                    <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold flex-shrink-0 overflow-hidden">
-                      {row.doctor?.avatar_url ? (
-                        <img src={row.doctor.avatar_url} alt="" className="w-full h-full object-cover rounded-full" />
-                      ) : (
-                        (row.doctor?.full_name?.charAt(0) || 'D').toUpperCase()
-                      )}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-bold text-gray-900">{row.doctor?.full_name || 'Doctor'}</p>
-                        <StatusBadge status={row.status} />
+                  <div className="p-5">
+                    <div className="flex items-center gap-4">
+                      <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold flex-shrink-0 overflow-hidden">
+                        {row.doctor?.avatar_url ? (
+                          <img src={row.doctor.avatar_url} alt="" className="w-full h-full object-cover rounded-full" />
+                        ) : (
+                          (row.doctor?.full_name?.charAt(0) || 'D').toUpperCase()
+                        )}
                       </div>
-                      {row.responded_at && (
-                        <p className="text-[11px] text-gray-400 mt-0.5">
-                          Desde {new Date(row.responded_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        </p>
-                      )}
-                      {row.status === 'accepted' && (
-                        <p className="text-[11px] text-gray-400 mt-0.5">
-                          {activeCount} {activeCount === 1 ? 'permiso' : 'permisos'} activos
-                        </p>
-                      )}
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-bold text-gray-900">{row.doctor?.full_name || 'Doctor'}</p>
+                          <StatusBadge status={row.status} />
+                        </div>
+                        {row.responded_at && (
+                          <p className="text-[11px] text-gray-400 mt-0.5">
+                            Desde {new Date(row.responded_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </p>
+                        )}
+                        {row.status === 'accepted' && (
+                          <p className="text-[11px] text-gray-400 mt-0.5">
+                            {activeCount} {activeCount === 1 ? 'permiso' : 'permisos'} activos
+                          </p>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {row.status === 'accepted' && (
+                    {row.status === 'accepted' && (
+                      <div className="flex items-center gap-2 justify-end mt-3">
                         <button
                           onClick={() => isEditing ? setEditingScopes(null) : openEditScopes(row)}
                           className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
@@ -510,8 +512,6 @@ export default function PatientConsentManager() {
                           {isEditing ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                           Permisos
                         </button>
-                      )}
-                      {row.status === 'accepted' && (
                         <button
                           onClick={() => handleRevoke(row.id, row.doctor_id)}
                           disabled={actionLoading === row.id}
@@ -524,8 +524,8 @@ export default function PatientConsentManager() {
                           )}
                           Revocar
                         </button>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Scope editor for accepted consents */}
