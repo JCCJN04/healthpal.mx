@@ -291,6 +291,18 @@ export default function MedicalReportTab({ patientId, doctorId, patient, medProf
                 const withPath = await upsertMedicalReport({ ...saved, pdf_storage_path: storagePath })
                 setActiveReport(withPath)
                 setReports(prev => [withPath, ...prev.filter(r => r.id !== withPath.id)])
+
+                // Switch from blob URL to signed HTTPS URL so iOS Safari can render the PDF
+                try {
+                    const signedUrl = await getReportPdfSignedUrl(storagePath)
+                    if (prevBlobUrl.current) {
+                        URL.revokeObjectURL(prevBlobUrl.current)
+                        prevBlobUrl.current = null
+                    }
+                    setPdfBlobUrl(signedUrl)
+                } catch {
+                    // keep blob URL as fallback on non-iOS browsers
+                }
             } catch (e) {
                 logger.error('MedicalReportTab.saveDraft', e)
                 // Non-fatal: PDF still shows, just not persisted to Storage
@@ -360,7 +372,7 @@ export default function MedicalReportTab({ patientId, doctorId, patient, medProf
 
                     <div className="flex-1 min-w-0">
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Informe médico</p>
-                        <h2 className="text-sm font-black text-gray-900 truncate">{activeAseguradora.label}</h2>
+                        <h2 className="text-sm font-black text-gray-900 break-words">{activeAseguradora.label}</h2>
                     </div>
 
                     {fieldsSummary && (
