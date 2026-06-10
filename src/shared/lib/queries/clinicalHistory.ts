@@ -36,7 +36,8 @@ export async function getClinicalHistory(patientId: string): Promise<ClinicalHis
     if (error) throw error
     if (data) {
         // NOM-024 §6.6: log read access to clinical history
-        auditLog.readClinicalHistory(data.id ?? patientId, patientId)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        auditLog.readClinicalHistory((data as any).id ?? patientId, patientId)
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (data as any) as ClinicalHistoryData | null

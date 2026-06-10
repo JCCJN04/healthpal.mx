@@ -108,7 +108,7 @@ export default function AccessHistoryCard() {
           .select('id, full_name, role')
           .in('id', actorIds)
         if (profiles) {
-          for (const p of profiles) {
+          for (const p of profiles as { id: string; full_name: string | null; role: string | null }[]) {
             nameMap[p.id] = { full_name: p.full_name, role: p.role }
           }
         }

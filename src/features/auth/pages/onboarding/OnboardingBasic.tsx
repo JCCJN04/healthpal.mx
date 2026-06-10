@@ -213,7 +213,7 @@ export default function OnboardingBasic() {
           error={errors.curp}
           placeholder="Ej: GARC850101HDFRZN09"
           maxLength={18}
-          helperText="18 caracteres. Puedes completarla después en tu perfil."
+          helpText="18 caracteres. Puedes completarla después en tu perfil."
         />
 
         {/* Navigation */}

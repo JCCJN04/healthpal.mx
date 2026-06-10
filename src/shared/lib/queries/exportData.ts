@@ -130,7 +130,8 @@ export async function exportPatientData(): Promise<PatientExportData> {
     throw new Error('No se pudo obtener el perfil')
   }
 
-  const profile = profileResult.value.data
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const profile = profileResult.value.data as any
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pp = patientProfileResult.status === 'fulfilled' ? (patientProfileResult.value.data as any) : null
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -495,7 +496,7 @@ export async function generateExportPdf(data: PatientExportData): Promise<Uint8A
  */
 export async function downloadPatientExport(data: PatientExportData): Promise<void> {
   const pdfBytes = await generateExportPdf(data)
-  const blob = new Blob([pdfBytes], { type: 'application/pdf' })
+  const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' })
   const url = URL.createObjectURL(blob)
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, '')
   const filename = `healthpal_expediente_${date}.pdf`

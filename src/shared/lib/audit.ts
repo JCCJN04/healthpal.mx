@@ -41,7 +41,8 @@ async function logEvent(
   details?: Record<string, unknown>
 ): Promise<void> {
   try {
-    const { error } = await supabase.rpc('log_audit_event', {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase.rpc as any)('log_audit_event', {
       p_action:        action,
       p_resource_type: resourceType,
       p_resource_id:   resourceId ?? null,
