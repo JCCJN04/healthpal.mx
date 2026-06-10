@@ -75,8 +75,8 @@ export async function initiateGoogleOAuth(): Promise<void> {
   const challenge = await generateCodeChallenge(verifier)
   const state = generateState()
 
-  sessionStorage.setItem('google_oauth_verifier', verifier)
-  sessionStorage.setItem('google_oauth_state', state)
+  localStorage.setItem('google_oauth_verifier', verifier)
+  localStorage.setItem('google_oauth_state', state)
 
   const params = new URLSearchParams({
     client_id: clientId,

@@ -57,10 +57,10 @@ export default function GoogleCalendarCallback() {
 
     // Validate state to prevent CSRF
     setDebugStep('validando estado...')
-    const savedState = sessionStorage.getItem('google_oauth_state')
-    const verifier = sessionStorage.getItem('google_oauth_verifier')
-    sessionStorage.removeItem('google_oauth_state')
-    sessionStorage.removeItem('google_oauth_verifier')
+    const savedState = localStorage.getItem('google_oauth_state')
+    const verifier = localStorage.getItem('google_oauth_verifier')
+    localStorage.removeItem('google_oauth_state')
+    localStorage.removeItem('google_oauth_verifier')
 
     if (!code || !state || state !== savedState || !verifier) {
       setStatus('error')
