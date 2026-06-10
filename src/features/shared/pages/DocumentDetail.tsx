@@ -34,6 +34,7 @@ import { extractDocumentInfo } from '@/shared/lib/gemini'
 import { useAuth } from '@/app/providers/AuthContext'
 import { useCrypto } from '@/context/CryptoContext'
 import { logger } from '@/shared/lib/logger'
+import { auditLog } from '@/shared/lib/audit'
 import type { Database } from '@/shared/types/database'
 
 type Document = Database['public']['Tables']['documents']['Row']
@@ -74,6 +75,8 @@ export default function DocumentDetail() {
       const doc = await getDocumentById(docId)
       if (doc) {
         setDocument(doc)
+        // NOM-024 §6.6: log read access to medical document
+        auditLog.readDocument(docId, doc.patient_id ?? doc.owner_id)
         if (doc.external_url) {
           setFileUrl(doc.external_url)
         } else if ((doc as Document & { is_encrypted?: boolean }).is_encrypted && privateKey) {

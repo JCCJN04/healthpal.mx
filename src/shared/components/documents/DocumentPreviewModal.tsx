@@ -9,6 +9,7 @@ import { DocumentViewer } from './DocumentViewer'
 import { getDocumentDownloadUrl, getDecryptedDocumentUrl, downloadDocumentFile, downloadDocumentFileDecrypted } from '@/shared/lib/queries/documents'
 import { showToast } from '@/shared/components/ui/Toast'
 import { useCrypto } from '@/context/CryptoContext'
+import { auditLog } from '@/shared/lib/audit'
 import type { Database } from '@/shared/types/database'
 
 type Document = Database['public']['Tables']['documents']['Row']
@@ -110,6 +111,8 @@ export function DocumentPreviewModal({ document, onClose, onShare }: DocumentPre
   const handleDownload = async () => {
     if (isExternal) {
       window.open(document.external_url!, '_blank', 'noopener')
+      // NOM-024 §6.6: log external document access
+      auditLog.downloadDocument(document.id, document.patient_id ?? document.owner_id)
       return
     }
     setDownloading(true)
@@ -118,7 +121,12 @@ export function DocumentPreviewModal({ document, onClose, onShare }: DocumentPre
     const result = isEncrypted && privateKey
       ? await downloadDocumentFileDecrypted(document, document.id, document.mime_type ?? '', document.title, privateKey)
       : await downloadDocumentFile(document, document.title)
-    if (!result.success) showToast(result.error || 'No se pudo descargar', 'error')
+    if (result.success) {
+      // NOM-024 §6.6: log file download
+      auditLog.downloadDocument(document.id, document.patient_id ?? document.owner_id)
+    } else {
+      showToast(result.error || 'No se pudo descargar', 'error')
+    }
     setDownloading(false)
   }
 

@@ -3,6 +3,7 @@ import { User, Session, AuthError } from '@supabase/supabase-js'
 import { supabase } from '@/shared/lib/supabase'
 import { getMyProfile } from '@/shared/lib/queries/profile'
 import { logger } from '@/shared/lib/logger'
+import { auditLog } from '@/shared/lib/audit'
 import type { Database } from '@/shared/types/database'
 import { isDemoMode, demoDoctorUser, disableDemoMode } from '@/context/DemoContext'
 import { demoDoctorProfile } from '@/data/demoData'
@@ -42,6 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const jwtRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastLoggedToken = useRef<string | null>(null)
 
   const fetchProfile = async () => {
     try {
@@ -318,6 +320,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       async (_event, currentSession) => {
         if (!mounted) return
 
+        // NOM-024 §6.6: log authentication events — deduplicate by access_token
+        // SIGNED_IN fires on every page load (session restore) and token refresh,
+        // so only log when the token actually changes (real new login).
+        if (_event === 'SIGNED_IN' && currentSession?.access_token) {
+          if (currentSession.access_token !== lastLoggedToken.current) {
+            lastLoggedToken.current = currentSession.access_token
+            auditLog.login()
+          }
+        }
+
         setSession(currentSession)
         setUser(currentSession?.user ?? null)
 
@@ -357,6 +369,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     // Always remove the activity timestamp so the next session starts clean
     try { localStorage.removeItem(LAST_ACTIVE_KEY) } catch { /* ignore */ }
+
+    // NOM-024 §6.6: log logout before session is destroyed
+    auditLog.logout()
 
     // Notify CryptoContext to clear in-memory keys (avoids circular import)
     window.dispatchEvent(new Event('healthpal:signout'))

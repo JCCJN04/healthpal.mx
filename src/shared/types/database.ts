@@ -33,6 +33,12 @@ export interface Database {
           last_seen_at: string | null
           created_at: string
           updated_at: string
+          // NOM-024-SSA3-2012 §6.5 — Identificación de pacientes
+          curp: string | null              // 18 chars, validated by RENAPO format
+          primer_apellido: string | null   // First surname (no abbreviations)
+          segundo_apellido: string | null  // Second surname (optional)
+          estado_nacimiento: string | null // INEGI 2-char code (EDONAC)
+          nacionalidad: string | null      // RENAPO 3-char code
         }
         Insert: {
           id: string
@@ -48,6 +54,11 @@ export interface Database {
           last_seen_at?: string | null
           created_at?: string
           updated_at?: string
+          curp?: string | null
+          primer_apellido?: string | null
+          segundo_apellido?: string | null
+          estado_nacimiento?: string | null
+          nacionalidad?: string | null
         }
         Update: {
           id?: string
@@ -63,6 +74,11 @@ export interface Database {
           last_seen_at?: string | null
           created_at?: string
           updated_at?: string
+          curp?: string | null
+          primer_apellido?: string | null
+          segundo_apellido?: string | null
+          estado_nacimiento?: string | null
+          nacionalidad?: string | null
         }
       }
       clinical_histories: {
@@ -541,11 +557,37 @@ export interface Database {
           created_at?: string
         }
       }
+      // NOM-024-SSA3-2012 §6.6 / §3.42 — Registro de auditoría (inmutable)
+      audit_log: {
+        Row: {
+          id: string
+          actor_id: string | null
+          action: string
+          resource_type: string
+          resource_id: string | null
+          patient_id: string | null
+          details: Json | null
+          created_at: string
+        }
+        Insert: never  // Write only via log_audit_event RPC
+        Update: never  // Immutable
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      // NOM-024 §6.6 — audit RPC (SECURITY DEFINER, bypasses RLS)
+      log_audit_event: {
+        Args: {
+          p_action: string
+          p_resource_type: string
+          p_resource_id?: string | null
+          p_patient_id?: string | null
+          p_details?: Json | null
+        }
+        Returns: void
+      }
       current_role: {
         Args: Record<PropertyKey, never>
         Returns: UserRole

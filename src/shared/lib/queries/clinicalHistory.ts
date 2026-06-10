@@ -1,4 +1,5 @@
 import { supabase } from '@/shared/lib/supabase'
+import { auditLog } from '@/shared/lib/audit'
 
 // Component-facing interface — JSONB fields typed loosely for flexibility
 export interface ClinicalHistoryData {
@@ -33,6 +34,10 @@ export async function getClinicalHistory(patientId: string): Promise<ClinicalHis
         .maybeSingle()
 
     if (error) throw error
+    if (data) {
+        // NOM-024 §6.6: log read access to clinical history
+        auditLog.readClinicalHistory(data.id ?? patientId, patientId)
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (data as any) as ClinicalHistoryData | null
 }

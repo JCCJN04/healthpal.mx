@@ -77,6 +77,14 @@ export default function Login() {
         return 
       }
 
+      // NOM-024 §6.6.3: check if user has TOTP enrolled (AAL2 required)
+      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+      if (aal?.nextLevel === 'aal2' && aal?.currentLevel === 'aal1') {
+        // Redirect to MFA verification — pass password via router state for crypto init
+        navigate('/auth/mfa', { state: { password, userId: data.user.id } })
+        return
+      }
+
       showToast('Inicio de sesión exitoso', 'success')
       // Initialize E2E encryption keys in memory (non-blocking — failure is safe)
       initializeCrypto(password, data.user.id).catch(() => {/* silently ignore */})

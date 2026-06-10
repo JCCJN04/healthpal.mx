@@ -8,6 +8,9 @@ import DashboardLayout from '@/app/layout/DashboardLayout';
 import ProfileCard from '@/shared/components/settings/ProfileCard';
 import PersonalInfoCard from '@/shared/components/settings/PersonalInfoCard';
 import SecurityCard from '@/shared/components/settings/SecurityCard';
+import MfaCard from '@/shared/components/settings/MfaCard';
+import DataExportCard from '@/shared/components/settings/DataExportCard'
+import AccessHistoryCard from '@/shared/components/settings/AccessHistoryCard';
 import PreferencesCard from '@/shared/components/settings/PreferencesCard';
 import { getPatientProfile, upsertPatientProfile } from '@/features/patient/services/patientProfile';
 import { getDoctorProfile } from '@/shared/lib/queries/profile';
@@ -208,7 +211,7 @@ export default function Configuracion() {
     }
   };
 
-  const handleSavePersonalInfo = async (data: { fullName: string; birthDate: string; email: string; phone: string; bio: string; address: string }) => {
+  const handleSavePersonalInfo = async (data: { fullName: string; birthDate: string; email: string; phone: string; bio: string; address: string; primerApellido: string; segundoApellido: string; estadoNacimiento: string; curp: string }) => {
     try {
       setProfileError(null);
 
@@ -217,7 +220,11 @@ export default function Configuracion() {
         birthdate: data.birthDate,
         email: data.email,
         phone: data.phone,
-      });
+        primer_apellido: data.primerApellido || null,
+        segundo_apellido: data.segundoApellido || null,
+        estado_nacimiento: data.estadoNacimiento || null,
+        curp: data.curp || null,
+      } as Parameters<typeof updateMyProfile>[0]);
 
       // Save address to role-specific profile table
       if (user && isPatient) {
@@ -384,6 +391,10 @@ export default function Configuracion() {
     address: isPatient
       ? (patientProfile?.address_text || '')
       : (doctorProfile?.address_text || ''),
+    primerApellido: profile.primer_apellido || '',
+    segundoApellido: profile.segundo_apellido || '',
+    estadoNacimiento: profile.estado_nacimiento || '',
+    curp: profile.curp || '',
   } : null;
 
   const preferences = settings ? {
@@ -545,6 +556,9 @@ export default function Configuracion() {
                 onUpdatePassword={handleUpdatePassword}
               />
 
+              {/* MFA Card — NOM-024 §6.6.3 */}
+              <MfaCard />
+
               {/* Preferences Card */}
               {preferences && (
                 <PreferencesCard
@@ -560,6 +574,12 @@ export default function Configuracion() {
                   onToast={(msg, type) => setToast({ message: msg, type })}
                 />
               )}
+
+              {/* Data Export — patients only (NOM-024 §6.6.6) */}
+              {isPatient && <DataExportCard />}
+
+              {/* Access History — patients only (NOM-024 §6.6 trazabilidad) */}
+              {isPatient && <AccessHistoryCard />}
 
               {/* Danger Zone */}
               {!isAssistant && <div className="bg-red-50 border-2 border-red-100 rounded-xl p-6">

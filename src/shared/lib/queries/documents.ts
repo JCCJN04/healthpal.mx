@@ -199,6 +199,7 @@ export async function getUserDocuments(userId: string, folderId: string | null =
       .from('documents')
       .select('*')
       .eq('owner_id', userId)
+      .is('deleted_at', null)  // NOM-024 §6.6.2: exclude soft-deleted documents
 
     if (!allFolders) {
       if (folderId) {
@@ -292,7 +293,9 @@ export async function getDocumentsSharedWithMe(userId: string) {
       return []
     }
 
-    return data || []
+    // NOM-024 §6.6.2: exclude soft-deleted documents
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data || []).filter(item => !(item.document as any)?.deleted_at)
   } catch (err) {
     logger.error('getDocumentsSharedWithMe', err)
     return []
@@ -522,7 +525,27 @@ export async function deleteDocument(
       logger.error('deleteDocument.storage', storageError)
     }
 
-    // Delete from database with explicit owner check
+    // NOM-024 §6.6.2: documents older than 24h are immutable — use soft-delete.
+    // The DB trigger enforces this; client mirrors the logic to show the right message.
+    const createdAt = new Date((document as typeof document & { created_at: string }).created_at).getTime()
+    const ageHours = (Date.now() - createdAt) / (1000 * 60 * 60)
+
+    if (ageHours > 24) {
+      // Soft-delete: set deleted_at timestamp, keep record for audit trail
+      const { error: softDeleteError } = await supabase
+        .from('documents')
+        .update({ deleted_at: new Date().toISOString() } as never)
+        .eq('id', documentId)
+        .eq('owner_id', userId)
+
+      if (softDeleteError) {
+        logger.error('deleteDocument.softDelete', softDeleteError)
+        return { success: false, error: softDeleteError.message }
+      }
+      return { success: true }
+    }
+
+    // Hard DELETE allowed within 24h grace period
     const { error: dbError, count } = await supabase
       .from('documents')
       .delete({ count: 'exact' })

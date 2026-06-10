@@ -27,6 +27,7 @@ import ForgotPassword from '@/features/auth/pages/ForgotPassword'
 import ResetPassword from '@/features/auth/pages/ResetPassword'
 import Register from '@/features/auth/pages/Register'
 import VerifyEmail from '@/features/auth/pages/VerifyEmail'
+import MfaVerify from '@/features/auth/pages/MfaVerify'
 
 // Lazy load dashboard pages (large, only needed after auth)
 const Dashboard = lazy(() => import('@/features/shared/pages/Dashboard'))
@@ -92,6 +93,7 @@ function App() {
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/register" element={<Register />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/auth/mfa" element={<MfaVerify />} />
         <Route path="/auth/gcal/callback" element={<Suspense fallback={<PageLoader />}><GoogleCalendarCallback /></Suspense>} />
 
         {/* Demo doctor route (direct URL access only) */}
