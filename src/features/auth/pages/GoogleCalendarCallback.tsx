@@ -30,6 +30,7 @@ export default function GoogleCalendarCallback() {
   const navigate = useNavigate()
   const [status, setStatus] = useState<Status>('loading')
   const [errorMsg, setErrorMsg] = useState('')
+  const [debugStep, setDebugStep] = useState('iniciando...')
   const handledRef = useRef(false)
 
   useEffect(() => {
@@ -40,6 +41,7 @@ export default function GoogleCalendarCallback() {
   }, [])
 
   async function handleCallback() {
+    setDebugStep('leyendo params...')
     const params = new URLSearchParams(window.location.search)
     const code = params.get('code')
     const state = params.get('state')
@@ -54,6 +56,7 @@ export default function GoogleCalendarCallback() {
     }
 
     // Validate state to prevent CSRF
+    setDebugStep('validando estado...')
     const savedState = sessionStorage.getItem('google_oauth_state')
     const verifier = sessionStorage.getItem('google_oauth_verifier')
     sessionStorage.removeItem('google_oauth_state')
@@ -61,20 +64,22 @@ export default function GoogleCalendarCallback() {
 
     if (!code || !state || state !== savedState || !verifier) {
       setStatus('error')
-      setErrorMsg('Parámetros de autenticación inválidos')
+      setErrorMsg(`Parámetros inválidos: code=${!!code} state=${!!state} match=${state === savedState} verifier=${!!verifier}`)
       setTimeout(() => navigate('/dashboard/configuracion'), 3000)
       return
     }
 
     try {
+      setDebugStep('leyendo token local...')
       // Read token directly from localStorage — avoids supabase.auth.getSession()
       // which deadlocks when ?code= is present in the URL (internal PKCE lock).
       const accessToken = getStoredAccessToken()
-      if (!accessToken) throw new Error('No hay sesión activa')
+      if (!accessToken) throw new Error('No hay sesión activa — token no encontrado en localStorage')
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
       const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string
 
+      setDebugStep('enviando a servidor...')
       const abortController = new AbortController()
       const timeoutId = setTimeout(() => abortController.abort(), INVOKE_TIMEOUT_MS)
 
@@ -128,7 +133,7 @@ export default function GoogleCalendarCallback() {
           <>
             <Loader2 className="w-12 h-12 text-[#33C7BE] animate-spin mx-auto" />
             <p className="text-gray-700 font-semibold">Conectando Google Calendar...</p>
-            <p className="text-sm text-gray-500">Esto tomará un momento</p>
+            <p className="text-sm text-gray-500">{debugStep}</p>
           </>
         )}
 
