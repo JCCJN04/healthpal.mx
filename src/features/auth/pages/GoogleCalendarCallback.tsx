@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Loader2, CheckCircle, XCircle } from 'lucide-react'
 import { supabase } from '@/shared/lib/supabase'
@@ -6,17 +6,17 @@ import { logger } from '@/shared/lib/logger'
 
 type Status = 'loading' | 'success' | 'error'
 
-// Module-level flag prevents double-execution in React 18 StrictMode
-let _callbackHandled = false
+const INVOKE_TIMEOUT_MS = 15_000
 
 export default function GoogleCalendarCallback() {
   const navigate = useNavigate()
   const [status, setStatus] = useState<Status>('loading')
   const [errorMsg, setErrorMsg] = useState('')
+  const handledRef = useRef(false)
 
   useEffect(() => {
-    if (_callbackHandled) return
-    _callbackHandled = true
+    if (handledRef.current) return
+    handledRef.current = true
     handleCallback()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -53,16 +53,32 @@ export default function GoogleCalendarCallback() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) throw new Error('No hay sesión activa')
 
-      const { data: fnData, error: fnError } = await supabase.functions.invoke(
-        'google-calendar-auth',
-        {
-          body: {
-            code,
-            verifier,
-            redirectUri: `${window.location.origin}/auth/gcal/callback`,
-          },
-        }
-      )
+      const abortController = new AbortController()
+      const timeoutId = setTimeout(() => abortController.abort(), INVOKE_TIMEOUT_MS)
+
+      let fnData: { success?: boolean; error?: string } | null = null
+      let fnError: Error | null = null
+      try {
+        const result = await supabase.functions.invoke(
+          'google-calendar-auth',
+          {
+            body: {
+              code,
+              verifier,
+              redirectUri: `${window.location.origin}/auth/gcal/callback`,
+            },
+            signal: abortController.signal,
+          }
+        )
+        fnData = result.data
+        fnError = result.error
+      } finally {
+        clearTimeout(timeoutId)
+      }
+
+      if (abortController.signal.aborted) {
+        throw new Error('Tiempo de espera agotado al conectar Google Calendar')
+      }
 
       if (fnError || !fnData?.success) {
         throw new Error(fnData?.error ?? fnError?.message ?? 'Error al conectar Google Calendar')
