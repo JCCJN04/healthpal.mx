@@ -1,12 +1,30 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Loader2, CheckCircle, XCircle } from 'lucide-react'
-import { supabase } from '@/shared/lib/supabase'
 import { logger } from '@/shared/lib/logger'
 
 type Status = 'loading' | 'success' | 'error'
 
 const INVOKE_TIMEOUT_MS = 15_000
+
+/**
+ * Read the Supabase access token directly from localStorage, bypassing
+ * supabase.auth.getSession() which can deadlock when the URL contains
+ * ?code= (Supabase's internal lock waits for a PKCE exchange that never
+ * completes for a Google OAuth code).
+ */
+function getStoredAccessToken(): string | null {
+  try {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
+    const projectRef = new URL(supabaseUrl).hostname.split('.')[0]
+    const raw = localStorage.getItem(`sb-${projectRef}-auth-token`)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as { access_token?: string }
+    return parsed?.access_token ?? null
+  } catch {
+    return null
+  }
+}
 
 export default function GoogleCalendarCallback() {
   const navigate = useNavigate()
@@ -49,25 +67,36 @@ export default function GoogleCalendarCallback() {
     }
 
     try {
+      // Read token directly from localStorage — avoids supabase.auth.getSession()
+      // which deadlocks when ?code= is present in the URL (internal PKCE lock).
+      const accessToken = getStoredAccessToken()
+      if (!accessToken) throw new Error('No hay sesión activa')
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
+      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string
+
       const abortController = new AbortController()
       const timeoutId = setTimeout(() => abortController.abort(), INVOKE_TIMEOUT_MS)
 
-      let fnData: { success?: boolean; error?: string } | null = null
-      let fnError: Error | null = null
+      let res: Response
       try {
-        const result = await supabase.functions.invoke(
-          'google-calendar-auth',
+        res = await fetch(
+          `${supabaseUrl}/functions/v1/google-calendar-auth`,
           {
-            body: {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'apikey': anonKey,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
               code,
               verifier,
               redirectUri: `${window.location.origin}/auth/gcal/callback`,
-            },
+            }),
             signal: abortController.signal,
           }
         )
-        fnData = result.data
-        fnError = result.error
       } finally {
         clearTimeout(timeoutId)
       }
@@ -76,8 +105,10 @@ export default function GoogleCalendarCallback() {
         throw new Error('Tiempo de espera agotado al conectar Google Calendar')
       }
 
-      if (fnError || !fnData?.success) {
-        throw new Error(fnData?.error ?? fnError?.message ?? 'Error al conectar Google Calendar')
+      const fnData = await res.json() as { success?: boolean; error?: string }
+
+      if (!res.ok || !fnData?.success) {
+        throw new Error(fnData?.error ?? `Error del servidor (${res.status})`)
       }
 
       setStatus('success')
