@@ -7,8 +7,8 @@ import {
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import AppointmentSummaryCard from '@/features/patient/components/AppointmentSummaryCard'
 import { getDoctorById, type DoctorWithProfile } from '@/features/patient/services/doctors'
-import { createAppointment, updateAppointmentCalendarEvent, type AppointmentMode } from '@/shared/lib/queries/appointments'
-import { getValidGoogleCalendarTokens, createGoogleCalendarEvent, getDoctorBusySlots, type BusyInterval } from '@/shared/lib/googleCalendar'
+import { createAppointment, type AppointmentMode } from '@/shared/lib/queries/appointments'
+import { createAppointmentCalendarEvent, getDoctorBusySlots, type BusyInterval } from '@/shared/lib/googleCalendar'
 import { logger } from '@/shared/lib/logger'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -279,28 +279,24 @@ export default function NuevaConsulta() {
 
       if (!appt) throw new Error('No se pudo guardar la cita')
 
-      // Try Google Calendar auto-sync
+      // Try Google Calendar auto-sync (server-side via edge function)
       try {
-        const tokens = await getValidGoogleCalendarTokens()
-        if (tokens) {
-          const endTime = addMinutes(selectedTime, slotDuration)
-          const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`
-          const event = await createGoogleCalendarEvent(tokens.access_token, tokens.calendar_id, {
-            title: `Consulta médica — ${doctor.full_name ?? 'Doctor'}`,
-            description: [
-              `Tipo: ${MODE_TO_LABEL[mode]}`,
-              `Motivo: ${reason}`,
-              notes ? `Notas: ${notes}` : '',
-              '\nCita agendada a través de HealthPal.mx',
-            ].filter(Boolean).join('\n'),
-            startDateTime: `${dateStr}T${selectedTime}:00`,
-            endDateTime: `${dateStr}T${endTime}:00`,
-            timeZone: 'America/Mexico_City',
-          })
-          if (event) {
-            await updateAppointmentCalendarEvent(appt.id, event.id)
-            setCalendarSynced(true)
-          }
+        const endTime = addMinutes(selectedTime, slotDuration)
+        const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`
+        const event = await createAppointmentCalendarEvent(appt.id, {
+          title: `Consulta médica — ${doctor.full_name ?? 'Doctor'}`,
+          description: [
+            `Tipo: ${MODE_TO_LABEL[mode]}`,
+            `Motivo: ${reason}`,
+            notes ? `Notas: ${notes}` : '',
+            '\nCita agendada a través de HealthPal.mx',
+          ].filter(Boolean).join('\n'),
+          startDateTime: `${dateStr}T${selectedTime}:00`,
+          endDateTime: `${dateStr}T${endTime}:00`,
+          timeZone: 'America/Mexico_City',
+        })
+        if (event) {
+          setCalendarSynced(true)
         }
       } catch (calErr) {
         // Non-fatal — appointment already created

@@ -8,12 +8,11 @@ import DashboardLayout from '@/app/layout/DashboardLayout'
 import {
   getDoctorAppointments,
   updateAppointmentStatus,
-  updateAppointmentCalendarEvent,
   type AppointmentWithPatient,
   type AppointmentMode,
   type AppointmentStatus,
 } from '@/shared/lib/queries/appointments'
-import { getValidGoogleCalendarTokens, createGoogleCalendarEvent, deleteAppointmentCalendarEvent } from '@/shared/lib/googleCalendar'
+import { createAppointmentCalendarEvent, deleteAppointmentCalendarEvent } from '@/shared/lib/googleCalendar'
 import { logger } from '@/shared/lib/logger'
 import { listDoctorPatients, type PatientProfileLite } from '@/features/doctor/services/patients'
 import AgendarCitaModal from '@/shared/components/appointments/AgendarCitaModal'
@@ -709,23 +708,17 @@ export default function Agenda() {
       if (!ok) return
 
       try {
-        const tokens = await getValidGoogleCalendarTokens()
-        if (tokens) {
-          const d = new Date(appt.scheduled_at)
-          const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-          const startTime = formatTime(appt.scheduled_at)
-          const endTime = addMinutes(appt.scheduled_at, appt.duration_min)
-          const calResult = await createGoogleCalendarEvent(tokens.access_token, tokens.calendar_id, {
-            title: `Consulta — ${appt.patient_name ?? 'Paciente'}`,
-            description: appt.reason ?? '',
-            startDateTime: `${dateStr}T${startTime}:00`,
-            endDateTime: `${dateStr}T${endTime}:00`,
-            timeZone: 'America/Mexico_City',
-          })
-          if (calResult?.id) {
-            await updateAppointmentCalendarEvent(appt.id, calResult.id)
-          }
-        }
+        const d = new Date(appt.scheduled_at)
+        const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+        const startTime = formatTime(appt.scheduled_at)
+        const endTime = addMinutes(appt.scheduled_at, appt.duration_min)
+        await createAppointmentCalendarEvent(appt.id, {
+          title: `Consulta — ${appt.patient_name ?? 'Paciente'}`,
+          description: appt.reason ?? '',
+          startDateTime: `${dateStr}T${startTime}:00`,
+          endDateTime: `${dateStr}T${endTime}:00`,
+          timeZone: 'America/Mexico_City',
+        })
       } catch (calErr) {
         logger.error('Agenda:calendarSync', calErr)
       }

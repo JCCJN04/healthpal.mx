@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { X, ArrowLeft, ArrowRight, Check, Loader2, Building2, Video, Phone, CalendarDays, Clock } from 'lucide-react'
-import { createAppointmentForPatient, getDoctorAppointmentsForDate, updateAppointmentCalendarEvent, type AppointmentMode } from '@/shared/lib/queries/appointments'
-import { getValidGoogleCalendarTokens, createGoogleCalendarEvent, getDoctorBusySlots, type BusyInterval } from '@/shared/lib/googleCalendar'
+import { createAppointmentForPatient, getDoctorAppointmentsForDate, type AppointmentMode } from '@/shared/lib/queries/appointments'
+import { createAppointmentCalendarEvent, getDoctorBusySlots, type BusyInterval } from '@/shared/lib/googleCalendar'
 import { logger } from '@/shared/lib/logger'
 import { useAuth } from '@/app/providers/AuthContext'
 
@@ -186,23 +186,17 @@ export default function AgendarCitaModal({
       })
       if (!appt) throw new Error('No se pudo guardar la cita')
 
-      // Google Calendar sync
+      // Google Calendar sync (server-side via edge function)
       try {
-        const tokens = await getValidGoogleCalendarTokens()
-        if (tokens) {
-          const dateStr = toDateKey(date!)
-          const endTime = addMin(time!, duration)
-          const calResult = await createGoogleCalendarEvent(tokens.access_token, tokens.calendar_id, {
-            title: `Consulta — ${patientName}`,
-            description: reason,
-            startDateTime: `${dateStr}T${time}:00`,
-            endDateTime: `${dateStr}T${endTime}:00`,
-            timeZone: 'America/Mexico_City',
-          })
-          if (calResult?.id) {
-            await updateAppointmentCalendarEvent(appt.id, calResult.id)
-          }
-        }
+        const dateStr = toDateKey(date!)
+        const endTime = addMin(time!, duration)
+        await createAppointmentCalendarEvent(appt.id, {
+          title: `Consulta — ${patientName}`,
+          description: reason,
+          startDateTime: `${dateStr}T${time}:00`,
+          endDateTime: `${dateStr}T${endTime}:00`,
+          timeZone: 'America/Mexico_City',
+        })
       } catch (calErr) {
         logger.error('AgendarCitaModal:calendar', calErr)
       }

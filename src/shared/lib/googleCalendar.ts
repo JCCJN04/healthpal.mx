@@ -180,47 +180,41 @@ export function isTokenValid(tokens: GoogleCalendarTokens): boolean {
 // ─── Google Calendar API ──────────────────────────────────────────────────────
 
 /**
- * Creates a calendar event using the Google Calendar API.
- * Requires a valid access token.
+ * Creates a Google Calendar event for an appointment via Edge Function.
+ * The edge function handles token retrieval, auto-refresh, and DB update server-side.
+ * Returns the event ID on success, null if doctor has no calendar connected or on error.
  */
-export async function createGoogleCalendarEvent(
-  accessToken: string,
-  calendarId: string,
+export async function createAppointmentCalendarEvent(
+  appointmentId: string,
   event: GoogleCalendarEvent
 ): Promise<{ id: string; htmlLink: string } | null> {
-  const body = {
-    summary: event.title,
-    description: event.description,
-    location: event.location,
-    start: {
-      dateTime: event.startDateTime,
-      timeZone: event.timeZone ?? 'America/Mexico_City',
-    },
-    end: {
-      dateTime: event.endDateTime,
-      timeZone: event.timeZone ?? 'America/Mexico_City',
-    },
-  }
+  try {
+    const { data, error } = await supabase.functions.invoke(
+      'google-calendar-create-event',
+      {
+        body: {
+          appointmentId,
+          title: event.title,
+          description: event.description ?? '',
+          startDateTime: event.startDateTime,
+          endDateTime: event.endDateTime,
+          timeZone: event.timeZone ?? 'America/Mexico_City',
+        },
+      }
+    )
 
-  const res = await fetch(
-    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
+    if (error) {
+      logger.error('createAppointmentCalendarEvent:invoke', error)
+      return null
     }
-  )
 
-  if (!res.ok) {
-    logger.error('createGoogleCalendarEvent', await res.text())
+    if (!data?.success || data?.skipped) return null
+
+    return { id: data.eventId, htmlLink: data.htmlLink }
+  } catch (err) {
+    logger.error('createAppointmentCalendarEvent', err)
     return null
   }
-
-  const data = await res.json()
-  return { id: data.id, htmlLink: data.htmlLink }
 }
 
 // ─── Delete calendar event ────────────────────────────────────────────────────
