@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { Loader2, CheckCircle, XCircle } from 'lucide-react'
 import { logger } from '@/shared/lib/logger'
 
@@ -9,7 +8,6 @@ const INVOKE_TIMEOUT_MS = 15_000
 
 
 export default function GoogleCalendarCallback() {
-  const navigate = useNavigate()
   const [status, setStatus] = useState<Status>('loading')
   const [errorMsg, setErrorMsg] = useState('')
   const [debugStep, setDebugStep] = useState('iniciando...')
@@ -33,7 +31,7 @@ export default function GoogleCalendarCallback() {
     if (errorParam) {
       setStatus('error')
       setErrorMsg('Acceso denegado a Google Calendar')
-      setTimeout(() => navigate('/dashboard/configuracion'), 3000)
+      setTimeout(() => { window.location.href = '/dashboard/configuracion' }, 3000)
       return
     }
 
@@ -47,7 +45,7 @@ export default function GoogleCalendarCallback() {
     if (!code || !state || state !== savedState || !verifier) {
       setStatus('error')
       setErrorMsg(`Parámetros inválidos: code=${!!code} state=${!!state} match=${state === savedState} verifier=${!!verifier}`)
-      setTimeout(() => navigate('/dashboard/configuracion'), 3000)
+      setTimeout(() => { window.location.href = '/dashboard/configuracion' }, 3000)
       return
     }
 
@@ -101,12 +99,16 @@ export default function GoogleCalendarCallback() {
       }
 
       setStatus('success')
-      setTimeout(() => navigate('/dashboard/configuracion'), 2000)
+      // Use full page reload — AuthContext.loading is stuck (getSession deadlocks
+      // on the callback URL due to Supabase's PKCE lock). navigate() does a
+      // client-side transition that inherits the broken auth state. A hard
+      // redirect lets AuthContext reinitialize cleanly from sessionStorage.
+      setTimeout(() => { window.location.href = '/dashboard/configuracion' }, 2000)
     } catch (err: unknown) {
       logger.error('GoogleCalendarCallback', err)
       setStatus('error')
       setErrorMsg(err instanceof Error ? err.message : 'Error inesperado')
-      setTimeout(() => navigate('/dashboard/configuracion'), 3000)
+      setTimeout(() => { window.location.href = '/dashboard/configuracion' }, 3000)
     }
   }
 
