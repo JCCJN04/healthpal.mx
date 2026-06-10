@@ -70,6 +70,14 @@ export async function initiateGoogleOAuth(): Promise<void> {
     throw new Error('VITE_GOOGLE_CLIENT_ID no está configurado')
   }
 
+  // Save access token now — Supabase may clear its session storage when it
+  // mistakenly tries to exchange the Google ?code= as its own PKCE callback.
+  const { data: { session: currentSession } } = await supabase.auth.getSession()
+  if (!currentSession?.access_token) {
+    throw new Error('No hay sesión activa')
+  }
+  localStorage.setItem('google_oauth_access_token', currentSession.access_token)
+
   // PKCE code verifier + challenge
   const verifier = generateCodeVerifier()
   const challenge = await generateCodeChallenge(verifier)

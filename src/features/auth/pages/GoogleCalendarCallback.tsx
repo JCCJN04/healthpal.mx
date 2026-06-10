@@ -7,24 +7,6 @@ type Status = 'loading' | 'success' | 'error'
 
 const INVOKE_TIMEOUT_MS = 15_000
 
-/**
- * Read the Supabase access token directly from localStorage, bypassing
- * supabase.auth.getSession() which can deadlock when the URL contains
- * ?code= (Supabase's internal lock waits for a PKCE exchange that never
- * completes for a Google OAuth code).
- */
-function getStoredAccessToken(): string | null {
-  try {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
-    const projectRef = new URL(supabaseUrl).hostname.split('.')[0]
-    const raw = localStorage.getItem(`sb-${projectRef}-auth-token`)
-    if (!raw) return null
-    const parsed = JSON.parse(raw) as { access_token?: string }
-    return parsed?.access_token ?? null
-  } catch {
-    return null
-  }
-}
 
 export default function GoogleCalendarCallback() {
   const navigate = useNavigate()
@@ -71,10 +53,12 @@ export default function GoogleCalendarCallback() {
 
     try {
       setDebugStep('leyendo token local...')
-      // Read token directly from localStorage — avoids supabase.auth.getSession()
-      // which deadlocks when ?code= is present in the URL (internal PKCE lock).
-      const accessToken = getStoredAccessToken()
-      if (!accessToken) throw new Error('No hay sesión activa — token no encontrado en localStorage')
+      // Token was saved in localStorage by initiateGoogleOAuth() before the redirect.
+      // Supabase clears its own session storage when it mistakenly tries to exchange
+      // the Google ?code= as a Supabase PKCE callback, so we use our own saved copy.
+      const accessToken = localStorage.getItem('google_oauth_access_token')
+      localStorage.removeItem('google_oauth_access_token')
+      if (!accessToken) throw new Error('No hay sesión activa — inicia sesión de nuevo')
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
       const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string
