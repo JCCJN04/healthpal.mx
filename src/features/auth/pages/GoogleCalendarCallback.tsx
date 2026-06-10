@@ -49,10 +49,6 @@ export default function GoogleCalendarCallback() {
     }
 
     try {
-      // Call Edge Function to exchange code for tokens
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) throw new Error('No hay sesión activa')
-
       const abortController = new AbortController()
       const timeoutId = setTimeout(() => abortController.abort(), INVOKE_TIMEOUT_MS)
 
