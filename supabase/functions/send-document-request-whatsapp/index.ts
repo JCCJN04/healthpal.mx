@@ -228,13 +228,27 @@ serve(async (req) => {
       body: formBody.toString(),
     })
 
+    const twilioBody = await twilioRes.text()
     if (!twilioRes.ok) {
-      const twilioError = await twilioRes.text()
-      console.error('Twilio API error:', twilioRes.status, twilioError)
+      console.error('Twilio API error:', twilioRes.status, twilioBody)
       return new Response(
-        JSON.stringify({ error: 'Failed to send WhatsApp message', detail: twilioError, wa_status: twilioRes.status }),
+        JSON.stringify({ error: 'Failed to send WhatsApp message', detail: twilioBody, wa_status: twilioRes.status }),
         { status: 502, headers: { ...cors, 'Content-Type': 'application/json' } },
       )
+    }
+
+    // Log message SID + initial status for delivery debugging
+    try {
+      const twilioJson = JSON.parse(twilioBody)
+      console.log('Twilio message queued:', {
+        sid: twilioJson.sid,
+        status: twilioJson.status,
+        to: twilioJson.to,
+        error_code: twilioJson.error_code ?? null,
+        error_message: twilioJson.error_message ?? null,
+      })
+    } catch {
+      console.log('Twilio response (raw):', twilioBody)
     }
 
     return new Response(

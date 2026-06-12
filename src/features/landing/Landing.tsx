@@ -269,7 +269,7 @@ function Hero() {
           style={{ willChange: 'transform' }}
         >
           {['Tus', 'expedientes,', 'siempre', 'contigo.'].map((word, i) => (
-            <span key={word + i} style={{ display: 'inline-block', overflow: 'hidden', paddingBottom: '0.06em', marginRight: '0.22em' }}>
+            <span key={word + i} style={{ display: 'inline-block', overflow: 'hidden', paddingBottom: '0.18em', marginBottom: '-0.12em', marginRight: '0.22em' }}>
               <span
                 style={{
                   display: 'inline-block',
@@ -524,10 +524,10 @@ function AISection() {
             className="text-[3rem] sm:text-[4.5rem] md:text-[6rem] font-black leading-[0.95] tracking-[-0.04em] mb-6 max-w-[800px] mx-auto"
             stagger={55}
           >
-            Cumplimiento NOM-024. Privacidad real. Cifrado total.
+            Diseñado conforme a NOM-024. Privacidad real. Cifrado total.
           </WordReveal>
           <p className="text-[15px] max-w-[460px] mx-auto mb-14" style={{ color: '#101722', opacity: 0.55 }}>
-            Tu información médica protegida con cifrado AES-256, cumplimiento con la NOM-024-SSA3 y sin acceso de terceros. Lo que es tuyo, es tuyo.
+            Tu información médica protegida con cifrado AES-256, diseñada conforme a la NOM-024-SSA3 y sin acceso de terceros. Lo que es tuyo, es tuyo.
           </p>
         </div>
       </div>
@@ -821,7 +821,7 @@ const SCHEMA_ORG = JSON.stringify({
         'WhatsApp integrado para documentos médicos',
         'Centralización de documentos médicos para pacientes',
         'Cifrado AES-256',
-        'Cumplimiento NOM-024-SSA3',
+        'Diseñado conforme a NOM-024-SSA3',
       ],
       audience: [
         { '@type': 'Audience', audienceType: 'Médicos y especialistas en México' },
@@ -871,8 +871,8 @@ const SCHEMA_ORG = JSON.stringify({
         },
         {
           '@type': 'Question',
-          name: '¿HealthPal.mx cumple con la NOM-024-SSA3?',
-          acceptedAnswer: { '@type': 'Answer', text: 'Sí. HealthPal.mx cumple con la NOM-024-SSA3, la norma oficial mexicana para sistemas de información en salud. Todos los datos médicos se almacenan con cifrado AES-256 y acceso estrictamente controlado por rol.' },
+          name: '¿HealthPal.mx está alineado con la NOM-024-SSA3?',
+          acceptedAnswer: { '@type': 'Answer', text: 'HealthPal.mx está diseñado conforme a los lineamientos de la NOM-024-SSA3, la norma oficial mexicana para sistemas de información en salud. Todos los datos médicos se almacenan con cifrado AES-256 y acceso estrictamente controlado por rol.' },
         },
       ],
     },

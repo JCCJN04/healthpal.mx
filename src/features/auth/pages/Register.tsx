@@ -41,8 +41,9 @@ export default function Register() {
       newErrors.email = 'Por favor ingresa un correo válido'
     }
 
-    if (password.length < 6) {
-      newErrors.password = 'La contraseña debe tener al menos 6 caracteres'
+    const passwordRe = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/
+    if (!passwordRe.test(password)) {
+      newErrors.password = 'La contraseña no cumple los requisitos de seguridad'
     }
 
     if (password !== confirmPassword) {
@@ -234,6 +235,21 @@ export default function Register() {
                 </button>
               </div>
               {errors.password && <p className="text-red-300 text-xs mt-1.5 ml-4">{errors.password}</p>}
+              {password.length > 0 && (
+                <ul className="mt-2 ml-4 space-y-0.5">
+                  {[
+                    { ok: password.length >= 8,        label: 'Mínimo 8 caracteres' },
+                    { ok: /[A-Z]/.test(password),      label: 'Una mayúscula' },
+                    { ok: /[a-z]/.test(password),      label: 'Una minúscula' },
+                    { ok: /\d/.test(password),         label: 'Un número' },
+                    { ok: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password), label: 'Un símbolo especial' },
+                  ].map(({ ok, label }) => (
+                    <li key={label} className={`text-xs flex items-center gap-1.5 ${ok ? 'text-green-300' : 'text-white/50'}`}>
+                      <span>{ok ? '✓' : '○'}</span>{label}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             {/* Confirm Password Input */}
