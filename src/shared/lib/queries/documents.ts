@@ -1570,6 +1570,7 @@ export async function getDoctorDocumentsForPatient(
       .from('documents')
       .select('*')
       .eq('patient_id', patientId)
+      .neq('owner_id', patientId) // only doctor-uploaded; excludes patient's own docs
       .order('created_at', { ascending: false })
 
     if (error) {

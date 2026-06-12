@@ -620,7 +620,7 @@ export default function PatientDetail() {
     const patientProfilesRaw = patient.patient_profiles
     const pProfile = (Array.isArray(patientProfilesRaw) ? patientProfilesRaw[0] : patientProfilesRaw) || {}
 
-    const totalDocs = documents.length + doctorDocs.length + patientSharedDocs.length
+    const totalDocs = new Set([...documents, ...doctorDocs, ...patientSharedDocs].map(d => d.id)).size
 
     const allergies = (medProfile?.allergies ?? pProfile?.allergies ?? '').trim()
     const conditions = (medProfile?.chronic_conditions ?? pProfile?.chronic_conditions ?? '').trim()

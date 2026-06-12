@@ -197,9 +197,9 @@ export default function Documentos() {
     })
   }, [user, profile?.role])
 
-  // Load patient prescriptions when tab is selected
+  // Load patient prescriptions eagerly so count badge shows without clicking the tab
   useEffect(() => {
-    if (profile?.role !== 'patient' || mainTab !== 'recetas' || prescriptions.length > 0) return
+    if (profile?.role !== 'patient' || prescriptions.length > 0) return
     setPrescriptionsLoading(true)
     supabase
       .from('prescriptions')
@@ -210,7 +210,7 @@ export default function Documentos() {
         if (!error) setPrescriptions((data ?? []) as Prescription[])
         setPrescriptionsLoading(false)
       })
-  }, [profile?.role, mainTab, prescriptions.length])
+  }, [profile?.role, prescriptions.length])
 
   const loadContent = async (folderId: string | null = currentFolder.id) => {
     if (!user) return
