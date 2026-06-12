@@ -191,15 +191,26 @@ serve(async (req: Request) => {
     const twilioAuthToken = Deno.env.get("TWILIO_AUTH_TOKEN")!;
     const twilioFrom = Deno.env.get("TWILIO_WHATSAPP_FROM")!; // whatsapp:+5218126251579
 
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+
     // Read body first (needed for signature validation)
     const formText = await req.text();
     const params = new URLSearchParams(formText);
 
     // ── Twilio signature validation ─────────────────────────────────────────
     const twilioSig = req.headers.get("x-twilio-signature") ?? "";
-    // Reconstruct the public webhook URL (strip query string — Twilio POST has none)
+    // Use TWILIO_WEBHOOK_URL env var if set (avoids req.url reconstruction issues
+    // where Deno/Supabase may return http:// or an internal host instead of the
+    // public https:// URL that Twilio uses to compute the signature).
+    const configuredUrl = Deno.env.get("TWILIO_WEBHOOK_URL");
     const reqUrl = new URL(req.url);
-    const webhookUrl = `${reqUrl.protocol}//${reqUrl.host}${reqUrl.pathname}`;
+    const webhookUrl = configuredUrl ?? `${reqUrl.protocol}//${reqUrl.host}${reqUrl.pathname}`;
+
+    console.log("webhookUrl used for sig validation:", webhookUrl);
+    console.log("x-twilio-signature present:", !!twilioSig);
 
     const sigValid = await validateTwilioSignature(
       twilioAuthToken,
@@ -209,7 +220,7 @@ serve(async (req: Request) => {
     );
 
     if (!sigValid) {
-      console.warn("Invalid Twilio signature — request rejected");
+      console.warn("Invalid Twilio signature — request rejected. webhookUrl:", webhookUrl);
       return new Response(null, { status: 204 });
     }
 
@@ -249,12 +260,6 @@ serve(async (req: Request) => {
       return new Response(null, { status: 204 });
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
-
-    // Download file from Twilio (Basic Auth required)
     const credentials = btoa(`${twilioAccountSid}:${twilioAuthToken}`);
     const fileRes = await fetch(mediaUrl, {
       headers: { Authorization: `Basic ${credentials}` },
@@ -375,13 +380,14 @@ serve(async (req: Request) => {
       }
     };
 
-    // Helper: upload to storage + insert document record
-    // If patientPublicKey is provided, file is AES-256-GCM encrypted before upload.
+    // Helper: upload to storage + insert document record.
+    // recipients: list of {userId, publicKey} to wrap the AES doc key for.
+    // All recipients share the same encrypted file; each gets their own wrapped key entry.
     const saveFile = async (
       patientId: string,
       uploadedBy: string | null,
       notes: string,
-      patientPublicKey: CryptoKey | null = null,
+      recipients: { userId: string; publicKey: CryptoKey }[] = [],
     ): Promise<string> => {
       const documentId = crypto.randomUUID();
 
@@ -390,20 +396,20 @@ serve(async (req: Request) => {
       let storageFilename = filename;
       let isEncrypted = false;
       let docIv: string | null = null;
-      let wrappedKey: string | null = null;
+      let docKey: CryptoKey | null = null;
 
-      if (patientPublicKey) {
+      if (recipients.length > 0) {
         try {
-          const docKey = await generateDocumentKey();
+          docKey = await generateDocumentKey();
           const { encryptedData, docIv: iv } = await encryptBuffer(fileBuffer, docKey);
-          wrappedKey = await wrapDocumentKey(docKey, patientPublicKey);
           uploadBuffer = encryptedData;
           docIv = iv;
-          uploadMime = mimeType; // keep original MIME — bucket allowlist requires it
+          uploadMime = mimeType;
           storageFilename = `${documentId}.bin`;
           isEncrypted = true;
         } catch (encErr) {
           console.warn("Encryption failed, falling back to plain upload:", (encErr as Error).message);
+          docKey = null;
         }
       }
 
@@ -427,15 +433,22 @@ serve(async (req: Request) => {
       });
       if (docError) throw new Error(`documents insert failed: ${docError.message}`);
 
-      // Store wrapped document key if encrypted
-      if (isEncrypted && wrappedKey && docIv) {
-        const { error: keyError } = await supabase.from("document_keys").insert({
-          document_id: documentId,
-          user_id: patientId,
-          wrapped_key: wrappedKey,
-          doc_iv: docIv,
-        });
-        if (keyError) console.warn("document_keys insert failed:", keyError.message);
+      // Wrap and store the doc key for every recipient
+      if (isEncrypted && docKey && docIv) {
+        for (const recipient of recipients) {
+          try {
+            const wrappedKey = await wrapDocumentKey(docKey, recipient.publicKey);
+            const { error: keyError } = await supabase.from("document_keys").insert({
+              document_id: documentId,
+              user_id: recipient.userId,
+              wrapped_key: wrappedKey,
+              doc_iv: docIv,
+            });
+            if (keyError) console.warn(`document_keys insert failed for user ${recipient.userId}:`, keyError.message);
+          } catch (wrapErr) {
+            console.warn(`Key wrap failed for user ${recipient.userId}:`, (wrapErr as Error).message);
+          }
+        }
       }
 
       const { error: archivoError } = await supabase
@@ -589,16 +602,19 @@ serve(async (req: Request) => {
         console.log("Auto pre-registered patient:", patientId);
       }
 
-      // Use patient's own key if available, otherwise fall back to doctor's key
-      // so the document is encrypted at rest even for pre-registered patients.
+      // Build recipient list: patient + requesting doctor (both get wrapped keys so either can decrypt).
+      const recipients0: { userId: string; publicKey: CryptoKey }[] = [];
       const patientPubKey0 = await getPatientPublicKey(patientId);
-      const encryptionKey0 = patientPubKey0 ??
-        (session.doctor_id ? await getPatientPublicKey(session.doctor_id) : null);
+      if (patientPubKey0) recipients0.push({ userId: patientId, publicKey: patientPubKey0 });
+      if (session.doctor_id) {
+        const doctorPubKey0 = await getPatientPublicKey(session.doctor_id);
+        if (doctorPubKey0) recipients0.push({ userId: session.doctor_id, publicKey: doctorPubKey0 });
+      }
       const documentId = await saveFile(
         patientId,
         patientId,
         `Solicitado por doctor vía WhatsApp — ${docReq.document_type}`,
-        encryptionKey0,
+        recipients0,
       );
 
       if (session.doctor_id) {
@@ -646,8 +662,9 @@ serve(async (req: Request) => {
       // ── SCENARIO 1: Patient matched by phone ─────────────────────────────
       console.log("Scenario 1: existing patient matched by phone");
       const patientPubKey1 = await getPatientPublicKey(profile.id);
+      const recipients1 = patientPubKey1 ? [{ userId: profile.id, publicKey: patientPubKey1 }] : [];
       const isFirstInBatch1 = await shouldSendReply();
-      await saveFile(profile.id, null, "Recibido por WhatsApp", patientPubKey1);
+      await saveFile(profile.id, null, "Recibido por WhatsApp", recipients1);
       if (isFirstInBatch1) {
         // Wait 3s for sibling webhooks (same batch) to finish inserting
         await new Promise((r) => setTimeout(r, 3000));
@@ -682,11 +699,12 @@ serve(async (req: Request) => {
           // ── SCENARIO 2: Has account, phone not linked ───────────────────
           console.log("Scenario 2: auth user exists, phone not linked:", existingAuthUser.id);
           const patientPubKey2 = await getPatientPublicKey(existingAuthUser.id);
+          const recipients2 = patientPubKey2 ? [{ userId: existingAuthUser.id, publicKey: patientPubKey2 }] : [];
           await saveFile(
             existingAuthUser.id,
             null,
             "Recibido por WhatsApp - Teléfono no vinculado",
-            patientPubKey2,
+            recipients2,
           );
           if (await shouldSendReply()) {
             await sendWhatsAppReply(
@@ -735,7 +753,7 @@ serve(async (req: Request) => {
         .upsert({ patient_id: newUserId }, { onConflict: "patient_id" });
 
       const isFirstInBatch3 = await shouldSendReply();
-      await saveFile(newUserId, null, "Recibido por WhatsApp - Pre-registro");
+      await saveFile(newUserId, null, "Recibido por WhatsApp - Pre-registro", []);
       if (isFirstInBatch3) {
         await new Promise((r) => setTimeout(r, 3000));
         const since3 = new Date(Date.now() - 65_000).toISOString();
