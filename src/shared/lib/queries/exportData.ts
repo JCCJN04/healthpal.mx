@@ -5,9 +5,17 @@
  *  de acuerdo a lo establecido en las disposiciones jurídicas aplicables
  *  en materia de transparencia y protección de datos personales."
  *
- * Exports a structured JSON with all medical record data for the current patient.
+} * Exports a structured PDF/JSON with patient-owned data only.
  * Does NOT include raw encrypted file blobs — includes document metadata only.
  * All export events are logged to audit_log via auditLog.exportData().
+ *
+ * NOM-004-SSA3-2012 §7 (referenced by NOM-024 §2.2) establishes that the
+ * expediente clínico is property of the healthcare institution/professional.
+ * The patient has the right to a summary of their health status and copies of
+ * results, but the complete clinical record (historial clínico) — including
+ * doctor-maintained fields such as pathological history, family history,
+ * systems review, and physician annotations — may NOT be delivered in full
+ * to the patient. Those sections are therefore excluded from this export.
  */
 
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
@@ -50,19 +58,9 @@ export interface PatientExportData {
     contacto_emergencia_nombre: string | null
     contacto_emergencia_telefono: string | null
   } | null
-  historial_clinico: {
-    alergias: string | null
-    motivo_consulta: string | null
-    observaciones_paciente: string | null
-    historial_familiar: unknown
-    historial_patologico: unknown
-    historial_no_patologico: unknown
-    historial_ginecologico: unknown
-    historial_psiquiatrico: unknown
-    historial_desarrollo: unknown
-    revision_sistemas: string | null
-    ultima_edicion: string | null
-  } | null
+  // historial_clinico is intentionally excluded — see NOM-004-SSA3-2012 §7
+  // (expediente clínico is property of the institution/professional, not fully
+  //  transferable to the patient via self-service export).
   citas: Array<{
     id: string
     fecha_hora: string | null
@@ -109,17 +107,17 @@ export async function exportPatientData(): Promise<PatientExportData> {
   const patientId = user.id
 
   // Fetch all data in parallel
+  // NOTE: clinical_histories is excluded — NOM-004-SSA3-2012 §7 (via NOM-024 §2.2)
+  // establishes that the expediente clínico belongs to the institution/professional.
   const [
     profileResult,
     patientProfileResult,
-    clinicalHistoryResult,
     appointmentsResult,
     documentsResult,
     consentResult,
   ] = await Promise.allSettled([
     supabase.from('profiles').select('*').eq('id', patientId).single(),
     supabase.from('patient_profiles').select('*').eq('patient_id', patientId).maybeSingle(),
-    supabase.from('clinical_histories').select('*').eq('patient_id', patientId).maybeSingle(),
     supabase.from('appointments').select('*').eq('patient_id', patientId).order('scheduled_at', { ascending: false }),
     supabase.from('documents').select('id, title, category, mime_type, file_size, document_date, notes, uploaded_by, created_at')
       .eq('owner_id', patientId).is('deleted_at', null).order('created_at', { ascending: false }),
@@ -134,8 +132,6 @@ export async function exportPatientData(): Promise<PatientExportData> {
   const profile = profileResult.value.data as any
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pp = patientProfileResult.status === 'fulfilled' ? (patientProfileResult.value.data as any) : null
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const ch = clinicalHistoryResult.status === 'fulfilled' ? (clinicalHistoryResult.value.data as any) : null
   const appts = appointmentsResult.status === 'fulfilled' ? (appointmentsResult.value.data ?? []) : []
   const docs = documentsResult.status === 'fulfilled' ? (documentsResult.value.data ?? []) : []
   const consents = consentResult.status === 'fulfilled' ? (consentResult.value.data ?? []) : []
@@ -187,19 +183,7 @@ export async function exportPatientData(): Promise<PatientExportData> {
       contacto_emergencia_nombre: pp.emergency_contact_name ?? null,
       contacto_emergencia_telefono: pp.emergency_contact_phone ?? null,
     } : null,
-    historial_clinico: ch ? {
-      alergias: ch.allergies ?? null,
-      motivo_consulta: ch.consultation_reason ?? null,
-      observaciones_paciente: ch.patient_observations ?? null,
-      historial_familiar: ch.family_history ?? null,
-      historial_patologico: ch.pathological_history ?? null,
-      historial_no_patologico: ch.non_pathological_history ?? null,
-      historial_ginecologico: ch.gynecological_history ?? null,
-      historial_psiquiatrico: ch.psychiatric_history ?? null,
-      historial_desarrollo: ch.developmental_history ?? null,
-      revision_sistemas: ch.systems_review ?? null,
-      ultima_edicion: ch.updated_at ?? null,
-    } : null,
+    // historial_clinico omitted — NOM-004-SSA3-2012 §7 via NOM-024 §2.2
     citas: appts.map((a: Record<string, unknown>) => ({
       id: a.id as string,
       fecha_hora: a.scheduled_at as string | null,
@@ -417,23 +401,12 @@ export async function generateExportPdf(data: PatientExportData): Promise<Uint8A
   }
   spacer(10)
 
-  // ── 3. HISTORIAL CLINICO ──────────────────────────────────────────────────
-  sectionHeader('3. Historial Clinico')
-  const ch = data.historial_clinico
-  if (ch) {
-    row('Motivo de consulta', ch.motivo_consulta, false)
-    row('Observaciones', ch.observaciones_paciente, true)
-    row('Alergias', ch.alergias, false)
-    row('Revision de sistemas', ch.revision_sistemas, true)
-    row('Ultima edicion', fmtDate(ch.ultima_edicion), false)
-  } else {
-    page.drawText('Sin historial clinico registrado.', { x: MX + 6, y, size: 8, font: regular, color: GRAY })
-    y -= 14
-  }
-  spacer(10)
-
-  // ── 4. CITAS ──────────────────────────────────────────────────────────────
-  sectionHeader(`4. Citas Medicas (${data.citas.length})`)
+  // ── 3. CITAS ──────────────────────────────────────────────────────────────
+  // Note: Section "3. Historial Clínico" is intentionally absent from
+  // patient-facing exports per NOM-004-SSA3-2012 §7 (via NOM-024 §2.2).
+  // The expediente clínico is the property of the healthcare institution /
+  // professional and may not be delivered in full via patient self-service.
+  sectionHeader(`3. Citas Medicas (${data.citas.length})`)
   if (data.citas.length === 0) {
     page.drawText('Sin citas registradas.', { x: MX + 6, y, size: 8, font: regular, color: GRAY })
     y -= 14
@@ -451,8 +424,8 @@ export async function generateExportPdf(data: PatientExportData): Promise<Uint8A
   }
   spacer(10)
 
-  // ── 5. DOCUMENTOS ─────────────────────────────────────────────────────────
-  sectionHeader(`5. Documentos (${data.documentos.length})`)
+  // ── 4. DOCUMENTOS ─────────────────────────────────────────────────────────
+  sectionHeader(`4. Documentos (${data.documentos.length})`)
   if (data.documentos.length === 0) {
     page.drawText('Sin documentos registrados.', { x: MX + 6, y, size: 8, font: regular, color: GRAY })
     y -= 14
@@ -469,8 +442,8 @@ export async function generateExportPdf(data: PatientExportData): Promise<Uint8A
   }
   spacer(10)
 
-  // ── 6. CONSENTIMIENTOS ────────────────────────────────────────────────────
-  sectionHeader(`6. Consentimientos de Acceso (${data.consentimientos.length})`)
+  // ── 5. CONSENTIMIENTOS ────────────────────────────────────────────────────
+  sectionHeader(`5. Consentimientos de Acceso (${data.consentimientos.length})`)
   if (data.consentimientos.length === 0) {
     page.drawText('Sin consentimientos registrados.', { x: MX + 6, y, size: 8, font: regular, color: GRAY })
     y -= 14

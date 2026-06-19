@@ -165,7 +165,7 @@ function ImageThumb({ url, title, gradient }: { url: string; title: string; grad
           alt={title}
           onLoad={() => setLoaded(true)}
           onError={() => setError(true)}
-          className={`w-full h-full object-cover transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+          className={`w-full h-full object-contain transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
         />
       )}
     </div>
@@ -243,9 +243,11 @@ export const DocumentCard = ({ document, onDelete, onDragStart, isMoving, onShar
   const isExternal = !!document.external_url
   const fileSize = formatFileSize(document.file_size)
   const isSharedDoc = document.uploaded_by && document.uploaded_by !== document.owner_id
-  const thumbType = isExternal ? null : getThumbnailType(document.mime_type)
-  const hasThumbnail = thumbType !== null
   const isEncrypted = !!(document as Document & { is_encrypted?: boolean }).is_encrypted
+  const thumbType = isExternal ? null : getThumbnailType(document.mime_type)
+  // For encrypted docs with unknown mime_type, still attempt thumbnail (try as image; ImageThumb handles onError)
+  const hasThumbnail = thumbType !== null || (!isExternal && isEncrypted && !document.mime_type)
+  const effectiveThumbType = thumbType ?? (hasThumbnail ? 'image' : null)
 
   // Lazy-fetch the signed URL (or decrypted blob URL) once the card enters the viewport
   useEffect(() => {
@@ -314,9 +316,9 @@ export const DocumentCard = ({ document, onDelete, onDragStart, isMoving, onShar
   return (
     <div
       ref={cardRef}
-      className={`relative bg-white rounded-3xl border border-gray-100 overflow-hidden flex flex-col
-        shadow-sm hover:shadow-xl hover:shadow-gray-200/60 hover:-translate-y-0.5 active:translate-y-0 active:shadow-sm
-        transition-all duration-200 cursor-pointer group
+      className={`relative bg-white rounded-2xl border border-gray-200 overflow-hidden flex flex-col
+        shadow-sm hover:shadow-md hover:border-gray-300
+        transition-all duration-150 cursor-pointer group
         ${isMoving ? 'opacity-50 pointer-events-none' : ''}`}
       draggable={!!onDragStart}
       onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; onDragStart?.(document.id, e) }}
@@ -328,140 +330,108 @@ export const DocumentCard = ({ document, onDelete, onDragStart, isMoving, onShar
         </div>
       )}
 
-      {/* ── Thumbnail area (only for image/pdf/video/audio/office) ── */}
-      {hasThumbnail && (
-        <div className="relative h-40 overflow-hidden shrink-0 bg-gray-50">
-          {thumbUrl ? (
-            thumbType === 'image' ? (
-              <ImageThumb url={thumbUrl} title={document.title} gradient={config.gradient} />
-            ) : thumbType === 'pdf' ? (
-              <PdfThumb url={thumbUrl} gradient={config.gradient} />
-            ) : thumbType === 'video' ? (
-              <IconThumb gradient={config.gradient} icon={<Video className="w-5 h-5" />} />
-            ) : thumbType === 'audio' ? (
-              <IconThumb gradient={config.gradient} icon={<Music className="w-5 h-5" />} />
-            ) : (
-              <IconThumb gradient={config.gradient} icon={<FileSpreadsheet className="w-5 h-5" />} />
-            )
+      {/* ── Preview area (dominant — Drive style) ── */}
+      <div className="relative h-44 overflow-hidden shrink-0 bg-gray-50 border-b border-gray-100">
+        {hasThumbnail && thumbUrl ? (
+          effectiveThumbType === 'image' ? (
+            <ImageThumb url={thumbUrl} title={document.title} gradient={config.gradient} />
+          ) : effectiveThumbType === 'pdf' ? (
+            <PdfThumb url={thumbUrl} gradient={config.gradient} />
+          ) : effectiveThumbType === 'video' ? (
+            <IconThumb gradient={config.gradient} icon={<Video className="w-8 h-8" />} />
+          ) : effectiveThumbType === 'audio' ? (
+            <IconThumb gradient={config.gradient} icon={<Music className="w-8 h-8" />} />
           ) : (
-            <div className={`w-full h-full bg-gradient-to-br ${config.gradient} opacity-[0.12] flex items-center justify-center`}>
-              <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
-            </div>
-          )}
-
-          {/* Category badge overlay */}
-          <div className="absolute top-2 left-2">
-            <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${config.badge} shadow-sm`}>
-              {config.label}
-            </span>
+            <IconThumb gradient={config.gradient} icon={<FileSpreadsheet className="w-8 h-8" />} />
+          )
+        ) : hasThumbnail ? (
+          /* loading */
+          <div className={`w-full h-full bg-gradient-to-br ${config.gradient} opacity-[0.08] flex items-center justify-center`}>
+            <Loader2 className="w-5 h-5 text-gray-300 animate-spin" />
           </div>
+        ) : (
+          /* no preview — large icon */
+          <div className={`w-full h-full bg-gradient-to-br ${config.gradient} opacity-[0.08] flex items-center justify-center`}>
+            <div className={`${config.textColor} opacity-40 scale-[3]`}>{config.icon}</div>
+          </div>
+        )}
 
-          {isSharedDoc && (
-            <div className="absolute top-2 right-2">
-              <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-orange-100 text-orange-600 shadow-sm">
-                Compartido
-              </span>
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="p-4 flex flex-col flex-1">
-
-        {/* Header row: icon + badges */}
-        <div className="flex items-center gap-1.5 mb-2">
-          <span className={`${config.textColor} shrink-0`}>{isExternal ? <Link2 className="w-4 h-4" /> : config.icon}</span>
-          <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${config.badge}`}>
-            {config.label}
+        {/* Hover overlay with Ver action */}
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+          <span className="bg-white/90 backdrop-blur-sm text-gray-800 text-xs font-semibold px-3 py-1.5 rounded-full shadow flex items-center gap-1.5">
+            <Eye size={12} /> Ver
           </span>
-          {isSharedDoc && !hasThumbnail && (
-            <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-orange-100 text-orange-600">
+        </div>
+
+        {isSharedDoc && (
+          <div className="absolute top-2 right-2">
+            <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-orange-100 text-orange-600 shadow-sm">
               Compartido
             </span>
-          )}
-          {isExternal && (
-            <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
-              Enlace
-            </span>
-          )}
-        </div>
-
-        {/* Title */}
-        <h3 className="font-bold text-gray-900 text-sm leading-snug line-clamp-2 mb-1 flex-1">
-          {document.title}
-        </h3>
-
-        {/* Meta */}
-        <div className="flex items-center gap-1.5 text-[11px] text-gray-400 mt-1.5">
-          <span>{formatDate(document.created_at)}</span>
-          {fileSize && <><span>·</span><span>{fileSize}</span></>}
-        </div>
-
-        {/* Actions */}
-        <div
-          className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            onClick={handleAbrir}
-            className={`inline-flex items-center gap-1.5 text-xs font-bold ${config.textColor} hover:opacity-70 transition-opacity`}
-          >
-            <Eye size={13} />
-            Ver
-          </button>
-
-          <div className="flex items-center gap-0.5">
-            <button
-              onClick={handleDownload}
-              className="p-1.5 rounded-lg bg-gray-50 text-primary hover:bg-primary/10 transition-colors"
-              title="Descargar"
-            >
-              <Download size={13} />
-            </button>
-            {onShare && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onShare(document.id, document.title) }}
-                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-primary"
-                title="Compartir"
-              >
-                <Share2 size={13} />
-              </button>
-            )}
-            <div className="relative">
-              <button
-                onClick={(e) => { e.stopPropagation(); setMenuOpen(v => !v) }}
-                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-400"
-              >
-                <MoreVertical size={14} />
-              </button>
-              {menuOpen && (
-                <>
-                  <div className="fixed inset-0 z-20" onClick={(e) => { e.stopPropagation(); setMenuOpen(false) }} />
-                  <div className="absolute right-0 bottom-full mb-2 w-40 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 z-30">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setMenuOpen(false); handleAbrir() }}
-                      className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                    >
-                      <Eye size={14} /> Ver
-                    </button>
-                    <button
-                      onClick={handleDownload}
-                      className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                    >
-                      <Download size={14} /> Descargar
-                    </button>
-                    <div className="h-px bg-gray-100 mx-2 my-1" />
-                    <button
-                      onClick={handleDelete}
-                      className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                    >
-                      <Trash2 size={14} /> Eliminar
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
           </div>
+        )}
+      </div>
+
+      {/* ── Footer: icon + name + menu (Drive-style compact bar) ── */}
+      <div
+        className="flex items-center gap-2 px-3 py-2.5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Type icon */}
+        <span className={`${config.textColor} shrink-0`}>
+          {isExternal ? <Link2 className="w-4 h-4" /> : config.icon}
+        </span>
+
+        {/* Name + meta */}
+        <div className="flex-1 min-w-0" onClick={handleAbrir}>
+          <p className="text-sm font-medium text-gray-900 truncate leading-tight">{document.title}</p>
+          <p className="text-[11px] text-gray-400 leading-tight mt-0.5">
+            {formatDate(document.created_at)}{fileSize ? ` · ${fileSize}` : ''}
+          </p>
+        </div>
+
+        {/* 3-dot menu */}
+        <div className="relative shrink-0">
+          <button
+            onClick={(e) => { e.stopPropagation(); setMenuOpen(v => !v) }}
+            className="p-1.5 hover:bg-gray-100 rounded-full transition-colors text-gray-400"
+          >
+            <MoreVertical size={15} />
+          </button>
+          {menuOpen && (
+            <>
+              <div className="fixed inset-0 z-20" onClick={(e) => { e.stopPropagation(); setMenuOpen(false) }} />
+              <div className="absolute right-0 bottom-full mb-2 w-44 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 z-30">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setMenuOpen(false); handleAbrir() }}
+                  className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                >
+                  <Eye size={14} /> Ver
+                </button>
+                <button
+                  onClick={handleDownload}
+                  className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                >
+                  <Download size={14} /> Descargar
+                </button>
+                {onShare && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onShare(document.id, document.title) }}
+                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                  >
+                    <Share2 size={14} /> Compartir
+                  </button>
+                )}
+                <div className="h-px bg-gray-100 mx-2 my-1" />
+                <button
+                  onClick={handleDelete}
+                  className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                >
+                  <Trash2 size={14} /> Eliminar
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

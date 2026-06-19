@@ -1,13 +1,17 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Building2, Video, Phone, Clock, CalendarDays, FileText,
-  Lock, Plus, Loader2, X, Check, Stethoscope, User, Activity,
+  Loader2, Check, User, Activity,
 } from 'lucide-react'
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import { getAppointmentById, updateAppointmentStatus, type AppointmentWithPatient, type AppointmentMode } from '@/shared/lib/queries/appointments'
 import { getPatientProfile } from '@/shared/lib/queries/profile'
-import { getAppointmentNotesByPatient, createAppointmentNote, deleteAppointmentNote, type AppointmentNote } from '@/shared/lib/queries/appointmentNotes'
+import { getAppointmentNotesByPatient, type AppointmentNote } from '@/shared/lib/queries/appointmentNotes'
+import { getClinicalHistory, type ClinicalHistoryData } from '@/shared/lib/queries/clinicalHistory'
+import { getNotaEvolucionByAppointment, getNotasEvolucionByPatient } from '@/shared/lib/queries/notasEvolucion'
+import type { NotaEvolucion } from '@/shared/lib/queries/notasEvolucion'
+import NotaEvolucionForm from '@/features/doctor/components/NotaEvolucionForm'
 import { showToast } from '@/shared/components/ui/Toast'
 import { logger } from '@/shared/lib/logger'
 
@@ -81,19 +85,13 @@ export default function ConsultaActiva() {
   const [appt, setAppt] = useState<AppointmentWithPatient | null>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [patientProfile, setPatientProfile] = useState<any>(null)
-  const [pastNotes, setPastNotes] = useState<AppointmentNote[]>([])
-  const [sessionNotes, setSessionNotes] = useState<AppointmentNote[]>([])
+  const [, setPastNotes] = useState<AppointmentNote[]>([])
+  const [prevNotas, setPrevNotas] = useState<NotaEvolucion[]>([])
+  const [existingNota, setExistingNota] = useState<NotaEvolucion | null>(null)
+  const [clinicalHistory, setClinicalHistory] = useState<ClinicalHistoryData | null | undefined>(undefined)
   const [loading, setLoading] = useState(true)
-
-  const [noteTitle, setNoteTitle] = useState('')
-  const [noteBody, setNoteBody] = useState('')
-  const [savingNote, setSavingNote] = useState(false)
-
-  const [deletingNote, setDeletingNote] = useState<string | null>(null)
   const [showFinalizar, setShowFinalizar] = useState(false)
   const [finalizing, setFinalizing] = useState(false)
-
-  const bodyRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     if (!appointmentId) return
@@ -113,14 +111,17 @@ export default function ConsultaActiva() {
       }
       setAppt(apptData)
 
-      // Load all notes for this patient (all appointments)
-      const notesData = await getAppointmentNotesByPatient(apptData.patient_id).catch(() => [] as AppointmentNote[])
-
-      // Split: notes from THIS appointment vs previous ones
-      const thisApptNotes = notesData.filter(n => n.appointment_id === appointmentId)
-      const otherNotes = notesData.filter(n => n.appointment_id !== appointmentId)
-      setSessionNotes(thisApptNotes)
-      setPastNotes(otherNotes.slice(0, 10))
+      // Load legacy notes + nota de evolución for this appointment + previous notas + HC
+      const [notesData, notaEvolucion, todasNotas, hc] = await Promise.all([
+        getAppointmentNotesByPatient(apptData.patient_id).catch(() => [] as AppointmentNote[]),
+        getNotaEvolucionByAppointment(appointmentId!).catch(() => null),
+        getNotasEvolucionByPatient(apptData.patient_id).catch(() => [] as NotaEvolucion[]),
+        getClinicalHistory(apptData.patient_id).catch(() => null),
+      ])
+      setPastNotes(notesData.filter(n => n.appointment_id !== appointmentId).slice(0, 10))
+      setExistingNota(notaEvolucion)
+      setPrevNotas(todasNotas.filter(n => n.appointment_id !== appointmentId).slice(0, 8))
+      setClinicalHistory(hc)
 
       // Patient medical profile
       const medProf = await getPatientProfile(apptData.patient_id).catch(() => null)
@@ -130,35 +131,6 @@ export default function ConsultaActiva() {
       showToast('Error al cargar la consulta', 'error')
     } finally {
       setLoading(false)
-    }
-  }
-
-  async function handleSaveNote() {
-    if (!noteBody.trim() || !appointmentId) return
-    setSavingNote(true)
-    try {
-      const note = await createAppointmentNote(appointmentId, noteBody.trim(), noteTitle.trim() || undefined)
-      setSessionNotes(prev => [note, ...prev])
-      setNoteTitle('')
-      setNoteBody('')
-      bodyRef.current?.focus()
-      showToast('Nota guardada', 'success')
-    } catch (err) {
-      showToast('Error al guardar la nota', 'error')
-    } finally {
-      setSavingNote(false)
-    }
-  }
-
-  async function handleDeleteNote(noteId: string) {
-    setDeletingNote(noteId)
-    try {
-      await deleteAppointmentNote(noteId)
-      setSessionNotes(prev => prev.filter(n => n.id !== noteId))
-    } catch {
-      showToast('Error al eliminar', 'error')
-    } finally {
-      setDeletingNote(null)
     }
   }
 
@@ -233,7 +205,12 @@ export default function ConsultaActiva() {
 
             {/* Finalizar */}
             <button
-              onClick={() => setShowFinalizar(true)}
+              onClick={() => {
+              if (!existingNota) {
+                if (!window.confirm('No has guardado la nota de evolución. ¿Finalizar la consulta de todas formas?')) return
+              }
+              setShowFinalizar(true)
+            }}
               className="flex items-center gap-2 px-4 py-2 bg-[#33C7BE] text-white font-semibold text-sm rounded-xl hover:bg-teal-600 transition-colors flex-shrink-0"
             >
               <Check className="w-4 h-4" />
@@ -322,113 +299,79 @@ export default function ConsultaActiva() {
                 )}
               </div>
 
-              {/* Past notes (other appointments) */}
-              {pastNotes.length > 0 && (
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                    <Activity className="w-3 h-3" /> Notas anteriores
-                  </p>
-                  <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                    {pastNotes.map(note => (
-                      <div key={note.id} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                        <p className="text-[10px] text-gray-400 mb-0.5">
-                          {note.appointments?.scheduled_at
-                            ? new Date(note.appointments.scheduled_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
-                            : new Date(note.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
-                        </p>
-                        {note.title && <p className="text-xs font-semibold text-gray-700 mb-0.5">{note.title}</p>}
-                        <p className="text-xs text-gray-600 leading-relaxed line-clamp-3">{note.body}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* ── Right columns: note taking ────────────────────────────── */}
-            <div className="lg:col-span-2 space-y-4">
-
-              {/* Note editor */}
-              <div className="bg-white rounded-2xl border border-[#33C7BE]/20 shadow-sm p-5 space-y-3">
-                <div className="flex items-center gap-2 text-[#33C7BE]">
-                  <Stethoscope className="w-4 h-4" />
-                  <span className="text-sm font-bold">Nueva nota de consulta</span>
-                </div>
-
-                <input
-                  placeholder="Título (ej: Diagnóstico, Plan de tratamiento, Indicaciones)"
-                  className="w-full px-3 py-2.5 border border-gray-200 bg-gray-50 rounded-xl text-sm focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none focus:bg-white transition-colors"
-                  value={noteTitle}
-                  onChange={e => setNoteTitle(e.target.value)}
-                />
-                <textarea
-                  ref={bodyRef}
-                  placeholder="Evolución clínica, hallazgos, indicaciones, plan de tratamiento..."
-                  rows={6}
-                  className="w-full px-3 py-2.5 border border-gray-200 bg-gray-50 rounded-xl text-sm focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none resize-none focus:bg-white transition-colors"
-                  value={noteBody}
-                  onChange={e => setNoteBody(e.target.value)}
-                  onKeyDown={e => {
-                    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-                      e.preventDefault()
-                      handleSaveNote()
-                    }
-                  }}
-                />
-                <div className="flex items-center justify-between">
-                  <p className="text-[10px] text-gray-400 flex items-center gap-1">
-                    <Lock className="w-2.5 h-2.5" /> Cifrada AES-256 · Ctrl+Enter para guardar
+              {/* HC incomplete warning */}
+              {clinicalHistory === null && (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-2">
+                  <p className="text-[10px] font-bold text-amber-700 uppercase tracking-widest">Historia Clínica incompleta</p>
+                  <p className="text-xs text-amber-600 leading-relaxed">
+                    Este paciente no tiene Historia Clínica registrada. Complétala antes de continuar la nota de evolución.
                   </p>
                   <button
-                    onClick={handleSaveNote}
-                    disabled={savingNote || !noteBody.trim()}
-                    className="flex items-center gap-2 px-5 py-2 bg-[#33C7BE] text-white text-sm font-bold rounded-xl hover:bg-teal-600 disabled:opacity-40 transition-all"
+                    onClick={() => window.open(`/dashboard/pacientes/${appt.patient_id}?tab=historia`, '_blank')}
+                    className="text-xs font-bold text-amber-700 underline underline-offset-2 hover:text-amber-900 transition-colors"
                   >
-                    {savingNote ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                    Guardar nota
+                    Completar Historia Clínica →
                   </button>
                 </div>
-              </div>
+              )}
 
-              {/* Notes saved this session */}
-              {sessionNotes.length > 0 && (
-                <div className="space-y-3">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">
-                    Notas de esta consulta · {sessionNotes.length}
-                  </p>
-                  {sessionNotes.map(note => (
-                    <div key={note.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-                      <div className="flex items-start justify-between gap-3 mb-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-gray-800">{note.title || 'Nota de consulta'}</p>
-                          <p className="text-[10px] text-gray-400 mt-0.5">
-                            {new Date(note.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
+              {/* Historial clínico — notas de evolución previas */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                  <Activity className="w-3 h-3" /> Historial clínico
+                </p>
+                {prevNotas.length === 0 ? (
+                  <p className="text-xs text-gray-400 text-center py-2">Sin consultas previas registradas</p>
+                ) : (
+                  <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+                    {prevNotas.map(nota => {
+                      const principal = nota.notas_evolucion_diagnosticos?.find(d => d.tipo === 'principal')
+                      return (
+                        <div key={nota.id} className="bg-gray-50 rounded-xl p-3 border border-gray-100 space-y-1.5">
+                          <p className="text-[10px] text-gray-400 font-bold">
+                            {new Date(nota.fecha_hora).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
                           </p>
+                          {principal && (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[9px] font-mono font-bold text-violet-700 bg-violet-100 px-1.5 py-0.5 rounded shrink-0">
+                                {principal.cie10_codigo}
+                              </span>
+                              <span className="text-[10px] text-gray-500 truncate">{principal.cie10_descripcion}</span>
+                            </div>
+                          )}
+                          {nota.motivo_consulta && (
+                            <p className="text-[10px] text-gray-600 leading-relaxed line-clamp-2">
+                              <span className="font-bold text-blue-400">S: </span>{nota.motivo_consulta}
+                            </p>
+                          )}
+                          {nota.diagnostico && (
+                            <p className="text-[10px] text-gray-600 leading-relaxed line-clamp-2">
+                              <span className="font-bold text-amber-400">A: </span>{nota.diagnostico}
+                            </p>
+                          )}
+                          {nota.plan_terapeutico && (
+                            <p className="text-[10px] text-gray-600 leading-relaxed line-clamp-1">
+                              <span className="font-bold text-violet-400">P: </span>{nota.plan_terapeutico}
+                            </p>
+                          )}
                         </div>
-                        <button
-                          onClick={() => handleDeleteNote(note.id)}
-                          disabled={deletingNote === note.id}
-                          className="text-gray-300 hover:text-red-400 transition-colors flex-shrink-0 mt-0.5"
-                        >
-                          {deletingNote === note.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
-                        </button>
-                      </div>
-                      <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{note.body}</p>
-                      <p className="text-[10px] text-gray-400 mt-3 flex items-center gap-1">
-                        <Lock className="w-2.5 h-2.5" /> Cifrada AES-256
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
 
-              {sessionNotes.length === 0 && (
-                <div className="text-center py-10 text-gray-400">
-                  <Stethoscope className="w-10 h-10 mx-auto mb-2 opacity-20" />
-                  <p className="text-sm">Agrega notas mientras avanza la consulta</p>
-                  <p className="text-xs mt-0.5 opacity-70">Las notas quedan cifradas y vinculadas a esta cita</p>
-                </div>
-              )}
+            {/* ── Right columns: Nota de Evolución (NOM-004) ───────────── */}
+            <div className="lg:col-span-2">
+              <div className="bg-white rounded-2xl border border-[#33C7BE]/20 shadow-sm p-5">
+                <NotaEvolucionForm
+                  appointmentId={appointmentId!}
+                  patientId={appt.patient_id}
+                  existing={existingNota}
+                  onSaved={nota => setExistingNota(nota)}
+                />
+              </div>
             </div>
           </div>
         </div>

@@ -104,11 +104,8 @@ export const DocumentGrid = ({
         <div className="space-y-3">
           <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">Documentos</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {documents.map((document, index) => (
-              <div
-                key={document.id}
-                className={index === 0 && documents.length > 1 ? 'sm:col-span-2 lg:col-span-2' : ''}
-              >
+            {documents.map((document) => (
+              <div key={document.id}>
                 <DocumentCard
                   document={document}
                   onDelete={onDeleteDocument}

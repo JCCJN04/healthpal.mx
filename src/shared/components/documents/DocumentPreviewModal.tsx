@@ -106,7 +106,11 @@ export function DocumentPreviewModal({ document, onClose, onShare }: DocumentPre
 
   const config = CATEGORY_CONFIG[document.category as DocCategory] ?? CATEGORY_CONFIG.other
   const isExternal = !!document.external_url
-  const fileType = getFileType(document.mime_type, document.title)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const isEncrypted = (document as any).is_encrypted === true
+  // For encrypted docs with unknown mime_type, try as 'image' (decrypted blob renders directly; DocumentViewer handles onError)
+  const rawFileType = getFileType(document.mime_type, document.title)
+  const fileType = rawFileType === 'other' && isEncrypted && !document.mime_type ? 'image' : rawFileType
 
   const handleDownload = async () => {
     if (isExternal) {

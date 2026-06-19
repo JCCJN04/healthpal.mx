@@ -17,6 +17,7 @@ import { logger } from '@/shared/lib/logger'
 import { listDoctorPatients, type PatientProfileLite } from '@/features/doctor/services/patients'
 import AgendarCitaModal from '@/shared/components/appointments/AgendarCitaModal'
 import { useAuth } from '@/app/providers/AuthContext'
+import { showToast } from '@/shared/components/ui/Toast'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -426,9 +427,11 @@ function dotPriority(appts: { status: AppointmentStatus }[]): string {
 function CalendarView({
   appointments,
   onSelect,
+  onConfirm,
 }: {
   appointments: AppointmentWithPatient[]
   onSelect: (appt: AppointmentWithPatient) => void
+  onConfirm?: (appt: AppointmentWithPatient) => void
 }) {
   const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d }, [])
   const [viewDate, setViewDate] = useState(() => { const d = new Date(); d.setDate(1); return d })
@@ -538,29 +541,40 @@ function CalendarView({
               {selectedDayAppts.map(appt => {
                 const initials = (appt.patient_name ?? 'P').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
                 const endTime = addMinutes(appt.scheduled_at, appt.duration_min)
+                const isPendingPatient = appt.status === 'pending' && appt.initiated_by === appt.patient_id
                 return (
-                  <button
-                    key={appt.id}
-                    onClick={() => onSelect(appt)}
-                    className={`w-full text-left flex items-center gap-3 p-3 rounded-2xl border border-gray-100 border-l-4 ${STATUS_LEFT_BORDER[appt.status]} bg-white shadow-sm active:scale-[0.98] transition-all hover:shadow-md`}
-                  >
-                    {appt.patient_avatar ? (
-                      <img src={appt.patient_avatar} alt="" className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
-                    ) : (
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-400 to-violet-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                        {initials}
+                  <div key={appt.id} className={`flex items-center gap-2 p-3 rounded-2xl border border-gray-100 border-l-4 ${STATUS_LEFT_BORDER[appt.status]} bg-white shadow-sm`}>
+                    <button
+                      onClick={() => onSelect(appt)}
+                      className="flex items-center gap-3 flex-1 min-w-0 text-left active:scale-[0.98] transition-all"
+                    >
+                      {appt.patient_avatar ? (
+                        <img src={appt.patient_avatar} alt="" className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-400 to-violet-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                          {initials}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-gray-900 text-sm truncate">{appt.patient_name ?? 'Paciente'}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {formatTime(appt.scheduled_at)} – {endTime} · {MODE_LABEL[appt.mode]}
+                        </p>
                       </div>
+                      <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold border flex-shrink-0 ${STATUS_STYLES[appt.status]}`}>
+                        {STATUS_LABEL[appt.status]}
+                      </span>
+                    </button>
+                    {isPendingPatient && onConfirm && (
+                      <button
+                        onClick={() => onConfirm(appt)}
+                        title="Confirmar cita"
+                        className="flex items-center gap-1 px-2.5 py-1.5 bg-[#33C7BE] text-white text-xs font-bold rounded-xl hover:bg-teal-600 transition-colors flex-shrink-0"
+                      >
+                        <Check className="w-3 h-3" /> Confirmar
+                      </button>
                     )}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-gray-900 text-sm truncate">{appt.patient_name ?? 'Paciente'}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        {formatTime(appt.scheduled_at)} – {endTime} · {MODE_LABEL[appt.mode]}
-                      </p>
-                    </div>
-                    <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold border flex-shrink-0 ${STATUS_STYLES[appt.status]}`}>
-                      {STATUS_LABEL[appt.status]}
-                    </span>
-                  </button>
+                  </div>
                 )
               })}
             </>
@@ -570,6 +584,12 @@ function CalendarView({
 
       {/* ── DESKTOP full grid ─────────────────────────────────────────────── */}
       <div className="hidden sm:block">
+        {/* Legend — above calendar */}
+        <div className="flex items-center gap-4 mb-3">
+          <span className="flex items-center gap-1.5 text-xs text-gray-500"><span className="w-2.5 h-2.5 rounded bg-[#33C7BE]" /> Confirmada</span>
+          <span className="flex items-center gap-1.5 text-xs text-gray-500"><span className="w-2.5 h-2.5 rounded bg-amber-400" /> Pendiente</span>
+          <span className="flex items-center gap-1.5 text-xs text-gray-500"><span className="w-2.5 h-2.5 rounded bg-gray-200" /> Historial</span>
+        </div>
         <div className="border border-gray-200 rounded-xl overflow-hidden">
           <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50">
             {['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map(d => (
@@ -596,16 +616,29 @@ function CalendarView({
                       </span>
                     </div>
                     <div className="flex-1 space-y-0.5">
-                      {visible.map(appt => (
-                        <button
-                          key={appt.id}
-                          onClick={() => onSelect(appt)}
-                          className={`w-full text-left px-1.5 py-0.5 rounded text-xs font-medium truncate leading-5 transition-opacity hover:opacity-80 ${EVENT_BG[appt.status]}`}
-                          title={`${formatTime(appt.scheduled_at)} · ${appt.patient_name ?? 'Paciente'}`}
-                        >
-                          {formatTime(appt.scheduled_at)} · {appt.patient_name?.split(' ')[0] ?? 'Pac.'}
-                        </button>
-                      ))}
+                      {visible.map(appt => {
+                        const isPendingPatient = appt.status === 'pending' && appt.initiated_by === appt.patient_id
+                        return (
+                          <div key={appt.id} className={`flex items-center gap-0.5 rounded text-xs font-medium leading-5 ${EVENT_BG[appt.status]}`}>
+                            <button
+                              onClick={() => onSelect(appt)}
+                              className="flex-1 text-left px-1.5 py-0.5 truncate hover:opacity-80 transition-opacity"
+                              title={`${formatTime(appt.scheduled_at)} · ${appt.patient_name ?? 'Paciente'}`}
+                            >
+                              {formatTime(appt.scheduled_at)} · {appt.patient_name?.split(' ')[0] ?? 'Pac.'}
+                            </button>
+                            {isPendingPatient && onConfirm && (
+                              <button
+                                onClick={e => { e.stopPropagation(); onConfirm(appt) }}
+                                title="Confirmar cita"
+                                className="px-1 py-0.5 hover:bg-white/20 rounded transition-colors flex-shrink-0"
+                              >
+                                <Check className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })}
                       {overflow > 0 && (
                         <button
                           onClick={() => setOverflowDay(overflowDay === key ? null : key)}
@@ -642,12 +675,6 @@ function CalendarView({
           )
         })()}
 
-        {/* Legend */}
-        <div className="flex items-center gap-4 mt-3">
-          <span className="flex items-center gap-1.5 text-xs text-gray-500"><span className="w-2.5 h-2.5 rounded bg-[#33C7BE]" /> Confirmada</span>
-          <span className="flex items-center gap-1.5 text-xs text-gray-500"><span className="w-2.5 h-2.5 rounded bg-amber-400" /> Pendiente</span>
-          <span className="flex items-center gap-1.5 text-xs text-gray-500"><span className="w-2.5 h-2.5 rounded bg-gray-200" /> Historial</span>
-        </div>
       </div>
     </div>
   )
@@ -725,6 +752,7 @@ export default function Agenda() {
 
       setAppointments(prev => prev.map(a => a.id === appt.id ? { ...a, status: 'confirmed' as const } : a))
       setSelectedAppt(prev => prev?.id === appt.id ? { ...prev, status: 'confirmed' as const } : prev)
+      showToast('Cita confirmada', 'success')
     } finally {
       setActionLoading(null)
     }
@@ -768,7 +796,7 @@ export default function Agenda() {
               className="inline-flex items-center gap-2 px-3 sm:px-4 py-2.5 bg-[#33C7BE] text-white font-semibold text-sm rounded-xl hover:bg-teal-600 transition-colors shadow-sm"
             >
               <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">Nueva cita</span>
+              <span>Nueva cita</span>
             </button>
 
             {/* View toggle */}
@@ -826,6 +854,7 @@ export default function Agenda() {
               <CalendarView
                 appointments={appointments}
                 onSelect={setSelectedAppt}
+                onConfirm={handleConfirm}
               />
             </div>
           ) : (

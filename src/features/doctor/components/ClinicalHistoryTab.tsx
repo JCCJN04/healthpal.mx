@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Save, Loader2, ClipboardList, ChevronDown, ChevronUp, X } from 'lucide-react'
+import { Save, Loader2, ClipboardList, ChevronDown, ChevronUp, X, Search, Plus as PlusIcon } from 'lucide-react'
+import { searchCie10Es } from '@/shared/data/cie10-es'
 import { showToast } from '@/shared/components/ui/Toast'
 import { getClinicalHistory, upsertClinicalHistory } from '@/shared/lib/queries/clinicalHistory'
 import { logger } from '@/shared/lib/logger'
@@ -371,6 +372,12 @@ interface FormData {
     psychiatric_history: PsychiatricHistory
     developmental_history: DevelopmentalHistory
     systems_review: string
+    // NOM-004 §7.1.5–12
+    current_illness: string
+    physical_examination: string
+    initial_diagnoses: Array<{ codigo: string; descripcion: string }>
+    prognosis: string
+    initial_plan: string
     updated_at?: string
 }
 
@@ -581,6 +588,11 @@ function makeDefault(patientId: string): FormData {
         psychiatric_history: { ...DEF_PSYCHIATRIC },
         developmental_history: { ...DEF_DEVELOPMENTAL },
         systems_review: '',
+        current_illness: '',
+        physical_examination: '',
+        initial_diagnoses: [],
+        prognosis: '',
+        initial_plan: '',
     }
 }
 
@@ -887,6 +899,87 @@ function ConditionCard({ emoji, label, item, onChange, fullWidth = false }: {
     )
 }
 
+// ── CIE-10 inline row for initial diagnoses ───────────────────────────────────
+
+function _Cie10DiagRow({
+    index, codigo, descripcion, readOnly, onSelect, onChange, onRemove,
+}: {
+    index: number; codigo: string; descripcion: string; readOnly: boolean
+    onSelect: (code: string, desc: string) => void
+    onChange: (field: 'codigo' | 'descripcion', val: string) => void
+    onRemove: () => void
+}) {
+    const [q, setQ] = useState('')
+    const [open, setOpen] = useState(false)
+    const ref = useRef<HTMLDivElement>(null)
+    const results = q.trim().length >= 2 ? searchCie10Es(q).map(e => ({ code: e.code, desc: e.desc })) : []
+
+    useEffect(() => {
+        function h(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+        document.addEventListener('mousedown', h)
+        return () => document.removeEventListener('mousedown', h)
+    }, [])
+
+    if (readOnly) {
+        return (
+            <div className="flex items-center gap-2 bg-violet-50 border border-violet-100 rounded-xl px-3 py-2">
+                <span className="text-[9px] font-bold text-violet-400 uppercase shrink-0 w-12">{index === 0 ? 'Principal' : 'Sec.'}</span>
+                <span className="text-xs font-mono font-bold text-violet-700 bg-violet-100 px-2 py-0.5 rounded-lg shrink-0">{codigo}</span>
+                {descripcion && <span className="text-xs text-gray-600 truncate">{descripcion}</span>}
+            </div>
+        )
+    }
+
+    return (
+        <div className="flex items-start gap-2 group">
+            <span className={`mt-2 text-[9px] font-bold w-14 shrink-0 uppercase tracking-wide ${index === 0 ? 'text-violet-600' : 'text-gray-400'}`}>
+                {index === 0 ? 'Principal' : `Sec. ${index}`}
+            </span>
+            <div className="flex-1 space-y-1.5">
+                {(codigo || descripcion) && (
+                    <div className="flex gap-2">
+                        <input value={codigo} onChange={e => onChange('codigo', e.target.value.toUpperCase())}
+                            placeholder="Código" maxLength={10}
+                            className="w-20 shrink-0 px-2 py-1.5 border border-violet-200 bg-violet-50 rounded-lg text-xs font-mono font-bold text-violet-700 focus:ring-2 focus:ring-violet-300 focus:outline-none uppercase"
+                        />
+                        <input value={descripcion} onChange={e => onChange('descripcion', e.target.value)}
+                            placeholder="Descripción"
+                            className="flex-1 min-w-0 px-2 py-1.5 border border-gray-200 bg-white rounded-lg text-xs focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none"
+                        />
+                    </div>
+                )}
+                <div ref={ref} className="relative">
+                    <div className="flex items-center border border-dashed border-gray-300 bg-gray-50 rounded-lg overflow-hidden focus-within:border-violet-300 focus-within:bg-white focus-within:border-solid transition-all">
+                        <Search size={12} className="ml-2.5 text-gray-400 shrink-0" />
+                        <input value={q} onChange={e => { setQ(e.target.value); setOpen(e.target.value.trim().length >= 2) }}
+                            onFocus={() => q.trim().length >= 2 && setOpen(true)}
+                            placeholder={codigo ? 'Cambiar código CIE-10…' : 'Buscar diagnóstico en español…'}
+                            className="flex-1 px-2 py-1.5 text-xs bg-transparent focus:outline-none"
+                        />
+                    </div>
+                    {open && results.length > 0 && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
+                            {results.map(r => (
+                                <button key={r.code} type="button"
+                                    onMouseDown={() => { onSelect(r.code, r.desc); setQ(''); setOpen(false) }}
+                                    className="w-full flex items-baseline gap-2 px-3 py-2 text-left hover:bg-violet-50 transition-colors border-b border-gray-50 last:border-0"
+                                >
+                                    <span className="text-[10px] font-mono font-bold text-violet-700 shrink-0 w-14">{r.code}</span>
+                                    <span className="text-xs text-gray-600">{r.desc}</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+            <button type="button" onClick={onRemove}
+                className="mt-2 p-1 text-gray-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100">
+                <X size={12} />
+            </button>
+        </div>
+    )
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function ClinicalHistoryTab({
@@ -928,6 +1021,11 @@ export default function ClinicalHistoryTab({
                         consultation_reason: existing.consultation_reason ?? '',
                         patient_observations: existing.patient_observations ?? '',
                         systems_review: existing.systems_review ?? '',
+                        current_illness: existing.current_illness ?? '',
+                        physical_examination: existing.physical_examination ?? '',
+                        initial_diagnoses: Array.isArray(existing.initial_diagnoses) ? existing.initial_diagnoses : [],
+                        prognosis: existing.prognosis ?? '',
+                        initial_plan: existing.initial_plan ?? '',
                         family_history: migrateFH((existing.family_history as Record<string, unknown>) || {}),
                         pathological_history: migratePatho((existing.pathological_history as Record<string, unknown>) || {}),
                         non_pathological_history: { ...DEF_NON_PATHO, ...(existing.non_pathological_history || {}) },
@@ -2152,6 +2250,105 @@ const setFH = useCallback((key: string, value: FHMemberRecord) => {
                         </div>
                     )
                 })()}
+            </SectionCard>
+
+            {/* ── 9. Padecimiento Actual ── NOM-004 §7.1.5 */}
+            <SectionCard title="Padecimiento Actual" defaultOpen={false} readOnly={readOnly}>
+                <TextAreaField
+                    label="Descripción cronológica del padecimiento actual"
+                    value={data.current_illness}
+                    onChange={v => setData(d => ({ ...d, current_illness: v }))}
+                    placeholder="Describa cronológicamente cómo inició y evolucionó el padecimiento que motiva la consulta: fecha de inicio, síntomas, tratamientos previos, evolución..."
+                    rows={5}
+                />
+            </SectionCard>
+
+            {/* ── 10. Exploración Física Inicial ── NOM-004 §7.1.9 */}
+            <SectionCard title="Exploración Física Inicial" defaultOpen={false} readOnly={readOnly}>
+                {!readOnly && (
+                    <div className="flex flex-wrap gap-1.5 mb-3">
+                        {[
+                            { label: 'Examen normal', text: 'Paciente en buen estado general, consciente y orientado en tiempo, lugar y persona.\nCabeza y cuello: normocéfalo, sin adenopatías, tiroides sin alteraciones.\nCardiopulmonar: ruidos cardíacos rítmicos sin soplos; murmullo vesicular presente y simétrico, sin estertores.\nAbdomen: blando, depresible, sin dolor a la palpación, peristalsis presente, sin visceromegalias.\nExtremidades: sin edema, llenado capilar < 2 s, pulsos periféricos presentes.' },
+                            { label: 'Pediátrico normal', text: 'Paciente pediátrico en buen estado general. Normocéfalo, fontanelas cerradas (en su caso). Orofaringe sin hiperemia. Cardiopulmonar: ruidos normales, sin soplos ni estertores. Abdomen blando, sin megalias. Genitales de acuerdo a edad y sexo. Extremidades íntegras, movilidad conservada. Neurológico: acorde a edad.' },
+                            { label: 'Control crónico', text: 'Exploración sin signos de descompensación aguda. Peso estable. Sin edema periférico. Llenado capilar normal. Resto de exploración sin particularidades en relación a patología de base.' },
+                        ].map(p => (
+                            <button key={p.label} type="button"
+                                onClick={() => setData(d => ({ ...d, physical_examination: p.text }))}
+                                className="px-2.5 py-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full hover:bg-emerald-100 transition-colors"
+                            >
+                                {p.label}
+                            </button>
+                        ))}
+                    </div>
+                )}
+                <TextAreaField
+                    label="Hallazgos de la exploración física"
+                    value={data.physical_examination}
+                    onChange={v => setData(d => ({ ...d, physical_examination: v }))}
+                    placeholder="Signos vitales, aspecto general, cabeza y cuello, tórax, abdomen, extremidades, neurológico..."
+                    rows={6}
+                />
+            </SectionCard>
+
+            {/* ── 11. Diagnóstico Nosológico, Pronóstico y Plan ── NOM-004 §7.1.10-12 */}
+            <SectionCard title="Diagnóstico, Pronóstico y Plan Inicial" defaultOpen={false} readOnly={readOnly}>
+                {/* CIE-10 diagnósticos iniciales */}
+                <div className="space-y-3 mb-4">
+                    <div className="flex items-center justify-between">
+                        <p className="text-xs font-bold text-gray-700">Diagnósticos nosológicos <span className="text-[10px] text-red-400 font-bold">(CIE-10 obligatorio NOM)</span></p>
+                        {!readOnly && (
+                            <button type="button"
+                                onClick={() => setData(d => ({ ...d, initial_diagnoses: [...d.initial_diagnoses, { codigo: '', descripcion: '' }] }))}
+                                className="flex items-center gap-1 text-[11px] font-semibold text-violet-600 hover:text-violet-700"
+                            >
+                                <PlusIcon size={12} /> Agregar
+                            </button>
+                        )}
+                    </div>
+                    {data.initial_diagnoses.length === 0 && readOnly && (
+                        <p className="text-xs text-gray-400">Sin diagnósticos registrados.</p>
+                    )}
+                    {data.initial_diagnoses.map((diag, i) => (
+                        <_Cie10DiagRow
+                            key={i}
+                            index={i}
+                            codigo={diag.codigo}
+                            descripcion={diag.descripcion}
+                            readOnly={readOnly}
+                            onSelect={(code, desc) => setData(d => ({
+                                ...d,
+                                initial_diagnoses: d.initial_diagnoses.map((x, idx) =>
+                                    idx === i ? { codigo: code, descripcion: desc } : x
+                                )
+                            }))}
+                            onChange={(field, val) => setData(d => ({
+                                ...d,
+                                initial_diagnoses: d.initial_diagnoses.map((x, idx) =>
+                                    idx === i ? { ...x, [field]: val } : x
+                                )
+                            }))}
+                            onRemove={() => setData(d => ({
+                                ...d,
+                                initial_diagnoses: d.initial_diagnoses.filter((_, idx) => idx !== i)
+                            }))}
+                        />
+                    ))}
+                </div>
+
+                <TextAreaField
+                    label="Pronóstico"
+                    value={data.prognosis}
+                    onChange={v => setData(d => ({ ...d, prognosis: v }))}
+                    placeholder="Perspectiva clínica del padecimiento: favorable, reservado, malo. Factores pronósticos relevantes..."
+                    rows={2}
+                />
+                <TextAreaField
+                    label="Plan de manejo inicial"
+                    value={data.initial_plan}
+                    onChange={v => setData(d => ({ ...d, initial_plan: v }))}
+                    placeholder="Tratamiento instaurado, indicaciones, interconsultas, estudios solicitados, seguimiento..."
+                    rows={3}
+                />
             </SectionCard>
 
             </div>

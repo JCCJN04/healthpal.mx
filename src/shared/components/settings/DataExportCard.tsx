@@ -37,7 +37,7 @@ export default function DataExportCard() {
           <h3 className="text-lg font-bold text-gray-900">Exportar mi expediente</h3>
         </div>
         <p className="text-sm text-gray-600 mt-1">
-          NOM-024 §6.6.6 — Descarga toda tu información médica en formato PDF.
+          NOM-024 §6.6.6 — Descarga tu información personal y médica en formato PDF.
         </p>
       </div>
 
@@ -55,7 +55,7 @@ export default function DataExportCard() {
             </li>
             <li className="flex items-center gap-2">
               <ShieldCheck className="w-3.5 h-3.5 text-[#33C7BE] flex-shrink-0" />
-              Historial clínico completo
+              Datos médicos generales (tipo de sangre, alergias, condiciones crónicas)
             </li>
             <li className="flex items-center gap-2">
               <ShieldCheck className="w-3.5 h-3.5 text-[#33C7BE] flex-shrink-0" />
@@ -70,6 +70,11 @@ export default function DataExportCard() {
               Consentimientos de acceso otorgados a doctores
             </li>
           </ul>
+          <p className="text-xs text-gray-500 mt-2">
+            El expediente clínico detallado (notas médicas, diagnósticos, revisión de sistemas)
+            es propiedad del establecimiento de salud conforme a la NOM-004-SSA3-2012 §7
+            y no puede ser entregado en esta exportación.
+          </p>
         </div>
 
         {/* Privacy note */}

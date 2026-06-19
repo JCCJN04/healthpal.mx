@@ -22,6 +22,13 @@ export interface ClinicalHistoryData {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     developmental_history: any
     systems_review: string | null
+    // NOM-004 §7.1.5–12 — secciones finales
+    current_illness: string | null
+    physical_examination: string | null
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    initial_diagnoses: any
+    prognosis: string | null
+    initial_plan: string | null
     last_edited_by?: string | null
     updated_at?: string | null
 }

@@ -444,7 +444,7 @@ export default function MedicalReportTab({ patientId, doctorId, patient, medProf
 
     // ── LIST ──────────────────────────────────────────────────────────────────
     return (
-        <div className="max-w-2xl space-y-5">
+        <div className="space-y-5">
             <div className="flex items-center gap-2">
                 <FileText size={18} className="text-[#33C7BE]" />
                 <h2 className="text-base font-black text-gray-900">Informes Médicos</h2>
@@ -453,7 +453,7 @@ export default function MedicalReportTab({ patientId, doctorId, patient, medProf
             {/* Aseguradora selector */}
             <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-5">
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Nuevo informe</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                     {ASEGURADORAS.map(a => (
                         <button
                             key={a.id}

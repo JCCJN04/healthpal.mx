@@ -29,12 +29,15 @@ import {
     RefreshCw,
     CalendarDays,
     ClipboardList,
+    Printer,
+    Pencil,
+
 } from 'lucide-react'
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import { getPatientFullProfile, getPatientNotes, addPatientNote, getPatientContactInfo } from '@/features/doctor/services/patients'
 import { getClinicalHistory } from '@/shared/lib/queries/clinicalHistory'
 import { getPatientProfile } from '@/shared/lib/queries/profile'
-import { getUserDocuments, getDocumentDownloadUrl, uploadDocumentForPatient, getDoctorDocumentsForPatient, getDocumentsSharedByPatientWithDoctor } from '@/shared/lib/queries/documents'
+import { getUserDocuments, uploadDocumentForPatient, getDoctorDocumentsForPatient, getDocumentsSharedByPatientWithDoctor } from '@/shared/lib/queries/documents'
 import { createDocumentRequest } from '@/shared/lib/queries/documentRequests'
 import { getConsentForPatient, requestPatientAccess, ConsentScopes } from '@/shared/lib/queries/consent'
 import { getPatientInsurancesForDoctor, insuranceDisplayName } from '@/shared/lib/queries/insurance'
@@ -49,12 +52,20 @@ import type { DocCategory } from '@/shared/types/database'
 import AgendarCitaModal from '@/shared/components/appointments/AgendarCitaModal'
 import ClinicalHistoryTab from '@/features/doctor/components/ClinicalHistoryTab'
 import MedicalReportTab from '@/features/doctor/components/MedicalReportTab'
+import { DocumentCard } from '@/shared/components/documents/DocumentCard'
+import { DocumentPreviewModal } from '@/shared/components/documents/DocumentPreviewModal'
 import { generatePatientSummary } from '@/shared/lib/openai'
 import type { ProxyResult } from '@/shared/lib/openai'
 import { getAppointmentNotesByPatient, createAppointmentNote, deleteAppointmentNote } from '@/shared/lib/queries/appointmentNotes'
 import type { AppointmentNote } from '@/shared/lib/queries/appointmentNotes'
+import { getNotasEvolucionByPatient } from '@/shared/lib/queries/notasEvolucion'
+import type { NotaEvolucion } from '@/shared/lib/queries/notasEvolucion'
+import NotaEvolucionForm from '@/features/doctor/components/NotaEvolucionForm'
+import { getPrescriptionsByPatient } from '@/shared/lib/queries/prescriptions'
+import type { Prescription } from '@/shared/lib/queries/prescriptions'
+import RecetaPreview, { type DoctorConfig, type DesignConfig, defaultDoctor, defaultDesign, printRxElement } from '@/features/doctor/components/RecetaPreview'
 
-type TabType = 'summary' | 'notes' | 'expediente' | 'historia' | 'informes' | 'consultas'
+type TabType = 'summary' | 'notes' | 'expediente' | 'historia' | 'informes' | 'consultas' | 'recetas'
 type ConsentGate = 'loading' | 'no-consent' | 'requested' | 'rejected' | 'revoked' | 'accepted'
 
 export default function PatientDetail() {
@@ -113,6 +124,10 @@ export default function PatientDetail() {
     const [savingConsultNote, setSavingConsultNote] = useState<string | null>(null)
     const [deletingConsultNote, setDeletingConsultNote] = useState<string | null>(null)
     const [loadingConsultNotes, setLoadingConsultNotes] = useState(false)
+    const [notasEvolucion, setNotasEvolucion] = useState<Record<string, NotaEvolucion>>({})
+    // Prescriptions for this patient
+    const [patientPrescriptions, setPatientPrescriptions] = useState<Prescription[]>([])
+    const [prescriptionsLoaded, setPrescriptionsLoaded] = useState(false)
 
     const tabScrollRef = useRef<HTMLDivElement>(null)
     const [tabsAtEnd, setTabsAtEnd] = useState(false)
@@ -437,7 +452,7 @@ export default function PatientDetail() {
 
     const handleCreateNote = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!newNote.body.trim()) return
+        if (newNote.body.trim().length < 10) return
 
         setSavingNote(true)
         try {
@@ -456,8 +471,14 @@ export default function PatientDetail() {
         if (!id) return
         setLoadingConsultNotes(true)
         try {
-            const data = await getAppointmentNotesByPatient(id)
-            setConsultationNotes(data)
+            const [notes, soaps] = await Promise.all([
+                getAppointmentNotesByPatient(id),
+                getNotasEvolucionByPatient(id).catch(() => [] as NotaEvolucion[]),
+            ])
+            setConsultationNotes(notes)
+            const soapMap: Record<string, NotaEvolucion> = {}
+            for (const n of soaps) soapMap[n.appointment_id] = n
+            setNotasEvolucion(soapMap)
         } catch (err) {
             logger.error('loadConsultationNotes', err)
         } finally {
@@ -498,6 +519,10 @@ export default function PatientDetail() {
         setActiveTab(tab)
         if (tab === 'consultas' && consultationNotes.length === 0 && !loadingConsultNotes) {
             void loadConsultationNotes()
+        }
+        if (tab === 'recetas' && !prescriptionsLoaded && id) {
+            setPrescriptionsLoaded(true)
+            getPrescriptionsByPatient(id).then(setPatientPrescriptions).catch(() => {})
         }
     }
 
@@ -638,6 +663,7 @@ export default function PatientDetail() {
                 <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex items-center gap-3 flex-shrink-0">
                     <button
                         onClick={() => navigate(-1)}
+                        title="Volver a pacientes"
                         className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-gray-100 text-gray-500 transition-colors flex-shrink-0"
                     >
                         <ArrowLeft size={17} />
@@ -648,10 +674,11 @@ export default function PatientDetail() {
                     </div>
                     <button
                         onClick={() => setShowAgendarModal(true)}
+                        title="Agendar nueva cita para este paciente"
                         className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#33C7BE] text-white font-bold text-xs rounded-xl hover:bg-teal-600 transition-colors shadow-sm flex-shrink-0"
                     >
                         <CalendarDays size={14} />
-                        <span className="hidden sm:inline">Agendar cita</span>
+                        <span>Agendar cita</span>
                     </button>
                 </div>
 
@@ -675,25 +702,27 @@ export default function PatientDetail() {
                 <div className="flex flex-1 overflow-hidden">
 
                     {/* ── LEFT SIDEBAR ─────────────────────────────── */}
-                    <aside className="hidden lg:flex flex-col w-72 xl:w-80 flex-shrink-0 bg-white border-r border-gray-200 overflow-y-auto">
+                    <aside className="hidden lg:flex flex-col w-60 xl:w-64 flex-shrink-0 bg-white border-r border-gray-200 overflow-y-auto">
 
                         {/* Avatar + name block */}
-                        <div className="p-6 flex flex-col items-center text-center border-b border-gray-100">
-                            <div className="w-24 h-24 rounded-2xl overflow-hidden bg-gradient-to-br from-[#33C7BE]/20 to-cyan-100 flex items-center justify-center shadow-sm mb-4 flex-shrink-0">
+                        <div className="px-4 py-3 flex items-center gap-3 border-b border-gray-100">
+                            <div className="w-12 h-12 rounded-xl overflow-hidden bg-gradient-to-br from-[#33C7BE]/20 to-cyan-100 flex items-center justify-center shadow-sm flex-shrink-0">
                                 {patient.avatar_url ? (
                                     <img src={patient.avatar_url} alt="" className="w-full h-full object-cover" />
                                 ) : (
-                                    <span className="text-4xl font-black text-[#33C7BE]">{initials}</span>
+                                    <span className="text-xl font-black text-[#33C7BE]">{initials}</span>
                                 )}
                             </div>
-                            <h2 className="text-base font-black text-gray-900 leading-tight mb-1">{patient.full_name || 'Paciente'}</h2>
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full">
-                                <ShieldCheck size={9} /> Acceso autorizado
-                            </span>
+                            <div className="flex-1 min-w-0">
+                                <h2 className="text-sm font-black text-gray-900 leading-tight truncate">{patient.full_name || 'Paciente'}</h2>
+                                <span className="inline-flex items-center gap-1 mt-0.5 text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">
+                                    <ShieldCheck size={9} /> Acceso autorizado
+                                </span>
+                            </div>
                         </div>
 
                         {/* Vitals */}
-                        <div className="p-4 border-b border-gray-100 grid grid-cols-3 gap-2">
+                        <div className="px-4 py-3 border-b border-gray-100 grid grid-cols-3 gap-2">
                             {[
                                 { label: 'Edad', value: `${calculateAge(patient.birthdate)}`, unit: 'años', color: 'text-blue-700', bg: 'bg-blue-50' },
                                 { label: 'Sexo', value: patient.sex === 'male' ? '♂' : patient.sex === 'female' ? '♀' : '—', unit: patient.sex === 'male' ? 'Hombre' : patient.sex === 'female' ? 'Mujer' : '', color: 'text-violet-700', bg: 'bg-violet-50' },
@@ -708,24 +737,18 @@ export default function PatientDetail() {
                         </div>
 
                         {/* Biometrics */}
-                        <div className="p-4 border-b border-gray-100 space-y-3">
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Mediciones</p>
-                            <div className="grid grid-cols-2 gap-2">
-                                <div className="bg-gray-50 rounded-xl p-3">
-                                    <div className="flex items-center gap-1 mb-1">
-                                        <Ruler size={11} className="text-gray-300" />
-                                        <span className="text-[9px] text-gray-400 font-bold uppercase">Altura</span>
-                                    </div>
-                                    <p className="text-xl font-black text-gray-900">{medProfile?.height_cm ?? pProfile.height_cm ?? '—'}</p>
-                                    <p className="text-[9px] text-gray-400">cm</p>
+                        <div className="px-4 py-3 border-b border-gray-100">
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Mediciones</p>
+                            <div className="flex gap-4">
+                                <div className="flex items-center gap-1.5">
+                                    <Ruler size={11} className="text-gray-300" />
+                                    <span className="text-sm font-black text-gray-900">{medProfile?.height_cm ?? pProfile.height_cm ?? '—'}</span>
+                                    <span className="text-[10px] text-gray-400">cm</span>
                                 </div>
-                                <div className="bg-gray-50 rounded-xl p-3">
-                                    <div className="flex items-center gap-1 mb-1">
-                                        <Scale size={11} className="text-gray-300" />
-                                        <span className="text-[9px] text-gray-400 font-bold uppercase">Peso</span>
-                                    </div>
-                                    <p className="text-xl font-black text-gray-900">{medProfile?.weight_kg ?? pProfile.weight_kg ?? '—'}</p>
-                                    <p className="text-[9px] text-gray-400">kg</p>
+                                <div className="flex items-center gap-1.5">
+                                    <Scale size={11} className="text-gray-300" />
+                                    <span className="text-sm font-black text-gray-900">{medProfile?.weight_kg ?? pProfile.weight_kg ?? '—'}</span>
+                                    <span className="text-[10px] text-gray-400">kg</span>
                                 </div>
                             </div>
                         </div>
@@ -743,10 +766,10 @@ export default function PatientDetail() {
                                     </a>
                                 )}
                                 {contactInfo?.phone && (
-                                    <div className="flex items-center gap-2">
-                                        <a href={`tel:${contactInfo.phone}`} className="flex items-center gap-2.5 text-sm text-gray-700 hover:text-[#33C7BE] transition-colors group flex-1">
-                                            <div className="w-7 h-7 rounded-lg bg-gray-100 group-hover:bg-teal-50 flex items-center justify-center flex-shrink-0 transition-colors">
-                                                <Phone size={12} className="text-gray-400 group-hover:text-[#33C7BE]" />
+                                    <div className="space-y-2">
+                                        <a href={`tel:${contactInfo.phone}`} className="flex items-center gap-2 text-gray-700 hover:text-[#33C7BE] transition-colors group">
+                                            <div className="w-6 h-6 rounded-lg bg-gray-100 group-hover:bg-teal-50 flex items-center justify-center flex-shrink-0 transition-colors">
+                                                <Phone size={11} className="text-gray-400 group-hover:text-[#33C7BE]" />
                                             </div>
                                             <span className="text-xs">{contactInfo.phone}</span>
                                         </a>
@@ -754,57 +777,22 @@ export default function PatientDetail() {
                                             href={`https://wa.me/${contactInfo.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola ${patient.full_name?.split(' ')[0] ?? ''}, le contacto de parte de su médico.`)}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            title="WhatsApp"
-                                            className="w-7 h-7 rounded-lg bg-green-50 hover:bg-green-100 flex items-center justify-center flex-shrink-0 transition-colors"
+                                            title="Enviar mensaje por WhatsApp"
+                                            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-xl transition-colors"
                                         >
-                                            <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 text-green-600" xmlns="http://www.w3.org/2000/svg">
+                                            <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 flex-shrink-0" xmlns="http://www.w3.org/2000/svg">
                                                 <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
                                             </svg>
+                                            Enviar mensaje
                                         </a>
                                     </div>
                                 )}
                             </div>
                         )}
 
-                        {/* Stats */}
-                        <div className="p-4 border-b border-gray-100">
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Expediente</p>
-                            <div className="space-y-2">
-                                <button
-                                    onClick={scopes.share_medical_notes ? () => setActiveTab('notes') : undefined}
-                                    disabled={!scopes.share_medical_notes}
-                                    className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left ${scopes.share_medical_notes ? 'hover:bg-[#33C7BE]/5 cursor-pointer' : 'opacity-40 cursor-default'}`}
-                                >
-                                    <div className="w-9 h-9 rounded-xl bg-[#33C7BE]/10 flex items-center justify-center flex-shrink-0">
-                                        <StickyNote size={16} className="text-[#33C7BE]" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xl font-black text-gray-900 leading-none">{scopes.share_medical_notes ? notes.length : '—'}</p>
-                                        <p className="text-[10px] text-gray-400 font-semibold mt-0.5">Notas clínicas</p>
-                                    </div>
-                                    {scopes.share_medical_notes && <ChevronRight size={13} className="ml-auto text-gray-300" />}
-                                </button>
-
-                                <button
-                                    onClick={scopes.share_documents ? () => setActiveTab('expediente') : undefined}
-                                    disabled={!scopes.share_documents}
-                                    className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left ${scopes.share_documents ? 'hover:bg-blue-50 cursor-pointer' : 'opacity-40 cursor-default'}`}
-                                >
-                                    <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
-                                        <FileText size={16} className="text-blue-500" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xl font-black text-gray-900 leading-none">{scopes.share_documents ? totalDocs : '—'}</p>
-                                        <p className="text-[10px] text-gray-400 font-semibold mt-0.5">Documentos</p>
-                                    </div>
-                                    {scopes.share_documents && <ChevronRight size={13} className="ml-auto text-gray-300" />}
-                                </button>
-                            </div>
-                        </div>
-
                         {/* Insurance */}
                         {scopes.share_insurance && patientInsurances.length > 0 && (
-                            <div className="p-4 border-b border-gray-100">
+                            <div className="px-4 py-3 border-b border-gray-100">
                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Seguro médico</p>
                                 {patientInsurances.map((ins) => (
                                     <div key={ins.id} className="mb-2 last:mb-0">
@@ -826,7 +814,7 @@ export default function PatientDetail() {
                         )}
                         {/* Fallback: show simple insurance_provider if share_insurance not granted but share_medical_notes is */}
                         {!scopes.share_insurance && scopes.share_medical_notes && (medProfile?.insurance_provider || pProfile?.insurance_provider) && (
-                            <div className="p-4 border-b border-gray-100">
+                            <div className="px-4 py-3 border-b border-gray-100">
                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Seguro médico</p>
                                 <p className="text-sm font-bold text-gray-900">{medProfile?.insurance_provider || pProfile?.insurance_provider}</p>
                                 <span className="inline-flex items-center gap-1 mt-1.5 text-[10px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full">
@@ -837,25 +825,27 @@ export default function PatientDetail() {
 
                         {/* Emergency contact */}
                         {scopes.share_contact && (medProfile?.emergency_contact_name || medProfile?.emergency_contact_phone) && (
-                            <div className="p-4 border-b border-gray-100 space-y-2">
+                            <div className="px-4 py-3 border-b border-gray-100 space-y-2">
                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Contacto de emergencia</p>
                                 {medProfile?.emergency_contact_name && (
                                     <p className="text-xs font-semibold text-gray-700">{medProfile.emergency_contact_name}</p>
                                 )}
                                 {medProfile?.emergency_contact_phone && (
-                                    <div className="flex items-center gap-2">
-                                        <a href={`tel:${medProfile.emergency_contact_phone}`} className="flex items-center gap-2 text-xs text-gray-600 hover:text-primary transition-colors flex-1">
+                                    <div className="space-y-2">
+                                        <a href={`tel:${medProfile.emergency_contact_phone}`} className="flex items-center gap-2 text-xs text-gray-600 hover:text-primary transition-colors">
                                             <Phone size={11} className="text-gray-400" />
                                             {medProfile.emergency_contact_phone}
                                         </a>
                                         <a
                                             href={`https://wa.me/${medProfile.emergency_contact_phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola, le contactamos por el paciente ${patient.full_name ?? ''}.`)}`}
                                             target="_blank" rel="noopener noreferrer"
-                                            className="w-6 h-6 rounded-lg bg-green-50 hover:bg-green-100 flex items-center justify-center transition-colors"
+                                            title="Enviar mensaje por WhatsApp"
+                                            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-xl transition-colors"
                                         >
-                                            <svg viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 text-green-600">
+                                            <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 flex-shrink-0" xmlns="http://www.w3.org/2000/svg">
                                                 <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
                                             </svg>
+                                            Enviar mensaje
                                         </a>
                                     </div>
                                 )}
@@ -864,7 +854,7 @@ export default function PatientDetail() {
 
                         {/* Biometric history */}
                         {scopes.share_medical_notes && biometricHistory.length > 0 && (
-                            <div className="p-4 border-b border-gray-100">
+                            <div className="px-4 py-3 border-b border-gray-100">
                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2.5">Historial biométrico</p>
                                 <div className="space-y-2">
                                     {biometricHistory.slice(0, 3).map((b, i) => (
@@ -885,7 +875,7 @@ export default function PatientDetail() {
 
                         {/* Upcoming appointments */}
                         {upcomingAppointments.length > 0 && (
-                            <div className="p-4 border-b border-gray-100">
+                            <div className="px-4 py-3 border-b border-gray-100">
                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2.5">Próximas citas</p>
                                 <div className="space-y-2">
                                     {upcomingAppointments.slice(0, 3).map((appt) => (
@@ -968,8 +958,9 @@ export default function PatientDetail() {
                                     { id: 'historia', label: 'Historial Clínico', icon: ClipboardList, enabled: true },
                                     { id: 'consultas', label: 'Consultas', icon: CalendarDays, enabled: true },
                                     { id: 'informes', label: 'Informes', icon: FileText, enabled: true },
-                                    { id: 'expediente', label: 'Expediente', icon: FileText, enabled: scopes.share_documents, navigateTo: `/dashboard/documentos?folder=shared-${id}` },
+                                    { id: 'expediente', label: 'Expediente', icon: FileText, enabled: scopes.share_documents },
                                     { id: 'notes', label: 'Notas', icon: StickyNote, enabled: scopes.share_medical_notes },
+                                    { id: 'recetas', label: 'Recetas', icon: ClipboardList, enabled: true },
                                 ].filter(t => t.enabled).map((tab) => (
                                     <button
                                         key={tab.id}
@@ -1024,9 +1015,10 @@ export default function PatientDetail() {
                                                         setAiSummaryAttempted(true)
                                                         generatePatientSummary(buildSummaryInput()).then(applyAiSummaryResult).finally(() => setAiSummaryLoading(false))
                                                     }}
+                                                    title="Volver a generar el resumen clínico con IA"
                                                     className="text-[10px] font-semibold text-[#33C7BE] hover:text-teal-700 flex items-center gap-1 flex-shrink-0"
                                                 >
-                                                    <RefreshCw className="w-3 h-3" /> Regenerar
+                                                    <RefreshCw className="w-3 h-3" /> Regenerar resumen
                                                 </button>
                                             )}
                                         </div>
@@ -1189,6 +1181,15 @@ export default function PatientDetail() {
                                 />
                             )}
 
+                            {activeTab === 'recetas' && (
+                                <RecetasTabPanel
+                                    patientId={id!}
+                                    patientName={patient?.full_name ?? ''}
+                                    prescriptions={patientPrescriptions}
+                                    onNavigate={() => navigate(`/dashboard/recetas?patientId=${id}&newRx=1`)}
+                                />
+                            )}
+
                             {activeTab === 'historia' && (
                                 scopes.share_medical_notes
                                     ? <ClinicalHistoryTab patientId={id!} editorId={user!.id} readOnly={!scopes.edit_clinical_history} />
@@ -1281,6 +1282,14 @@ export default function PatientDetail() {
 
                                                             {isPastAppt ? (
                                                                 <>
+                                                                    {/* Nota de Evolución NOM-004 */}
+                                                                    <NotaEvolucionForm
+                                                                        appointmentId={appt.id}
+                                                                        patientId={id!}
+                                                                        existing={notasEvolucion[appt.id] ?? null}
+                                                                        onSaved={nota => setNotasEvolucion(prev => ({ ...prev, [appt.id]: nota }))}
+                                                                    />
+
                                                                     {apptNotes.length > 0 && (
                                                                         <div className="space-y-3">
                                                                             {apptNotes.map((note) => (
@@ -1294,6 +1303,7 @@ export default function PatientDetail() {
                                                                                             <button
                                                                                                 onClick={() => handleDeleteConsultNote(note.id)}
                                                                                                 disabled={deletingConsultNote === note.id}
+                                                                                                title="Eliminar esta nota"
                                                                                                 className="text-gray-300 hover:text-red-400 transition-colors"
                                                                                             >
                                                                                                 {deletingConsultNote === note.id ? <Loader2 size={12} className="animate-spin" /> : <X size={12} />}
@@ -1332,7 +1342,7 @@ export default function PatientDetail() {
                                                                                 className="px-4 py-1.5 bg-[#33C7BE] text-white text-xs font-bold rounded-xl hover:bg-teal-600 disabled:opacity-50 transition-all flex items-center gap-1.5"
                                                                             >
                                                                                 {savingConsultNote === appt.id ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
-                                                                                Guardar
+                                                                                Guardar nota
                                                                             </button>
                                                                         </div>
                                                                     </div>
@@ -1370,17 +1380,22 @@ export default function PatientDetail() {
                                             onChange={e => setNewNote({ ...newNote, body: e.target.value })}
                                             required
                                         />
-                                        <div className="flex items-center justify-between">
-                                            <p className="text-[10px] text-gray-400 flex items-center gap-1">
-                                                <Lock size={10} /> Cifrada AES-256
-                                            </p>
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div className="flex flex-col gap-0.5">
+                                                <p className="text-[10px] text-gray-400 flex items-center gap-1">
+                                                    <Lock size={10} /> Cifrada AES-256
+                                                </p>
+                                                {newNote.body.length > 0 && newNote.body.trim().length < 10 && (
+                                                    <p className="text-[10px] text-red-400">Mínimo 10 caracteres.</p>
+                                                )}
+                                            </div>
                                             <button
                                                 type="submit"
-                                                disabled={savingNote || !newNote.body.trim()}
+                                                disabled={savingNote || newNote.body.trim().length < 10}
                                                 className="px-5 py-2 bg-[#33C7BE] text-white text-sm font-bold rounded-xl hover:bg-teal-600 disabled:opacity-50 transition-all flex items-center gap-2"
                                             >
                                                 {savingNote ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
-                                                Guardar
+                                                Guardar nota
                                             </button>
                                         </div>
                                     </form>
@@ -1429,6 +1444,7 @@ export default function PatientDetail() {
                 <AgendarCitaModal
                     patientId={id!}
                     patientName={patient?.full_name ?? 'Paciente'}
+                    patientEmail={contactInfo?.email}
                     onClose={() => setShowAgendarModal(false)}
                     onSuccess={() => setShowAgendarModal(false)}
                 />
@@ -1437,7 +1453,146 @@ export default function PatientDetail() {
     )
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
+// ── RecetasTabPanel ──────────────────────────────────────────────────────────
+
+function RecetasTabPanel({ patientId, patientName, prescriptions, onNavigate }: {
+    patientId: string
+    patientName: string
+    prescriptions: Prescription[]
+    onNavigate: () => void
+}) {
+    const navigate = useNavigate()
+    const { user } = useAuth()
+    const [printingRx, setPrintingRx] = useState<Prescription | null>(null)
+    const [rxDoctor, setRxDoctor] = useState<DoctorConfig>(defaultDoctor())
+    const [rxDesign, setRxDesign] = useState<DesignConfig>(defaultDesign())
+
+    useEffect(() => {
+        if (!printingRx) return
+        const t = setTimeout(() => { printRxElement(rxDesign); setPrintingRx(null) }, 150)
+        return () => clearTimeout(t)
+    }, [printingRx, rxDesign])
+
+    function handlePrintRx(rx: Prescription) {
+        const docRaw = localStorage.getItem(`healthpal_rx_doctor_${user?.id}`)
+        const designRaw = localStorage.getItem(`healthpal_rx_design_${user?.id}`)
+        setRxDoctor(docRaw ? JSON.parse(docRaw) : defaultDoctor())
+        setRxDesign(designRaw ? JSON.parse(designRaw) : defaultDesign())
+        setPrintingRx(rx)
+    }
+
+    return (
+        <div className="space-y-4 p-1">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h3 className="text-sm font-bold text-gray-900">Recetas emitidas</h3>
+                    <p className="text-xs text-gray-400 mt-0.5">Prescripciones generadas para {patientName || 'este paciente'}</p>
+                </div>
+                <button
+                    onClick={onNavigate}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#33C7BE] text-white text-sm font-semibold rounded-xl hover:bg-teal-600 transition-colors shadow-sm"
+                >
+                    <Plus size={15} />
+                    Nueva receta
+                </button>
+            </div>
+
+            {prescriptions.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-14 text-center">
+                    <div className="w-14 h-14 rounded-2xl bg-teal-50 flex items-center justify-center mb-3">
+                        <ClipboardList className="w-7 h-7 text-[#33C7BE]" />
+                    </div>
+                    <p className="text-sm font-semibold text-gray-700">Sin recetas aún</p>
+                    <p className="text-xs text-gray-400 mt-1 max-w-xs">
+                        Haz clic en "Nueva receta" para crear la primera prescripción para este paciente.
+                    </p>
+                </div>
+            ) : (
+                <div className="space-y-3">
+                    {prescriptions.map(rx => {
+                        const meds = Array.isArray(rx.medications) ? rx.medications : []
+                        const date = rx.issued_at
+                            ? new Date(rx.issued_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
+                            : '—'
+                        return (
+                            <div key={rx.id} className="border border-gray-100 rounded-xl p-4 hover:border-teal-200 transition-colors">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <span className="text-xs font-bold text-[#33C7BE] uppercase tracking-wide">
+                                                {date}
+                                            </span>
+                                            {rx.folio && (
+                                                <span className="text-[10px] text-gray-400 font-mono">#{rx.folio}</span>
+                                            )}
+                                        </div>
+                                        {rx.diagnosis && (
+                                            <p className="text-sm font-semibold text-gray-800 mt-1 truncate">{rx.diagnosis}</p>
+                                        )}
+                                        <div className="mt-2 space-y-0.5">
+                                            {meds.slice(0, 3).map((m, i) => (
+                                                <p key={i} className="text-xs text-gray-600">
+                                                    <span className="font-semibold">{m.name}</span>
+                                                    {m.concentration ? ` ${m.concentration}` : ''}
+                                                    {m.form ? ` — ${m.form}` : ''}
+                                                </p>
+                                            ))}
+                                            {meds.length > 3 && (
+                                                <p className="text-xs text-gray-400">+{meds.length - 3} más…</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <span className="flex-shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-100">
+                                        {meds.length} med{meds.length !== 1 ? 's' : ''}
+                                    </span>
+                                </div>
+                                <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
+                                    <button
+                                        onClick={() => navigate(`/dashboard/recetas?patientId=${patientId}&editRx=${rx.id}`)}
+                                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors text-gray-700"
+                                    >
+                                        <Pencil size={11} /> Editar
+                                    </button>
+                                    <button
+                                        onClick={() => handlePrintRx(rx)}
+                                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold bg-[#33C7BE] text-white rounded-xl hover:bg-teal-600 transition-colors"
+                                    >
+                                        <Printer size={11} /> Imprimir
+                                    </button>
+                                </div>
+                            </div>
+                        )
+                    })}
+                </div>
+            )}
+            {/* Hidden print area — renders off-screen when printingRx is set */}
+            {printingRx && (
+                <div style={{ position: 'fixed', left: '-9999px', top: 0, width: 800, visibility: 'hidden', pointerEvents: 'none', zIndex: -1 }}>
+                    <RecetaPreview
+                        draft={{
+                            patient_id: printingRx.patient_id,
+                            patient_name: printingRx.patient_name ?? patientName,
+                            patient_age: printingRx.patient_age ?? '',
+                            patient_sex: printingRx.patient_sex ?? '',
+                            patient_weight: printingRx.patient_weight ?? '',
+                            issued_at: printingRx.issued_at,
+                            folio: printingRx.folio ?? '',
+                            diagnosis: printingRx.diagnosis ?? '',
+                            allergies: printingRx.allergies ?? [],
+                            medications: printingRx.medications,
+                            vitals: { bp_systolic:'', bp_diastolic:'', glucose:'', glucose_fasting:false, temperature:'', temp_unit:'C', heart_rate:'', o2_sat:'' },
+                            indications: printingRx.indications ?? '',
+                        }}
+                        doctor={rxDoctor}
+                        design={rxDesign}
+                    />
+                </div>
+            )}
+        </div>
+    )
+}
+
+const _CATEGORY_LABELS: Record<string, string> = {
     radiology: 'Radiología',
     prescription: 'Recetas',
     history: 'Historial',
@@ -1455,89 +1610,6 @@ const CATEGORIES: { value: DocCategory; label: string }[] = [
     { value: 'insurance', label: 'Seguro' },
     { value: 'other', label: 'Otro' },
 ]
-
-function DocCard({
-    doc,
-    downloadingId,
-    onDownload,
-    onCategoryChange,
-}: {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    doc: any
-    downloadingId: string | null
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    onDownload: (doc: any) => void
-    onCategoryChange?: (docId: string, category: DocCategory) => Promise<void>
-}) {
-    const [editingCategory, setEditingCategory] = useState(false)
-    const [savingCategory, setSavingCategory] = useState(false)
-
-    async function handleCategoryChange(e: React.ChangeEvent<HTMLSelectElement>) {
-        if (!onCategoryChange) return
-        const newCat = e.target.value as DocCategory
-        setSavingCategory(true)
-        await onCategoryChange(doc.id, newCat)
-        setSavingCategory(false)
-        setEditingCategory(false)
-    }
-
-    return (
-        <div className="flex items-start gap-3 p-3 border border-gray-100 rounded-xl hover:border-primary/30 transition-all">
-            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500 flex-shrink-0 mt-0.5">
-                <FileText size={18} />
-            </div>
-            <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-gray-900 truncate">{doc.title || 'Documento'}</p>
-                {editingCategory ? (
-                    <div className="flex items-center gap-1 mt-1">
-                        <select
-                            defaultValue={doc.category}
-                            onChange={handleCategoryChange}
-                            disabled={savingCategory}
-                            autoFocus
-                            className="text-xs border border-primary/40 rounded-md px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-primary/40 bg-white"
-                        >
-                            {CATEGORIES.map(c => (
-                                <option key={c.value} value={c.value}>{c.label}</option>
-                            ))}
-                        </select>
-                        {savingCategory
-                            ? <Loader2 size={12} className="animate-spin text-gray-400" />
-                            : <button type="button" onClick={() => setEditingCategory(false)} className="text-xs text-gray-400 hover:text-gray-600">✕</button>
-                        }
-                    </div>
-                ) : (
-                    <p className="text-[10px] text-gray-400 mt-0.5 flex flex-wrap items-center gap-x-1 gap-y-0.5">
-                        {CATEGORY_LABELS[doc.category] || doc.category}
-                        {onCategoryChange && (
-                            <button
-                                type="button"
-                                onClick={() => setEditingCategory(true)}
-                                className="text-gray-300 hover:text-primary transition-colors p-0.5 rounded"
-                                title="Cambiar categoría"
-                            >
-                                ✎
-                            </button>
-                        )}
-                        {doc.file_size ? ` • ${(doc.file_size / 1024 / 1024).toFixed(1)} MB` : ''}
-                        {doc.created_at ? ` • ${new Date(doc.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}
-                    </p>
-                )}
-            </div>
-            <button
-                onClick={() => onDownload(doc)}
-                disabled={downloadingId === doc.id}
-                className="flex-shrink-0 text-gray-400 hover:text-primary p-1.5 rounded-lg hover:bg-primary/5 transition-colors disabled:opacity-50"
-                title="Descargar"
-            >
-                {downloadingId === doc.id
-                    ? <Loader2 size={16} className="animate-spin" />
-                    : <Download size={16} />
-                }
-            </button>
-        </div>
-    )
-}
 
 function ExpedienteDigital({
     documents,
@@ -1559,7 +1631,6 @@ function ExpedienteDigital({
     patientEmail?: string
     onUpload: () => void
 }) {
-    const [downloadingId, setDownloadingId] = useState<string | null>(null)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [localDocs, setLocalDocs] = useState<any[]>(documents)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1567,6 +1638,9 @@ function ExpedienteDigital({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [localSharedDocs, setLocalSharedDocs] = useState<any[]>(patientSharedDocs)
     const [showUpload, setShowUpload] = useState(false)
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [previewDoc, setPreviewDoc] = useState<any | null>(null)
 
     // Document request modal
     const [docReqOpen, setDocReqOpen] = useState(false)
@@ -1616,49 +1690,21 @@ function ExpedienteDigital({
     useEffect(() => { setLocalDoctorDocs(doctorDocs) }, [doctorDocs])
     useEffect(() => { setLocalSharedDocs(patientSharedDocs) }, [patientSharedDocs])
 
-    async function handleCategoryChange(docId: string, category: DocCategory) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { error } = await (supabase as any).rpc('update_document_category', {
-            doc_id: docId,
-            new_category: category,
-        })
-        if (error) {
-            showToast('Error al actualizar la categoría', 'error')
-            return
-        }
-        // Update all three local lists optimistically
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const patch = (list: any[]) => list.map(d => d.id === docId ? { ...d, category } : d)
-        setLocalDocs(patch)
-        setLocalDoctorDocs(patch)
-        setLocalSharedDocs(patch)
-    }
+    // Deduplicate within each section by ID, then remove cross-section duplicates
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dedupeById = (arr: any[]) => arr.filter((d, i, a) => a.findIndex(x => x.id === d.id) === i)
+    const dedupedDoctorDocs = dedupeById(localDoctorDocs)
+    const dedupedSharedDocs = dedupeById(localSharedDocs)
+    const sharedAndDoctorIds = new Set([...dedupedSharedDocs, ...dedupedDoctorDocs].map(d => d.id))
+    const uniqueLocalDocs = dedupeById(localDocs).filter(d => !sharedAndDoctorIds.has(d.id))
+
     const [uploading, setUploading] = useState(false)
     const [uploadForm, setUploadForm] = useState<{ file: File | null; title: string; category: DocCategory; notes: string }>({
         file: null, title: '', category: 'other', notes: '',
     })
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const handleDownload = async (doc: any) => {
-        setDownloadingId(doc.id)
-        try {
-            const url = await getDocumentDownloadUrl(doc)
-            if (url) {
-                const a = document.createElement('a')
-                a.href = url
-                a.download = doc.title || 'documento'
-                a.target = '_blank'
-                a.rel = 'noopener noreferrer'
-                a.click()
-            } else {
-                showToast('No se pudo obtener el enlace del documento', 'error')
-            }
-        } catch {
-            showToast('Error al descargar el documento', 'error')
-        } finally {
-            setDownloadingId(null)
-        }
-    }
+    const handleView = (doc: any) => setPreviewDoc(doc)
 
     const handleUpload = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -1688,16 +1734,8 @@ function ExpedienteDigital({
         }
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const grouped = localDocs.reduce<Record<string, any[]>>((acc, doc) => {
-        const cat = doc.category || 'other'
-        if (!acc[cat]) acc[cat] = []
-        acc[cat].push(doc)
-        return acc
-    }, {})
-
     return (
-        <div className="space-y-6 animate-in fade-in duration-300">
+        <div className="animate-in fade-in duration-300 space-y-4">
             {/* Upload button / form */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <h3 className="text-sm font-bold text-gray-900">
@@ -1706,17 +1744,19 @@ function ExpedienteDigital({
                 <div className="flex items-center gap-2 flex-shrink-0">
                     <button
                         onClick={() => { setDocReqEmail(patientEmail || ''); setDocReqOpen(true) }}
+                        title="Generar enlace para que el paciente suba un documento"
                         className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 bg-white text-primary border border-primary text-xs font-bold rounded-lg hover:bg-primary/5 transition-colors"
                     >
                         <FileUp size={14} />
-                        Solicitar
+                        Solicitar documento
                     </button>
                     <button
                         onClick={() => setShowUpload(v => !v)}
+                        title="Subir un archivo al expediente del paciente"
                         className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 bg-primary text-white text-xs font-bold rounded-lg hover:bg-teal-600 transition-colors"
                     >
                         <Plus size={14} />
-                        Nuevo doc
+                        Subir documento
                     </button>
                 </div>
             </div>
@@ -1791,61 +1831,79 @@ function ExpedienteDigital({
                 </form>
             )}
 
-            {/* Documents uploaded by this doctor */}
-            {localDoctorDocs.length > 0 && (
-                <div className="space-y-2">
-                    <p className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
-                        <Plus size={12} /> Subidos por ti
-                        <span className="bg-primary/10 text-primary text-[10px] font-bold px-1.5 py-0.5 rounded-full normal-case">{localDoctorDocs.length}</span>
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {localDoctorDocs.map(doc => (
-                            <DocCard key={doc.id} doc={doc} downloadingId={downloadingId} onDownload={handleDownload} onCategoryChange={handleCategoryChange} />
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* Documents shared by the patient via solicitud link */}
-            {localSharedDocs.length > 0 && (
-                <div className="space-y-2">
-                    <p className="text-xs font-bold uppercase tracking-wider text-teal-600 flex items-center gap-1.5">
-                        <Send size={12} /> Enviados por el paciente
-                        <span className="bg-teal-50 text-teal-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full normal-case">{localSharedDocs.length}</span>
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {localSharedDocs.map(doc => (
-                            <DocCard key={doc.id} doc={doc} downloadingId={downloadingId} onDownload={handleDownload} onCategoryChange={handleCategoryChange} />
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* Patient's own documents grouped by category */}
-            {localDocs.length === 0 && localDoctorDocs.length === 0 && localSharedDocs.length === 0 ? (
+            {/* ── Document grids (thumbnail cards like Documentos page) ─── */}
+            {dedupedDoctorDocs.length === 0 && dedupedSharedDocs.length === 0 && uniqueLocalDocs.length === 0 ? (
                 <div className="text-center py-12 text-gray-400">
                     <FileText size={48} className="mx-auto mb-3 opacity-20" />
                     <p className="text-sm font-medium">El paciente no tiene documentos cargados.</p>
                     <p className="text-xs mt-1">Puedes agregar el primero con el botón de arriba.</p>
                 </div>
-            ) : localDocs.length > 0 ? (
-                <div className="space-y-5">
-                    <p className="text-xs font-bold uppercase tracking-wider text-gray-400">
-                        Documentos del paciente
-                        <span className="ml-2 bg-gray-100 text-gray-500 text-[10px] font-bold px-1.5 py-0.5 rounded-full normal-case">{localDocs.length}</span>
-                    </p>
-                    {Object.entries(grouped).map(([category, docs]) => (
-                        <div key={category} className="space-y-2">
-                            <p className="text-[11px] font-semibold text-gray-400 pl-1">{CATEGORY_LABELS[category] || category}</p>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                {docs.map(doc => (
-                                    <DocCard key={doc.id} doc={doc} downloadingId={downloadingId} onDownload={handleDownload} onCategoryChange={handleCategoryChange} />
+            ) : (
+                <div className="space-y-6">
+                    {dedupedDoctorDocs.length > 0 && (
+                        <div className="space-y-3">
+                            <p className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                                <Plus size={12} /> Subidos por ti
+                                <span className="bg-primary/10 text-primary text-[10px] font-bold px-1.5 py-0.5 rounded-full normal-case">{dedupedDoctorDocs.length}</span>
+                            </p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {dedupedDoctorDocs.map(doc => (
+                                    <DocumentCard
+                                        key={doc.id}
+                                        document={doc}
+                                        onDelete={() => { /* doctor docs deletion can be added later */ }}
+                                        onPreview={handleView}
+                                    />
                                 ))}
                             </div>
                         </div>
-                    ))}
+                    )}
+
+                    {dedupedSharedDocs.length > 0 && (
+                        <div className="space-y-3">
+                            <p className="text-xs font-bold uppercase tracking-wider text-teal-600 flex items-center gap-1.5">
+                                <Send size={12} /> Enviados por el paciente
+                                <span className="bg-teal-50 text-teal-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full normal-case">{dedupedSharedDocs.length}</span>
+                            </p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {dedupedSharedDocs.map(doc => (
+                                    <DocumentCard
+                                        key={doc.id}
+                                        document={doc}
+                                        onDelete={() => { /* read-only */ }}
+                                        onPreview={handleView}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {uniqueLocalDocs.length > 0 && (
+                        <div className="space-y-3">
+                            <p className="text-xs font-bold uppercase tracking-wider text-gray-400">
+                                Documentos del paciente
+                                <span className="ml-2 bg-gray-100 text-gray-500 text-[10px] font-bold px-1.5 py-0.5 rounded-full normal-case">{uniqueLocalDocs.length}</span>
+                            </p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {uniqueLocalDocs.map(doc => (
+                                    <DocumentCard
+                                        key={doc.id}
+                                        document={doc}
+                                        onDelete={() => { /* read-only */ }}
+                                        onPreview={handleView}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
-            ) : null}
+            )}
+
+            {/* Document preview modal */}
+            <DocumentPreviewModal
+                document={previewDoc}
+                onClose={() => setPreviewDoc(null)}
+            />
 
             {/* Document Request Modal */}
             {docReqOpen && (
@@ -1947,6 +2005,7 @@ function ExpedienteDigital({
                     </div>
                 </div>
             )}
+
         </div>
     )
 }

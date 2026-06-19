@@ -1,9 +1,274 @@
-import { useState, useEffect, useRef } from 'react'
-import { Activity, ShieldCheck, Plus, Pencil, ChevronDown, ChevronUp, Trash, Save, Loader2 } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { Activity, ShieldCheck, Plus, Pencil, ChevronDown, ChevronUp, Trash, Save, Loader2, Info, X as XIcon } from 'lucide-react'
 import { useAuth } from '@/app/providers/AuthContext'
 import DashboardLayout from '@/app/layout/DashboardLayout'
-import ClinicalHistoryTab from '@/features/doctor/components/ClinicalHistoryTab'
 import { getPatientProfile, upsertPatientProfile } from '@/features/patient/services/patientProfile'
+
+// ── Suggestion catalogues ─────────────────────────────────────────────────────
+
+const ALLERGEN_SUGGESTIONS: { name: string; icon: string }[] = [
+  // Medicamentos
+  { name: 'Penicilina', icon: '💊' }, { name: 'Amoxicilina', icon: '💊' },
+  { name: 'Cefalosporinas', icon: '💊' }, { name: 'Sulfonamidas', icon: '💊' },
+  { name: 'Aspirina', icon: '💊' }, { name: 'Ibuprofeno', icon: '💊' },
+  { name: 'Naproxeno', icon: '💊' }, { name: 'Diclofenaco', icon: '💊' },
+  { name: 'Metamizol', icon: '💊' }, { name: 'Paracetamol', icon: '💊' },
+  { name: 'Codeína', icon: '💊' }, { name: 'Morfina', icon: '💊' },
+  { name: 'Contraste yodado', icon: '💊' }, { name: 'Anestesia local', icon: '💊' },
+  { name: 'Lidocaína', icon: '💊' }, { name: 'Látex', icon: '💊' },
+  { name: 'Ciprofloxacino', icon: '💊' }, { name: 'Claritromicina', icon: '💊' },
+  { name: 'Azitromicina', icon: '💊' }, { name: 'Tetraciclinas', icon: '💊' },
+  // Alimentos
+  { name: 'Mariscos', icon: '🍎' }, { name: 'Camarones', icon: '🍎' },
+  { name: 'Pescado', icon: '🍎' }, { name: 'Nueces', icon: '🍎' },
+  { name: 'Cacahuates / Maní', icon: '🍎' }, { name: 'Almendras', icon: '🍎' },
+  { name: 'Leche de vaca', icon: '🍎' }, { name: 'Huevo', icon: '🍎' },
+  { name: 'Trigo / Gluten', icon: '🍎' }, { name: 'Soya', icon: '🍎' },
+  { name: 'Fresa', icon: '🍎' }, { name: 'Kiwi', icon: '🍎' },
+  { name: 'Mango', icon: '🍎' }, { name: 'Sulfitos / Conservadores', icon: '🍎' },
+  // Ambientales
+  { name: 'Polen (gramíneas)', icon: '🌿' }, { name: 'Polen (árboles)', icon: '🌿' },
+  { name: 'Ácaros del polvo', icon: '🌿' }, { name: 'Polvo doméstico', icon: '🌿' },
+  { name: 'Pelo de gato', icon: '🌿' }, { name: 'Pelo de perro', icon: '🌿' },
+  { name: 'Moho / Hongos', icon: '🌿' }, { name: 'Níquel', icon: '🌿' },
+  { name: 'Fragancias / Perfumes', icon: '🌿' },
+]
+
+const CONDITION_SUGGESTIONS: { name: string; icon: string }[] = [
+  { name: 'Diabetes Mellitus tipo 1', icon: '🔴' },
+  { name: 'Diabetes Mellitus tipo 2', icon: '🔴' },
+  { name: 'Hipertensión arterial', icon: '🔴' },
+  { name: 'Dislipidemias', icon: '🔴' },
+  { name: 'Obesidad', icon: '🔴' },
+  { name: 'Hipotiroidismo', icon: '🔴' },
+  { name: 'Hipertiroidismo', icon: '🔴' },
+  { name: 'Asma', icon: '🔴' },
+  { name: 'EPOC', icon: '🔴' },
+  { name: 'Artritis reumatoide', icon: '🔴' },
+  { name: 'Lupus eritematoso sistémico', icon: '🔴' },
+  { name: 'Enfermedad renal crónica', icon: '🔴' },
+  { name: 'Insuficiencia cardíaca', icon: '🔴' },
+  { name: 'Fibrilación auricular', icon: '🔴' },
+  { name: 'Epilepsia', icon: '🔴' },
+  { name: 'Migraña', icon: '🔴' },
+  { name: 'Depresión', icon: '🔴' },
+  { name: 'Ansiedad', icon: '🔴' },
+  { name: 'Gastritis crónica', icon: '🔴' },
+  { name: 'Colon irritable', icon: '🔴' },
+  { name: 'Enfermedad de Crohn', icon: '🔴' },
+  { name: 'Colitis ulcerosa', icon: '🔴' },
+  { name: 'Hepatitis B crónica', icon: '🔴' },
+  { name: 'Hepatitis C crónica', icon: '🔴' },
+  { name: 'Osteoartritis', icon: '🔴' },
+  { name: 'Osteoporosis', icon: '🔴' },
+  { name: 'Anemia crónica', icon: '🔴' },
+  { name: 'VIH / SIDA', icon: '🔴' },
+  { name: 'Psoriasis', icon: '🔴' },
+  { name: 'Dermatitis atópica', icon: '🔴' },
+]
+
+const MEDICATION_SUGGESTIONS: { name: string; icon: string }[] = [
+  // Cardiovascular / HTA
+  { name: 'Losartán 50 mg', icon: '💊' }, { name: 'Losartán 100 mg', icon: '💊' },
+  { name: 'Enalapril 10 mg', icon: '💊' }, { name: 'Amlodipino 5 mg', icon: '💊' },
+  { name: 'Amlodipino 10 mg', icon: '💊' }, { name: 'Metoprolol 50 mg', icon: '💊' },
+  { name: 'Atenolol 50 mg', icon: '💊' }, { name: 'Hidroclorotiazida 25 mg', icon: '💊' },
+  { name: 'Espironolactona 25 mg', icon: '💊' }, { name: 'Furosemida 40 mg', icon: '💊' },
+  // Diabetes
+  { name: 'Metformina 500 mg', icon: '💊' }, { name: 'Metformina 850 mg', icon: '💊' },
+  { name: 'Metformina 1000 mg', icon: '💊' }, { name: 'Glibenclamida 5 mg', icon: '💊' },
+  { name: 'Insulina NPH', icon: '💊' }, { name: 'Insulina glargina', icon: '💊' },
+  { name: 'Sitagliptina 100 mg', icon: '💊' }, { name: 'Empagliflozina 10 mg', icon: '💊' },
+  // Colesterol / Lípidos
+  { name: 'Atorvastatina 10 mg', icon: '💊' }, { name: 'Atorvastatina 20 mg', icon: '💊' },
+  { name: 'Atorvastatina 40 mg', icon: '💊' }, { name: 'Rosuvastatina 10 mg', icon: '💊' },
+  { name: 'Simvastatina 20 mg', icon: '💊' }, { name: 'Ezetimiba 10 mg', icon: '💊' },
+  // Tiroides
+  { name: 'Levotiroxina 25 mcg', icon: '💊' }, { name: 'Levotiroxina 50 mcg', icon: '💊' },
+  { name: 'Levotiroxina 100 mcg', icon: '💊' },
+  // Analgésicos / AINES
+  { name: 'Paracetamol 500 mg', icon: '💊' }, { name: 'Paracetamol 1 g', icon: '💊' },
+  { name: 'Ibuprofeno 400 mg', icon: '💊' }, { name: 'Ibuprofeno 600 mg', icon: '💊' },
+  { name: 'Naproxeno 250 mg', icon: '💊' }, { name: 'Naproxeno 500 mg', icon: '💊' },
+  { name: 'Diclofenaco 50 mg', icon: '💊' }, { name: 'Ketorolaco 10 mg', icon: '💊' },
+  // Gástrico / GI
+  { name: 'Omeprazol 20 mg', icon: '💊' }, { name: 'Omeprazol 40 mg', icon: '💊' },
+  { name: 'Pantoprazol 40 mg', icon: '💊' }, { name: 'Ranitidina 150 mg', icon: '💊' },
+  // Antibióticos
+  { name: 'Amoxicilina 500 mg', icon: '💊' }, { name: 'Azitromicina 500 mg', icon: '💊' },
+  { name: 'Ciprofloxacino 500 mg', icon: '💊' }, { name: 'Claritromicina 500 mg', icon: '💊' },
+  // Psiquiátrico / Neurológico
+  { name: 'Sertralina 50 mg', icon: '💊' }, { name: 'Fluoxetina 20 mg', icon: '💊' },
+  { name: 'Escitalopram 10 mg', icon: '💊' }, { name: 'Alprazolam 0.5 mg', icon: '💊' },
+  { name: 'Clonazepam 0.5 mg', icon: '💊' }, { name: 'Carbamazepina 200 mg', icon: '💊' },
+  { name: 'Ácido valproico 500 mg', icon: '💊' }, { name: 'Topiramato 25 mg', icon: '💊' },
+  // Respiratorio
+  { name: 'Salbutamol inhalador', icon: '💊' }, { name: 'Budesonida inhalador', icon: '💊' },
+  { name: 'Montelukast 10 mg', icon: '💊' }, { name: 'Loratadina 10 mg', icon: '💊' },
+  { name: 'Cetirizina 10 mg', icon: '💊' }, { name: 'Fexofenadina 120 mg', icon: '💊' },
+]
+
+// ── TagInput component ────────────────────────────────────────────────────────
+
+interface TagInputProps {
+  value: string
+  onChange: (v: string) => void
+  suggestions: { name: string; icon: string }[]
+  placeholder?: string
+  tagClass?: string
+}
+
+function TagInput({ value, onChange, suggestions, placeholder, tagClass }: TagInputProps) {
+  const [input, setInput] = useState('')
+  const [open, setOpen] = useState(false)
+  const [focusedIdx, setFocusedIdx] = useState(-1)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  const tags = value.split(',').map(s => s.trim()).filter(Boolean)
+
+  const filtered = input.length > 0
+    ? suggestions.filter(s =>
+        s.name.toLowerCase().includes(input.toLowerCase()) &&
+        !tags.map(t => t.toLowerCase()).includes(s.name.toLowerCase())
+      ).slice(0, 7)
+    : []
+
+  const commitTag = useCallback((name: string) => {
+    const trimmed = name.trim()
+    if (!trimmed) return
+    if (tags.map(t => t.toLowerCase()).includes(trimmed.toLowerCase())) {
+      setInput('')
+      setOpen(false)
+      return
+    }
+    onChange([...tags, trimmed].join(', '))
+    setInput('')
+    setOpen(false)
+    setFocusedIdx(-1)
+  }, [tags, onChange])
+
+  const removeTag = useCallback((idx: number) => {
+    onChange(tags.filter((_, i) => i !== idx).join(', '))
+  }, [tags, onChange])
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setFocusedIdx(i => Math.min(i + 1, filtered.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setFocusedIdx(i => Math.max(i - 1, -1))
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      if (focusedIdx >= 0 && filtered[focusedIdx]) {
+        commitTag(filtered[focusedIdx].name)
+      } else if (input.trim()) {
+        commitTag(input.trim())
+      }
+    } else if ((e.key === ',' || e.key === 'Tab') && input.trim()) {
+      e.preventDefault()
+      commitTag(input.trim())
+    } else if (e.key === 'Backspace' && !input && tags.length) {
+      removeTag(tags.length - 1)
+    } else if (e.key === 'Escape') {
+      setOpen(false)
+      setFocusedIdx(-1)
+    }
+  }
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (
+        dropdownRef.current && !dropdownRef.current.contains(e.target as Node) &&
+        inputRef.current && !inputRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false)
+        setFocusedIdx(-1)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  return (
+    <div className="relative">
+      <div
+        className="flex flex-wrap gap-1.5 min-h-[44px] px-3 py-2 border border-gray-200 rounded-xl bg-white focus-within:ring-2 focus-within:ring-[#33C7BE]/40 focus-within:border-[#33C7BE] cursor-text"
+        onClick={() => inputRef.current?.focus()}
+      >
+        {tags.map((tag, i) => (
+          <span
+            key={i}
+            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${tagClass ?? 'bg-teal-50 text-teal-700 border border-teal-200'}`}
+          >
+            {tag}
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); removeTag(i) }}
+              className="ml-0.5 hover:text-red-500 transition-colors"
+              aria-label={`Eliminar ${tag}`}
+            >
+              <XIcon className="w-3 h-3" />
+            </button>
+          </span>
+        ))}
+        <input
+          ref={inputRef}
+          value={input}
+          onChange={e => { setInput(e.target.value); setOpen(true); setFocusedIdx(-1) }}
+          onKeyDown={handleKeyDown}
+          onFocus={() => { if (input) setOpen(true) }}
+          placeholder={tags.length === 0 ? placeholder : ''}
+          className="flex-1 min-w-[120px] outline-none text-sm text-gray-700 placeholder-gray-400 bg-transparent py-0.5"
+        />
+      </div>
+
+      {/* Dropdown */}
+      {open && filtered.length > 0 && (
+        <div
+          ref={dropdownRef}
+          className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden"
+        >
+          {filtered.map((s, i) => (
+            <button
+              key={s.name}
+              type="button"
+              onMouseDown={e => { e.preventDefault(); commitTag(s.name) }}
+              className={`flex items-center gap-2 w-full px-4 py-2.5 text-sm text-left transition-colors ${i === focusedIdx ? 'bg-teal-50 text-teal-700' : 'text-gray-700 hover:bg-gray-50'}`}
+            >
+              <span>{s.icon}</span>
+              <span>{s.name}</span>
+            </button>
+          ))}
+          {input.trim() && !filtered.some(s => s.name.toLowerCase() === input.trim().toLowerCase()) && (
+            <button
+              type="button"
+              onMouseDown={e => { e.preventDefault(); commitTag(input.trim()) }}
+              className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-left text-gray-500 hover:bg-gray-50 border-t border-gray-100"
+            >
+              <Plus className="w-3.5 h-3.5 flex-shrink-0" />
+              Agregar "<span className="font-semibold text-gray-700">{input.trim()}</span>"
+            </button>
+          )}
+        </div>
+      )}
+      {open && filtered.length === 0 && input.trim().length > 0 && (
+        <div ref={dropdownRef} className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+          <button
+            type="button"
+            onMouseDown={e => { e.preventDefault(); commitTag(input.trim()) }}
+            className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-left text-gray-500 hover:bg-gray-50"
+          >
+            <Plus className="w-3.5 h-3.5 flex-shrink-0" />
+            Agregar "<span className="font-semibold text-gray-700">{input.trim()}</span>"
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
 import { PatientProfile, PatientInsurance, BiometricRecord } from '@/shared/types/database'
 import {
   getMyInsurances,
@@ -19,6 +284,79 @@ import { getBiometricHistory, insertBiometricRecord } from '@/shared/lib/queries
 import { showToast } from '@/shared/components/ui/Toast'
 import { logger } from '@/shared/lib/logger'
 
+// ── NoteEditForm ─────────────────────────────────────────────────────────────
+
+const NOTE_SNIPPETS = [
+  { label: '🤒 Síntoma nuevo',          snippet: 'Síntoma nuevo: ' },
+  { label: '❓ Tengo una pregunta',     snippet: 'Quisiera preguntar: ' },
+  { label: '😟 Me preocupa algo',       snippet: 'Me preocupa: ' },
+  { label: '📅 Desde hace un tiempo',   snippet: 'Desde hace: ' },
+  { label: '💉 Reacción a tratamiento', snippet: 'Reacción a tratamiento: ' },
+  { label: '😴 Problema para dormir',   snippet: 'Tengo problemas para dormir porque: ' },
+]
+
+function NoteEditForm({
+  draft, onDraftChange, onSave, onCancel, isSaving,
+}: {
+  draft: string
+  onDraftChange: (v: string) => void
+  onSave: () => void
+  onCancel: () => void
+  isSaving: boolean
+}) {
+  return (
+    <div className="space-y-2">
+      {/* Quick-prompt chips */}
+      <div className="flex flex-wrap gap-1.5">
+        {NOTE_SNIPPETS.map(({ label, snippet }) => (
+          <button
+            key={snippet}
+            type="button"
+            onClick={() => {
+              const prefix = draft && !draft.endsWith('\n') ? '\n' : ''
+              onDraftChange(draft + prefix + snippet)
+            }}
+            className="px-2.5 py-1 text-[11px] font-medium text-gray-600 bg-gray-50 border border-gray-200 rounded-full hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200 transition-colors"
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Textarea */}
+      <div className="relative">
+        <textarea
+          autoFocus
+          rows={4}
+          value={draft}
+          onChange={e => onDraftChange(e.target.value)}
+          placeholder="Escribe síntomas, preguntas o recordatorios…"
+          maxLength={1000}
+          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] resize-none"
+        />
+        <span className={`absolute bottom-2 right-3 text-[10px] ${draft.length > 900 ? 'text-amber-500' : 'text-gray-300'}`}>
+          {draft.length}/1000
+        </span>
+      </div>
+
+      {/* Actions */}
+      <div className="flex justify-end gap-2 pt-1">
+        <button type="button" onClick={onCancel} disabled={isSaving} className="px-4 py-2 text-sm text-gray-500 rounded-xl hover:bg-gray-100 transition-colors">
+          Cancelar
+        </button>
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={isSaving || !draft.trim()}
+          className="inline-flex items-center gap-2 px-5 py-2 bg-[#33C7BE] text-white text-sm font-semibold rounded-xl hover:bg-[#2ab5ac] transition-colors disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
+        >
+          {isSaving ? <><Loader2 className="w-4 h-4 animate-spin" />Guardando...</> : <><Save className="w-4 h-4" />Guardar nota</>}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function HistorialClinico() {
   const { user, profile: authProfile } = useAuth()
   const isPatient = authProfile?.role === 'patient'
@@ -33,6 +371,41 @@ export default function HistorialClinico() {
     blood_type: '',
   })
   const [isSavingMedical, setIsSavingMedical] = useState(false)
+
+  // Patient-entered health notes (allergies, chronic conditions, current medications)
+  // These fields belong to patient_profiles and are patient-maintained.
+  // They are distinct from the clinical history (expediente clínico) which is maintained
+  // exclusively by the healthcare professional per NOM-004-SSA3-2012 §7.
+  const [healthNotesForm, setHealthNotesForm] = useState({
+    allergies: '',
+    chronic_conditions: '',
+    current_medications: '',
+    notes_for_doctor: '',
+  })
+  const healthNotesInitialized = useRef(false)
+  const [isSavingHealthNotes, setIsSavingHealthNotes] = useState(false)
+
+  // Personal notes — multi-note list stored as JSON in notes_for_doctor
+  interface PersonalNote { id: string; text: string; savedAt: string }
+
+  function parseNotes(raw: string): PersonalNote[] {
+    if (!raw) return []
+    try {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed) && parsed.length && typeof parsed[0].id === 'string') return parsed
+    } catch { /* legacy plain text */ }
+    // Legacy: single plain-text string → wrap as one note
+    return [{ id: 'legacy', text: raw, savedAt: '' }]
+  }
+
+  function serializeNotes(notes: PersonalNote[]): string {
+    return notes.length ? JSON.stringify(notes) : ''
+  }
+
+  const [personalNotes, setPersonalNotes] = useState<PersonalNote[]>([])
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null) // null = not editing; 'new' = adding
+  const [notesDraft, setNotesDraft] = useState('')
+  const [isSavingNote, setIsSavingNote] = useState(false)
 
   // Insurance state
   const [insurances, setInsurances] = useState<PatientInsurance[]>([])
@@ -73,6 +446,17 @@ export default function HistorialClinico() {
         blood_type: patientProfile.blood_type ?? '',
       })
     }
+    if (patientProfile && !healthNotesInitialized.current) {
+      healthNotesInitialized.current = true
+      setHealthNotesForm({
+        allergies: patientProfile.allergies ?? '',
+        chronic_conditions: patientProfile.chronic_conditions ?? '',
+        current_medications: patientProfile.current_medications ?? '',
+        notes_for_doctor: patientProfile.notes_for_doctor ?? '',
+      })
+      setPersonalNotes(parseNotes(patientProfile.notes_for_doctor ?? ''))
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientProfile])
 
   const validatePhone = (val: string): boolean => {
@@ -119,6 +503,65 @@ export default function HistorialClinico() {
     } finally {
       setIsSavingMedical(false)
     }
+  }
+
+  const handleSaveHealthNotes = async () => {
+    if (!user) return
+    try {
+      setIsSavingHealthNotes(true)
+      await handleSavePatientProfile({
+        allergies: healthNotesForm.allergies || null,
+        chronic_conditions: healthNotesForm.chronic_conditions || null,
+        current_medications: healthNotesForm.current_medications || null,
+      })
+      showToast('Información de salud guardada', 'success')
+    } catch (err) {
+      logger.error('HistorialClinico:saveHealthNotes', err)
+      showToast('Error al guardar', 'error')
+    } finally {
+      setIsSavingHealthNotes(false)
+    }
+  }
+
+  const handleSaveNote = async () => {
+    if (!user || !notesDraft.trim()) return
+    try {
+      setIsSavingNote(true)
+      let updated: PersonalNote[]
+      if (editingNoteId === 'new') {
+        const newNote: PersonalNote = {
+          id: crypto.randomUUID(),
+          text: notesDraft.trim(),
+          savedAt: new Date().toISOString(),
+        }
+        updated = [newNote, ...personalNotes]
+      } else {
+        updated = personalNotes.map(n =>
+          n.id === editingNoteId ? { ...n, text: notesDraft.trim(), savedAt: new Date().toISOString() } : n
+        )
+      }
+      const serialized = serializeNotes(updated)
+      await handleSavePatientProfile({ notes_for_doctor: serialized || null })
+      setPersonalNotes(updated)
+      setHealthNotesForm(f => ({ ...f, notes_for_doctor: serialized }))
+      setEditingNoteId(null)
+      setNotesDraft('')
+      showToast('Nota guardada', 'success')
+    } catch (err) {
+      logger.error('HistorialClinico:saveNote', err)
+      showToast('Error al guardar nota', 'error')
+    } finally {
+      setIsSavingNote(false)
+    }
+  }
+
+  const handleDeleteNote = async (id: string) => {
+    if (!user) return
+    const updated = personalNotes.filter(n => n.id !== id)
+    const serialized = serializeNotes(updated)
+    await handleSavePatientProfile({ notes_for_doctor: serialized || null })
+    setPersonalNotes(updated)
+    setHealthNotesForm(f => ({ ...f, notes_for_doctor: serialized }))
   }
 
   const resetInsuranceForm = () => setInsuranceForm({
@@ -455,8 +898,191 @@ export default function HistorialClinico() {
             )}
           </div>
 
-          {/* Clinical History */}
-          {user && <ClinicalHistoryTab patientId={user.id} editorId={user.id} />}
+          {/* Notas de salud — patient-maintained fields (NOM-004-SSA3-2012 §7) */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            {/* Header */}
+            <div className="px-5 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-2 mb-0.5">
+                <div className="w-7 h-7 rounded-lg bg-teal-50 flex items-center justify-center">
+                  <Activity className="w-4 h-4 text-[#33C7BE]" />
+                </div>
+                <h3 className="text-sm font-bold text-gray-900">Notas de salud</h3>
+              </div>
+              <p className="text-xs text-gray-400 ml-9">
+                Escribe o selecciona de la lista. Presiona <kbd className="px-1 py-0.5 bg-gray-100 rounded text-[10px] font-mono">Enter</kbd> o <kbd className="px-1 py-0.5 bg-gray-100 rounded text-[10px] font-mono">,</kbd> para agregar. Haz clic en ✕ para quitar.
+              </p>
+            </div>
+
+            <div className="p-5 space-y-5">
+              {/* Alergias */}
+              <div>
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <span className="text-base">⚠️</span>
+                  <label className="text-xs font-bold text-gray-700">Alergias conocidas</label>
+                  <span className="text-[10px] text-gray-400">(medicamentos, alimentos, ambientales)</span>
+                </div>
+                <TagInput
+                  value={healthNotesForm.allergies}
+                  onChange={v => setHealthNotesForm(f => ({ ...f, allergies: v }))}
+                  suggestions={ALLERGEN_SUGGESTIONS}
+                  placeholder="Buscar o escribir alergia…"
+                  tagClass="bg-red-50 text-red-700 border border-red-200"
+                />
+              </div>
+
+              {/* Condiciones crónicas */}
+              <div>
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <span className="text-base">🔴</span>
+                  <label className="text-xs font-bold text-gray-700">Condiciones crónicas</label>
+                  <span className="text-[10px] text-gray-400">(diagnósticos que ya tienes)</span>
+                </div>
+                <TagInput
+                  value={healthNotesForm.chronic_conditions}
+                  onChange={v => setHealthNotesForm(f => ({ ...f, chronic_conditions: v }))}
+                  suggestions={CONDITION_SUGGESTIONS}
+                  placeholder="Buscar o escribir condición…"
+                  tagClass="bg-orange-50 text-orange-700 border border-orange-200"
+                />
+              </div>
+
+              {/* Medicamentos */}
+              <div>
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <span className="text-base">💊</span>
+                  <label className="text-xs font-bold text-gray-700">Medicamentos actuales</label>
+                  <span className="text-[10px] text-gray-400">(incluye dosis si la conoces)</span>
+                </div>
+                <TagInput
+                  value={healthNotesForm.current_medications}
+                  onChange={v => setHealthNotesForm(f => ({ ...f, current_medications: v }))}
+                  suggestions={MEDICATION_SUGGESTIONS}
+                  placeholder="Buscar o escribir medicamento…"
+                  tagClass="bg-blue-50 text-blue-700 border border-blue-200"
+                />
+              </div>
+
+              <div className="flex justify-end pt-1">
+                <button
+                  onClick={handleSaveHealthNotes}
+                  disabled={isSavingHealthNotes}
+                  className="inline-flex items-center gap-2 px-5 py-2 bg-[#33C7BE] text-white text-sm font-semibold rounded-xl hover:bg-[#2ab5ac] transition-colors disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
+                >
+                  {isSavingHealthNotes
+                    ? <><Loader2 className="w-4 h-4 animate-spin" />Guardando...</>
+                    : <><Save className="w-4 h-4" />Guardar cambios</>}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Mis notas — multi-note list */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            {/* Header */}
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-base">📝</span>
+                  <h3 className="text-sm font-bold text-gray-900">Mis notas</h3>
+                </div>
+                <p className="text-xs text-gray-400 mt-0.5 ml-7">
+                  Anota síntomas, preguntas o recordatorios para tu próxima consulta.
+                </p>
+              </div>
+              {editingNoteId === null && (
+                <button
+                  onClick={() => { setNotesDraft(''); setEditingNoteId('new') }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#33C7BE] border border-[#33C7BE]/30 rounded-lg hover:bg-teal-50 transition-colors flex-shrink-0"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Agregar nota
+                </button>
+              )}
+            </div>
+
+            <div className="p-5 space-y-3">
+              {/* ── NEW NOTE FORM (shown at top when adding) ── */}
+              {editingNoteId === 'new' && (
+                <NoteEditForm
+                  draft={notesDraft}
+                  onDraftChange={setNotesDraft}
+                  onSave={handleSaveNote}
+                  onCancel={() => { setEditingNoteId(null); setNotesDraft('') }}
+                  isSaving={isSavingNote}
+                />
+              )}
+
+              {/* ── NOTE LIST ── */}
+              {personalNotes.length === 0 && editingNoteId !== 'new' ? (
+                <div className="text-center py-8">
+                  <p className="text-sm text-gray-400">No tienes notas guardadas aún.</p>
+                  <p className="text-xs text-gray-300 mt-1">Usa el botón "Agregar nota" para empezar.</p>
+                </div>
+              ) : (
+                personalNotes.map(note => (
+                  <div key={note.id} className="border border-gray-100 rounded-xl overflow-hidden">
+                    {editingNoteId === note.id ? (
+                      /* ── INLINE EDIT ── */
+                      <div className="p-4">
+                        <NoteEditForm
+                          draft={notesDraft}
+                          onDraftChange={setNotesDraft}
+                          onSave={handleSaveNote}
+                          onCancel={() => { setEditingNoteId(null); setNotesDraft('') }}
+                          isSaving={isSavingNote}
+                        />
+                      </div>
+                    ) : (
+                      /* ── VIEW ── */
+                      <div className="p-4">
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                          {note.text}
+                        </p>
+                        <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-50">
+                          {note.savedAt ? (
+                            <span className="text-[11px] text-gray-300">
+                              {new Date(note.savedAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          ) : <span />}
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => { setNotesDraft(note.text); setEditingNoteId(note.id) }}
+                              className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                              title="Editar"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteNote(note.id)}
+                              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Eliminar"
+                            >
+                              <Trash className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* NOM-004 notice — expediente clínico belongs to the healthcare institution */}
+          <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+            <Info className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
+            <div className="text-xs text-blue-700 space-y-0.5">
+              <p className="font-semibold">Expediente clínico</p>
+              <p>
+                El expediente clínico detallado — incluyendo antecedentes familiares, patológicos,
+                ginecológicos, psiquiátricos, revisión por aparatos y sistemas, y notas médicas —
+                es elaborado y resguardado exclusivamente por tu médico conforme a la
+                <strong> NOM-004-SSA3-2012 §7</strong>. Para solicitar una copia de tu expediente,
+                comunícate directamente con tu establecimiento de salud.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </DashboardLayout>

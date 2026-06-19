@@ -64,6 +64,17 @@ export async function getTemplates(): Promise<Prescription[]> {
   return (data ?? []) as Prescription[]
 }
 
+export async function getPrescriptionsByPatient(patientId: string): Promise<Prescription[]> {
+  const { data, error } = await supabase
+    .from('prescriptions')
+    .select('*')
+    .eq('patient_id', patientId)
+    .eq('is_template', false)
+    .order('issued_at', { ascending: false })
+  if (error) { logger.error('getPrescriptionsByPatient', error); return [] }
+  return (data ?? []) as Prescription[]
+}
+
 export async function createPrescription(input: PrescriptionInsert): Promise<Prescription | null> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
