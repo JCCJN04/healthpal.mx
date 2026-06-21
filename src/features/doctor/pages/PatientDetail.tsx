@@ -1592,16 +1592,6 @@ function RecetasTabPanel({ patientId, patientName, prescriptions, onNavigate }: 
     )
 }
 
-const _CATEGORY_LABELS: Record<string, string> = {
-    radiology: 'Radiología',
-    prescription: 'Recetas',
-    history: 'Historial',
-    lab: 'Laboratorio',
-    insurance: 'Seguros',
-    other: 'Otros',
-}
-
-
 const CATEGORIES: { value: DocCategory; label: string }[] = [
     { value: 'radiology', label: 'Radiología' },
     { value: 'prescription', label: 'Receta' },
