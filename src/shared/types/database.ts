@@ -195,6 +195,11 @@ export interface Database {
           notes_for_doctor: string | null
           emergency_contact_name: string | null
           emergency_contact_phone: string | null
+          family_history: string | null
+          surgical_history: string | null
+          tobacco_use: string | null
+          alcohol_use: string | null
+          exercise_frequency: string | null
           created_at: string
           updated_at: string
         }
@@ -212,6 +217,11 @@ export interface Database {
           notes_for_doctor?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
+          family_history?: string | null
+          surgical_history?: string | null
+          tobacco_use?: string | null
+          alcohol_use?: string | null
+          exercise_frequency?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -229,6 +239,11 @@ export interface Database {
           notes_for_doctor?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
+          family_history?: string | null
+          surgical_history?: string | null
+          tobacco_use?: string | null
+          alcohol_use?: string | null
+          exercise_frequency?: string | null
           created_at?: string
           updated_at?: string
         }
