@@ -1,5 +1,20 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Activity, ShieldCheck, Plus, Pencil, ChevronDown, ChevronUp, Trash, Save, Loader2, Info, X as XIcon, Heart, Scissors, UserCheck } from 'lucide-react'
+import {
+  Activity,
+  ShieldCheck,
+  Plus,
+  Pencil,
+  ChevronDown,
+  ChevronUp,
+  Trash,
+  Save,
+  Loader2,
+  Info,
+  X as XIcon,
+  Heart,
+  Scissors,
+  UserCheck,
+} from 'lucide-react'
 import { useAuth } from '@/app/providers/AuthContext'
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import { getPatientProfile, upsertPatientProfile } from '@/features/patient/services/patientProfile'
@@ -8,29 +23,50 @@ import { getPatientProfile, upsertPatientProfile } from '@/features/patient/serv
 
 const ALLERGEN_SUGGESTIONS: { name: string; icon: string }[] = [
   // Medicamentos
-  { name: 'Penicilina', icon: '💊' }, { name: 'Amoxicilina', icon: '💊' },
-  { name: 'Cefalosporinas', icon: '💊' }, { name: 'Sulfonamidas', icon: '💊' },
-  { name: 'Aspirina', icon: '💊' }, { name: 'Ibuprofeno', icon: '💊' },
-  { name: 'Naproxeno', icon: '💊' }, { name: 'Diclofenaco', icon: '💊' },
-  { name: 'Metamizol', icon: '💊' }, { name: 'Paracetamol', icon: '💊' },
-  { name: 'Codeína', icon: '💊' }, { name: 'Morfina', icon: '💊' },
-  { name: 'Contraste yodado', icon: '💊' }, { name: 'Anestesia local', icon: '💊' },
-  { name: 'Lidocaína', icon: '💊' }, { name: 'Látex', icon: '💊' },
-  { name: 'Ciprofloxacino', icon: '💊' }, { name: 'Claritromicina', icon: '💊' },
-  { name: 'Azitromicina', icon: '💊' }, { name: 'Tetraciclinas', icon: '💊' },
+  { name: 'Penicilina', icon: '💊' },
+  { name: 'Amoxicilina', icon: '💊' },
+  { name: 'Cefalosporinas', icon: '💊' },
+  { name: 'Sulfonamidas', icon: '💊' },
+  { name: 'Aspirina', icon: '💊' },
+  { name: 'Ibuprofeno', icon: '💊' },
+  { name: 'Naproxeno', icon: '💊' },
+  { name: 'Diclofenaco', icon: '💊' },
+  { name: 'Metamizol', icon: '💊' },
+  { name: 'Paracetamol', icon: '💊' },
+  { name: 'Codeína', icon: '💊' },
+  { name: 'Morfina', icon: '💊' },
+  { name: 'Contraste yodado', icon: '💊' },
+  { name: 'Anestesia local', icon: '💊' },
+  { name: 'Lidocaína', icon: '💊' },
+  { name: 'Látex', icon: '💊' },
+  { name: 'Ciprofloxacino', icon: '💊' },
+  { name: 'Claritromicina', icon: '💊' },
+  { name: 'Azitromicina', icon: '💊' },
+  { name: 'Tetraciclinas', icon: '💊' },
   // Alimentos
-  { name: 'Mariscos', icon: '🍎' }, { name: 'Camarones', icon: '🍎' },
-  { name: 'Pescado', icon: '🍎' }, { name: 'Nueces', icon: '🍎' },
-  { name: 'Cacahuates / Maní', icon: '🍎' }, { name: 'Almendras', icon: '🍎' },
-  { name: 'Leche de vaca', icon: '🍎' }, { name: 'Huevo', icon: '🍎' },
-  { name: 'Trigo / Gluten', icon: '🍎' }, { name: 'Soya', icon: '🍎' },
-  { name: 'Fresa', icon: '🍎' }, { name: 'Kiwi', icon: '🍎' },
-  { name: 'Mango', icon: '🍎' }, { name: 'Sulfitos / Conservadores', icon: '🍎' },
+  { name: 'Mariscos', icon: '🍎' },
+  { name: 'Camarones', icon: '🍎' },
+  { name: 'Pescado', icon: '🍎' },
+  { name: 'Nueces', icon: '🍎' },
+  { name: 'Cacahuates / Maní', icon: '🍎' },
+  { name: 'Almendras', icon: '🍎' },
+  { name: 'Leche de vaca', icon: '🍎' },
+  { name: 'Huevo', icon: '🍎' },
+  { name: 'Trigo / Gluten', icon: '🍎' },
+  { name: 'Soya', icon: '🍎' },
+  { name: 'Fresa', icon: '🍎' },
+  { name: 'Kiwi', icon: '🍎' },
+  { name: 'Mango', icon: '🍎' },
+  { name: 'Sulfitos / Conservadores', icon: '🍎' },
   // Ambientales
-  { name: 'Polen (gramíneas)', icon: '🌿' }, { name: 'Polen (árboles)', icon: '🌿' },
-  { name: 'Ácaros del polvo', icon: '🌿' }, { name: 'Polvo doméstico', icon: '🌿' },
-  { name: 'Pelo de gato', icon: '🌿' }, { name: 'Pelo de perro', icon: '🌿' },
-  { name: 'Moho / Hongos', icon: '🌿' }, { name: 'Níquel', icon: '🌿' },
+  { name: 'Polen (gramíneas)', icon: '🌿' },
+  { name: 'Polen (árboles)', icon: '🌿' },
+  { name: 'Ácaros del polvo', icon: '🌿' },
+  { name: 'Polvo doméstico', icon: '🌿' },
+  { name: 'Pelo de gato', icon: '🌿' },
+  { name: 'Pelo de perro', icon: '🌿' },
+  { name: 'Moho / Hongos', icon: '🌿' },
+  { name: 'Níquel', icon: '🌿' },
   { name: 'Fragancias / Perfumes', icon: '🌿' },
 ]
 
@@ -69,76 +105,131 @@ const CONDITION_SUGGESTIONS: { name: string; icon: string }[] = [
 
 const MEDICATION_SUGGESTIONS: { name: string; icon: string }[] = [
   // Cardiovascular / HTA
-  { name: 'Losartán 50 mg', icon: '💊' }, { name: 'Losartán 100 mg', icon: '💊' },
-  { name: 'Enalapril 10 mg', icon: '💊' }, { name: 'Amlodipino 5 mg', icon: '💊' },
-  { name: 'Amlodipino 10 mg', icon: '💊' }, { name: 'Metoprolol 50 mg', icon: '💊' },
-  { name: 'Atenolol 50 mg', icon: '💊' }, { name: 'Hidroclorotiazida 25 mg', icon: '💊' },
-  { name: 'Espironolactona 25 mg', icon: '💊' }, { name: 'Furosemida 40 mg', icon: '💊' },
+  { name: 'Losartán 50 mg', icon: '💊' },
+  { name: 'Losartán 100 mg', icon: '💊' },
+  { name: 'Enalapril 10 mg', icon: '💊' },
+  { name: 'Amlodipino 5 mg', icon: '💊' },
+  { name: 'Amlodipino 10 mg', icon: '💊' },
+  { name: 'Metoprolol 50 mg', icon: '💊' },
+  { name: 'Atenolol 50 mg', icon: '💊' },
+  { name: 'Hidroclorotiazida 25 mg', icon: '💊' },
+  { name: 'Espironolactona 25 mg', icon: '💊' },
+  { name: 'Furosemida 40 mg', icon: '💊' },
   // Diabetes
-  { name: 'Metformina 500 mg', icon: '💊' }, { name: 'Metformina 850 mg', icon: '💊' },
-  { name: 'Metformina 1000 mg', icon: '💊' }, { name: 'Glibenclamida 5 mg', icon: '💊' },
-  { name: 'Insulina NPH', icon: '💊' }, { name: 'Insulina glargina', icon: '💊' },
-  { name: 'Sitagliptina 100 mg', icon: '💊' }, { name: 'Empagliflozina 10 mg', icon: '💊' },
+  { name: 'Metformina 500 mg', icon: '💊' },
+  { name: 'Metformina 850 mg', icon: '💊' },
+  { name: 'Metformina 1000 mg', icon: '💊' },
+  { name: 'Glibenclamida 5 mg', icon: '💊' },
+  { name: 'Insulina NPH', icon: '💊' },
+  { name: 'Insulina glargina', icon: '💊' },
+  { name: 'Sitagliptina 100 mg', icon: '💊' },
+  { name: 'Empagliflozina 10 mg', icon: '💊' },
   // Colesterol / Lípidos
-  { name: 'Atorvastatina 10 mg', icon: '💊' }, { name: 'Atorvastatina 20 mg', icon: '💊' },
-  { name: 'Atorvastatina 40 mg', icon: '💊' }, { name: 'Rosuvastatina 10 mg', icon: '💊' },
-  { name: 'Simvastatina 20 mg', icon: '💊' }, { name: 'Ezetimiba 10 mg', icon: '💊' },
+  { name: 'Atorvastatina 10 mg', icon: '💊' },
+  { name: 'Atorvastatina 20 mg', icon: '💊' },
+  { name: 'Atorvastatina 40 mg', icon: '💊' },
+  { name: 'Rosuvastatina 10 mg', icon: '💊' },
+  { name: 'Simvastatina 20 mg', icon: '💊' },
+  { name: 'Ezetimiba 10 mg', icon: '💊' },
   // Tiroides
-  { name: 'Levotiroxina 25 mcg', icon: '💊' }, { name: 'Levotiroxina 50 mcg', icon: '💊' },
+  { name: 'Levotiroxina 25 mcg', icon: '💊' },
+  { name: 'Levotiroxina 50 mcg', icon: '💊' },
   { name: 'Levotiroxina 100 mcg', icon: '💊' },
   // Analgésicos / AINES
-  { name: 'Paracetamol 500 mg', icon: '💊' }, { name: 'Paracetamol 1 g', icon: '💊' },
-  { name: 'Ibuprofeno 400 mg', icon: '💊' }, { name: 'Ibuprofeno 600 mg', icon: '💊' },
-  { name: 'Naproxeno 250 mg', icon: '💊' }, { name: 'Naproxeno 500 mg', icon: '💊' },
-  { name: 'Diclofenaco 50 mg', icon: '💊' }, { name: 'Ketorolaco 10 mg', icon: '💊' },
+  { name: 'Paracetamol 500 mg', icon: '💊' },
+  { name: 'Paracetamol 1 g', icon: '💊' },
+  { name: 'Ibuprofeno 400 mg', icon: '💊' },
+  { name: 'Ibuprofeno 600 mg', icon: '💊' },
+  { name: 'Naproxeno 250 mg', icon: '💊' },
+  { name: 'Naproxeno 500 mg', icon: '💊' },
+  { name: 'Diclofenaco 50 mg', icon: '💊' },
+  { name: 'Ketorolaco 10 mg', icon: '💊' },
   // Gástrico / GI
-  { name: 'Omeprazol 20 mg', icon: '💊' }, { name: 'Omeprazol 40 mg', icon: '💊' },
-  { name: 'Pantoprazol 40 mg', icon: '💊' }, { name: 'Ranitidina 150 mg', icon: '💊' },
+  { name: 'Omeprazol 20 mg', icon: '💊' },
+  { name: 'Omeprazol 40 mg', icon: '💊' },
+  { name: 'Pantoprazol 40 mg', icon: '💊' },
+  { name: 'Ranitidina 150 mg', icon: '💊' },
   // Antibióticos
-  { name: 'Amoxicilina 500 mg', icon: '💊' }, { name: 'Azitromicina 500 mg', icon: '💊' },
-  { name: 'Ciprofloxacino 500 mg', icon: '💊' }, { name: 'Claritromicina 500 mg', icon: '💊' },
+  { name: 'Amoxicilina 500 mg', icon: '💊' },
+  { name: 'Azitromicina 500 mg', icon: '💊' },
+  { name: 'Ciprofloxacino 500 mg', icon: '💊' },
+  { name: 'Claritromicina 500 mg', icon: '💊' },
   // Psiquiátrico / Neurológico
-  { name: 'Sertralina 50 mg', icon: '💊' }, { name: 'Fluoxetina 20 mg', icon: '💊' },
-  { name: 'Escitalopram 10 mg', icon: '💊' }, { name: 'Alprazolam 0.5 mg', icon: '💊' },
-  { name: 'Clonazepam 0.5 mg', icon: '💊' }, { name: 'Carbamazepina 200 mg', icon: '💊' },
-  { name: 'Ácido valproico 500 mg', icon: '💊' }, { name: 'Topiramato 25 mg', icon: '💊' },
+  { name: 'Sertralina 50 mg', icon: '💊' },
+  { name: 'Fluoxetina 20 mg', icon: '💊' },
+  { name: 'Escitalopram 10 mg', icon: '💊' },
+  { name: 'Alprazolam 0.5 mg', icon: '💊' },
+  { name: 'Clonazepam 0.5 mg', icon: '💊' },
+  { name: 'Carbamazepina 200 mg', icon: '💊' },
+  { name: 'Ácido valproico 500 mg', icon: '💊' },
+  { name: 'Topiramato 25 mg', icon: '💊' },
   // Respiratorio
-  { name: 'Salbutamol inhalador', icon: '💊' }, { name: 'Budesonida inhalador', icon: '💊' },
-  { name: 'Montelukast 10 mg', icon: '💊' }, { name: 'Loratadina 10 mg', icon: '💊' },
-  { name: 'Cetirizina 10 mg', icon: '💊' }, { name: 'Fexofenadina 120 mg', icon: '💊' },
+  { name: 'Salbutamol inhalador', icon: '💊' },
+  { name: 'Budesonida inhalador', icon: '💊' },
+  { name: 'Montelukast 10 mg', icon: '💊' },
+  { name: 'Loratadina 10 mg', icon: '💊' },
+  { name: 'Cetirizina 10 mg', icon: '💊' },
+  { name: 'Fexofenadina 120 mg', icon: '💊' },
 ]
 
 const FAMILY_HISTORY_SUGGESTIONS: { name: string; icon: string }[] = [
-  { name: 'Diabetes (padre)', icon: '🧬' }, { name: 'Diabetes (madre)', icon: '🧬' },
-  { name: 'Diabetes (abuelos)', icon: '🧬' }, { name: 'Hipertensión (padre)', icon: '🧬' },
-  { name: 'Hipertensión (madre)', icon: '🧬' }, { name: 'Infarto al miocardio', icon: '🧬' },
-  { name: 'EVC / Derrame cerebral', icon: '🧬' }, { name: 'Cáncer de mama', icon: '🧬' },
-  { name: 'Cáncer colorrectal', icon: '🧬' }, { name: 'Cáncer de próstata', icon: '🧬' },
-  { name: 'Cáncer cervicouterino', icon: '🧬' }, { name: 'Cáncer gástrico', icon: '🧬' },
-  { name: 'Enfermedad renal crónica', icon: '🧬' }, { name: 'Epilepsia', icon: '🧬' },
-  { name: 'Artritis reumatoide', icon: '🧬' }, { name: 'Lupus', icon: '🧬' },
-  { name: 'Depresión / Ansiedad', icon: '🧬' }, { name: 'Esquizofrenia', icon: '🧬' },
-  { name: 'Alzheimer', icon: '🧬' }, { name: 'Parkinson', icon: '🧬' },
-  { name: 'Dislipidemias', icon: '🧬' }, { name: 'Obesidad', icon: '🧬' },
-  { name: 'Glaucoma', icon: '🧬' }, { name: 'Asma', icon: '🧬' },
+  { name: 'Diabetes (padre)', icon: '🧬' },
+  { name: 'Diabetes (madre)', icon: '🧬' },
+  { name: 'Diabetes (abuelos)', icon: '🧬' },
+  { name: 'Hipertensión (padre)', icon: '🧬' },
+  { name: 'Hipertensión (madre)', icon: '🧬' },
+  { name: 'Infarto al miocardio', icon: '🧬' },
+  { name: 'EVC / Derrame cerebral', icon: '🧬' },
+  { name: 'Cáncer de mama', icon: '🧬' },
+  { name: 'Cáncer colorrectal', icon: '🧬' },
+  { name: 'Cáncer de próstata', icon: '🧬' },
+  { name: 'Cáncer cervicouterino', icon: '🧬' },
+  { name: 'Cáncer gástrico', icon: '🧬' },
+  { name: 'Enfermedad renal crónica', icon: '🧬' },
+  { name: 'Epilepsia', icon: '🧬' },
+  { name: 'Artritis reumatoide', icon: '🧬' },
+  { name: 'Lupus', icon: '🧬' },
+  { name: 'Depresión / Ansiedad', icon: '🧬' },
+  { name: 'Esquizofrenia', icon: '🧬' },
+  { name: 'Alzheimer', icon: '🧬' },
+  { name: 'Parkinson', icon: '🧬' },
+  { name: 'Dislipidemias', icon: '🧬' },
+  { name: 'Obesidad', icon: '🧬' },
+  { name: 'Glaucoma', icon: '🧬' },
+  { name: 'Asma', icon: '🧬' },
 ]
 
 const SURGICAL_SUGGESTIONS: { name: string; icon: string }[] = [
-  { name: 'Apendicectomía', icon: '🏥' }, { name: 'Colecistectomía', icon: '🏥' },
-  { name: 'Cesárea', icon: '🏥' }, { name: 'Histerectomía', icon: '🏥' },
-  { name: 'Hernioplastia inguinal', icon: '🏥' }, { name: 'Hernioplastia umbilical', icon: '🏥' },
-  { name: 'Artroscopia de rodilla', icon: '🏥' }, { name: 'Artroscopia de hombro', icon: '🏥' },
-  { name: 'Amigdalectomía', icon: '🏥' }, { name: 'Cirugía de cataratas', icon: '🏥' },
-  { name: 'Bypass gástrico', icon: '🏥' }, { name: 'Manga gástrica', icon: '🏥' },
-  { name: 'Colostomía', icon: '🏥' }, { name: 'Mastectomía', icon: '🏥' },
-  { name: 'Prostatectomía', icon: '🏥' }, { name: 'Nefrectomía', icon: '🏥' },
-  { name: 'Cirugía de columna', icon: '🏥' }, { name: 'Artroplastia de cadera', icon: '🏥' },
-  { name: 'Artroplastia de rodilla', icon: '🏥' }, { name: 'Bypass coronario', icon: '🏥' },
-  { name: 'Marcapasos', icon: '🏥' }, { name: 'Colposcopia', icon: '🏥' },
-  { name: 'Legrado uterino', icon: '🏥' }, { name: 'Vasectomía', icon: '🏥' },
-  { name: 'Salpingoclasia', icon: '🏥' }, { name: 'Rinoplastia', icon: '🏥' },
-  { name: 'Septoplastia', icon: '🏥' }, { name: 'Hospitalización (neumonía)', icon: '🏥' },
-  { name: 'Hospitalización (infarto)', icon: '🏥' }, { name: 'Hospitalización (fractura)', icon: '🏥' },
+  { name: 'Apendicectomía', icon: '🏥' },
+  { name: 'Colecistectomía', icon: '🏥' },
+  { name: 'Cesárea', icon: '🏥' },
+  { name: 'Histerectomía', icon: '🏥' },
+  { name: 'Hernioplastia inguinal', icon: '🏥' },
+  { name: 'Hernioplastia umbilical', icon: '🏥' },
+  { name: 'Artroscopia de rodilla', icon: '🏥' },
+  { name: 'Artroscopia de hombro', icon: '🏥' },
+  { name: 'Amigdalectomía', icon: '🏥' },
+  { name: 'Cirugía de cataratas', icon: '🏥' },
+  { name: 'Bypass gástrico', icon: '🏥' },
+  { name: 'Manga gástrica', icon: '🏥' },
+  { name: 'Colostomía', icon: '🏥' },
+  { name: 'Mastectomía', icon: '🏥' },
+  { name: 'Prostatectomía', icon: '🏥' },
+  { name: 'Nefrectomía', icon: '🏥' },
+  { name: 'Cirugía de columna', icon: '🏥' },
+  { name: 'Artroplastia de cadera', icon: '🏥' },
+  { name: 'Artroplastia de rodilla', icon: '🏥' },
+  { name: 'Bypass coronario', icon: '🏥' },
+  { name: 'Marcapasos', icon: '🏥' },
+  { name: 'Colposcopia', icon: '🏥' },
+  { name: 'Legrado uterino', icon: '🏥' },
+  { name: 'Vasectomía', icon: '🏥' },
+  { name: 'Salpingoclasia', icon: '🏥' },
+  { name: 'Rinoplastia', icon: '🏥' },
+  { name: 'Septoplastia', icon: '🏥' },
+  { name: 'Hospitalización (neumonía)', icon: '🏥' },
+  { name: 'Hospitalización (infarto)', icon: '🏥' },
+  { name: 'Hospitalización (fractura)', icon: '🏥' },
 ]
 
 // ── TagInput component ────────────────────────────────────────────────────────
@@ -158,40 +249,53 @@ function TagInput({ value, onChange, suggestions, placeholder, tagClass }: TagIn
   const inputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  const tags = value.split(',').map(s => s.trim()).filter(Boolean)
+  const tags = value
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
 
-  const filtered = input.length > 0
-    ? suggestions.filter(s =>
-        s.name.toLowerCase().includes(input.toLowerCase()) &&
-        !tags.map(t => t.toLowerCase()).includes(s.name.toLowerCase())
-      ).slice(0, 7)
-    : []
+  const filtered =
+    input.length > 0
+      ? suggestions
+          .filter(
+            (s) =>
+              s.name.toLowerCase().includes(input.toLowerCase()) &&
+              !tags.map((t) => t.toLowerCase()).includes(s.name.toLowerCase()),
+          )
+          .slice(0, 7)
+      : []
 
-  const commitTag = useCallback((name: string) => {
-    const trimmed = name.trim()
-    if (!trimmed) return
-    if (tags.map(t => t.toLowerCase()).includes(trimmed.toLowerCase())) {
+  const commitTag = useCallback(
+    (name: string) => {
+      const trimmed = name.trim()
+      if (!trimmed) return
+      if (tags.map((t) => t.toLowerCase()).includes(trimmed.toLowerCase())) {
+        setInput('')
+        setOpen(false)
+        return
+      }
+      onChange([...tags, trimmed].join(', '))
       setInput('')
       setOpen(false)
-      return
-    }
-    onChange([...tags, trimmed].join(', '))
-    setInput('')
-    setOpen(false)
-    setFocusedIdx(-1)
-  }, [tags, onChange])
+      setFocusedIdx(-1)
+    },
+    [tags, onChange],
+  )
 
-  const removeTag = useCallback((idx: number) => {
-    onChange(tags.filter((_, i) => i !== idx).join(', '))
-  }, [tags, onChange])
+  const removeTag = useCallback(
+    (idx: number) => {
+      onChange(tags.filter((_, i) => i !== idx).join(', '))
+    },
+    [tags, onChange],
+  )
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      setFocusedIdx(i => Math.min(i + 1, filtered.length - 1))
+      setFocusedIdx((i) => Math.min(i + 1, filtered.length - 1))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
-      setFocusedIdx(i => Math.max(i - 1, -1))
+      setFocusedIdx((i) => Math.max(i - 1, -1))
     } else if (e.key === 'Enter') {
       e.preventDefault()
       if (focusedIdx >= 0 && filtered[focusedIdx]) {
@@ -213,8 +317,10 @@ function TagInput({ value, onChange, suggestions, placeholder, tagClass }: TagIn
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (
-        dropdownRef.current && !dropdownRef.current.contains(e.target as Node) &&
-        inputRef.current && !inputRef.current.contains(e.target as Node)
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node) &&
+        inputRef.current &&
+        !inputRef.current.contains(e.target as Node)
       ) {
         setOpen(false)
         setFocusedIdx(-1)
@@ -238,7 +344,10 @@ function TagInput({ value, onChange, suggestions, placeholder, tagClass }: TagIn
             {tag}
             <button
               type="button"
-              onClick={e => { e.stopPropagation(); removeTag(i) }}
+              onClick={(e) => {
+                e.stopPropagation()
+                removeTag(i)
+              }}
               className="ml-0.5 hover:text-red-500 transition-colors"
               aria-label={`Eliminar ${tag}`}
             >
@@ -249,9 +358,15 @@ function TagInput({ value, onChange, suggestions, placeholder, tagClass }: TagIn
         <input
           ref={inputRef}
           value={input}
-          onChange={e => { setInput(e.target.value); setOpen(true); setFocusedIdx(-1) }}
+          onChange={(e) => {
+            setInput(e.target.value)
+            setOpen(true)
+            setFocusedIdx(-1)
+          }}
           onKeyDown={handleKeyDown}
-          onFocus={() => { if (input) setOpen(true) }}
+          onFocus={() => {
+            if (input) setOpen(true)
+          }}
           placeholder={tags.length === 0 ? placeholder : ''}
           className="flex-1 min-w-[120px] outline-none text-sm text-gray-700 placeholder-gray-400 bg-transparent py-0.5"
         />
@@ -266,30 +381,43 @@ function TagInput({ value, onChange, suggestions, placeholder, tagClass }: TagIn
             <button
               key={s.name}
               type="button"
-              onMouseDown={e => { e.preventDefault(); commitTag(s.name) }}
+              onMouseDown={(e) => {
+                e.preventDefault()
+                commitTag(s.name)
+              }}
               className={`flex items-center gap-2 w-full px-4 py-2.5 text-sm text-left transition-colors ${i === focusedIdx ? 'bg-teal-50 text-teal-700' : 'text-gray-700 hover:bg-gray-50'}`}
             >
               <span>{s.icon}</span>
               <span>{s.name}</span>
             </button>
           ))}
-          {input.trim() && !filtered.some(s => s.name.toLowerCase() === input.trim().toLowerCase()) && (
-            <button
-              type="button"
-              onMouseDown={e => { e.preventDefault(); commitTag(input.trim()) }}
-              className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-left text-gray-500 hover:bg-gray-50 border-t border-gray-100"
-            >
-              <Plus className="w-3.5 h-3.5 flex-shrink-0" />
-              Agregar "<span className="font-semibold text-gray-700">{input.trim()}</span>"
-            </button>
-          )}
+          {input.trim() &&
+            !filtered.some((s) => s.name.toLowerCase() === input.trim().toLowerCase()) && (
+              <button
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  commitTag(input.trim())
+                }}
+                className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-left text-gray-500 hover:bg-gray-50 border-t border-gray-100"
+              >
+                <Plus className="w-3.5 h-3.5 flex-shrink-0" />
+                Agregar "<span className="font-semibold text-gray-700">{input.trim()}</span>"
+              </button>
+            )}
         </div>
       )}
       {open && filtered.length === 0 && input.trim().length > 0 && (
-        <div ref={dropdownRef} className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+        <div
+          ref={dropdownRef}
+          className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden"
+        >
           <button
             type="button"
-            onMouseDown={e => { e.preventDefault(); commitTag(input.trim()) }}
+            onMouseDown={(e) => {
+              e.preventDefault()
+              commitTag(input.trim())
+            }}
             className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-left text-gray-500 hover:bg-gray-50"
           >
             <Plus className="w-3.5 h-3.5 flex-shrink-0" />
@@ -316,89 +444,24 @@ import { getBiometricHistory, insertBiometricRecord } from '@/shared/lib/queries
 import { showToast } from '@/shared/components/ui/Toast'
 import { logger } from '@/shared/lib/logger'
 
-// ── NoteEditForm ─────────────────────────────────────────────────────────────
-
-const NOTE_SNIPPETS = [
-  { label: '🤒 Síntoma nuevo',          snippet: 'Síntoma nuevo: ' },
-  { label: '❓ Tengo una pregunta',     snippet: 'Quisiera preguntar: ' },
-  { label: '😟 Me preocupa algo',       snippet: 'Me preocupa: ' },
-  { label: '📅 Desde hace un tiempo',   snippet: 'Desde hace: ' },
-  { label: '💉 Reacción a tratamiento', snippet: 'Reacción a tratamiento: ' },
-  { label: '😴 Problema para dormir',   snippet: 'Tengo problemas para dormir porque: ' },
-]
-
-function NoteEditForm({
-  draft, onDraftChange, onSave, onCancel, isSaving,
-}: {
-  draft: string
-  onDraftChange: (v: string) => void
-  onSave: () => void
-  onCancel: () => void
-  isSaving: boolean
-}) {
-  return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap gap-1.5">
-        {NOTE_SNIPPETS.map(({ label, snippet }) => (
-          <button
-            key={snippet}
-            type="button"
-            onClick={() => {
-              const prefix = draft && !draft.endsWith('\n') ? '\n' : ''
-              onDraftChange(draft + prefix + snippet)
-            }}
-            className="px-2.5 py-1 text-[11px] font-medium text-gray-600 bg-gray-50 border border-gray-200 rounded-full hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200 transition-colors"
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      <div className="relative">
-        <textarea
-          autoFocus
-          rows={4}
-          value={draft}
-          onChange={e => onDraftChange(e.target.value)}
-          placeholder="Escribe síntomas, preguntas o recordatorios…"
-          maxLength={1000}
-          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] resize-none"
-        />
-        <span className={`absolute bottom-2 right-3 text-[10px] ${draft.length > 900 ? 'text-amber-500' : 'text-gray-300'}`}>
-          {draft.length}/1000
-        </span>
-      </div>
-      <div className="flex justify-end gap-2 pt-1">
-        <button type="button" onClick={onCancel} disabled={isSaving} className="px-4 py-2 text-sm text-gray-500 rounded-xl hover:bg-gray-100 transition-colors">
-          Cancelar
-        </button>
-        <button
-          type="button"
-          onClick={onSave}
-          disabled={isSaving || !draft.trim()}
-          className="inline-flex items-center gap-2 px-5 py-2 bg-[#33C7BE] text-white text-sm font-semibold rounded-xl hover:bg-[#2ab5ac] transition-colors disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
-        >
-          {isSaving ? <><Loader2 className="w-4 h-4 animate-spin" />Guardando...</> : <><Save className="w-4 h-4" />Guardar nota</>}
-        </button>
-      </div>
-    </div>
-  )
-}
-
 // ── BMI helpers ───────────────────────────────────────────────────────────────
 
-function calcBMI(heightCm: number | string | null | undefined, weightKg: number | string | null | undefined): number | null {
+function calcBMI(
+  heightCm: number | string | null | undefined,
+  weightKg: number | string | null | undefined,
+): number | null {
   const h = Number(heightCm)
   const w = Number(weightKg)
   if (!h || !w || h < 50 || h > 300 || w < 10 || w > 500) return null
-  return w / ((h / 100) ** 2)
+  return w / (h / 100) ** 2
 }
 
 function bmiCategory(bmi: number): { label: string; color: string } {
   if (bmi < 18.5) return { label: 'Bajo peso', color: 'text-blue-600' }
-  if (bmi < 25)   return { label: 'Normal', color: 'text-green-600' }
-  if (bmi < 30)   return { label: 'Sobrepeso', color: 'text-amber-600' }
-  if (bmi < 35)   return { label: 'Obesidad I', color: 'text-orange-600' }
-  if (bmi < 40)   return { label: 'Obesidad II', color: 'text-red-600' }
+  if (bmi < 25) return { label: 'Normal', color: 'text-green-600' }
+  if (bmi < 30) return { label: 'Sobrepeso', color: 'text-amber-600' }
+  if (bmi < 35) return { label: 'Obesidad I', color: 'text-orange-600' }
+  if (bmi < 40) return { label: 'Obesidad II', color: 'text-red-600' }
   return { label: 'Obesidad III', color: 'text-red-800' }
 }
 
@@ -475,26 +538,6 @@ export default function HistorialClinico() {
   const [isSavingEmergency, setIsSavingEmergency] = useState(false)
 
   // Personal notes
-  interface PersonalNote { id: string; text: string; savedAt: string }
-
-  function parseNotes(raw: string): PersonalNote[] {
-    if (!raw) return []
-    try {
-      const parsed = JSON.parse(raw)
-      if (Array.isArray(parsed) && parsed.length && typeof parsed[0].id === 'string') return parsed
-    } catch { /* legacy plain text */ }
-    return [{ id: 'legacy', text: raw, savedAt: '' }]
-  }
-
-  function serializeNotes(notes: PersonalNote[]): string {
-    return notes.length ? JSON.stringify(notes) : ''
-  }
-
-  const [personalNotes, setPersonalNotes] = useState<PersonalNote[]>([])
-  const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
-  const [notesDraft, setNotesDraft] = useState('')
-  const [isSavingNote, setIsSavingNote] = useState(false)
-
   // Insurance state
   const [insurances, setInsurances] = useState<PatientInsurance[]>([])
   const [showInsuranceForm, setShowInsuranceForm] = useState(false)
@@ -520,9 +563,15 @@ export default function HistorialClinico() {
 
   useEffect(() => {
     if (!user || !isPatient) return
-    getPatientProfile(user.id).then(setPatientProfile).catch(() => {})
-    getMyInsurances(user.id).then(setInsurances).catch(() => {})
-    getBiometricHistory(user.id).then(setBiometricHistory).catch(() => {})
+    getPatientProfile(user.id)
+      .then(setPatientProfile)
+      .catch(() => {})
+    getMyInsurances(user.id)
+      .then(setInsurances)
+      .catch(() => {})
+    getBiometricHistory(user.id)
+      .then(setBiometricHistory)
+      .catch(() => {})
   }, [user, isPatient])
 
   useEffect(() => {
@@ -543,7 +592,6 @@ export default function HistorialClinico() {
         current_medications: patientProfile.current_medications ?? '',
         notes_for_doctor: patientProfile.notes_for_doctor ?? '',
       })
-      setPersonalNotes(parseNotes(patientProfile.notes_for_doctor ?? ''))
     }
     if (!antecedentesInitialized.current) {
       antecedentesInitialized.current = true
@@ -562,7 +610,7 @@ export default function HistorialClinico() {
         emergency_contact_phone: patientProfile.emergency_contact_phone ?? '',
       })
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientProfile])
 
   const validatePhone = (val: string): boolean => {
@@ -571,8 +619,7 @@ export default function HistorialClinico() {
     return digits.length >= 10 && digits.length <= 15
   }
 
-  const sanitizePhone = (val: string): string =>
-    val.replace(/[^\d+\s\-()]/g, '').slice(0, 20)
+  const sanitizePhone = (val: string): string => val.replace(/[^\d+\s\-()]/g, '').slice(0, 20)
 
   const handleSavePatientProfile = async (data: object) => {
     if (!user) return
@@ -600,7 +647,7 @@ export default function HistorialClinico() {
           blood_type: medicalForm.blood_type || null,
           notes: null,
         })
-        if (record) setBiometricHistory(prev => [record, ...prev])
+        if (record) setBiometricHistory((prev) => [record, ...prev])
       }
       showToast('Datos biométricos guardados', 'success')
     } catch (err) {
@@ -670,53 +717,23 @@ export default function HistorialClinico() {
     }
   }
 
-  const handleSaveNote = async () => {
-    if (!user || !notesDraft.trim()) return
-    try {
-      setIsSavingNote(true)
-      let updated: PersonalNote[]
-      if (editingNoteId === 'new') {
-        const newNote: PersonalNote = {
-          id: crypto.randomUUID(),
-          text: notesDraft.trim(),
-          savedAt: new Date().toISOString(),
-        }
-        updated = [newNote, ...personalNotes]
-      } else {
-        updated = personalNotes.map(n =>
-          n.id === editingNoteId ? { ...n, text: notesDraft.trim(), savedAt: new Date().toISOString() } : n
-        )
-      }
-      const serialized = serializeNotes(updated)
-      await handleSavePatientProfile({ notes_for_doctor: serialized || null })
-      setPersonalNotes(updated)
-      setHealthNotesForm(f => ({ ...f, notes_for_doctor: serialized }))
-      setEditingNoteId(null)
-      setNotesDraft('')
-      showToast('Nota guardada', 'success')
-    } catch (err) {
-      logger.error('HistorialClinico:saveNote', err)
-      showToast('Error al guardar nota', 'error')
-    } finally {
-      setIsSavingNote(false)
-    }
-  }
-
-  const handleDeleteNote = async (id: string) => {
-    if (!user) return
-    const updated = personalNotes.filter(n => n.id !== id)
-    const serialized = serializeNotes(updated)
-    await handleSavePatientProfile({ notes_for_doctor: serialized || null })
-    setPersonalNotes(updated)
-    setHealthNotesForm(f => ({ ...f, notes_for_doctor: serialized }))
-  }
-
-  const resetInsuranceForm = () => setInsuranceForm({
-    provider_name: '', provider_other: '', policy_number: '', group_number: '',
-    member_id: '', holder_name: '', holder_relationship: 'self', phone_claims: '',
-    phone_emergency: '', valid_from: '', valid_until: '', coverage_type: 'individual',
-    is_primary: true, notes: '',
-  })
+  const resetInsuranceForm = () =>
+    setInsuranceForm({
+      provider_name: '',
+      provider_other: '',
+      policy_number: '',
+      group_number: '',
+      member_id: '',
+      holder_name: '',
+      holder_relationship: 'self',
+      phone_claims: '',
+      phone_emergency: '',
+      valid_from: '',
+      valid_until: '',
+      coverage_type: 'individual',
+      is_primary: true,
+      notes: '',
+    })
 
   const openNewInsuranceForm = () => {
     resetInsuranceForm()
@@ -759,7 +776,8 @@ export default function HistorialClinico() {
     try {
       const payload = {
         ...insuranceForm,
-        provider_other: insuranceForm.provider_name === 'Otro' ? insuranceForm.provider_other || null : null,
+        provider_other:
+          insuranceForm.provider_name === 'Otro' ? insuranceForm.provider_other || null : null,
         policy_number: insuranceForm.policy_number || null,
         group_number: insuranceForm.group_number || null,
         member_id: insuranceForm.member_id || null,
@@ -775,9 +793,10 @@ export default function HistorialClinico() {
       } else {
         await upsertInsurance(user.id, payload)
         await upsertPatientProfile(user.id, {
-          insurance_provider: insuranceForm.provider_name === 'Otro'
-            ? (insuranceForm.provider_other || null)
-            : insuranceForm.provider_name,
+          insurance_provider:
+            insuranceForm.provider_name === 'Otro'
+              ? insuranceForm.provider_other || null
+              : insuranceForm.provider_name,
         })
       }
       const updated = await getMyInsurances(user.id)
@@ -798,7 +817,7 @@ export default function HistorialClinico() {
     if (!confirm('¿Eliminar este seguro?')) return
     const { ok } = await deleteInsurance(id)
     if (ok) {
-      setInsurances(prev => prev.filter(i => i.id !== id))
+      setInsurances((prev) => prev.filter((i) => i.id !== id))
       showToast('Seguro eliminado', 'success')
     }
   }
@@ -838,34 +857,48 @@ export default function HistorialClinico() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Altura (cm)</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+                  Altura (cm)
+                </label>
                 <input
-                  type="number" min={0} max={300}
+                  type="number"
+                  min={0}
+                  max={300}
                   value={medicalForm.height_cm}
-                  onChange={e => setMedicalForm(f => ({ ...f, height_cm: e.target.value }))}
+                  onChange={(e) => setMedicalForm((f) => ({ ...f, height_cm: e.target.value }))}
                   placeholder="170"
                   className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Peso (kg)</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+                  Peso (kg)
+                </label>
                 <input
-                  type="number" min={0} max={500}
+                  type="number"
+                  min={0}
+                  max={500}
                   value={medicalForm.weight_kg}
-                  onChange={e => setMedicalForm(f => ({ ...f, weight_kg: e.target.value }))}
+                  onChange={(e) => setMedicalForm((f) => ({ ...f, weight_kg: e.target.value }))}
                   placeholder="70"
                   className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Tipo de sangre</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+                  Tipo de sangre
+                </label>
                 <select
                   value={medicalForm.blood_type}
-                  onChange={e => setMedicalForm(f => ({ ...f, blood_type: e.target.value }))}
+                  onChange={(e) => setMedicalForm((f) => ({ ...f, blood_type: e.target.value }))}
                   className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] bg-white"
                 >
                   <option value="">--</option>
-                  {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(t => <option key={t} value={t}>{t}</option>)}
+                  {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -875,7 +908,9 @@ export default function HistorialClinico() {
               <div className="mt-3 flex items-center gap-3 px-3 py-2.5 bg-gray-50 rounded-xl">
                 <span className="text-xs text-gray-500">IMC calculado:</span>
                 <span className={`text-sm font-bold ${bmiInfo?.color}`}>{bmi.toFixed(1)}</span>
-                <span className={`text-xs font-semibold ${bmiInfo?.color}`}>— {bmiInfo?.label}</span>
+                <span className={`text-xs font-semibold ${bmiInfo?.color}`}>
+                  — {bmiInfo?.label}
+                </span>
               </div>
             )}
 
@@ -885,28 +920,49 @@ export default function HistorialClinico() {
                 disabled={isSavingMedical}
                 className="inline-flex items-center gap-2 px-5 py-2 bg-[#33C7BE] text-white text-sm font-semibold rounded-xl hover:bg-[#2ab5ac] transition-colors disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
               >
-                {isSavingMedical ? <><Loader2 className="w-4 h-4 animate-spin" />Guardando...</> : <><Save className="w-4 h-4" />Guardar</>}
+                {isSavingMedical ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    Guardar
+                  </>
+                )}
               </button>
             </div>
 
             {biometricHistory.length > 0 && (
               <div className="mt-5 border-t border-gray-100 pt-4">
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Historial de medidas</p>
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">
+                  Historial de medidas
+                </p>
                 <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                   {biometricHistory.map((rec) => {
                     const date = new Date(rec.recorded_at).toLocaleDateString('es-MX', {
-                      day: '2-digit', month: 'short', year: 'numeric',
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric',
                     })
                     const recBmi = calcBMI(rec.height_cm, rec.weight_kg)
                     return (
-                      <div key={rec.id} className="flex items-center gap-3 py-2 px-3 bg-gray-50 rounded-lg text-xs">
+                      <div
+                        key={rec.id}
+                        className="flex items-center gap-3 py-2 px-3 bg-gray-50 rounded-lg text-xs"
+                      >
                         <span className="text-gray-400 w-24 flex-shrink-0">{date}</span>
                         <div className="flex items-center gap-3 flex-wrap">
                           {rec.height_cm !== null && (
-                            <span className="text-gray-700"><span className="text-gray-400">Altura:</span> {rec.height_cm} cm</span>
+                            <span className="text-gray-700">
+                              <span className="text-gray-400">Altura:</span> {rec.height_cm} cm
+                            </span>
                           )}
                           {rec.weight_kg !== null && (
-                            <span className="text-gray-700"><span className="text-gray-400">Peso:</span> {rec.weight_kg} kg</span>
+                            <span className="text-gray-700">
+                              <span className="text-gray-400">Peso:</span> {rec.weight_kg} kg
+                            </span>
                           )}
                           {recBmi !== null && (
                             <span className={`font-semibold ${bmiCategory(recBmi).color}`}>
@@ -914,7 +970,9 @@ export default function HistorialClinico() {
                             </span>
                           )}
                           {rec.blood_type && (
-                            <span className="text-gray-700"><span className="text-gray-400">Sangre:</span> {rec.blood_type}</span>
+                            <span className="text-gray-700">
+                              <span className="text-gray-400">Sangre:</span> {rec.blood_type}
+                            </span>
                           )}
                         </div>
                       </div>
@@ -935,11 +993,15 @@ export default function HistorialClinico() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Nombre completo</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+                  Nombre completo
+                </label>
                 <input
                   type="text"
                   value={emergencyForm.emergency_contact_name}
-                  onChange={e => setEmergencyForm(f => ({ ...f, emergency_contact_name: e.target.value }))}
+                  onChange={(e) =>
+                    setEmergencyForm((f) => ({ ...f, emergency_contact_name: e.target.value }))
+                  }
                   placeholder="Nombre del contacto"
                   maxLength={120}
                   className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]"
@@ -950,14 +1012,20 @@ export default function HistorialClinico() {
                 <input
                   type="tel"
                   value={emergencyForm.emergency_contact_phone}
-                  onChange={e => setEmergencyForm(f => ({ ...f, emergency_contact_phone: sanitizePhone(e.target.value) }))}
+                  onChange={(e) =>
+                    setEmergencyForm((f) => ({
+                      ...f,
+                      emergency_contact_phone: sanitizePhone(e.target.value),
+                    }))
+                  }
                   placeholder="5512345678"
                   maxLength={20}
                   className={`w-full px-3 py-2.5 border rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] ${emergencyForm.emergency_contact_phone && !validatePhone(emergencyForm.emergency_contact_phone) ? 'border-red-400' : 'border-gray-200'}`}
                 />
-                {emergencyForm.emergency_contact_phone && !validatePhone(emergencyForm.emergency_contact_phone) && (
-                  <p className="text-[11px] text-red-500 mt-1">Debe tener 10–15 dígitos</p>
-                )}
+                {emergencyForm.emergency_contact_phone &&
+                  !validatePhone(emergencyForm.emergency_contact_phone) && (
+                    <p className="text-[11px] text-red-500 mt-1">Debe tener 10–15 dígitos</p>
+                  )}
               </div>
             </div>
             <div className="flex justify-end mt-4">
@@ -966,7 +1034,17 @@ export default function HistorialClinico() {
                 disabled={isSavingEmergency}
                 className="inline-flex items-center gap-2 px-5 py-2 bg-[#33C7BE] text-white text-sm font-semibold rounded-xl hover:bg-[#2ab5ac] transition-colors disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
               >
-                {isSavingEmergency ? <><Loader2 className="w-4 h-4 animate-spin" />Guardando...</> : <><Save className="w-4 h-4" />Guardar</>}
+                {isSavingEmergency ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    Guardar
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -992,47 +1070,116 @@ export default function HistorialClinico() {
             </div>
 
             {insurances.length === 0 && !showInsuranceForm && (
-              <p className="text-sm text-gray-400 text-center py-4">No has registrado seguros médicos.</p>
+              <p className="text-sm text-gray-400 text-center py-4">
+                No has registrado seguros médicos.
+              </p>
             )}
 
             {insurances.map((ins) => {
               const isExpanded = expandedInsurance === ins.id
               const displayName = insuranceDisplayName(ins)
               return (
-                <div key={ins.id} className="border border-gray-200 rounded-xl mb-3 overflow-hidden">
+                <div
+                  key={ins.id}
+                  className="border border-gray-200 rounded-xl mb-3 overflow-hidden"
+                >
                   <div className="flex items-center justify-between p-3">
                     <div className="flex items-center gap-2 min-w-0">
                       <ShieldCheck className="w-4 h-4 text-blue-400 flex-shrink-0" />
                       <div className="min-w-0">
                         <p className="text-sm font-bold text-gray-900 truncate">{displayName}</p>
-                        <p className="text-[11px] text-gray-400">{ins.policy_number ? `Póliza: ${ins.policy_number}` : 'Sin número de póliza'}</p>
+                        <p className="text-[11px] text-gray-400">
+                          {ins.policy_number
+                            ? `Póliza: ${ins.policy_number}`
+                            : 'Sin número de póliza'}
+                        </p>
                       </div>
                       {ins.is_primary && (
-                        <span className="text-[10px] font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded-full flex-shrink-0">Principal</span>
+                        <span className="text-[10px] font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded-full flex-shrink-0">
+                          Principal
+                        </span>
                       )}
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
-                      <button onClick={() => openEditInsuranceForm(ins)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                      <button
+                        onClick={() => openEditInsuranceForm(ins)}
+                        className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                      >
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
-                      <button onClick={() => handleDeleteInsurance(ins.id)} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50">
+                      <button
+                        onClick={() => handleDeleteInsurance(ins.id)}
+                        className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50"
+                      >
                         <Trash className="w-3.5 h-3.5" />
                       </button>
-                      <button onClick={() => setExpandedInsurance(isExpanded ? null : ins.id)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
-                        {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                      <button
+                        onClick={() => setExpandedInsurance(isExpanded ? null : ins.id)}
+                        className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                      >
+                        {isExpanded ? (
+                          <ChevronUp className="w-3.5 h-3.5" />
+                        ) : (
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        )}
                       </button>
                     </div>
                   </div>
                   {isExpanded && (
                     <div className="border-t border-gray-100 p-3 bg-gray-50 grid grid-cols-2 gap-2 text-xs">
-                      {ins.member_id && <div><span className="text-gray-400">ID Miembro:</span> <span className="font-semibold text-gray-700">{ins.member_id}</span></div>}
-                      {ins.group_number && <div><span className="text-gray-400">Grupo:</span> <span className="font-semibold text-gray-700">{ins.group_number}</span></div>}
-                      {ins.holder_name && <div><span className="text-gray-400">Titular:</span> <span className="font-semibold text-gray-700">{ins.holder_name}</span></div>}
-                      {ins.coverage_type && <div><span className="text-gray-400">Cobertura:</span> <span className="font-semibold text-gray-700">{COVERAGE_TYPES.find(c => c.value === ins.coverage_type)?.label || ins.coverage_type}</span></div>}
-                      {ins.valid_until && <div><span className="text-gray-400">Vigencia:</span> <span className="font-semibold text-gray-700">hasta {ins.valid_until}</span></div>}
-                      {ins.phone_emergency && <div><span className="text-gray-400">Tel. urgencias:</span> <span className="font-semibold text-gray-700">{ins.phone_emergency}</span></div>}
-                      {ins.phone_claims && <div><span className="text-gray-400">Tel. reclamaciones:</span> <span className="font-semibold text-gray-700">{ins.phone_claims}</span></div>}
-                      {ins.notes && <div className="col-span-2"><span className="text-gray-400">Notas:</span> <span className="font-semibold text-gray-700">{ins.notes}</span></div>}
+                      {ins.member_id && (
+                        <div>
+                          <span className="text-gray-400">ID Miembro:</span>{' '}
+                          <span className="font-semibold text-gray-700">{ins.member_id}</span>
+                        </div>
+                      )}
+                      {ins.group_number && (
+                        <div>
+                          <span className="text-gray-400">Grupo:</span>{' '}
+                          <span className="font-semibold text-gray-700">{ins.group_number}</span>
+                        </div>
+                      )}
+                      {ins.holder_name && (
+                        <div>
+                          <span className="text-gray-400">Titular:</span>{' '}
+                          <span className="font-semibold text-gray-700">{ins.holder_name}</span>
+                        </div>
+                      )}
+                      {ins.coverage_type && (
+                        <div>
+                          <span className="text-gray-400">Cobertura:</span>{' '}
+                          <span className="font-semibold text-gray-700">
+                            {COVERAGE_TYPES.find((c) => c.value === ins.coverage_type)?.label ||
+                              ins.coverage_type}
+                          </span>
+                        </div>
+                      )}
+                      {ins.valid_until && (
+                        <div>
+                          <span className="text-gray-400">Vigencia:</span>{' '}
+                          <span className="font-semibold text-gray-700">
+                            hasta {ins.valid_until}
+                          </span>
+                        </div>
+                      )}
+                      {ins.phone_emergency && (
+                        <div>
+                          <span className="text-gray-400">Tel. urgencias:</span>{' '}
+                          <span className="font-semibold text-gray-700">{ins.phone_emergency}</span>
+                        </div>
+                      )}
+                      {ins.phone_claims && (
+                        <div>
+                          <span className="text-gray-400">Tel. reclamaciones:</span>{' '}
+                          <span className="font-semibold text-gray-700">{ins.phone_claims}</span>
+                        </div>
+                      )}
+                      {ins.notes && (
+                        <div className="col-span-2">
+                          <span className="text-gray-400">Notas:</span>{' '}
+                          <span className="font-semibold text-gray-700">{ins.notes}</span>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1041,88 +1188,259 @@ export default function HistorialClinico() {
 
             {showInsuranceForm && (
               <div className="border border-teal-200 rounded-xl p-4 bg-teal-50/30 space-y-3 mt-3">
-                <p className="text-xs font-bold text-gray-700">{editingInsurance ? 'Editar seguro' : 'Nuevo seguro'}</p>
+                <p className="text-xs font-bold text-gray-700">
+                  {editingInsurance ? 'Editar seguro' : 'Nuevo seguro'}
+                </p>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1">Aseguradora *</label>
-                  <select value={insuranceForm.provider_name} onChange={e => setInsuranceForm(f => ({ ...f, provider_name: e.target.value }))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]">
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">
+                    Aseguradora *
+                  </label>
+                  <select
+                    value={insuranceForm.provider_name}
+                    onChange={(e) =>
+                      setInsuranceForm((f) => ({ ...f, provider_name: e.target.value }))
+                    }
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]"
+                  >
                     <option value="">Seleccionar aseguradora</option>
-                    {INSURANCE_PROVIDERS.map(p => <option key={p} value={p}>{p}</option>)}
+                    {INSURANCE_PROVIDERS.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 {insuranceForm.provider_name === 'Otro' && (
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1">Nombre de la aseguradora</label>
-                    <input type="text" value={insuranceForm.provider_other} onChange={e => setInsuranceForm(f => ({ ...f, provider_other: e.target.value }))} placeholder="Nombre" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]" />
+                    <label className="block text-xs font-semibold text-gray-500 mb-1">
+                      Nombre de la aseguradora
+                    </label>
+                    <input
+                      type="text"
+                      value={insuranceForm.provider_other}
+                      onChange={(e) =>
+                        setInsuranceForm((f) => ({ ...f, provider_other: e.target.value }))
+                      }
+                      placeholder="Nombre"
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]"
+                    />
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1">Núm. póliza</label>
-                    <input type="text" value={insuranceForm.policy_number} onChange={e => setInsuranceForm(f => ({ ...f, policy_number: e.target.value }))} placeholder="Ej: GNP-123456" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]" />
+                    <label className="block text-xs font-semibold text-gray-500 mb-1">
+                      Núm. póliza
+                    </label>
+                    <input
+                      type="text"
+                      value={insuranceForm.policy_number}
+                      onChange={(e) =>
+                        setInsuranceForm((f) => ({ ...f, policy_number: e.target.value }))
+                      }
+                      placeholder="Ej: GNP-123456"
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]"
+                    />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1">ID Miembro / Afiliado</label>
-                    <input type="text" value={insuranceForm.member_id} onChange={e => setInsuranceForm(f => ({ ...f, member_id: e.target.value }))} placeholder="Núm. afiliado" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]" />
+                    <label className="block text-xs font-semibold text-gray-500 mb-1">
+                      ID Miembro / Afiliado
+                    </label>
+                    <input
+                      type="text"
+                      value={insuranceForm.member_id}
+                      onChange={(e) =>
+                        setInsuranceForm((f) => ({ ...f, member_id: e.target.value }))
+                      }
+                      placeholder="Núm. afiliado"
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]"
+                    />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1">Núm. grupo</label>
-                    <input type="text" value={insuranceForm.group_number} onChange={e => setInsuranceForm(f => ({ ...f, group_number: e.target.value }))} placeholder="Grupo" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]" />
+                    <label className="block text-xs font-semibold text-gray-500 mb-1">
+                      Núm. grupo
+                    </label>
+                    <input
+                      type="text"
+                      value={insuranceForm.group_number}
+                      onChange={(e) =>
+                        setInsuranceForm((f) => ({ ...f, group_number: e.target.value }))
+                      }
+                      placeholder="Grupo"
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]"
+                    />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1">Tipo de cobertura</label>
-                    <select value={insuranceForm.coverage_type} onChange={e => setInsuranceForm(f => ({ ...f, coverage_type: e.target.value }))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]">
-                      {COVERAGE_TYPES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                    <label className="block text-xs font-semibold text-gray-500 mb-1">
+                      Tipo de cobertura
+                    </label>
+                    <select
+                      value={insuranceForm.coverage_type}
+                      onChange={(e) =>
+                        setInsuranceForm((f) => ({ ...f, coverage_type: e.target.value }))
+                      }
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]"
+                    >
+                      {COVERAGE_TYPES.map((c) => (
+                        <option key={c.value} value={c.value}>
+                          {c.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1">Nombre del titular</label>
-                    <input type="text" value={insuranceForm.holder_name} onChange={e => setInsuranceForm(f => ({ ...f, holder_name: e.target.value }))} placeholder="Nombre del titular" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]" />
+                    <label className="block text-xs font-semibold text-gray-500 mb-1">
+                      Nombre del titular
+                    </label>
+                    <input
+                      type="text"
+                      value={insuranceForm.holder_name}
+                      onChange={(e) =>
+                        setInsuranceForm((f) => ({ ...f, holder_name: e.target.value }))
+                      }
+                      placeholder="Nombre del titular"
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]"
+                    />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1">Relación con titular</label>
-                    <select value={insuranceForm.holder_relationship} onChange={e => setInsuranceForm(f => ({ ...f, holder_relationship: e.target.value }))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]">
-                      {HOLDER_RELATIONSHIPS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                    <label className="block text-xs font-semibold text-gray-500 mb-1">
+                      Relación con titular
+                    </label>
+                    <select
+                      value={insuranceForm.holder_relationship}
+                      onChange={(e) =>
+                        setInsuranceForm((f) => ({ ...f, holder_relationship: e.target.value }))
+                      }
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]"
+                    >
+                      {HOLDER_RELATIONSHIPS.map((r) => (
+                        <option key={r.value} value={r.value}>
+                          {r.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1">Vigencia desde</label>
-                    <input type="date" value={insuranceForm.valid_from} onChange={e => setInsuranceForm(f => ({ ...f, valid_from: e.target.value }))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]" />
+                    <label className="block text-xs font-semibold text-gray-500 mb-1">
+                      Vigencia desde
+                    </label>
+                    <input
+                      type="date"
+                      value={insuranceForm.valid_from}
+                      onChange={(e) =>
+                        setInsuranceForm((f) => ({ ...f, valid_from: e.target.value }))
+                      }
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]"
+                    />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1">Vigencia hasta</label>
-                    <input type="date" value={insuranceForm.valid_until} onChange={e => setInsuranceForm(f => ({ ...f, valid_until: e.target.value }))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]" />
+                    <label className="block text-xs font-semibold text-gray-500 mb-1">
+                      Vigencia hasta
+                    </label>
+                    <input
+                      type="date"
+                      value={insuranceForm.valid_until}
+                      onChange={(e) =>
+                        setInsuranceForm((f) => ({ ...f, valid_until: e.target.value }))
+                      }
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]"
+                    />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1">Tel. urgencias</label>
-                    <input type="tel" value={insuranceForm.phone_emergency} onChange={e => setInsuranceForm(f => ({ ...f, phone_emergency: sanitizePhone(e.target.value) }))} placeholder="8001234567" maxLength={20} className={`w-full px-3 py-2.5 border rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] ${insuranceForm.phone_emergency && !validatePhone(insuranceForm.phone_emergency) ? 'border-red-400' : 'border-gray-200'}`} />
-                    {insuranceForm.phone_emergency && !validatePhone(insuranceForm.phone_emergency) && (
-                      <p className="text-[11px] text-red-500 mt-1">Debe tener 10–15 dígitos</p>
-                    )}
+                    <label className="block text-xs font-semibold text-gray-500 mb-1">
+                      Tel. urgencias
+                    </label>
+                    <input
+                      type="tel"
+                      value={insuranceForm.phone_emergency}
+                      onChange={(e) =>
+                        setInsuranceForm((f) => ({
+                          ...f,
+                          phone_emergency: sanitizePhone(e.target.value),
+                        }))
+                      }
+                      placeholder="8001234567"
+                      maxLength={20}
+                      className={`w-full px-3 py-2.5 border rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] ${insuranceForm.phone_emergency && !validatePhone(insuranceForm.phone_emergency) ? 'border-red-400' : 'border-gray-200'}`}
+                    />
+                    {insuranceForm.phone_emergency &&
+                      !validatePhone(insuranceForm.phone_emergency) && (
+                        <p className="text-[11px] text-red-500 mt-1">Debe tener 10–15 dígitos</p>
+                      )}
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1">Tel. reclamaciones</label>
-                    <input type="tel" value={insuranceForm.phone_claims} onChange={e => setInsuranceForm(f => ({ ...f, phone_claims: sanitizePhone(e.target.value) }))} placeholder="8001234567" maxLength={20} className={`w-full px-3 py-2.5 border rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] ${insuranceForm.phone_claims && !validatePhone(insuranceForm.phone_claims) ? 'border-red-400' : 'border-gray-200'}`} />
+                    <label className="block text-xs font-semibold text-gray-500 mb-1">
+                      Tel. reclamaciones
+                    </label>
+                    <input
+                      type="tel"
+                      value={insuranceForm.phone_claims}
+                      onChange={(e) =>
+                        setInsuranceForm((f) => ({
+                          ...f,
+                          phone_claims: sanitizePhone(e.target.value),
+                        }))
+                      }
+                      placeholder="8001234567"
+                      maxLength={20}
+                      className={`w-full px-3 py-2.5 border rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] ${insuranceForm.phone_claims && !validatePhone(insuranceForm.phone_claims) ? 'border-red-400' : 'border-gray-200'}`}
+                    />
                     {insuranceForm.phone_claims && !validatePhone(insuranceForm.phone_claims) && (
                       <p className="text-[11px] text-red-500 mt-1">Debe tener 10–15 dígitos</p>
                     )}
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1">Notas adicionales</label>
-                  <textarea value={insuranceForm.notes} onChange={e => setInsuranceForm(f => ({ ...f, notes: e.target.value }))} rows={2} placeholder="Coberturas especiales, restricciones, etc." className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] resize-none" />
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">
+                    Notas adicionales
+                  </label>
+                  <textarea
+                    value={insuranceForm.notes}
+                    onChange={(e) => setInsuranceForm((f) => ({ ...f, notes: e.target.value }))}
+                    rows={2}
+                    placeholder="Coberturas especiales, restricciones, etc."
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] resize-none"
+                  />
                 </div>
                 <div className="flex items-center gap-2">
-                  <input type="checkbox" id="is_primary" checked={insuranceForm.is_primary} onChange={e => setInsuranceForm(f => ({ ...f, is_primary: e.target.checked }))} className="accent-[#33C7BE]" />
-                  <label htmlFor="is_primary" className="text-xs font-semibold text-gray-600">Seguro principal</label>
+                  <input
+                    type="checkbox"
+                    id="is_primary"
+                    checked={insuranceForm.is_primary}
+                    onChange={(e) =>
+                      setInsuranceForm((f) => ({ ...f, is_primary: e.target.checked }))
+                    }
+                    className="accent-[#33C7BE]"
+                  />
+                  <label htmlFor="is_primary" className="text-xs font-semibold text-gray-600">
+                    Seguro principal
+                  </label>
                 </div>
                 <div className="flex justify-end gap-2 pt-1">
-                  <button onClick={() => { setShowInsuranceForm(false); setEditingInsurance(null); resetInsuranceForm() }} disabled={isSavingInsurance} className="px-3 py-1.5 text-sm text-gray-500 rounded-lg hover:bg-gray-100">Cancelar</button>
-                  <button onClick={handleSaveInsurance} disabled={isSavingInsurance || !insuranceForm.provider_name} className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-[#33C7BE] text-white text-sm font-semibold rounded-lg hover:bg-[#2ab5ac] disabled:opacity-50 transition-colors">
-                    {isSavingInsurance ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  <button
+                    onClick={() => {
+                      setShowInsuranceForm(false)
+                      setEditingInsurance(null)
+                      resetInsuranceForm()
+                    }}
+                    disabled={isSavingInsurance}
+                    className="px-3 py-1.5 text-sm text-gray-500 rounded-lg hover:bg-gray-100"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleSaveInsurance}
+                    disabled={isSavingInsurance || !insuranceForm.provider_name}
+                    className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-[#33C7BE] text-white text-sm font-semibold rounded-lg hover:bg-[#2ab5ac] disabled:opacity-50 transition-colors"
+                  >
+                    {isSavingInsurance ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4" />
+                    )}
                     Guardar
                   </button>
                 </div>
@@ -1140,7 +1458,10 @@ export default function HistorialClinico() {
                 <h3 className="text-sm font-bold text-gray-900">Notas de salud</h3>
               </div>
               <p className="text-xs text-gray-400 ml-9">
-                Escribe o selecciona de la lista. Presiona <kbd className="px-1 py-0.5 bg-gray-100 rounded text-[10px] font-mono">Enter</kbd> o <kbd className="px-1 py-0.5 bg-gray-100 rounded text-[10px] font-mono">,</kbd> para agregar.
+                Escribe o selecciona de la lista. Presiona{' '}
+                <kbd className="px-1 py-0.5 bg-gray-100 rounded text-[10px] font-mono">Enter</kbd> o{' '}
+                <kbd className="px-1 py-0.5 bg-gray-100 rounded text-[10px] font-mono">,</kbd> para
+                agregar.
               </p>
             </div>
 
@@ -1149,11 +1470,13 @@ export default function HistorialClinico() {
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <span className="text-base">⚠️</span>
                   <label className="text-xs font-bold text-gray-700">Alergias conocidas</label>
-                  <span className="text-[10px] text-gray-400">(medicamentos, alimentos, ambientales)</span>
+                  <span className="text-[10px] text-gray-400">
+                    (medicamentos, alimentos, ambientales)
+                  </span>
                 </div>
                 <TagInput
                   value={healthNotesForm.allergies}
-                  onChange={v => setHealthNotesForm(f => ({ ...f, allergies: v }))}
+                  onChange={(v) => setHealthNotesForm((f) => ({ ...f, allergies: v }))}
                   suggestions={ALLERGEN_SUGGESTIONS}
                   placeholder="Buscar o escribir alergia…"
                   tagClass="bg-red-50 text-red-700 border border-red-200"
@@ -1168,7 +1491,7 @@ export default function HistorialClinico() {
                 </div>
                 <TagInput
                   value={healthNotesForm.chronic_conditions}
-                  onChange={v => setHealthNotesForm(f => ({ ...f, chronic_conditions: v }))}
+                  onChange={(v) => setHealthNotesForm((f) => ({ ...f, chronic_conditions: v }))}
                   suggestions={CONDITION_SUGGESTIONS}
                   placeholder="Buscar o escribir condición…"
                   tagClass="bg-orange-50 text-orange-700 border border-orange-200"
@@ -1183,7 +1506,7 @@ export default function HistorialClinico() {
                 </div>
                 <TagInput
                   value={healthNotesForm.current_medications}
-                  onChange={v => setHealthNotesForm(f => ({ ...f, current_medications: v }))}
+                  onChange={(v) => setHealthNotesForm((f) => ({ ...f, current_medications: v }))}
                   suggestions={MEDICATION_SUGGESTIONS}
                   placeholder="Buscar o escribir medicamento…"
                   tagClass="bg-blue-50 text-blue-700 border border-blue-200"
@@ -1196,9 +1519,17 @@ export default function HistorialClinico() {
                   disabled={isSavingHealthNotes}
                   className="inline-flex items-center gap-2 px-5 py-2 bg-[#33C7BE] text-white text-sm font-semibold rounded-xl hover:bg-[#2ab5ac] transition-colors disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
                 >
-                  {isSavingHealthNotes
-                    ? <><Loader2 className="w-4 h-4 animate-spin" />Guardando...</>
-                    : <><Save className="w-4 h-4" />Guardar cambios</>}
+                  {isSavingHealthNotes ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Guardando...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      Guardar cambios
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -1223,12 +1554,16 @@ export default function HistorialClinico() {
               <div>
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <span className="text-base">🧬</span>
-                  <label className="text-xs font-bold text-gray-700">Antecedentes heredofamiliares</label>
-                  <span className="text-[10px] text-gray-400">(enfermedades en padres, abuelos, hermanos)</span>
+                  <label className="text-xs font-bold text-gray-700">
+                    Antecedentes heredofamiliares
+                  </label>
+                  <span className="text-[10px] text-gray-400">
+                    (enfermedades en padres, abuelos, hermanos)
+                  </span>
                 </div>
                 <TagInput
                   value={antecedentesForm.family_history}
-                  onChange={v => setAntecedentesForm(f => ({ ...f, family_history: v }))}
+                  onChange={(v) => setAntecedentesForm((f) => ({ ...f, family_history: v }))}
                   suggestions={FAMILY_HISTORY_SUGGESTIONS}
                   placeholder="Buscar o escribir antecedente familiar…"
                   tagClass="bg-purple-50 text-purple-700 border border-purple-200"
@@ -1239,11 +1574,13 @@ export default function HistorialClinico() {
               <div>
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <Scissors className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                  <label className="text-xs font-bold text-gray-700">Cirugías u hospitalizaciones previas</label>
+                  <label className="text-xs font-bold text-gray-700">
+                    Cirugías u hospitalizaciones previas
+                  </label>
                 </div>
                 <TagInput
                   value={antecedentesForm.surgical_history}
-                  onChange={v => setAntecedentesForm(f => ({ ...f, surgical_history: v }))}
+                  onChange={(v) => setAntecedentesForm((f) => ({ ...f, surgical_history: v }))}
                   suggestions={SURGICAL_SUGGESTIONS}
                   placeholder="Buscar o escribir cirugía / hospitalización…"
                   tagClass="bg-gray-100 text-gray-700 border border-gray-300"
@@ -1255,33 +1592,57 @@ export default function HistorialClinico() {
                 <p className="text-xs font-bold text-gray-700 mb-2">Hábitos</p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">🚬 Tabaco</label>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+                      🚬 Tabaco
+                    </label>
                     <select
                       value={antecedentesForm.tobacco_use}
-                      onChange={e => setAntecedentesForm(f => ({ ...f, tobacco_use: e.target.value }))}
+                      onChange={(e) =>
+                        setAntecedentesForm((f) => ({ ...f, tobacco_use: e.target.value }))
+                      }
                       className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] bg-white"
                     >
-                      {TOBACCO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      {TOBACCO_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">🍺 Alcohol</label>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+                      🍺 Alcohol
+                    </label>
                     <select
                       value={antecedentesForm.alcohol_use}
-                      onChange={e => setAntecedentesForm(f => ({ ...f, alcohol_use: e.target.value }))}
+                      onChange={(e) =>
+                        setAntecedentesForm((f) => ({ ...f, alcohol_use: e.target.value }))
+                      }
                       className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] bg-white"
                     >
-                      {ALCOHOL_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      {ALCOHOL_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">🏃 Ejercicio</label>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+                      🏃 Ejercicio
+                    </label>
                     <select
                       value={antecedentesForm.exercise_frequency}
-                      onChange={e => setAntecedentesForm(f => ({ ...f, exercise_frequency: e.target.value }))}
+                      onChange={(e) =>
+                        setAntecedentesForm((f) => ({ ...f, exercise_frequency: e.target.value }))
+                      }
                       className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] bg-white"
                     >
-                      {EXERCISE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      {EXERCISE_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -1293,99 +1654,19 @@ export default function HistorialClinico() {
                   disabled={isSavingAntecedentes}
                   className="inline-flex items-center gap-2 px-5 py-2 bg-[#33C7BE] text-white text-sm font-semibold rounded-xl hover:bg-[#2ab5ac] transition-colors disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
                 >
-                  {isSavingAntecedentes
-                    ? <><Loader2 className="w-4 h-4 animate-spin" />Guardando...</>
-                    : <><Save className="w-4 h-4" />Guardar cambios</>}
+                  {isSavingAntecedentes ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Guardando...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      Guardar cambios
+                    </>
+                  )}
                 </button>
               </div>
-            </div>
-          </div>
-
-          {/* ── Mis notas ── */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-base">📝</span>
-                  <h3 className="text-sm font-bold text-gray-900">Mis notas</h3>
-                </div>
-                <p className="text-xs text-gray-400 mt-0.5 ml-7">
-                  Anota síntomas, preguntas o recordatorios para tu próxima consulta.
-                </p>
-              </div>
-              {editingNoteId === null && (
-                <button
-                  onClick={() => { setNotesDraft(''); setEditingNoteId('new') }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#33C7BE] border border-[#33C7BE]/30 rounded-lg hover:bg-teal-50 transition-colors flex-shrink-0"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  Agregar nota
-                </button>
-              )}
-            </div>
-
-            <div className="p-5 space-y-3">
-              {editingNoteId === 'new' && (
-                <NoteEditForm
-                  draft={notesDraft}
-                  onDraftChange={setNotesDraft}
-                  onSave={handleSaveNote}
-                  onCancel={() => { setEditingNoteId(null); setNotesDraft('') }}
-                  isSaving={isSavingNote}
-                />
-              )}
-
-              {personalNotes.length === 0 && editingNoteId !== 'new' ? (
-                <div className="text-center py-8">
-                  <p className="text-sm text-gray-400">No tienes notas guardadas aún.</p>
-                  <p className="text-xs text-gray-300 mt-1">Usa el botón "Agregar nota" para empezar.</p>
-                </div>
-              ) : (
-                personalNotes.map(note => (
-                  <div key={note.id} className="border border-gray-100 rounded-xl overflow-hidden">
-                    {editingNoteId === note.id ? (
-                      <div className="p-4">
-                        <NoteEditForm
-                          draft={notesDraft}
-                          onDraftChange={setNotesDraft}
-                          onSave={handleSaveNote}
-                          onCancel={() => { setEditingNoteId(null); setNotesDraft('') }}
-                          isSaving={isSavingNote}
-                        />
-                      </div>
-                    ) : (
-                      <div className="p-4">
-                        <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
-                          {note.text}
-                        </p>
-                        <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-50">
-                          {note.savedAt ? (
-                            <span className="text-[11px] text-gray-300">
-                              {new Date(note.savedAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                          ) : <span />}
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => { setNotesDraft(note.text); setEditingNoteId(note.id) }}
-                              className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                              title="Editar"
-                            >
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteNote(note.id)}
-                              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                              title="Eliminar"
-                            >
-                              <Trash className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
             </div>
           </div>
 
@@ -1395,9 +1676,9 @@ export default function HistorialClinico() {
             <div className="text-xs text-blue-700 space-y-0.5">
               <p className="font-semibold">Expediente clínico</p>
               <p>
-                El expediente clínico detallado — incluyendo notas de evolución, diagnósticos formales,
-                estudios de laboratorio interpretados y notas médicas — es elaborado y resguardado
-                exclusivamente por tu médico conforme a la
+                El expediente clínico detallado — incluyendo notas de evolución, diagnósticos
+                formales, estudios de laboratorio interpretados y notas médicas — es elaborado y
+                resguardado exclusivamente por tu médico conforme a la
                 <strong> NOM-004-SSA3-2012 §7</strong>. Para solicitar una copia de tu expediente,
                 comunícate directamente con tu establecimiento de salud.
               </p>

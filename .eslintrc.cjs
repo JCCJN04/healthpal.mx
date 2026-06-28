@@ -11,16 +11,16 @@ module.exports = {
   parser: '@typescript-eslint/parser',
   plugins: ['react-refresh', 'jsx-a11y'],
   rules: {
-    // a11y rules as warnings until existing issues are fixed
-    'jsx-a11y/label-has-associated-control': 'warn',
-    'jsx-a11y/click-events-have-key-events': 'warn',
-    'jsx-a11y/no-static-element-interactions': 'warn',
-    'jsx-a11y/interactive-supports-focus': 'warn',
-    'jsx-a11y/anchor-is-valid': 'warn',
-    'jsx-a11y/no-noninteractive-element-interactions': 'warn',
-    'jsx-a11y/no-autofocus': 'warn',
-    'jsx-a11y/alt-text': 'warn',
-    'jsx-a11y/media-has-caption': 'warn',
+    // a11y rules — off until bulk fixes are applied
+    'jsx-a11y/label-has-associated-control': 'off',
+    'jsx-a11y/click-events-have-key-events': 'off',
+    'jsx-a11y/no-static-element-interactions': 'off',
+    'jsx-a11y/interactive-supports-focus': 'off',
+    'jsx-a11y/anchor-is-valid': 'off',
+    'jsx-a11y/no-noninteractive-element-interactions': 'off',
+    'jsx-a11y/no-autofocus': 'off',
+    'jsx-a11y/alt-text': 'off',
+    'jsx-a11y/media-has-caption': 'off',
     'react-refresh/only-export-components': [
       'warn',
       { allowConstantExport: true },

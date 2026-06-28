@@ -36,7 +36,6 @@ import DashboardLayout from '@/app/layout/DashboardLayout'
 import {
   getPatientFullProfile,
   getPatientNotes,
-  addPatientNote,
   getPatientContactInfo,
 } from '@/features/doctor/services/patients'
 import { getClinicalHistory } from '@/shared/lib/queries/clinicalHistory'
@@ -88,8 +87,7 @@ import RecetaPreview, {
   printRxElement,
 } from '@/features/doctor/components/RecetaPreview'
 
-type TabType =
-  'summary' | 'notes' | 'expediente' | 'historia' | 'informes' | 'consultas' | 'recetas'
+type TabType = 'summary' | 'expediente' | 'historia' | 'informes' | 'consultas' | 'recetas'
 type ConsentGate = 'loading' | 'no-consent' | 'requested' | 'rejected' | 'revoked' | 'accepted'
 
 export default function PatientDetail() {
@@ -110,9 +108,6 @@ export default function PatientDetail() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [patientSharedDocs, setPatientSharedDocs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [newNote, setNewNote] = useState({ title: '', body: '' })
-  const [savingNote, setSavingNote] = useState(false)
-
   // Consent state
   const [consentGate, setConsentGate] = useState<ConsentGate>('loading')
   const [scopes, setScopes] = useState<ConsentScopes>({
@@ -586,28 +581,6 @@ export default function PatientDetail() {
       showToast(error || 'Error al solicitar acceso', 'error', 3000)
     }
     setRequestingAccess(false)
-  }
-
-  const handleCreateNote = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (newNote.body.trim().length < 10) return
-
-    setSavingNote(true)
-    try {
-      const note = await addPatientNote(
-        id!,
-        user!.id,
-        newNote.title || 'Nota Clínica',
-        newNote.body,
-      )
-      setNotes([note, ...notes])
-      setNewNote({ title: '', body: '' })
-      showToast('Nota guardada correctamente', 'success')
-    } catch (err) {
-      showToast('Error al guardar la nota', 'error')
-    } finally {
-      setSavingNote(false)
-    }
   }
 
   const loadConsultationNotes = async () => {
@@ -1217,16 +1190,6 @@ export default function PatientDetail() {
               {/* Mobile quick stats */}
               <div className="grid grid-cols-2 gap-2">
                 <button
-                  onClick={scopes.share_medical_notes ? () => setActiveTab('notes') : undefined}
-                  className="bg-gray-50 rounded-xl px-3 py-2 flex items-center gap-2"
-                >
-                  <StickyNote size={14} className="text-[#33C7BE]" />
-                  <span className="text-sm font-black text-gray-900">
-                    {scopes.share_medical_notes ? notes.length : '—'}
-                  </span>
-                  <span className="text-xs text-gray-400">notas</span>
-                </button>
-                <button
                   onClick={scopes.share_documents ? () => setActiveTab('expediente') : undefined}
                   className="bg-gray-50 rounded-xl px-3 py-2 flex items-center gap-2"
                 >
@@ -1263,12 +1226,6 @@ export default function PatientDetail() {
                     icon: FileText,
                     enabled: scopes.share_documents,
                   },
-                  {
-                    id: 'notes',
-                    label: 'Notas',
-                    icon: StickyNote,
-                    enabled: scopes.share_medical_notes,
-                  },
                   { id: 'recetas', label: 'Recetas', icon: ClipboardList, enabled: true },
                 ]
                   .filter((t) => t.enabled)
@@ -1288,11 +1245,6 @@ export default function PatientDetail() {
                     >
                       <tab.icon size={14} />
                       {tab.label}
-                      {tab.id === 'notes' && scopes.share_medical_notes && notes.length > 0 && (
-                        <span className="bg-[#33C7BE]/15 text-[#33C7BE] text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                          {notes.length}
-                        </span>
-                      )}
                       {tab.id === 'expediente' && scopes.share_documents && totalDocs > 0 && (
                         <span className="bg-blue-100 text-blue-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                           {totalDocs}
@@ -1923,101 +1875,6 @@ export default function PatientDetail() {
                     </div>
                   )
                 })()}
-
-              {activeTab === 'notes' && scopes.share_medical_notes && (
-                <div className="max-w-2xl space-y-5">
-                  <form
-                    onSubmit={handleCreateNote}
-                    className="border border-[#33C7BE]/20 bg-[#33C7BE]/5 rounded-2xl p-4 space-y-3"
-                  >
-                    <div className="flex items-center gap-2 text-[#33C7BE]">
-                      <StickyNote size={15} />
-                      <span className="text-sm font-bold">Nueva Nota Clínica</span>
-                    </div>
-                    <input
-                      placeholder="Título (ej: Seguimiento post-consulta)"
-                      className="w-full px-3 py-2.5 border border-gray-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none"
-                      value={newNote.title}
-                      onChange={(e) => setNewNote({ ...newNote, title: e.target.value })}
-                    />
-                    <textarea
-                      placeholder="Evolución clínica, hallazgos, indicaciones, plan de tratamiento..."
-                      rows={4}
-                      className="w-full px-3 py-2.5 border border-gray-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none resize-none"
-                      value={newNote.body}
-                      onChange={(e) => setNewNote({ ...newNote, body: e.target.value })}
-                      required
-                    />
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex flex-col gap-0.5">
-                        <p className="text-[10px] text-gray-400 flex items-center gap-1">
-                          <Lock size={10} /> Cifrada AES-256
-                        </p>
-                        {newNote.body.length > 0 && newNote.body.trim().length < 10 && (
-                          <p className="text-[10px] text-red-400">Mínimo 10 caracteres.</p>
-                        )}
-                      </div>
-                      <button
-                        type="submit"
-                        disabled={savingNote || newNote.body.trim().length < 10}
-                        className="px-5 py-2 bg-[#33C7BE] text-white text-sm font-bold rounded-xl hover:bg-teal-600 disabled:opacity-50 transition-all flex items-center gap-2"
-                      >
-                        {savingNote ? (
-                          <Loader2 size={15} className="animate-spin" />
-                        ) : (
-                          <Plus size={15} />
-                        )}
-                        Guardar nota
-                      </button>
-                    </div>
-                  </form>
-
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-                    Historial · {notes.length} {notes.length === 1 ? 'nota' : 'notas'}
-                  </p>
-
-                  {notes.length === 0 ? (
-                    <div className="text-center py-12 bg-white rounded-2xl border border-gray-100">
-                      <div className="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                        <StickyNote size={24} className="text-gray-300" />
-                      </div>
-                      <p className="text-sm font-semibold text-gray-500">Sin notas clínicas aún</p>
-                    </div>
-                  ) : (
-                    <div className="relative space-y-0">
-                      <div className="absolute left-[18px] top-5 bottom-5 w-0.5 bg-gray-100" />
-                      {notes.map((note, idx) => (
-                        <div key={note.id} className="relative flex gap-4 pb-4 last:pb-0">
-                          <div
-                            className={`relative z-10 w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${idx === 0 ? 'bg-[#33C7BE] text-white shadow-md' : 'bg-white border-2 border-gray-200 text-gray-400'}`}
-                          >
-                            <StickyNote size={14} />
-                          </div>
-                          <div
-                            className={`flex-1 rounded-2xl border p-4 ${idx === 0 ? 'bg-white border-[#33C7BE]/20 shadow-sm' : 'bg-gray-50 border-gray-100'}`}
-                          >
-                            <div className="flex items-start justify-between gap-2 mb-2">
-                              <h4 className="font-bold text-gray-900 text-sm">
-                                {note.title || 'Nota Clínica'}
-                              </h4>
-                              <span className="text-[10px] font-semibold text-gray-400 whitespace-nowrap bg-gray-100 px-2 py-0.5 rounded-full flex-shrink-0">
-                                {new Date(note.created_at).toLocaleDateString('es-MX', {
-                                  day: 'numeric',
-                                  month: 'short',
-                                  year: 'numeric',
-                                })}
-                              </span>
-                            </div>
-                            <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">
-                              {note.body}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           </div>
         </div>
