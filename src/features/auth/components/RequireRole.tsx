@@ -28,22 +28,13 @@ export default function RequireRole({
 }: RequireRoleProps) {
   const { profile, loading: authLoading } = useAuth()
 
-  // While auth or profile is loading, show spinner
-  if (authLoading || !profile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-[#33C7BE] border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-          <p className="text-gray-600 text-sm">Verificando permisos...</p>
-        </div>
-      </div>
-    )
-  }
+  // While auth or profile is loading, render nothing (parent guards handle loading UI)
+  if (authLoading || !profile) return null
 
   // If the user's role is not in the allowed list, redirect
   if (!allowedRoles.includes(profile.role)) {
     logger.warn(
-      `[RequireRole] Acceso denegado: rol "${profile.role}" intentó acceder a ruta restringida a [${allowedRoles.join(', ')}]`
+      `[RequireRole] Acceso denegado: rol "${profile.role}" intentó acceder a ruta restringida a [${allowedRoles.join(', ')}]`,
     )
     return <Navigate to={redirectTo} replace />
   }

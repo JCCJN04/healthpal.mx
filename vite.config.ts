@@ -4,9 +4,7 @@ import path from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [
-    react(),
-  ],
+  plugins: [react()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -14,7 +12,7 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    open: true
+    open: true,
   },
   build: {
     // Disable source maps in production to prevent code exposure
@@ -28,5 +26,15 @@ export default defineConfig({
       },
     },
     chunkSizeWarningLimit: 1800,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-supabase': ['@supabase/supabase-js'],
+          'vendor-query': ['@tanstack/react-query'],
+          'vendor-ui': ['lucide-react', 'motion', 'date-fns'],
+        },
+      },
+    },
   },
 })

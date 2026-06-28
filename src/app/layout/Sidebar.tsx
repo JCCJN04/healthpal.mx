@@ -14,6 +14,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '@/app/providers/AuthContext'
 import { logger } from '@/shared/lib/logger'
 import { mapDashboardPath } from '@/context/DemoContext'
+import { prefetchRoute } from '@/shared/lib/prefetch'
 
 interface NavItem {
   label: string
@@ -55,10 +56,10 @@ export default function Sidebar({ onClose }: SidebarProps) {
 
     if (role === 'assistant') {
       return [
-        { label: 'Inicio',     path: '/dashboard/assistant',           icon: <Home size={20} /> },
-        { label: 'Agenda',     path: '/dashboard/assistant/agenda',    icon: <CalendarDays size={20} /> },
-        { label: 'Pacientes',  path: '/dashboard/assistant/pacientes', icon: <Users size={20} /> },
-        { label: 'Configuracion', path: '/dashboard/configuracion',    icon: <Settings size={20} /> },
+        { label: 'Inicio', path: '/dashboard/assistant', icon: <Home size={20} /> },
+        { label: 'Agenda', path: '/dashboard/assistant/agenda', icon: <CalendarDays size={20} /> },
+        { label: 'Pacientes', path: '/dashboard/assistant/pacientes', icon: <Users size={20} /> },
+        { label: 'Configuracion', path: '/dashboard/configuracion', icon: <Settings size={20} /> },
       ]
     }
 
@@ -67,7 +68,11 @@ export default function Sidebar({ onClose }: SidebarProps) {
       { label: 'Consultas', path: '/dashboard/consultas', icon: <CalendarDays size={20} /> },
       { label: 'Doctores', path: '/dashboard/doctores', icon: <Users size={20} /> },
       { label: 'Documentos', path: '/dashboard/documentos', icon: <FileText size={20} /> },
-      { label: 'Historial Clínico', path: '/dashboard/historial', icon: <ClipboardList size={20} /> },
+      {
+        label: 'Historial Clínico',
+        path: '/dashboard/historial',
+        icon: <ClipboardList size={20} />,
+      },
       { label: 'Configuracion', path: '/dashboard/configuracion', icon: <Settings size={20} /> },
     ]
   }, [profile])
@@ -76,12 +81,22 @@ export default function Sidebar({ onClose }: SidebarProps) {
     <aside className="w-64 bg-white border-r border-gray-200 h-full flex flex-col">
       {/* Desktop logo */}
       <div className="hidden lg:flex items-center px-5 h-16 border-b border-gray-200 overflow-hidden flex-shrink-0">
-        <img src="/logo.png" alt="HealthPal.mx" className="h-40 w-auto object-contain" style={{ marginTop: '-2rem', marginBottom: '-2rem' }} />
+        <img
+          src="/logo.png"
+          alt="HealthPal.mx"
+          className="h-40 w-auto object-contain"
+          style={{ marginTop: '-2rem', marginBottom: '-2rem' }}
+        />
       </div>
 
       {/* Mobile header with close button */}
       <div className="lg:hidden flex items-center justify-between px-4 border-b border-gray-200 h-16 overflow-hidden flex-shrink-0">
-        <img src="/logo.png" alt="HealthPal.mx" className="h-40 w-auto object-contain" style={{ marginTop: '-2rem', marginBottom: '-2rem' }} />
+        <img
+          src="/logo.png"
+          alt="HealthPal.mx"
+          className="h-40 w-auto object-contain"
+          style={{ marginTop: '-2rem', marginBottom: '-2rem' }}
+        />
         <button
           onClick={onClose}
           className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
@@ -100,15 +115,14 @@ export default function Sidebar({ onClose }: SidebarProps) {
             <Link
               key={item.path}
               to={resolvedPath}
+              onMouseEnter={() => prefetchRoute(resolvedPath)}
+              onFocus={() => prefetchRoute(resolvedPath)}
               onClick={onClose}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive
-                  ? 'bg-primary text-white'
-                  : 'text-gray-700 hover:bg-primary/10'
-                }`}
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                isActive ? 'bg-primary text-white' : 'text-gray-700 hover:bg-primary/10'
+              }`}
             >
-              <span className={isActive ? 'text-white' : 'text-gray-600'}>
-                {item.icon}
-              </span>
+              <span className={isActive ? 'text-white' : 'text-gray-600'}>{item.icon}</span>
               <span className="text-sm font-medium flex-1">{item.label}</span>
               {item.badge && item.badge > 0 ? (
                 <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1 text-[10px] font-bold rounded-full bg-red-500 text-white">
