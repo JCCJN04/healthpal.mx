@@ -22,14 +22,14 @@ import RequireRole from '@/features/auth/components/RequireRole'
 import OnlyOnboarding from '@/features/auth/components/OnlyOnboarding'
 import { ToastContainer } from '@/shared/components/ui/Toast'
 
-// Eager load critical pages (small, needed immediately)
-import Landing from '@/features/landing/Landing'
-import Login from '@/features/auth/pages/Login'
-import ForgotPassword from '@/features/auth/pages/ForgotPassword'
-import ResetPassword from '@/features/auth/pages/ResetPassword'
-import Register from '@/features/auth/pages/Register'
-import VerifyEmail from '@/features/auth/pages/VerifyEmail'
-import MfaVerify from '@/features/auth/pages/MfaVerify'
+// Lazy load all pages — reduces initial bundle for faster FCP
+const Landing = lazy(() => import('@/features/landing/Landing'))
+const Login = lazy(() => import('@/features/auth/pages/Login'))
+const ForgotPassword = lazy(() => import('@/features/auth/pages/ForgotPassword'))
+const ResetPassword = lazy(() => import('@/features/auth/pages/ResetPassword'))
+const Register = lazy(() => import('@/features/auth/pages/Register'))
+const VerifyEmail = lazy(() => import('@/features/auth/pages/VerifyEmail'))
+const MfaVerify = lazy(() => import('@/features/auth/pages/MfaVerify'))
 
 // Lazy load dashboard pages (large, only needed after auth)
 const Dashboard = lazy(() => import('@/features/shared/pages/Dashboard'))

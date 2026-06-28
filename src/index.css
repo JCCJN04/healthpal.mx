@@ -1,4 +1,4 @@
-@import url('https://db.onlinewebfonts.com/c/440b53b1a1c65037f944ff19259d8014?family=Nokia+Cellphone+FC+Small');
+/* Nokia font loaded async via index.html to avoid render-blocking */
 
 @tailwind base;
 @tailwind components;
@@ -6,7 +6,11 @@
 
 body {
   margin: 0;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family:
+    'Inter',
+    system-ui,
+    -apple-system,
+    sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: #f9f0ff;
@@ -14,9 +18,16 @@ body {
 
 /* ── HT Clone: Ribbon animation ── */
 @keyframes ribbon-wave {
-  0%, 100% { transform: translateY(0px) skewY(0deg); }
-  30% { transform: translateY(-18px) skewY(0.4deg); }
-  70% { transform: translateY(10px) skewY(-0.25deg); }
+  0%,
+  100% {
+    transform: translateY(0px) skewY(0deg);
+  }
+  30% {
+    transform: translateY(-18px) skewY(0.4deg);
+  }
+  70% {
+    transform: translateY(10px) skewY(-0.25deg);
+  }
 }
 .ribbon-anim {
   animation: ribbon-wave 12s ease-in-out infinite;
@@ -30,8 +41,12 @@ body {
 
 /* ── HT Clone: Logo ticker ── */
 @keyframes ht-ticker {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
 }
 .ht-ticker-track {
   animation: ht-ticker 28s linear infinite;
@@ -43,8 +58,14 @@ body {
 
 /* ── HT Clone: Word reveal ── */
 @keyframes word-up {
-  0% { opacity: 0; transform: translateY(30px); }
-  100% { opacity: 1; transform: translateY(0); }
+  0% {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 .word-reveal > span {
   display: inline-block;
@@ -67,22 +88,43 @@ body {
 
 /* ── Landing page: floating animations ── */
 @keyframes lp-float {
-  0%, 100% { transform: translateY(0px); }
-  50%       { transform: translateY(-10px); }
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
 }
 @keyframes lp-float-alt {
-  0%, 100% { transform: translateY(0px) rotate(0deg); }
-  50%       { transform: translateY(-7px) rotate(1.5deg); }
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-7px) rotate(1.5deg);
+  }
 }
 @keyframes lp-float-rev {
-  0%, 100% { transform: translateY(0px) rotate(0deg); }
-  50%       { transform: translateY(-6px) rotate(-1.5deg); }
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-6px) rotate(-1.5deg);
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .lp-float     { animation: lp-float     6s  ease-in-out infinite; }
-  .lp-float-alt { animation: lp-float-alt 5s  ease-in-out infinite; }
-  .lp-float-rev { animation: lp-float-rev 5.5s ease-in-out infinite 0.8s; }
+  .lp-float {
+    animation: lp-float 6s ease-in-out infinite;
+  }
+  .lp-float-alt {
+    animation: lp-float-alt 5s ease-in-out infinite;
+  }
+  .lp-float-rev {
+    animation: lp-float-rev 5.5s ease-in-out infinite 0.8s;
+  }
 }
 
 * {
@@ -91,7 +133,9 @@ body {
 
 /* Page loader spinner */
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Thin scrollbar for availability slot columns */

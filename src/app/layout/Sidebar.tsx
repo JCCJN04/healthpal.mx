@@ -86,6 +86,8 @@ export default function Sidebar({ onClose }: SidebarProps) {
           alt="HealthPal.mx"
           className="h-40 w-auto object-contain"
           style={{ marginTop: '-2rem', marginBottom: '-2rem' }}
+          width={160}
+          height={160}
         />
       </div>
 
@@ -96,6 +98,8 @@ export default function Sidebar({ onClose }: SidebarProps) {
           alt="HealthPal.mx"
           className="h-40 w-auto object-contain"
           style={{ marginTop: '-2rem', marginBottom: '-2rem' }}
+          width={160}
+          height={160}
         />
         <button
           onClick={onClose}
