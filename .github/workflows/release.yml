@@ -27,7 +27,7 @@ jobs:
           # persist-credentials false para usar el token de GITHUB_TOKEN en lugar del default
           persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version-file: ".nvmrc"
           cache: "npm"
