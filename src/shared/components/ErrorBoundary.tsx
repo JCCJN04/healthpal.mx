@@ -8,16 +8,17 @@ interface Props {
 
 interface State {
   hasError: boolean
+  errorMessage: string | null
 }
 
 class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props)
-    this.state = { hasError: false }
+    this.state = { hasError: false, errorMessage: null }
   }
 
-  static getDerivedStateFromError(): State {
-    return { hasError: true }
+  static getDerivedStateFromError(error: Error): State {
+    return { hasError: true, errorMessage: error.message }
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
@@ -50,10 +51,15 @@ class ErrorBoundary extends Component<Props, State> {
               </svg>
             </div>
             <h2 className="text-xl font-semibold text-gray-800 mb-2">Algo sali&oacute; mal</h2>
-            <p className="text-gray-600 mb-6">
+            <p className="text-gray-600 mb-4">
               Ocurri&oacute; un error inesperado. Por favor, recarga la p&aacute;gina o
               int&eacute;ntalo m&aacute;s tarde.
             </p>
+            {this.state.errorMessage && (
+              <p className="text-xs text-red-400 font-mono bg-red-50 p-2 rounded mb-4 break-all">
+                {this.state.errorMessage}
+              </p>
+            )}
             <button
               onClick={() => window.location.reload()}
               className="px-6 py-2.5 bg-[#33C7BE] text-white rounded-lg hover:bg-[#2ab3ab] transition-colors font-medium"

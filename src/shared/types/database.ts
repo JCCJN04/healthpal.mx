@@ -2,18 +2,22 @@
 // Based on actual Supabase schema + onboarding fields (to be added via migration)
 // After migration, run: npx supabase gen types typescript --linked --schema public > src/types/supabase.ts
 
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 // Enums from database
 export type UserRole = 'patient' | 'doctor' | 'admin' | 'assistant'
 export type SexType = 'male' | 'female' | 'other' | 'unspecified'
-export type DocCategory = 'radiology' | 'prescription' | 'history' | 'lab' | 'insurance' | 'vaccine' | 'referral' | 'surgery' | 'consultation' | 'other'
+export type DocCategory =
+  | 'radiology'
+  | 'prescription'
+  | 'history'
+  | 'lab'
+  | 'insurance'
+  | 'vaccine'
+  | 'referral'
+  | 'surgery'
+  | 'consultation'
+  | 'other'
 
 export interface Database {
   public: {
@@ -34,11 +38,11 @@ export interface Database {
           created_at: string
           updated_at: string
           // NOM-024-SSA3-2012 §6.5 — Identificación de pacientes
-          curp: string | null              // 18 chars, validated by RENAPO format
-          primer_apellido: string | null   // First surname (no abbreviations)
-          segundo_apellido: string | null  // Second surname (optional)
+          curp: string | null // 18 chars, validated by RENAPO format
+          primer_apellido: string | null // First surname (no abbreviations)
+          segundo_apellido: string | null // Second surname (optional)
           estado_nacimiento: string | null // INEGI 2-char code (EDONAC)
-          nacionalidad: string | null      // RENAPO 3-char code
+          nacionalidad: string | null // RENAPO 3-char code
         }
         Insert: {
           id: string
@@ -144,6 +148,7 @@ export interface Database {
           location: Json | null
           consultation_mode: string | null
           is_public: boolean
+          stripe_customer_id: string | null
           created_at: string
           updated_at: string
         }
@@ -160,6 +165,7 @@ export interface Database {
           location?: Json | null
           consultation_mode?: string | null
           is_public?: boolean
+          stripe_customer_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -176,6 +182,7 @@ export interface Database {
           location?: Json | null
           consultation_mode?: string | null
           is_public?: boolean
+          stripe_customer_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -584,8 +591,8 @@ export interface Database {
           details: Json | null
           created_at: string
         }
-        Insert: never  // Write only via log_audit_event RPC
-        Update: never  // Immutable
+        Insert: never // Write only via log_audit_event RPC
+        Update: never // Immutable
       }
     }
     Views: {
@@ -680,8 +687,8 @@ export interface Database {
  * Store as: { lat: number; lng: number }
  */
 export interface DoctorLocation {
-  lat: number;
-  lng: number;
+  lat: number
+  lng: number
 }
 
 // Convenience types
@@ -693,10 +700,18 @@ export type Notification = Database['public']['Tables']['notifications']['Row']
 export type UserSettings = Database['public']['Tables']['user_settings']['Row']
 export type CareLink = Database['public']['Tables']['care_links']['Row']
 export type DoctorPatientConsent = Database['public']['Tables']['doctor_patient_consent']['Row']
-export type DoctorPatientConsentInsert = Database['public']['Tables']['doctor_patient_consent']['Insert']
-export type DoctorPatientConsentUpdate = Database['public']['Tables']['doctor_patient_consent']['Update']
+export type DoctorPatientConsentInsert =
+  Database['public']['Tables']['doctor_patient_consent']['Insert']
+export type DoctorPatientConsentUpdate =
+  Database['public']['Tables']['doctor_patient_consent']['Update']
 export type ConsentStatus = 'requested' | 'accepted' | 'rejected' | 'revoked'
-export type ConsentScope = 'share_basic_profile' | 'share_contact' | 'share_documents' | 'share_appointments' | 'share_medical_notes' | 'share_insurance'
+export type ConsentScope =
+  | 'share_basic_profile'
+  | 'share_contact'
+  | 'share_documents'
+  | 'share_appointments'
+  | 'share_medical_notes'
+  | 'share_insurance'
 export type PatientInsurance = Database['public']['Tables']['patient_insurances']['Row']
 export type PatientInsuranceInsert = Database['public']['Tables']['patient_insurances']['Insert']
 export type PatientInsuranceUpdate = Database['public']['Tables']['patient_insurances']['Update']
@@ -713,4 +728,3 @@ export interface BiometricRecord {
   created_at: string
 }
 export type BiometricRecordInsert = Omit<BiometricRecord, 'id' | 'created_at'>
-
