@@ -39,6 +39,7 @@ export interface NotaEvolucion {
   motivo_consulta: string
   exploracion_fisica: string
   diagnostico: string
+  pronostico: string
   plan_terapeutico: string
   // Meta
   enc_kid: string
@@ -73,13 +74,16 @@ export interface NotaEvolucionInput {
   motivo_consulta?: string
   exploracion_fisica?: string
   diagnostico?: string
+  pronostico?: string
   plan_terapeutico?: string
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 async function getAuthToken(): Promise<string> {
-  const { data: { session } } = await supabase.auth.getSession()
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
   if (!session?.access_token) throw new Error('No session')
   return session.access_token
 }
@@ -95,35 +99,28 @@ export async function getNotaEvolucionByAppointment(
   appointmentId: string,
 ): Promise<NotaEvolucion | null> {
   const token = await getAuthToken()
-  const res = await fetch(
-    fnUrl(`?appointment_id=${encodeURIComponent(appointmentId)}`),
-    { headers: { Authorization: `Bearer ${token}` } },
-  )
+  const res = await fetch(fnUrl(`?appointment_id=${encodeURIComponent(appointmentId)}`), {
+    headers: { Authorization: `Bearer ${token}` },
+  })
   const json = await res.json()
   if (!res.ok) throw new Error(json.error || 'Error al obtener nota')
   return json as NotaEvolucion | null
 }
 
-export async function getNotasEvolucionByPatient(
-  patientId: string,
-): Promise<NotaEvolucion[]> {
+export async function getNotasEvolucionByPatient(patientId: string): Promise<NotaEvolucion[]> {
   const token = await getAuthToken()
-  const res = await fetch(
-    fnUrl(`?patient_id=${encodeURIComponent(patientId)}`),
-    { headers: { Authorization: `Bearer ${token}` } },
-  )
+  const res = await fetch(fnUrl(`?patient_id=${encodeURIComponent(patientId)}`), {
+    headers: { Authorization: `Bearer ${token}` },
+  })
   const json = await res.json()
   if (!res.ok) throw new Error(json.error || 'Error al obtener notas')
   return json as NotaEvolucion[]
 }
 
-export async function saveNotaEvolucion(
-  input: NotaEvolucionInput,
-): Promise<NotaEvolucion> {
-  const { data, error } = await supabase.functions.invoke<NotaEvolucion>(
-    'notas-evolucion',
-    { body: input },
-  )
+export async function saveNotaEvolucion(input: NotaEvolucionInput): Promise<NotaEvolucion> {
+  const { data, error } = await supabase.functions.invoke<NotaEvolucion>('notas-evolucion', {
+    body: input,
+  })
   if (error) throw new Error('Error al guardar nota de evolución')
   if (!data) throw new Error('Error al guardar nota de evolución')
   return data

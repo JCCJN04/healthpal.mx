@@ -1,6 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Save, Loader2, ClipboardList, ChevronDown, ChevronUp, X, Search, Plus as PlusIcon } from 'lucide-react'
-import { searchCie10Es } from '@/shared/data/cie10-es'
+import {
+  Save,
+  Loader2,
+  ClipboardList,
+  ChevronDown,
+  ChevronUp,
+  X,
+  Plus as PlusIcon,
+} from 'lucide-react'
 import { showToast } from '@/shared/components/ui/Toast'
 import { getClinicalHistory, upsertClinicalHistory } from '@/shared/lib/queries/clinicalHistory'
 import { logger } from '@/shared/lib/logger'
@@ -8,173 +15,390 @@ import { logger } from '@/shared/lib/logger'
 // ── Systems review types & config ────────────────────────────────────────────
 
 interface SystemEntry {
-    normal: boolean
-    symptoms: string[]
-    notes: string
+  normal: boolean
+  symptoms: string[]
+  notes: string
 }
 
-type SystemKey = 'digestivo' | 'cardiovascular' | 'respiratorio' | 'urinario' | 'genital' | 'hematologico' | 'endocrino' | 'osteomuscular' | 'nervioso' | 'sensorial' | 'psicosomatico'
+type SystemKey =
+  | 'digestivo'
+  | 'cardiovascular'
+  | 'respiratorio'
+  | 'urinario'
+  | 'genital'
+  | 'hematologico'
+  | 'endocrino'
+  | 'osteomuscular'
+  | 'nervioso'
+  | 'sensorial'
+  | 'psicosomatico'
 type SystemsReviewData = Record<SystemKey, SystemEntry>
 
-const SYSTEMS_CONFIG: { key: SystemKey; label: string; short: string; icon: string; symptoms: string[] }[] = [
-    { key: 'digestivo',     label: 'Aparato digestivo',     short: 'Digestivo',     icon: '🫃', symptoms: ['Halitosis', 'Boca seca', 'Masticación', 'Disfagia / odinofagia', 'Pirosis', 'Náusea', 'Vómito', 'Dolor abdominal', 'Meteorismo / flatulencias', 'Constipación', 'Diarrea', 'Rectorragia', 'Melenas', 'Pujo y tenesmo', 'Ictericia', 'Coluria / acolia', 'Prurito cutáneo', 'Hemorragias'] },
-    { key: 'cardiovascular',label: 'Aparato cardiovascular',short: 'Cardiovascular', icon: '🫀', symptoms: ['Disnea', 'Tos', 'Hemoptisis', 'Dolor precordial', 'Palpitaciones', 'Cianosis', 'Edema', 'Manifestaciones periféricas'] },
-    { key: 'respiratorio',  label: 'Aparato respiratorio',  short: 'Respiratorio',  icon: '🫁', symptoms: ['Tos', 'Disnea', 'Dolor torácico', 'Hemoptisis', 'Cianosis', 'Vómica', 'Alteraciones de la voz'] },
-    { key: 'urinario',      label: 'Aparato urinario',      short: 'Urinario',      icon: '💧', symptoms: ['Poliuria', 'Anuria', 'Polaquiuria', 'Oliguria', 'Nicturia', 'Opsiuria', 'Disuria', 'Tenesmo vesical', 'Urgencia miccional', 'Alteración del chorro', 'Enuresis', 'Incontinencia', 'Dolor lumbar', 'Edema renal', 'Hipertensión arterial'] },
-    { key: 'genital',       label: 'Aparato genital',       short: 'Genital',       icon: '🔬', symptoms: ['Criptorquidia', 'Fimosis', 'Alteración función sexual', 'Sangrado genital', 'Flujo / leucorrea', 'Dolor ginecológico', 'Prurito vulvar'] },
-    { key: 'hematologico',  label: 'Aparato hematológico',  short: 'Hematológico',  icon: '🩸', symptoms: ['Palidez', 'Astenia', 'Adinamia', 'Hemorragias', 'Adenopatías', 'Esplenomegalia'] },
-    { key: 'endocrino',     label: 'Sistema endocrino',     short: 'Endocrino',     icon: '⚡', symptoms: ['Bocio', 'Letargia / bradipsiquia', 'Intolerancia al calor', 'Intolerancia al frío', 'Nerviosismo', 'Hiperquinesis', 'Galactorrea', 'Amenorrea', 'Ginecomastia', 'Obesidad', 'Ruborización'] },
-    { key: 'osteomuscular', label: 'Sistema osteomuscular', short: 'Osteomuscular', icon: '🦴', symptoms: ['Ganglios visibles', 'Xeroftalmia', 'Fotosensibilidad', 'Artralgias', 'Mialgias', 'Fenómeno de Raynaud'] },
-    { key: 'nervioso',      label: 'Sistema nervioso',      short: 'Nervioso',      icon: '🧠', symptoms: ['Cefalea', 'Síncope', 'Convulsiones', 'Déficit transitorio', 'Vértigo', 'Confusión', 'Alteración vigilia/sueño', 'Alteración de la marcha', 'Alteración del equilibrio', 'Alteración de la sensibilidad'] },
-    { key: 'sensorial',     label: 'Sistema sensorial',     short: 'Sensorial',     icon: '👁️', symptoms: ['Visión borrosa', 'Fosfenos', 'Dolor ocular', 'Fotofobia', 'Xeroftalmia', 'Amaurosis', 'Otalgia', 'Otorrea / otorragia', 'Hipoacusia', 'Tinitus', 'Epistaxis', 'Secreción nasal', 'Dolor de garganta', 'Alteración de la fonación'] },
-    { key: 'psicosomatico', label: 'Psicosomático',         short: 'Psicosomático', icon: '🧘', symptoms: ['Ansiedad', 'Depresión', 'Alteración de la afectividad', 'Emotividad', 'Amnesia', 'Alteración de la voluntad', 'Alteración del pensamiento', 'Alteración de la atención', 'Ideación suicida', 'Delirios'] },
+const SYSTEMS_CONFIG: {
+  key: SystemKey
+  label: string
+  short: string
+  icon: string
+  symptoms: string[]
+}[] = [
+  {
+    key: 'digestivo',
+    label: 'Aparato digestivo',
+    short: 'Digestivo',
+    icon: '🫃',
+    symptoms: [
+      'Halitosis',
+      'Boca seca',
+      'Masticación',
+      'Disfagia / odinofagia',
+      'Pirosis',
+      'Náusea',
+      'Vómito',
+      'Dolor abdominal',
+      'Meteorismo / flatulencias',
+      'Constipación',
+      'Diarrea',
+      'Rectorragia',
+      'Melenas',
+      'Pujo y tenesmo',
+      'Ictericia',
+      'Coluria / acolia',
+      'Prurito cutáneo',
+      'Hemorragias',
+    ],
+  },
+  {
+    key: 'cardiovascular',
+    label: 'Aparato cardiovascular',
+    short: 'Cardiovascular',
+    icon: '🫀',
+    symptoms: [
+      'Disnea',
+      'Tos',
+      'Hemoptisis',
+      'Dolor precordial',
+      'Palpitaciones',
+      'Cianosis',
+      'Edema',
+      'Manifestaciones periféricas',
+    ],
+  },
+  {
+    key: 'respiratorio',
+    label: 'Aparato respiratorio',
+    short: 'Respiratorio',
+    icon: '🫁',
+    symptoms: [
+      'Tos',
+      'Disnea',
+      'Dolor torácico',
+      'Hemoptisis',
+      'Cianosis',
+      'Vómica',
+      'Alteraciones de la voz',
+    ],
+  },
+  {
+    key: 'urinario',
+    label: 'Aparato urinario',
+    short: 'Urinario',
+    icon: '💧',
+    symptoms: [
+      'Poliuria',
+      'Anuria',
+      'Polaquiuria',
+      'Oliguria',
+      'Nicturia',
+      'Opsiuria',
+      'Disuria',
+      'Tenesmo vesical',
+      'Urgencia miccional',
+      'Alteración del chorro',
+      'Enuresis',
+      'Incontinencia',
+      'Dolor lumbar',
+      'Edema renal',
+      'Hipertensión arterial',
+    ],
+  },
+  {
+    key: 'genital',
+    label: 'Aparato genital',
+    short: 'Genital',
+    icon: '🔬',
+    symptoms: [
+      'Criptorquidia',
+      'Fimosis',
+      'Alteración función sexual',
+      'Sangrado genital',
+      'Flujo / leucorrea',
+      'Dolor ginecológico',
+      'Prurito vulvar',
+    ],
+  },
+  {
+    key: 'hematologico',
+    label: 'Aparato hematológico',
+    short: 'Hematológico',
+    icon: '🩸',
+    symptoms: ['Palidez', 'Astenia', 'Adinamia', 'Hemorragias', 'Adenopatías', 'Esplenomegalia'],
+  },
+  {
+    key: 'endocrino',
+    label: 'Sistema endocrino',
+    short: 'Endocrino',
+    icon: '⚡',
+    symptoms: [
+      'Bocio',
+      'Letargia / bradipsiquia',
+      'Intolerancia al calor',
+      'Intolerancia al frío',
+      'Nerviosismo',
+      'Hiperquinesis',
+      'Galactorrea',
+      'Amenorrea',
+      'Ginecomastia',
+      'Obesidad',
+      'Ruborización',
+    ],
+  },
+  {
+    key: 'osteomuscular',
+    label: 'Sistema osteomuscular',
+    short: 'Osteomuscular',
+    icon: '🦴',
+    symptoms: [
+      'Ganglios visibles',
+      'Xeroftalmia',
+      'Fotosensibilidad',
+      'Artralgias',
+      'Mialgias',
+      'Fenómeno de Raynaud',
+    ],
+  },
+  {
+    key: 'nervioso',
+    label: 'Sistema nervioso',
+    short: 'Nervioso',
+    icon: '🧠',
+    symptoms: [
+      'Cefalea',
+      'Síncope',
+      'Convulsiones',
+      'Déficit transitorio',
+      'Vértigo',
+      'Confusión',
+      'Alteración vigilia/sueño',
+      'Alteración de la marcha',
+      'Alteración del equilibrio',
+      'Alteración de la sensibilidad',
+    ],
+  },
+  {
+    key: 'sensorial',
+    label: 'Sistema sensorial',
+    short: 'Sensorial',
+    icon: '👁️',
+    symptoms: [
+      'Visión borrosa',
+      'Fosfenos',
+      'Dolor ocular',
+      'Fotofobia',
+      'Xeroftalmia',
+      'Amaurosis',
+      'Otalgia',
+      'Otorrea / otorragia',
+      'Hipoacusia',
+      'Tinitus',
+      'Epistaxis',
+      'Secreción nasal',
+      'Dolor de garganta',
+      'Alteración de la fonación',
+    ],
+  },
+  {
+    key: 'psicosomatico',
+    label: 'Psicosomático',
+    short: 'Psicosomático',
+    icon: '🧘',
+    symptoms: [
+      'Ansiedad',
+      'Depresión',
+      'Alteración de la afectividad',
+      'Emotividad',
+      'Amnesia',
+      'Alteración de la voluntad',
+      'Alteración del pensamiento',
+      'Alteración de la atención',
+      'Ideación suicida',
+      'Delirios',
+    ],
+  },
 ]
 
 const DEF_SYSTEM_ENTRY: SystemEntry = { normal: false, symptoms: [], notes: '' }
 
 function makeDefaultSystems(): SystemsReviewData {
-    return Object.fromEntries(SYSTEMS_CONFIG.map(s => [s.key, { ...DEF_SYSTEM_ENTRY }])) as SystemsReviewData
+  return Object.fromEntries(
+    SYSTEMS_CONFIG.map((s) => [s.key, { ...DEF_SYSTEM_ENTRY }]),
+  ) as SystemsReviewData
 }
 
 function parseAllergies(raw: string | null | undefined): AllergyItem[] {
-    if (!raw) return []
-    try {
-        const parsed = JSON.parse(raw)
-        if (Array.isArray(parsed)) {
-            if (parsed.length === 0) return []
-            if (typeof parsed[0].name === 'string') return parsed as AllergyItem[]
-            return []
-        }
-    } catch { /* legacy */ }
-    // Legacy comma-separated string → convert to basic AllergyItem[]
-    return raw.split(',').map(s => s.trim()).filter(Boolean).map(name => ({
-        id: name,
-        name,
-        type: 'otro' as const,
-        severity: 'leve' as const,
-        reaction: '',
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    if (Array.isArray(parsed)) {
+      if (parsed.length === 0) return []
+      if (typeof parsed[0].name === 'string') return parsed as AllergyItem[]
+      return []
+    }
+  } catch {
+    /* legacy */
+  }
+  // Legacy comma-separated string → convert to basic AllergyItem[]
+  return raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((name) => ({
+      id: name,
+      name,
+      type: 'otro' as const,
+      severity: 'leve' as const,
+      reaction: '',
     }))
 }
 
 function parseSystemsReview(raw: string | null | undefined): SystemsReviewData {
-    if (!raw) return makeDefaultSystems()
-    try {
-        const parsed = JSON.parse(raw)
-        if (parsed && typeof parsed === 'object' && 'digestivo' in parsed) {
-            // Merge with defaults so new keys are always present
-            const defaults = makeDefaultSystems()
-            const merged: Partial<SystemsReviewData> = {}
-            for (const s of SYSTEMS_CONFIG) {
-                merged[s.key] = { ...DEF_SYSTEM_ENTRY, ...defaults[s.key], ...(parsed[s.key] || {}) }
-            }
-            return merged as SystemsReviewData
-        }
-    } catch { /* legacy plain text — ignore */ }
-    return makeDefaultSystems()
+  if (!raw) return makeDefaultSystems()
+  try {
+    const parsed = JSON.parse(raw)
+    if (parsed && typeof parsed === 'object' && 'digestivo' in parsed) {
+      // Merge with defaults so new keys are always present
+      const defaults = makeDefaultSystems()
+      const merged: Partial<SystemsReviewData> = {}
+      for (const s of SYSTEMS_CONFIG) {
+        merged[s.key] = { ...DEF_SYSTEM_ENTRY, ...defaults[s.key], ...(parsed[s.key] || {}) }
+      }
+      return merged as SystemsReviewData
+    }
+  } catch {
+    /* legacy plain text — ignore */
+  }
+  return makeDefaultSystems()
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface AllergyItem {
-    id: string
-    name: string
-    type: 'medicamento' | 'alimento' | 'ambiental' | 'otro'
-    severity: 'leve' | 'moderada' | 'grave'
-    reaction: string
+  id: string
+  name: string
+  type: 'medicamento' | 'alimento' | 'ambiental' | 'otro'
+  severity: 'leve' | 'moderada' | 'grave'
+  reaction: string
 }
 
 const ALLERGY_TYPES: { key: AllergyItem['type']; label: string; icon: string }[] = [
-    { key: 'medicamento', label: 'Medicamento', icon: '💊' },
-    { key: 'alimento',    label: 'Alimento',    icon: '🍎' },
-    { key: 'ambiental',   label: 'Ambiental',   icon: '🌿' },
-    { key: 'otro',        label: 'Otro',        icon: '⚠️' },
+  { key: 'medicamento', label: 'Medicamento', icon: '💊' },
+  { key: 'alimento', label: 'Alimento', icon: '🍎' },
+  { key: 'ambiental', label: 'Ambiental', icon: '🌿' },
+  { key: 'otro', label: 'Otro', icon: '⚠️' },
 ]
 
 const ALLERGEN_DB: { name: string; type: AllergyItem['type'] }[] = [
-    // Medicamentos
-    { name: 'Penicilina',            type: 'medicamento' },
-    { name: 'Amoxicilina',           type: 'medicamento' },
-    { name: 'Ampicilina',            type: 'medicamento' },
-    { name: 'Cefalosporinas',        type: 'medicamento' },
-    { name: 'Sulfonamidas (Sulfa)',   type: 'medicamento' },
-    { name: 'Aspirina',              type: 'medicamento' },
-    { name: 'Ibuprofeno',            type: 'medicamento' },
-    { name: 'Naproxeno',             type: 'medicamento' },
-    { name: 'Diclofenaco',           type: 'medicamento' },
-    { name: 'AINES',                 type: 'medicamento' },
-    { name: 'Metamizol',             type: 'medicamento' },
-    { name: 'Paracetamol',           type: 'medicamento' },
-    { name: 'Codeína',               type: 'medicamento' },
-    { name: 'Morfina',               type: 'medicamento' },
-    { name: 'Contraste yodado',      type: 'medicamento' },
-    { name: 'Anestesia local',       type: 'medicamento' },
-    { name: 'Lidocaína',             type: 'medicamento' },
-    { name: 'Metformina',            type: 'medicamento' },
-    { name: 'Ciprofloxacino',        type: 'medicamento' },
-    { name: 'Claritromicina',        type: 'medicamento' },
-    { name: 'Azitromicina',          type: 'medicamento' },
-    { name: 'Tetraciclinas',         type: 'medicamento' },
-    { name: 'Vancomicina',           type: 'medicamento' },
-    { name: 'Carbamazepina',         type: 'medicamento' },
-    { name: 'Fenitoína',             type: 'medicamento' },
-    { name: 'Alopurinol',            type: 'medicamento' },
-    { name: 'Látex',                 type: 'medicamento' },
-    // Alimentos
-    { name: 'Mariscos',              type: 'alimento' },
-    { name: 'Camarones',             type: 'alimento' },
-    { name: 'Cangrejo',              type: 'alimento' },
-    { name: 'Langosta',              type: 'alimento' },
-    { name: 'Pescado',               type: 'alimento' },
-    { name: 'Nueces',                type: 'alimento' },
-    { name: 'Cacahuates / Maní',     type: 'alimento' },
-    { name: 'Almendras',             type: 'alimento' },
-    { name: 'Pistaches',             type: 'alimento' },
-    { name: 'Leche de vaca',         type: 'alimento' },
-    { name: 'Huevo',                 type: 'alimento' },
-    { name: 'Trigo / Gluten',        type: 'alimento' },
-    { name: 'Soya',                  type: 'alimento' },
-    { name: 'Ajonjolí',              type: 'alimento' },
-    { name: 'Fresa',                 type: 'alimento' },
-    { name: 'Kiwi',                  type: 'alimento' },
-    { name: 'Mango',                 type: 'alimento' },
-    { name: 'Melocotón / Durazno',   type: 'alimento' },
-    { name: 'Sulfitos / Conservadores', type: 'alimento' },
-    // Ambiental / Contacto
-    { name: 'Polen (gramíneas)',      type: 'ambiental' },
-    { name: 'Polen (árboles)',        type: 'ambiental' },
-    { name: 'Polen (maleza)',         type: 'ambiental' },
-    { name: 'Ácaros del polvo',       type: 'ambiental' },
-    { name: 'Polvo doméstico',        type: 'ambiental' },
-    { name: 'Pelo de gato',           type: 'ambiental' },
-    { name: 'Pelo de perro',          type: 'ambiental' },
-    { name: 'Moho / Hongos',          type: 'ambiental' },
-    { name: 'Cucaracha',              type: 'ambiental' },
-    { name: 'Níquel',                 type: 'ambiental' },
-    { name: 'Cromo',                  type: 'ambiental' },
-    { name: 'Fragancias / Perfumes',  type: 'ambiental' },
-    { name: 'Formaldehído',           type: 'ambiental' },
+  // Medicamentos
+  { name: 'Penicilina', type: 'medicamento' },
+  { name: 'Amoxicilina', type: 'medicamento' },
+  { name: 'Ampicilina', type: 'medicamento' },
+  { name: 'Cefalosporinas', type: 'medicamento' },
+  { name: 'Sulfonamidas (Sulfa)', type: 'medicamento' },
+  { name: 'Aspirina', type: 'medicamento' },
+  { name: 'Ibuprofeno', type: 'medicamento' },
+  { name: 'Naproxeno', type: 'medicamento' },
+  { name: 'Diclofenaco', type: 'medicamento' },
+  { name: 'AINES', type: 'medicamento' },
+  { name: 'Metamizol', type: 'medicamento' },
+  { name: 'Paracetamol', type: 'medicamento' },
+  { name: 'Codeína', type: 'medicamento' },
+  { name: 'Morfina', type: 'medicamento' },
+  { name: 'Contraste yodado', type: 'medicamento' },
+  { name: 'Anestesia local', type: 'medicamento' },
+  { name: 'Lidocaína', type: 'medicamento' },
+  { name: 'Metformina', type: 'medicamento' },
+  { name: 'Ciprofloxacino', type: 'medicamento' },
+  { name: 'Claritromicina', type: 'medicamento' },
+  { name: 'Azitromicina', type: 'medicamento' },
+  { name: 'Tetraciclinas', type: 'medicamento' },
+  { name: 'Vancomicina', type: 'medicamento' },
+  { name: 'Carbamazepina', type: 'medicamento' },
+  { name: 'Fenitoína', type: 'medicamento' },
+  { name: 'Alopurinol', type: 'medicamento' },
+  { name: 'Látex', type: 'medicamento' },
+  // Alimentos
+  { name: 'Mariscos', type: 'alimento' },
+  { name: 'Camarones', type: 'alimento' },
+  { name: 'Cangrejo', type: 'alimento' },
+  { name: 'Langosta', type: 'alimento' },
+  { name: 'Pescado', type: 'alimento' },
+  { name: 'Nueces', type: 'alimento' },
+  { name: 'Cacahuates / Maní', type: 'alimento' },
+  { name: 'Almendras', type: 'alimento' },
+  { name: 'Pistaches', type: 'alimento' },
+  { name: 'Leche de vaca', type: 'alimento' },
+  { name: 'Huevo', type: 'alimento' },
+  { name: 'Trigo / Gluten', type: 'alimento' },
+  { name: 'Soya', type: 'alimento' },
+  { name: 'Ajonjolí', type: 'alimento' },
+  { name: 'Fresa', type: 'alimento' },
+  { name: 'Kiwi', type: 'alimento' },
+  { name: 'Mango', type: 'alimento' },
+  { name: 'Melocotón / Durazno', type: 'alimento' },
+  { name: 'Sulfitos / Conservadores', type: 'alimento' },
+  // Ambiental / Contacto
+  { name: 'Polen (gramíneas)', type: 'ambiental' },
+  { name: 'Polen (árboles)', type: 'ambiental' },
+  { name: 'Polen (maleza)', type: 'ambiental' },
+  { name: 'Ácaros del polvo', type: 'ambiental' },
+  { name: 'Polvo doméstico', type: 'ambiental' },
+  { name: 'Pelo de gato', type: 'ambiental' },
+  { name: 'Pelo de perro', type: 'ambiental' },
+  { name: 'Moho / Hongos', type: 'ambiental' },
+  { name: 'Cucaracha', type: 'ambiental' },
+  { name: 'Níquel', type: 'ambiental' },
+  { name: 'Cromo', type: 'ambiental' },
+  { name: 'Fragancias / Perfumes', type: 'ambiental' },
+  { name: 'Formaldehído', type: 'ambiental' },
 ]
 
 const ALLERGY_SEVERITY: { key: AllergyItem['severity']; label: string; color: string }[] = [
-    { key: 'leve',     label: 'Leve',     color: 'bg-blue-100 text-blue-700 border-blue-200' },
-    { key: 'moderada', label: 'Moderada', color: 'bg-amber-100 text-amber-700 border-amber-200' },
-    { key: 'grave',    label: 'Grave',    color: 'bg-red-100 text-red-700 border-red-200' },
+  { key: 'leve', label: 'Leve', color: 'bg-blue-100 text-blue-700 border-blue-200' },
+  { key: 'moderada', label: 'Moderada', color: 'bg-amber-100 text-amber-700 border-amber-200' },
+  { key: 'grave', label: 'Grave', color: 'bg-red-100 text-red-700 border-red-200' },
 ]
 
 const IMPLANTS_LIST = [
-    'Marcapasos / DAI', 'Stent coronario', 'Prótesis valvular', 'Prótesis articular',
-    'DIU / Implante anticonceptivo', 'Implante coclear', 'Neuroestimulador',
-    'Puerto venoso', 'Catéter permanente', 'Otro implante',
+  'Marcapasos / DAI',
+  'Stent coronario',
+  'Prótesis valvular',
+  'Prótesis articular',
+  'DIU / Implante anticonceptivo',
+  'Implante coclear',
+  'Neuroestimulador',
+  'Puerto venoso',
+  'Catéter permanente',
+  'Otro implante',
 ]
 
 interface ToggleItem {
-    present: boolean
-    details: string
+  present: boolean
+  details: string
 }
 
 interface FHMemberRecord {
-    diseases: string[]   // disease keys this family member has
-    notes: string
+  relation?: string // human-readable relationship (Padre, Tío materno, etc.)
+  diseases: string[] // disease keys this family member has
+  notes: string
 }
 
 type FamilyHistory = Record<string, FHMemberRecord>
@@ -182,203 +406,304 @@ type FamilyHistory = Record<string, FHMemberRecord>
 // ── Family history constants ──────────────────────────────────────────────────
 
 const FAMILY_MEMBERS = [
-    { key: 'padre',    label: 'Padre',         icon: '👨' },
-    { key: 'madre',    label: 'Madre',          icon: '👩' },
-    { key: 'ab_pat',   label: 'Abuelos paternos', icon: '👴' },
-    { key: 'ab_mat',   label: 'Abuelos maternos', icon: '👵' },
-    { key: 'hermanos', label: 'Hermanos',        icon: '👫' },
+  { key: 'padre', label: 'Padre', icon: '👨' },
+  { key: 'madre', label: 'Madre', icon: '👩' },
+  { key: 'ab_pat', label: 'Abuelos paternos', icon: '👴' },
+  { key: 'ab_mat', label: 'Abuelos maternos', icon: '👵' },
+  { key: 'hermanos', label: 'Hermanos', icon: '👫' },
 ]
 
+const FH_RELATION_SUGGESTIONS = [
+  'Padre',
+  'Madre',
+  'Hermano',
+  'Hermana',
+  'Abuelo paterno',
+  'Abuela paterna',
+  'Abuelo materno',
+  'Abuela materna',
+  'Bisabuelo paterno',
+  'Bisabuela paterna',
+  'Bisabuelo materno',
+  'Bisabuela materna',
+  'Tío paterno',
+  'Tía paterna',
+  'Tío materno',
+  'Tía materna',
+  'Tío abuelo paterno',
+  'Tía abuela paterna',
+  'Tío abuelo materno',
+  'Tía abuela materna',
+  'Primo',
+  'Prima',
+  'Hijo',
+  'Hija',
+  'Cónyuge / pareja',
+]
+
+function getFHIcon(relation: string): string {
+  const r = (relation ?? '').toLowerCase()
+  if (
+    r.includes('madre') ||
+    r.includes('tía') ||
+    r.includes('abuela') ||
+    r.includes('hermana') ||
+    r.includes('hija') ||
+    r.includes('prima')
+  )
+    return '👩'
+  if (
+    r.includes('padre') ||
+    r.includes('tío') ||
+    r.includes('abuelo') ||
+    r.includes('hermano') ||
+    r.includes('hijo') ||
+    r.includes('primo') ||
+    r.includes('bisabuelo')
+  )
+    return '👨'
+  if (r.includes('hermanos') || r.includes('cónyuge') || r.includes('pareja')) return '👫'
+  return '👤'
+}
+
+/** Returns 0 = great-grandparents, 1 = grandparents, 2 = parents/uncles, 3 = siblings/spouse, 4 = children */
+function getFHGeneration(relation: string): number {
+  const r = (relation ?? '').toLowerCase()
+  if (
+    r.includes('bisabuelo') ||
+    r.includes('bisabuela') ||
+    r.includes('tío abuelo') ||
+    r.includes('tía abuela')
+  )
+    return 0
+  if (r.includes('abuelo') || r.includes('abuela')) return 1
+  if (
+    r.includes('padre') ||
+    r.includes('madre') ||
+    (r.includes('tío') && !r.includes('abuelo')) ||
+    (r.includes('tía') && !r.includes('abuela'))
+  )
+    return 2
+  if (
+    r.includes('hermano') ||
+    r.includes('hermana') ||
+    r.includes('cónyuge') ||
+    r.includes('pareja') ||
+    r.includes('primo') ||
+    r.includes('prima')
+  )
+    return 3
+  if (r.includes('hijo') || r.includes('hija')) return 4
+  return 3
+}
+
+const GEN_LABELS = ['Bisabuelos', 'Abuelos', 'Padres / Tíos', 'Hermanos / Cónyuge', 'Hijos']
+
 const FH_DISEASES = [
-    { key: 'diabetes_mellitus',     label: 'Diabetes Mellitus' },
-    { key: 'hipertension_arterial', label: 'Hipertensión Arterial Sistémica' },
-    { key: 'dislipidemias',         label: 'Dislipidemias' },
-    { key: 'neoplasias',            label: 'Neoplasias' },
-    { key: 'malformaciones',        label: 'Malformaciones hereditarias / congénitas' },
-    { key: 'alergias',              label: 'Alergias' },
-    { key: 'psiquiatricas',         label: 'Enf. Psiquiátricas' },
-    { key: 'neurologicas',          label: 'Enf. Neurológicas' },
-    { key: 'cardiovasculares',      label: 'Enf. Cardiovasculares' },
-    { key: 'broncopulmonares',      label: 'Enf. Broncopulmonares' },
-    { key: 'tiroideas',             label: 'Enf. Tiroideas' },
-    { key: 'renales',               label: 'Enf. Renales' },
-    { key: 'osteoarticulares',      label: 'Enf. Osteoarticulares' },
-    { key: 'infectocontagiosas',    label: 'Enf. Infectocontagiosas' },
+  { key: 'diabetes_mellitus', label: 'Diabetes Mellitus' },
+  { key: 'hipertension_arterial', label: 'Hipertensión Arterial Sistémica' },
+  { key: 'dislipidemias', label: 'Dislipidemias' },
+  { key: 'neoplasias', label: 'Neoplasias' },
+  { key: 'malformaciones', label: 'Malformaciones hereditarias / congénitas' },
+  { key: 'alergias', label: 'Alergias' },
+  { key: 'psiquiatricas', label: 'Enf. Psiquiátricas' },
+  { key: 'neurologicas', label: 'Enf. Neurológicas' },
+  { key: 'cardiovasculares', label: 'Enf. Cardiovasculares' },
+  { key: 'broncopulmonares', label: 'Enf. Broncopulmonares' },
+  { key: 'tiroideas', label: 'Enf. Tiroideas' },
+  { key: 'renales', label: 'Enf. Renales' },
+  { key: 'osteoarticulares', label: 'Enf. Osteoarticulares' },
+  { key: 'infectocontagiosas', label: 'Enf. Infectocontagiosas' },
 ] as const
 
 interface HepatitisItem {
-    a: boolean
-    b: boolean
-    c: boolean
-    details: string
+  a: boolean
+  b: boolean
+  c: boolean
+  details: string
 }
 
 interface CDItem {
-    present: boolean
-    year: string
-    details: string
+  present: boolean
+  year: string
+  details: string
 }
 
 // ── Patho constants ───────────────────────────────────────────────────────────
 
 const CD_DISEASES = [
-    { key: 'diabetes_mellitus',    label: 'Diabetes Mellitus' },
-    { key: 'hipertension_arterial', label: 'Hipertensión Arterial Sistémica' },
-    { key: 'dislipidemias',         label: 'Dislipidemias' },
-    { key: 'obesidad',              label: 'Obesidad' },
-    { key: 'neoplasicas',           label: 'Neoplásicas' },
-    { key: 'reumatologicas',        label: 'Enf. Reumatológicas' },
-    { key: 'gota',                  label: 'Enfermedad de Gota' },
-    { key: 'psiquiatricas',         label: 'Enf. Psiquiátricas' },
-    { key: 'nervioso',              label: 'Sistema Nervioso' },
-    { key: 'cardiovascular',        label: 'Cardiovascular' },
-    { key: 'respiratorio',          label: 'Respiratorio' },
-    { key: 'gastrointestinal',      label: 'Gastrointestinal' },
-    { key: 'urinario',              label: 'Urinario' },
-    { key: 'musculoesqueletico',    label: 'Musculoesquelético' },
-    { key: 'tegumentario',          label: 'Tegumentario' },
-    { key: 'endocrinologicas',      label: 'Endocrinológicas' },
-    { key: 'inmunologicas',         label: 'Inmunológicas' },
+  { key: 'diabetes_mellitus', label: 'Diabetes Mellitus' },
+  { key: 'hipertension_arterial', label: 'Hipertensión Arterial Sistémica' },
+  { key: 'dislipidemias', label: 'Dislipidemias' },
+  { key: 'obesidad', label: 'Obesidad' },
+  { key: 'neoplasicas', label: 'Neoplásicas' },
+  { key: 'reumatologicas', label: 'Enf. Reumatológicas' },
+  { key: 'gota', label: 'Enfermedad de Gota' },
+  { key: 'psiquiatricas', label: 'Enf. Psiquiátricas' },
+  { key: 'nervioso', label: 'Sistema Nervioso' },
+  { key: 'cardiovascular', label: 'Cardiovascular' },
+  { key: 'respiratorio', label: 'Respiratorio' },
+  { key: 'gastrointestinal', label: 'Gastrointestinal' },
+  { key: 'urinario', label: 'Urinario' },
+  { key: 'musculoesqueletico', label: 'Musculoesquelético' },
+  { key: 'tegumentario', label: 'Tegumentario' },
+  { key: 'endocrinologicas', label: 'Endocrinológicas' },
+  { key: 'inmunologicas', label: 'Inmunológicas' },
 ] as const
 
-const EXANTEMATICAS_LIST = ['Exantema súbito', 'Roséola escarlatina', 'Rubéola', 'Sarampión', 'Varicela'] as const
-const INFECTOCONTAGIOSAS_LIST = ['Faringoamigdalitis', 'Fiebre Reumática', 'Hepatitis', 'Parasitosis', 'Tifoidea', 'Transmisión sexual', 'Tuberculosis'] as const
+const EXANTEMATICAS_LIST = [
+  'Exantema súbito',
+  'Roséola escarlatina',
+  'Rubéola',
+  'Sarampión',
+  'Varicela',
+] as const
+const INFECTOCONTAGIOSAS_LIST = [
+  'Faringoamigdalitis',
+  'Fiebre Reumática',
+  'Hepatitis',
+  'Parasitosis',
+  'Tifoidea',
+  'Transmisión sexual',
+  'Tuberculosis',
+] as const
 
 const ANTECEDENTES_PREVIOS = [
-    { key: 'generales',        label: 'Generales',          emoji: '⚕️' },
-    { key: 'alergicos',        label: 'Alérgicos',          emoji: '🌿' },
-    { key: 'hospitalizaciones', label: 'Hospitalizaciones', emoji: '🏥' },
-    { key: 'surgeries',        label: 'Quirúrgicos',        emoji: '🔪' },
-    { key: 'traumaticos',      label: 'Traumáticos',        emoji: '🩹' },
-    { key: 'transfusions',     label: 'Transfusiones',      emoji: '🩸' },
+  { key: 'generales', label: 'Generales', emoji: '⚕️' },
+  { key: 'alergicos', label: 'Alérgicos', emoji: '🌿' },
+  { key: 'hospitalizaciones', label: 'Hospitalizaciones', emoji: '🏥' },
+  { key: 'surgeries', label: 'Quirúrgicos', emoji: '🔪' },
+  { key: 'traumaticos', label: 'Traumáticos', emoji: '🩹' },
+  { key: 'transfusions', label: 'Transfusiones', emoji: '🩸' },
 ] as const
 
 interface SmokingItem {
-    present: boolean
-    frequency: string
-    details: string
+  present: boolean
+  frequency: string
+  details: string
 }
 
 interface ExerciseItem {
-    present: boolean
-    frequency: string
-    details: string
+  present: boolean
+  frequency: string
+  details: string
 }
 
 interface AlcoholItem {
-    present: boolean
-    frequency_per_week: string
-    cups_per_day: string
-    details: string
+  present: boolean
+  frequency_per_week: string
+  cups_per_day: string
+  details: string
 }
 
 interface PathologicalHistory {
-    medications: ToggleItem
-    // Antecedentes previos
-    generales: ToggleItem
-    alergicos: ToggleItem
-    hospitalizaciones: ToggleItem
-    surgeries: ToggleItem
-    traumaticos: ToggleItem
-    transfusions: ToggleItem
-    // Adicciones
-    addiction_alcohol: ToggleItem
-    addiction_tabaco: ToggleItem
-    addiction_otras: ToggleItem
-    // Enfermedades por contagio
-    exantematicas: string[]
-    exantematica_otra: string
-    infectocontagiosas: string[]
-    infectocontagiosa_otra: string
-    hepatitis_types: { a: boolean; b: boolean; c: boolean }
-    // Crónico-Degenerativas
-    cd: Record<string, CDItem>
-    // Implantes y dispositivos
-    implants: string[]
-    vaccination: { status: string; notes: string }
-    // Legacy fields (backward compat – kept for migration)
-    other_diseases?: ToggleItem
-    hepatitis?: HepatitisItem
-    diabetes?: ToggleItem
-    hypertension?: ToggleItem
+  medications: ToggleItem
+  // Antecedentes previos
+  generales: ToggleItem
+  alergicos: ToggleItem
+  hospitalizaciones: ToggleItem
+  surgeries: ToggleItem
+  traumaticos: ToggleItem
+  transfusions: ToggleItem
+  // Adicciones
+  addiction_alcohol: ToggleItem
+  addiction_tabaco: ToggleItem
+  addiction_otras: ToggleItem
+  // Enfermedades por contagio
+  exantematicas: string[]
+  exantematica_otra: string
+  infectocontagiosas: string[]
+  infectocontagiosa_otra: string
+  hepatitis_types: { a: boolean; b: boolean; c: boolean }
+  // Crónico-Degenerativas
+  cd: Record<string, CDItem>
+  // Implantes y dispositivos
+  implants: string[]
+  implants_notes: string
+  vaccination: { status: string; notes: string }
+  // Legacy fields (backward compat – kept for migration)
+  other_diseases?: ToggleItem
+  hepatitis?: HepatitisItem
+  diabetes?: ToggleItem
+  hypertension?: ToggleItem
 }
 
 interface NonPathologicalHistory {
-    smoking: SmokingItem
-    alcohol: AlcoholItem
-    drugs: ToggleItem
-    exercise: ExerciseItem
+  smoking: SmokingItem
+  alcohol: AlcoholItem
+  drugs: ToggleItem
+  exercise: ExerciseItem
 }
 
 interface GynecologicalHistory {
-    applicable: boolean
-    menarche: string
-    gestations: string
-    births: string
-    cesareans: string
-    abortions: string
-    stillbirths: string
-    ectopics: string
-    last_gestation_date: string
-    still_menstruating: boolean
-    duration_days: string
-    frequency_days: string
-    irregular_cycles: boolean
-    contraceptives: ToggleItem
-    last_period_date: string
-    pregnant: boolean
-    gestational_age: string
-    probable_birth_date: string
-    trimester: string
-    details: string
+  applicable: boolean
+  menarche: string
+  gestations: string
+  births: string
+  cesareans: string
+  abortions: string
+  stillbirths: string
+  ectopics: string
+  last_gestation_date: string
+  still_menstruating: boolean
+  duration_days: string
+  frequency_days: string
+  irregular_cycles: boolean
+  contraceptives: ToggleItem
+  last_period_date: string
+  pregnant: boolean
+  gestational_age: string
+  probable_birth_date: string
+  trimester: string
+  details: string
 }
 
 interface PsychiatricHistory {
-    applicable: boolean
-    diagnoses: string[]
-    diagnoses_other: string
-    current_psychiatric_meds: ToggleItem
-    previous_psychiatric_meds: string
-    psychotherapy: ToggleItem
-    hospitalization_psychiatric: ToggleItem
-    suicide_attempts: ToggleItem
-    notes: string
+  applicable: boolean
+  diagnoses: string[]
+  diagnoses_other: string
+  current_psychiatric_meds: ToggleItem
+  previous_psychiatric_meds: string
+  psychotherapy: ToggleItem
+  hospitalization_psychiatric: ToggleItem
+  suicide_attempts: ToggleItem
+  notes: string
 }
 
 interface DevelopmentalHistory {
-    applicable: boolean
-    birth_type: string
-    gestational_age_weeks: string
-    perinatal_complications: ToggleItem
-    neonatal_complications: string[]
-    motor_milestones: string
-    language_milestones: string
-    cognitive_development: string
-    school_performance: string
-    education_level: string
-    notes: string
+  applicable: boolean
+  birth_type: string
+  gestational_age_weeks: string
+  perinatal_complications: ToggleItem
+  neonatal_complications: string[]
+  motor_milestones: string
+  language_milestones: string
+  cognitive_development: string
+  school_performance: string
+  education_level: string
+  notes: string
 }
 
 interface FormData {
-    patient_id: string
-    allergies: string
-    referral_source: string
-    consultation_reason: string
-    patient_observations: string
-    family_history: FamilyHistory
-    pathological_history: PathologicalHistory
-    non_pathological_history: NonPathologicalHistory
-    gynecological_history: GynecologicalHistory
-    psychiatric_history: PsychiatricHistory
-    developmental_history: DevelopmentalHistory
-    systems_review: string
-    // NOM-004 §7.1.5–12
-    current_illness: string
-    physical_examination: string
-    initial_diagnoses: Array<{ codigo: string; descripcion: string }>
-    prognosis: string
-    initial_plan: string
-    updated_at?: string
+  patient_id: string
+  allergies: string
+  referral_source: string
+  consultation_reason: string
+  patient_observations: string
+  family_history: FamilyHistory
+  pathological_history: PathologicalHistory
+  non_pathological_history: NonPathologicalHistory
+  gynecological_history: GynecologicalHistory
+  psychiatric_history: PsychiatricHistory
+  developmental_history: DevelopmentalHistory
+  systems_review: string
+  // NOM-004 §7.1.5–12
+  current_illness: string
+  physical_examination: string
+  initial_diagnoses: Array<{ codigo: string; descripcion: string }>
+  prognosis: string
+  initial_plan: string
+  updated_at?: string
 }
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
@@ -386,1979 +711,2622 @@ interface FormData {
 const DEF_TOGGLE: ToggleItem = { present: false, details: '' }
 
 function makeDefaultFH(): FamilyHistory {
-    const r: FamilyHistory = {}
-    FAMILY_MEMBERS.forEach(m => { r[m.key] = { diseases: [], notes: '' } })
-    return r
+  return {}
 }
 
 const DEF_FAMILY: FamilyHistory = makeDefaultFH()
 
-/** Migrate any previous FamilyHistory format to member-first FHMemberRecord format. */
+/** Migrate any previous FamilyHistory format to the current flexible format. */
 function migrateFH(raw: Record<string, unknown>): FamilyHistory {
-    const base = makeDefaultFH()
-
-    // Detect new member-first format (keys are member keys like 'padre')
-    const isMemberFirst = FAMILY_MEMBERS.some(m => raw[m.key] !== undefined)
-    if (isMemberFirst) {
-        FAMILY_MEMBERS.forEach(({ key }) => {
-            const existing = raw[key] as Record<string, unknown>
-            if (existing && typeof existing === 'object') {
-                base[key] = {
-                    diseases: Array.isArray(existing.diseases) ? existing.diseases : [],
-                    notes: (existing.notes as string) || '',
-                }
-            }
-        })
-        return base
-    }
-
-    // Old disease-first format: invert disease→members into member→diseases
-    FH_DISEASES.forEach(({ key: dKey }) => {
-        const item = raw[dKey] as Record<string, unknown>
-        if (!item) return
-        const memberKeys: string[] = Array.isArray(item.members)
-            ? item.members
-            : typeof item.members === 'object' && item.members !== null
-                ? Object.keys(item.members)
-                : []
-        memberKeys.forEach(mKey => {
-            if (base[mKey]) base[mKey].diseases.push(dKey)
-        })
+  // Detect old member-first format (fixed keys like 'padre', 'madre')
+  const isMemberFirst = FAMILY_MEMBERS.some((m) => raw[m.key] !== undefined)
+  if (isMemberFirst) {
+    const result: FamilyHistory = {}
+    FAMILY_MEMBERS.forEach(({ key, label }) => {
+      const existing = raw[key] as Record<string, unknown>
+      if (existing && typeof existing === 'object') {
+        result[key] = {
+          relation: label,
+          diseases: Array.isArray(existing.diseases) ? existing.diseases : [],
+          notes: (existing.notes as string) || '',
+        }
+      }
     })
+    return result
+  }
 
-    return base
+  // Detect very old disease-first format
+  const isDiseasefirst = FH_DISEASES.some(({ key }) => raw[key] !== undefined)
+  if (isDiseasefirst) {
+    const result: FamilyHistory = {}
+    FH_DISEASES.forEach(({ key: dKey }) => {
+      const item = raw[dKey] as Record<string, unknown>
+      if (!item) return
+      const memberKeys: string[] = Array.isArray(item.members)
+        ? (item.members as string[])
+        : typeof item.members === 'object' && item.members !== null
+          ? Object.keys(item.members)
+          : []
+      memberKeys.forEach((mKey) => {
+        if (!result[mKey]) {
+          const memberInfo = FAMILY_MEMBERS.find((m) => m.key === mKey)
+          result[mKey] = { relation: memberInfo?.label || mKey, diseases: [], notes: '' }
+        }
+        result[mKey].diseases.push(dKey)
+      })
+    })
+    return result
+  }
+
+  // Current format or empty — preserve as-is, ensure `relation` exists
+  const result: FamilyHistory = {}
+  for (const [key, value] of Object.entries(raw)) {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const v = value as Record<string, unknown>
+      result[key] = {
+        relation: (v.relation as string) || key,
+        diseases: Array.isArray(v.diseases) ? (v.diseases as string[]) : [],
+        notes: (v.notes as string) || '',
+      }
+    }
+  }
+  return result
 }
 
 function makeDefaultCD(): Record<string, CDItem> {
-    const r: Record<string, CDItem> = {}
-    CD_DISEASES.forEach(d => { r[d.key] = { present: false, year: '', details: '' } })
-    return r
+  const r: Record<string, CDItem> = {}
+  CD_DISEASES.forEach((d) => {
+    r[d.key] = { present: false, year: '', details: '' }
+  })
+  return r
 }
 
 const DEF_PATHO: PathologicalHistory = {
-    medications:      { ...DEF_TOGGLE },
-    generales:        { ...DEF_TOGGLE },
-    alergicos:        { ...DEF_TOGGLE },
-    hospitalizaciones:{ ...DEF_TOGGLE },
-    surgeries:        { ...DEF_TOGGLE },
-    traumaticos:      { ...DEF_TOGGLE },
-    transfusions:     { ...DEF_TOGGLE },
-    addiction_alcohol: { ...DEF_TOGGLE },
-    addiction_tabaco:  { ...DEF_TOGGLE },
-    addiction_otras:   { ...DEF_TOGGLE },
-    exantematicas:    [],
-    exantematica_otra:'',
-    infectocontagiosas:[],
-    infectocontagiosa_otra: '',
-    hepatitis_types:  { a: false, b: false, c: false },
-    cd:               makeDefaultCD(),
-    implants:         [],
-    vaccination:      { status: '', notes: '' },
+  medications: { ...DEF_TOGGLE },
+  generales: { ...DEF_TOGGLE },
+  alergicos: { ...DEF_TOGGLE },
+  hospitalizaciones: { ...DEF_TOGGLE },
+  surgeries: { ...DEF_TOGGLE },
+  traumaticos: { ...DEF_TOGGLE },
+  transfusions: { ...DEF_TOGGLE },
+  addiction_alcohol: { ...DEF_TOGGLE },
+  addiction_tabaco: { ...DEF_TOGGLE },
+  addiction_otras: { ...DEF_TOGGLE },
+  exantematicas: [],
+  exantematica_otra: '',
+  infectocontagiosas: [],
+  infectocontagiosa_otra: '',
+  hepatitis_types: { a: false, b: false, c: false },
+  cd: makeDefaultCD(),
+  implants: [],
+  implants_notes: '',
+  vaccination: { status: '', notes: '' },
 }
 
 /** Migrate legacy PathologicalHistory data to the new schema on load. */
 function migratePatho(raw: Record<string, unknown>): PathologicalHistory {
-    const base: PathologicalHistory = {
-        ...DEF_PATHO,
-        ...(raw as Partial<PathologicalHistory>),
-        cd: { ...makeDefaultCD(), ...((raw.cd as Record<string, CDItem>) || {}) },
-        exantematicas:  Array.isArray(raw.exantematicas)  ? raw.exantematicas as string[]  : [],
-        infectocontagiosas: Array.isArray(raw.infectocontagiosas) ? raw.infectocontagiosas as string[] : [],
-        hepatitis_types: (raw.hepatitis_types as { a: boolean; b: boolean; c: boolean }) ?? { a: false, b: false, c: false },
+  const base: PathologicalHistory = {
+    ...DEF_PATHO,
+    ...(raw as Partial<PathologicalHistory>),
+    cd: { ...makeDefaultCD(), ...((raw.cd as Record<string, CDItem>) || {}) },
+    exantematicas: Array.isArray(raw.exantematicas) ? (raw.exantematicas as string[]) : [],
+    infectocontagiosas: Array.isArray(raw.infectocontagiosas)
+      ? (raw.infectocontagiosas as string[])
+      : [],
+    hepatitis_types: (raw.hepatitis_types as { a: boolean; b: boolean; c: boolean }) ?? {
+      a: false,
+      b: false,
+      c: false,
+    },
+  }
+  // Migrate old diabetes → cd
+  const legDiab = raw.diabetes as ToggleItem | undefined
+  if (legDiab?.present && !base.cd.diabetes_mellitus?.present) {
+    base.cd.diabetes_mellitus = { present: true, year: '', details: legDiab.details || '' }
+  }
+  // Migrate old hypertension → cd
+  const legHtn = raw.hypertension as ToggleItem | undefined
+  if (legHtn?.present && !base.cd.hipertension_arterial?.present) {
+    base.cd.hipertension_arterial = { present: true, year: '', details: legHtn.details || '' }
+  }
+  // Migrate old hepatitis → infectocontagiosas + hepatitis_types
+  const legHep = raw.hepatitis as HepatitisItem | undefined
+  if (legHep && (legHep.a || legHep.b || legHep.c)) {
+    if (!base.infectocontagiosas.includes('Hepatitis')) {
+      base.infectocontagiosas = [...base.infectocontagiosas, 'Hepatitis']
     }
-    // Migrate old diabetes → cd
-    const legDiab = raw.diabetes as ToggleItem | undefined
-    if (legDiab?.present && !base.cd.diabetes_mellitus?.present) {
-        base.cd.diabetes_mellitus = { present: true, year: '', details: legDiab.details || '' }
+    base.hepatitis_types = {
+      a: legHep.a || base.hepatitis_types.a,
+      b: legHep.b || base.hepatitis_types.b,
+      c: legHep.c || base.hepatitis_types.c,
     }
-    // Migrate old hypertension → cd
-    const legHtn = raw.hypertension as ToggleItem | undefined
-    if (legHtn?.present && !base.cd.hipertension_arterial?.present) {
-        base.cd.hipertension_arterial = { present: true, year: '', details: legHtn.details || '' }
-    }
-    // Migrate old hepatitis → infectocontagiosas + hepatitis_types
-    const legHep = raw.hepatitis as HepatitisItem | undefined
-    if (legHep && (legHep.a || legHep.b || legHep.c)) {
-        if (!base.infectocontagiosas.includes('Hepatitis')) {
-            base.infectocontagiosas = [...base.infectocontagiosas, 'Hepatitis']
-        }
-        base.hepatitis_types = {
-            a: legHep.a || base.hepatitis_types.a,
-            b: legHep.b || base.hepatitis_types.b,
-            c: legHep.c || base.hepatitis_types.c,
-        }
-    }
-    return base
+  }
+  return base
 }
 
 const DEF_NON_PATHO: NonPathologicalHistory = {
-    smoking: { present: false, frequency: '', details: '' },
-    alcohol: { present: false, frequency_per_week: '', cups_per_day: '', details: '' },
-    drugs: { ...DEF_TOGGLE },
-    exercise: { present: false, frequency: '', details: '' },
+  smoking: { present: false, frequency: '', details: '' },
+  alcohol: { present: false, frequency_per_week: '', cups_per_day: '', details: '' },
+  drugs: { ...DEF_TOGGLE },
+  exercise: { present: false, frequency: '', details: '' },
 }
 
 const DEF_GYNECO: GynecologicalHistory = {
-    applicable: false,
-    menarche: '',
-    gestations: '',
-    births: '',
-    cesareans: '',
-    abortions: '',
-    stillbirths: '',
-    ectopics: '',
-    last_gestation_date: '',
-    still_menstruating: false,
-    duration_days: '',
-    frequency_days: '',
-    irregular_cycles: false,
-    contraceptives: { ...DEF_TOGGLE },
-    last_period_date: '',
-    pregnant: false,
-    gestational_age: '',
-    probable_birth_date: '',
-    trimester: '',
-    details: '',
+  applicable: false,
+  menarche: '',
+  gestations: '',
+  births: '',
+  cesareans: '',
+  abortions: '',
+  stillbirths: '',
+  ectopics: '',
+  last_gestation_date: '',
+  still_menstruating: false,
+  duration_days: '',
+  frequency_days: '',
+  irregular_cycles: false,
+  contraceptives: { ...DEF_TOGGLE },
+  last_period_date: '',
+  pregnant: false,
+  gestational_age: '',
+  probable_birth_date: '',
+  trimester: '',
+  details: '',
 }
 
 const PSYCHIATRIC_DIAGNOSES = [
-    'Depresión', 'Trastorno de ansiedad generalizada', 'Trastorno de pánico',
-    'Trastorno bipolar', 'Esquizofrenia', 'TDAH', 'TOC', 'TEPT',
-    'Trastorno de personalidad', 'Anorexia / Bulimia', 'Insomnio crónico',
+  'Depresión',
+  'Trastorno de ansiedad generalizada',
+  'Trastorno de pánico',
+  'Trastorno bipolar',
+  'Esquizofrenia',
+  'TDAH',
+  'TOC',
+  'TEPT',
+  'Trastorno de personalidad',
+  'Anorexia / Bulimia',
+  'Insomnio crónico',
 ]
 
 const NEONATAL_COMPLICATIONS_LIST = [
-    'Ictericia neonatal', 'Incubadora', 'Suplemento de oxígeno',
-    'Convulsiones neonatales', 'Sepsis neonatal', 'Hipoglucemia neonatal',
-    'Bajo peso al nacer',
+  'Ictericia neonatal',
+  'Incubadora',
+  'Suplemento de oxígeno',
+  'Convulsiones neonatales',
+  'Sepsis neonatal',
+  'Hipoglucemia neonatal',
+  'Bajo peso al nacer',
 ]
 
 const MILESTONE_OPTIONS: FreqOption[] = [
-    { value: 'normal',           label: 'Normal' },
-    { value: 'leve_retraso',     label: 'Retraso leve' },
-    { value: 'moderado_retraso', label: 'Retraso moderado' },
-    { value: 'severo_retraso',   label: 'Retraso severo' },
+  { value: 'normal', label: 'Normal' },
+  { value: 'leve_retraso', label: 'Retraso leve' },
+  { value: 'moderado_retraso', label: 'Retraso moderado' },
+  { value: 'severo_retraso', label: 'Retraso severo' },
 ]
 
 const SCHOOL_PERF_OPTIONS: FreqOption[] = [
-    { value: 'excelente',  label: 'Excelente' },
-    { value: 'bueno',      label: 'Bueno' },
-    { value: 'regular',    label: 'Regular' },
-    { value: 'bajo',       label: 'Bajo' },
-    { value: 'repitencia', label: 'Repitencia escolar' },
+  { value: 'excelente', label: 'Excelente' },
+  { value: 'bueno', label: 'Bueno' },
+  { value: 'regular', label: 'Regular' },
+  { value: 'bajo', label: 'Bajo' },
+  { value: 'repitencia', label: 'Repitencia escolar' },
 ]
 
 const DEF_PSYCHIATRIC: PsychiatricHistory = {
-    applicable: false,
-    diagnoses: [],
-    diagnoses_other: '',
-    current_psychiatric_meds: { ...DEF_TOGGLE },
-    previous_psychiatric_meds: '',
-    psychotherapy: { ...DEF_TOGGLE },
-    hospitalization_psychiatric: { ...DEF_TOGGLE },
-    suicide_attempts: { ...DEF_TOGGLE },
-    notes: '',
+  applicable: false,
+  diagnoses: [],
+  diagnoses_other: '',
+  current_psychiatric_meds: { ...DEF_TOGGLE },
+  previous_psychiatric_meds: '',
+  psychotherapy: { ...DEF_TOGGLE },
+  hospitalization_psychiatric: { ...DEF_TOGGLE },
+  suicide_attempts: { ...DEF_TOGGLE },
+  notes: '',
 }
 
 const DEF_DEVELOPMENTAL: DevelopmentalHistory = {
-    applicable: false,
-    birth_type: '',
-    gestational_age_weeks: '',
-    perinatal_complications: { ...DEF_TOGGLE },
-    neonatal_complications: [],
-    motor_milestones: '',
-    language_milestones: '',
-    cognitive_development: '',
-    school_performance: '',
-    education_level: '',
-    notes: '',
+  applicable: false,
+  birth_type: '',
+  gestational_age_weeks: '',
+  perinatal_complications: { ...DEF_TOGGLE },
+  neonatal_complications: [],
+  motor_milestones: '',
+  language_milestones: '',
+  cognitive_development: '',
+  school_performance: '',
+  education_level: '',
+  notes: '',
 }
 
 function makeDefault(patientId: string): FormData {
-    return {
-        patient_id: patientId,
-        allergies: '',
-        referral_source: '',
-        consultation_reason: '',
-        patient_observations: '',
-        family_history: { ...DEF_FAMILY },
-        pathological_history: { ...DEF_PATHO },
-        non_pathological_history: { ...DEF_NON_PATHO },
-        gynecological_history: { ...DEF_GYNECO },
-        psychiatric_history: { ...DEF_PSYCHIATRIC },
-        developmental_history: { ...DEF_DEVELOPMENTAL },
-        systems_review: '',
-        current_illness: '',
-        physical_examination: '',
-        initial_diagnoses: [],
-        prognosis: '',
-        initial_plan: '',
-    }
+  return {
+    patient_id: patientId,
+    allergies: '',
+    referral_source: '',
+    consultation_reason: '',
+    patient_observations: '',
+    family_history: { ...DEF_FAMILY },
+    pathological_history: { ...DEF_PATHO },
+    non_pathological_history: { ...DEF_NON_PATHO },
+    gynecological_history: { ...DEF_GYNECO },
+    psychiatric_history: { ...DEF_PSYCHIATRIC },
+    developmental_history: { ...DEF_DEVELOPMENTAL },
+    systems_review: '',
+    current_illness: '',
+    physical_examination: '',
+    initial_diagnoses: [],
+    prognosis: '',
+    initial_plan: '',
+  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function strToChips(s: string): string[] {
-    if (!s || !s.trim()) return []
-    return s.split(/,\s*/).map(c => c.trim()).filter(Boolean)
+  if (!s || !s.trim()) return []
+  return s
+    .split(/,\s*/)
+    .map((c) => c.trim())
+    .filter(Boolean)
 }
 
 function chipsToStr(chips: string[]): string {
-    return chips.join(', ')
+  return chips.join(', ')
 }
 
 // ── Mini UI components ────────────────────────────────────────────────────────
 
-function SectionCard({ title, children, defaultOpen = true, readOnly = false }: {
-    title: string
-    children: React.ReactNode
-    defaultOpen?: boolean
-    readOnly?: boolean
+function SectionCard({
+  title,
+  children,
+  defaultOpen = true,
+  readOnly = false,
+}: {
+  title: string
+  children: React.ReactNode
+  defaultOpen?: boolean
+  readOnly?: boolean
 }) {
-    const [open, setOpen] = useState(defaultOpen)
-    return (
-        <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
-            <button
-                type="button"
-                onClick={() => setOpen(o => !o)}
-                className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
-            >
-                <span className="text-sm font-bold text-gray-800">{title}</span>
-                {open
-                    ? <ChevronUp size={16} className="text-gray-400 flex-shrink-0" />
-                    : <ChevronDown size={16} className="text-gray-400 flex-shrink-0" />
-                }
-            </button>
-            {open && (
-                <div className={`px-5 pb-5 pt-4 border-t border-gray-100 space-y-4 ${readOnly ? 'pointer-events-none select-none [&_.view-toggle]:pointer-events-auto' : ''}`}>
-                    {children}
-                </div>
-            )}
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div className="bg-white border border-gray-100 rounded-2xl shadow-sm">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors rounded-2xl"
+      >
+        <span className="text-sm font-bold text-gray-800">{title}</span>
+        {open ? (
+          <ChevronUp size={16} className="text-gray-400 flex-shrink-0" />
+        ) : (
+          <ChevronDown size={16} className="text-gray-400 flex-shrink-0" />
+        )}
+      </button>
+      {open && (
+        <div
+          className={`px-5 pb-5 pt-4 border-t border-gray-100 space-y-4 rounded-b-2xl ${readOnly ? 'pointer-events-none select-none [&_.view-toggle]:pointer-events-auto' : ''}`}
+        >
+          {children}
         </div>
-    )
+      )}
+    </div>
+  )
 }
 
-function TextAreaField({ label, value, onChange, placeholder = 'Escribe más detalles aquí...', rows = 2 }: {
-    label?: string
-    value: string
-    onChange: (v: string) => void
-    placeholder?: string
-    rows?: number
+function TextAreaField({
+  label,
+  value,
+  onChange,
+  placeholder = 'Escribe más detalles aquí...',
+  rows = 2,
+}: {
+  label?: string
+  value: string
+  onChange: (v: string) => void
+  placeholder?: string
+  rows?: number
 }) {
-    return (
-        <div className="space-y-1.5">
-            {label && <label className="text-xs font-semibold text-gray-500">{label}</label>}
-            <textarea
-                value={value}
-                onChange={e => onChange(e.target.value)}
-                placeholder={placeholder}
-                rows={rows}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none resize-none bg-gray-50/50"
-            />
-        </div>
-    )
+  return (
+    <div className="space-y-1.5">
+      {label && <label className="text-xs font-semibold text-gray-500">{label}</label>}
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        rows={rows}
+        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none resize-none bg-gray-50/50"
+      />
+    </div>
+  )
 }
 
-function TextField({ label, value, onChange, placeholder = '', type = 'text' }: {
-    label?: string
-    value: string
-    onChange: (v: string) => void
-    placeholder?: string
-    type?: string
+function TextField({
+  label,
+  value,
+  onChange,
+  placeholder = '',
+  type = 'text',
+}: {
+  label?: string
+  value: string
+  onChange: (v: string) => void
+  placeholder?: string
+  type?: string
 }) {
-    return (
-        <div className="space-y-1.5">
-            {label && <label className="text-xs font-semibold text-gray-500">{label}</label>}
-            <input
-                type={type}
-                value={value}
-                onChange={e => onChange(e.target.value)}
-                placeholder={placeholder}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none bg-gray-50/50"
-            />
-        </div>
-    )
+  return (
+    <div className="space-y-1.5">
+      {label && <label className="text-xs font-semibold text-gray-500">{label}</label>}
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none bg-gray-50/50"
+      />
+    </div>
+  )
 }
 
-function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
-    return (
-        <label className="flex items-center gap-3 cursor-pointer select-none">
-            <button
-                type="button"
-                role="switch"
-                aria-checked={checked}
-                onClick={() => onChange(!checked)}
-                className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${checked ? 'bg-[#33C7BE]' : 'bg-gray-200'}`}
-            >
-                <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-5' : ''}`} />
-            </button>
-            <span className="text-sm font-medium text-gray-700">{label}</span>
-        </label>
-    )
+function Toggle({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string
+  checked: boolean
+  onChange: (v: boolean) => void
+}) {
+  return (
+    <label className="flex items-center gap-3 cursor-pointer select-none">
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${checked ? 'bg-[#33C7BE]' : 'bg-gray-200'}`}
+      >
+        <span
+          className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-5' : ''}`}
+        />
+      </button>
+      <span className="text-sm font-medium text-gray-700">{label}</span>
+    </label>
+  )
 }
 
 // ChipInput: suggestion pills + custom text input → string[]
-function ChipInput({ label, value, onChange, suggestions }: {
-    label?: string
-    value: string[]
-    onChange: (v: string[]) => void
-    suggestions: string[]
+function ChipInput({
+  label,
+  value,
+  onChange,
+  suggestions,
+}: {
+  label?: string
+  value: string[]
+  onChange: (v: string[]) => void
+  suggestions: string[]
 }) {
-    const [inputVal, setInputVal] = useState('')
-    const inputRef = useRef<HTMLInputElement>(null)
+  const [inputVal, setInputVal] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
 
-    const toggle = (chip: string) => {
-        if (value.includes(chip)) {
-            onChange(value.filter(c => c !== chip))
-        } else {
-            onChange([...value, chip])
-        }
+  const toggle = (chip: string) => {
+    if (value.includes(chip)) {
+      onChange(value.filter((c) => c !== chip))
+    } else {
+      onChange([...value, chip])
     }
+  }
 
-    const addCustom = () => {
-        const trimmed = inputVal.trim()
-        if (trimmed && !value.includes(trimmed)) {
-            onChange([...value, trimmed])
-        }
-        setInputVal('')
-        inputRef.current?.focus()
+  const addCustom = () => {
+    const trimmed = inputVal.trim()
+    if (trimmed && !value.includes(trimmed)) {
+      onChange([...value, trimmed])
     }
+    setInputVal('')
+    inputRef.current?.focus()
+  }
 
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter' || e.key === ',') {
-            e.preventDefault()
-            addCustom()
-        }
-        if (e.key === 'Backspace' && !inputVal && value.length) {
-            onChange(value.slice(0, -1))
-        }
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault()
+      addCustom()
     }
+    if (e.key === 'Backspace' && !inputVal && value.length) {
+      onChange(value.slice(0, -1))
+    }
+  }
 
-    return (
-        <div className="space-y-2">
-            {label && <label className="text-xs font-semibold text-gray-500">{label}</label>}
-            {/* Suggestion pills */}
-            <div className="flex flex-wrap gap-1.5">
-                {suggestions.map(s => {
-                    const active = value.includes(s)
-                    return (
-                        <button
-                            key={s}
-                            type="button"
-                            onClick={() => toggle(s)}
-                            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${active
-                                ? 'bg-[#33C7BE] text-white'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}
-                        >
-                            {active && <span className="mr-1">✓</span>}{s}
-                        </button>
-                    )
-                })}
-            </div>
-            {/* Selected custom chips + input */}
-            <div className="flex flex-wrap gap-1.5 min-h-[36px] px-3 py-2 border border-gray-200 rounded-xl bg-gray-50/50 focus-within:ring-2 focus-within:ring-[#33C7BE]/30">
-                {value.filter(v => !suggestions.includes(v)).map(chip => (
-                    <span key={chip} className="flex items-center gap-1 px-2 py-0.5 bg-[#33C7BE] text-white text-xs rounded-full">
-                        {chip}
-                        <button type="button" onClick={() => onChange(value.filter(c => c !== chip))} className="hover:opacity-70">
-                            <X size={10} />
-                        </button>
-                    </span>
-                ))}
-                <input
-                    ref={inputRef}
-                    value={inputVal}
-                    onChange={e => setInputVal(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    onBlur={addCustom}
-                    placeholder={value.length === 0 ? 'Agregar personalizado...' : ''}
-                    className="flex-1 min-w-[120px] text-xs bg-transparent outline-none text-gray-700 placeholder-gray-400"
-                />
-            </div>
-            {value.length > 0 && (
-                <p className="text-[10px] text-gray-400">
-                    {value.join(', ')}
-                </p>
-            )}
-        </div>
-    )
+  return (
+    <div className="space-y-2">
+      {label && <label className="text-xs font-semibold text-gray-500">{label}</label>}
+      {/* Suggestion pills */}
+      <div className="flex flex-wrap gap-1.5">
+        {suggestions.map((s) => {
+          const active = value.includes(s)
+          return (
+            <button
+              key={s}
+              type="button"
+              onClick={() => toggle(s)}
+              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                active ? 'bg-[#33C7BE] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {active && <span className="mr-1">✓</span>}
+              {s}
+            </button>
+          )
+        })}
+      </div>
+      {/* Selected custom chips + input */}
+      <div className="flex flex-wrap gap-1.5 min-h-[36px] px-3 py-2 border border-gray-200 rounded-xl bg-gray-50/50 focus-within:ring-2 focus-within:ring-[#33C7BE]/30">
+        {value
+          .filter((v) => !suggestions.includes(v))
+          .map((chip) => (
+            <span
+              key={chip}
+              className="flex items-center gap-1 px-2 py-0.5 bg-[#33C7BE] text-white text-xs rounded-full"
+            >
+              {chip}
+              <button
+                type="button"
+                onClick={() => onChange(value.filter((c) => c !== chip))}
+                className="hover:opacity-70"
+              >
+                <X size={10} />
+              </button>
+            </span>
+          ))}
+        <input
+          ref={inputRef}
+          value={inputVal}
+          onChange={(e) => setInputVal(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onBlur={addCustom}
+          placeholder={value.length === 0 ? 'Agregar personalizado...' : ''}
+          className="flex-1 min-w-[120px] text-xs bg-transparent outline-none text-gray-700 placeholder-gray-400"
+        />
+      </div>
+      {value.length > 0 && <p className="text-[10px] text-gray-400">{value.join(', ')}</p>}
+    </div>
+  )
 }
 
 // FrequencyPills: radio-style pill row
 interface FreqOption {
-    value: string
-    label: string
+  value: string
+  label: string
 }
 
-function FrequencyPills({ label, options, value, onChange }: {
-    label?: string
-    options: FreqOption[]
-    value: string
-    onChange: (v: string) => void
+function FrequencyPills({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label?: string
+  options: FreqOption[]
+  value: string
+  onChange: (v: string) => void
 }) {
-    return (
-        <div className="space-y-1.5">
-            {label && <label className="text-xs font-semibold text-gray-500">{label}</label>}
-            <div className="flex flex-wrap gap-2">
-                {options.map(opt => {
-                    const active = value === opt.value
-                    return (
-                        <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => onChange(active ? '' : opt.value)}
-                            className={`px-3 py-1.5 rounded-full text-xs transition-all ${active
-                                ? 'bg-[#33C7BE] text-white font-semibold'
-                                : 'border border-gray-200 text-gray-600 hover:border-[#33C7BE] bg-white'
-                            }`}
-                        >
-                            {opt.label}
-                        </button>
-                    )
-                })}
-            </div>
-        </div>
-    )
+  return (
+    <div className="space-y-1.5">
+      {label && <label className="text-xs font-semibold text-gray-500">{label}</label>}
+      <div className="flex flex-wrap gap-2">
+        {options.map((opt) => {
+          const active = value === opt.value
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => onChange(active ? '' : opt.value)}
+              className={`px-3 py-1.5 rounded-full text-xs transition-all ${
+                active
+                  ? 'bg-[#33C7BE] text-white font-semibold'
+                  : 'border border-gray-200 text-gray-600 hover:border-[#33C7BE] bg-white'
+              }`}
+            >
+              {opt.label}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 // Stepper: label + − value +
-function Stepper({ label, value, onChange, min = 0 }: {
-    label: string
-    value: string
-    onChange: (v: string) => void
-    min?: number
+function Stepper({
+  label,
+  value,
+  onChange,
+  min = 0,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  min?: number
 }) {
-    const num = parseInt(value || '0', 10)
-    const safe = isNaN(num) ? 0 : num
+  const num = parseInt(value || '0', 10)
+  const safe = isNaN(num) ? 0 : num
 
-    const decrement = () => {
-        const next = Math.max(min, safe - 1)
-        onChange(String(next))
-    }
-    const increment = () => {
-        onChange(String(safe + 1))
-    }
+  const decrement = () => {
+    const next = Math.max(min, safe - 1)
+    onChange(String(next))
+  }
+  const increment = () => {
+    onChange(String(safe + 1))
+  }
 
-    return (
-        <div className="flex flex-col items-center gap-1.5">
-            <span className="text-xs font-semibold text-gray-500 text-center leading-tight">{label}</span>
-            <div className="flex items-center gap-3">
-                <button
-                    type="button"
-                    onClick={decrement}
-                    disabled={safe <= min}
-                    className="w-8 h-8 rounded-full border border-gray-200 hover:border-[#33C7BE] flex items-center justify-center text-lg font-bold text-gray-500 disabled:opacity-30 transition-colors"
-                >
-                    −
-                </button>
-                <span className="w-6 text-center text-sm font-bold text-gray-800">{safe}</span>
-                <button
-                    type="button"
-                    onClick={increment}
-                    className="w-8 h-8 rounded-full border border-gray-200 hover:border-[#33C7BE] flex items-center justify-center text-lg font-bold text-gray-500 transition-colors"
-                >
-                    +
-                </button>
-            </div>
-        </div>
-    )
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <span className="text-xs font-semibold text-gray-500 text-center leading-tight">{label}</span>
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={decrement}
+          disabled={safe <= min}
+          className="w-8 h-8 rounded-full border border-gray-200 hover:border-[#33C7BE] flex items-center justify-center text-lg font-bold text-gray-500 disabled:opacity-30 transition-colors"
+        >
+          −
+        </button>
+        <span className="w-6 text-center text-sm font-bold text-gray-800">{safe}</span>
+        <button
+          type="button"
+          onClick={increment}
+          className="w-8 h-8 rounded-full border border-gray-200 hover:border-[#33C7BE] flex items-center justify-center text-lg font-bold text-gray-500 transition-colors"
+        >
+          +
+        </button>
+      </div>
+    </div>
+  )
 }
 
 // ConditionCard: emoji + label card, click to toggle present
-function ConditionCard({ emoji, label, item, onChange, fullWidth = false }: {
-    emoji: string
-    label: string
-    item: ToggleItem
-    onChange: (v: ToggleItem) => void
-    fullWidth?: boolean
-}) {
-    return (
-        <div className={`flex flex-col gap-2 ${fullWidth ? 'w-full' : ''}`}>
-            <button
-                type="button"
-                onClick={() => onChange({ ...item, present: !item.present })}
-                className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all w-full ${item.present
-                    ? 'border-[#33C7BE] bg-[#33C7BE]/5 text-[#33C7BE]'
-                    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                }`}
-            >
-                <span className="text-2xl leading-none">{emoji}</span>
-                <span className="text-xs font-semibold text-center leading-tight">{label}</span>
-            </button>
-            {item.present && (
-                <textarea
-                    value={item.details}
-                    onChange={e => onChange({ ...item, details: e.target.value })}
-                    placeholder="Detalles opcionales..."
-                    rows={2}
-                    className="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none resize-none bg-gray-50/50"
-                />
-            )}
-        </div>
-    )
-}
-
-// ── CIE-10 inline row for initial diagnoses ───────────────────────────────────
-
-function _Cie10DiagRow({
-    index, codigo, descripcion, readOnly, onSelect, onChange, onRemove,
+function ConditionCard({
+  emoji,
+  label,
+  item,
+  onChange,
+  fullWidth = false,
 }: {
-    index: number; codigo: string; descripcion: string; readOnly: boolean
-    onSelect: (code: string, desc: string) => void
-    onChange: (field: 'codigo' | 'descripcion', val: string) => void
-    onRemove: () => void
+  emoji: string
+  label: string
+  item: ToggleItem
+  onChange: (v: ToggleItem) => void
+  fullWidth?: boolean
 }) {
-    const [q, setQ] = useState('')
-    const [open, setOpen] = useState(false)
-    const ref = useRef<HTMLDivElement>(null)
-    const results = q.trim().length >= 2 ? searchCie10Es(q).map(e => ({ code: e.code, desc: e.desc })) : []
-
-    useEffect(() => {
-        function h(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
-        document.addEventListener('mousedown', h)
-        return () => document.removeEventListener('mousedown', h)
-    }, [])
-
-    if (readOnly) {
-        return (
-            <div className="flex items-center gap-2 bg-violet-50 border border-violet-100 rounded-xl px-3 py-2">
-                <span className="text-[9px] font-bold text-violet-400 uppercase shrink-0 w-12">{index === 0 ? 'Principal' : 'Sec.'}</span>
-                <span className="text-xs font-mono font-bold text-violet-700 bg-violet-100 px-2 py-0.5 rounded-lg shrink-0">{codigo}</span>
-                {descripcion && <span className="text-xs text-gray-600 truncate">{descripcion}</span>}
-            </div>
-        )
-    }
-
-    return (
-        <div className="flex items-start gap-2 group">
-            <span className={`mt-2 text-[9px] font-bold w-14 shrink-0 uppercase tracking-wide ${index === 0 ? 'text-violet-600' : 'text-gray-400'}`}>
-                {index === 0 ? 'Principal' : `Sec. ${index}`}
-            </span>
-            <div className="flex-1 space-y-1.5">
-                {(codigo || descripcion) && (
-                    <div className="flex gap-2">
-                        <input value={codigo} onChange={e => onChange('codigo', e.target.value.toUpperCase())}
-                            placeholder="Código" maxLength={10}
-                            className="w-20 shrink-0 px-2 py-1.5 border border-violet-200 bg-violet-50 rounded-lg text-xs font-mono font-bold text-violet-700 focus:ring-2 focus:ring-violet-300 focus:outline-none uppercase"
-                        />
-                        <input value={descripcion} onChange={e => onChange('descripcion', e.target.value)}
-                            placeholder="Descripción"
-                            className="flex-1 min-w-0 px-2 py-1.5 border border-gray-200 bg-white rounded-lg text-xs focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none"
-                        />
-                    </div>
-                )}
-                <div ref={ref} className="relative">
-                    <div className="flex items-center border border-dashed border-gray-300 bg-gray-50 rounded-lg overflow-hidden focus-within:border-violet-300 focus-within:bg-white focus-within:border-solid transition-all">
-                        <Search size={12} className="ml-2.5 text-gray-400 shrink-0" />
-                        <input value={q} onChange={e => { setQ(e.target.value); setOpen(e.target.value.trim().length >= 2) }}
-                            onFocus={() => q.trim().length >= 2 && setOpen(true)}
-                            placeholder={codigo ? 'Cambiar código CIE-10…' : 'Buscar diagnóstico en español…'}
-                            className="flex-1 px-2 py-1.5 text-xs bg-transparent focus:outline-none"
-                        />
-                    </div>
-                    {open && results.length > 0 && (
-                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
-                            {results.map(r => (
-                                <button key={r.code} type="button"
-                                    onMouseDown={() => { onSelect(r.code, r.desc); setQ(''); setOpen(false) }}
-                                    className="w-full flex items-baseline gap-2 px-3 py-2 text-left hover:bg-violet-50 transition-colors border-b border-gray-50 last:border-0"
-                                >
-                                    <span className="text-[10px] font-mono font-bold text-violet-700 shrink-0 w-14">{r.code}</span>
-                                    <span className="text-xs text-gray-600">{r.desc}</span>
-                                </button>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </div>
-            <button type="button" onClick={onRemove}
-                className="mt-2 p-1 text-gray-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100">
-                <X size={12} />
-            </button>
-        </div>
-    )
+  return (
+    <div className={`flex flex-col gap-2 ${fullWidth ? 'w-full' : ''}`}>
+      <button
+        type="button"
+        onClick={() => onChange({ ...item, present: !item.present })}
+        className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all w-full ${
+          item.present
+            ? 'border-[#33C7BE] bg-[#33C7BE]/5 text-[#33C7BE]'
+            : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+        }`}
+      >
+        <span className="text-2xl leading-none">{emoji}</span>
+        <span className="text-xs font-semibold text-center leading-tight">{label}</span>
+      </button>
+      {item.present && (
+        <textarea
+          value={item.details}
+          onChange={(e) => onChange({ ...item, details: e.target.value })}
+          placeholder="Detalles opcionales..."
+          rows={2}
+          className="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none resize-none bg-gray-50/50"
+        />
+      )}
+    </div>
+  )
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function ClinicalHistoryTab({
-    patientId,
-    editorId,
-    readOnly = false,
+  patientId,
+  editorId,
+  readOnly = false,
 }: {
-    patientId: string
-    editorId: string
-    readOnly?: boolean
+  patientId: string
+  editorId: string
+  readOnly?: boolean
 }) {
-    const [data, setData] = useState<FormData>(makeDefault(patientId))
-    const [loading, setLoading] = useState(true)
-    const [saving, setSaving] = useState(false)
-    const [lastSaved, setLastSaved] = useState<string | null>(null)
+  const [data, setData] = useState<FormData>(makeDefault(patientId))
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [lastSaved, setLastSaved] = useState<string | null>(null)
 
-    // Chip arrays managed as state; synced to string fields on save
-    const [allergyItems, setAllergyItems] = useState<AllergyItem[]>([])
-    const [newAllergy, setNewAllergy] = useState<{
-        open: boolean; search: string; name: string; showDropdown: boolean
-        type: AllergyItem['type']; severity: AllergyItem['severity']; reaction: string
-    }>({ open: false, search: '', name: '', showDropdown: false, type: 'medicamento', severity: 'leve', reaction: '' })
-    const [medicationChips, setMedicationChips] = useState<string[]>([])
-    const [otherDiseaseChips, setOtherDiseaseChips] = useState<string[]>([])
-    const [drugChips, setDrugChips] = useState<string[]>([])
-    const [systemsReview, setSystemsReview] = useState<SystemsReviewData>(makeDefaultSystems())
-    const [expandedFH, setExpandedFH] = useState<string[]>([])
-    const [activeSystem, setActiveSystem] = useState<SystemKey>('digestivo')
+  // Chip arrays managed as state; synced to string fields on save
+  const [allergyItems, setAllergyItems] = useState<AllergyItem[]>([])
+  const [newAllergy, setNewAllergy] = useState<{
+    open: boolean
+    search: string
+    name: string
+    showDropdown: boolean
+    type: AllergyItem['type']
+    severity: AllergyItem['severity']
+    reaction: string
+  }>({
+    open: false,
+    search: '',
+    name: '',
+    showDropdown: false,
+    type: 'medicamento',
+    severity: 'leve',
+    reaction: '',
+  })
+  const [medicationChips, setMedicationChips] = useState<string[]>([])
+  const [otherDiseaseChips, setOtherDiseaseChips] = useState<string[]>([])
+  const [drugChips, setDrugChips] = useState<string[]>([])
+  const [systemsReview, setSystemsReview] = useState<SystemsReviewData>(makeDefaultSystems())
+  const [expandedFH, setExpandedFH] = useState<string[]>([])
+  const [showAddFH, setShowAddFH] = useState(false)
+  const [newFHRelation, setNewFHRelation] = useState('')
+  const [showFHDropdown, setShowFHDropdown] = useState(false)
+  const [fhView, setFHView] = useState<'list' | 'tree'>('tree')
+  const [selectedFHKey, setSelectedFHKey] = useState<string | null>(null)
+  const [activeSystem, setActiveSystem] = useState<SystemKey>('digestivo')
 
-    useEffect(() => {
-        setLoading(true)
-        getClinicalHistory(patientId)
-            .then(existing => {
-                if (existing) {
-                    const loaded: FormData = {
-                        ...makeDefault(patientId),
-                        allergies: existing.allergies ?? '',
-                        referral_source: existing.referral_source ?? '',
-                        consultation_reason: existing.consultation_reason ?? '',
-                        patient_observations: existing.patient_observations ?? '',
-                        systems_review: existing.systems_review ?? '',
-                        current_illness: existing.current_illness ?? '',
-                        physical_examination: existing.physical_examination ?? '',
-                        initial_diagnoses: Array.isArray(existing.initial_diagnoses) ? existing.initial_diagnoses : [],
-                        prognosis: existing.prognosis ?? '',
-                        initial_plan: existing.initial_plan ?? '',
-                        family_history: migrateFH((existing.family_history as Record<string, unknown>) || {}),
-                        pathological_history: migratePatho((existing.pathological_history as Record<string, unknown>) || {}),
-                        non_pathological_history: { ...DEF_NON_PATHO, ...(existing.non_pathological_history || {}) },
-                        gynecological_history: { ...DEF_GYNECO, ...(existing.gynecological_history || {}) },
-                        psychiatric_history: { ...DEF_PSYCHIATRIC, ...(existing.psychiatric_history || {}) },
-                        developmental_history: { ...DEF_DEVELOPMENTAL, ...(existing.developmental_history || {}) },
-                    }
-                    setData(loaded)
-                    setAllergyItems(parseAllergies(existing.allergies ?? ''))
-                    const ph = loaded.pathological_history
-                    setMedicationChips(strToChips(ph.medications?.details ?? ''))
-                    setOtherDiseaseChips(strToChips(ph.other_diseases?.details ?? ''))
-                    setDrugChips(strToChips(loaded.non_pathological_history.drugs?.details ?? ''))
-                    if (existing.updated_at) setLastSaved(existing.updated_at)
-                    setSystemsReview(parseSystemsReview(existing.systems_review))
-                }
-            })
-            .catch(e => logger.error('ClinicalHistoryTab.load', e))
-            .finally(() => setLoading(false))
-    }, [patientId])
-
-const setFH = useCallback((key: string, value: FHMemberRecord) => {
-        setData(prev => ({ ...prev, family_history: { ...makeDefaultFH(), ...prev.family_history, [key]: value } }))
-    }, [])
-
-    const setPH = useCallback(<K extends keyof PathologicalHistory>(key: K, value: PathologicalHistory[K]) => {
-        setData(prev => ({ ...prev, pathological_history: { ...prev.pathological_history, [key]: value } }))
-    }, [])
-
-    const setNPH = useCallback(<K extends keyof NonPathologicalHistory>(key: K, value: NonPathologicalHistory[K]) => {
-        setData(prev => ({ ...prev, non_pathological_history: { ...prev.non_pathological_history, [key]: value } }))
-    }, [])
-
-    const setGH = useCallback(<K extends keyof GynecologicalHistory>(key: K, value: GynecologicalHistory[K]) => {
-        setData(prev => ({ ...prev, gynecological_history: { ...prev.gynecological_history, [key]: value } }))
-    }, [])
-
-    const setPsych = useCallback(<K extends keyof PsychiatricHistory>(key: K, value: PsychiatricHistory[K]) => {
-        setData(prev => ({ ...prev, psychiatric_history: { ...prev.psychiatric_history, [key]: value } }))
-    }, [])
-
-    const setDev = useCallback(<K extends keyof DevelopmentalHistory>(key: K, value: DevelopmentalHistory[K]) => {
-        setData(prev => ({ ...prev, developmental_history: { ...prev.developmental_history, [key]: value } }))
-    }, [])
-
-    const setSystemEntry = useCallback((key: SystemKey, patch: Partial<SystemEntry>) => {
-        setSystemsReview(prev => ({ ...prev, [key]: { ...prev[key], ...patch } }))
-    }, [])
-
-    const setCDItem = useCallback((key: string, value: CDItem) => {
-        setData(prev => ({
-            ...prev,
-            pathological_history: {
-                ...prev.pathological_history,
-                cd: { ...(prev.pathological_history.cd || makeDefaultCD()), [key]: value },
+  useEffect(() => {
+    setLoading(true)
+    getClinicalHistory(patientId)
+      .then((existing) => {
+        if (existing) {
+          const loaded: FormData = {
+            ...makeDefault(patientId),
+            allergies: existing.allergies ?? '',
+            referral_source: existing.referral_source ?? '',
+            consultation_reason: existing.consultation_reason ?? '',
+            patient_observations: existing.patient_observations ?? '',
+            systems_review: existing.systems_review ?? '',
+            current_illness: existing.current_illness ?? '',
+            physical_examination: existing.physical_examination ?? '',
+            initial_diagnoses: Array.isArray(existing.initial_diagnoses)
+              ? existing.initial_diagnoses
+              : [],
+            prognosis: existing.prognosis ?? '',
+            initial_plan: existing.initial_plan ?? '',
+            family_history: migrateFH((existing.family_history as Record<string, unknown>) || {}),
+            pathological_history: migratePatho(
+              (existing.pathological_history as Record<string, unknown>) || {},
+            ),
+            non_pathological_history: {
+              ...DEF_NON_PATHO,
+              ...(existing.non_pathological_history || {}),
             },
-        }))
-    }, [])
-
-    const handleSave = async () => {
-        setSaving(true)
-        try {
-            // Sync chip arrays → string fields before saving
-            const saveData: FormData = {
-                ...data,
-                systems_review: JSON.stringify(systemsReview),
-                allergies: allergyItems.length > 0 ? JSON.stringify(allergyItems) : '',
-                pathological_history: {
-                    ...data.pathological_history,
-                    medications: {
-                        ...data.pathological_history.medications,
-                        present: medicationChips.length > 0,
-                        details: chipsToStr(medicationChips),
-                    },
-                    other_diseases: {
-                        ...data.pathological_history.other_diseases,
-                        present: otherDiseaseChips.length > 0,
-                        details: chipsToStr(otherDiseaseChips),
-                    },
-                },
-                non_pathological_history: {
-                    ...data.non_pathological_history,
-                    drugs: {
-                        ...data.non_pathological_history.drugs,
-                        present: data.non_pathological_history.drugs.present,
-                        details: chipsToStr(drugChips),
-                    },
-                },
-            }
-            const saved = await upsertClinicalHistory({ ...saveData, last_edited_by: editorId })
-            if (saved?.updated_at) setLastSaved(saved.updated_at)
-            showToast('Historial guardado correctamente', 'success')
-        } catch (e) {
-            logger.error('ClinicalHistoryTab.save', e)
-            showToast('Error al guardar el historial', 'error')
-        } finally {
-            setSaving(false)
+            gynecological_history: { ...DEF_GYNECO, ...(existing.gynecological_history || {}) },
+            psychiatric_history: { ...DEF_PSYCHIATRIC, ...(existing.psychiatric_history || {}) },
+            developmental_history: {
+              ...DEF_DEVELOPMENTAL,
+              ...(existing.developmental_history || {}),
+            },
+          }
+          setData(loaded)
+          setAllergyItems(parseAllergies(existing.allergies ?? ''))
+          const ph = loaded.pathological_history
+          setMedicationChips(strToChips(ph.medications?.details ?? ''))
+          setOtherDiseaseChips(strToChips(ph.other_diseases?.details ?? ''))
+          setDrugChips(strToChips(loaded.non_pathological_history.drugs?.details ?? ''))
+          if (existing.updated_at) setLastSaved(existing.updated_at)
+          setSystemsReview(parseSystemsReview(existing.systems_review))
         }
+      })
+      .catch((e) => logger.error('ClinicalHistoryTab.load', e))
+      .finally(() => setLoading(false))
+  }, [patientId])
+
+  const setFH = useCallback((key: string, value: FHMemberRecord) => {
+    setData((prev) => ({
+      ...prev,
+      family_history: { ...makeDefaultFH(), ...prev.family_history, [key]: value },
+    }))
+  }, [])
+
+  const setPH = useCallback(
+    <K extends keyof PathologicalHistory>(key: K, value: PathologicalHistory[K]) => {
+      setData((prev) => ({
+        ...prev,
+        pathological_history: { ...prev.pathological_history, [key]: value },
+      }))
+    },
+    [],
+  )
+
+  const setNPH = useCallback(
+    <K extends keyof NonPathologicalHistory>(key: K, value: NonPathologicalHistory[K]) => {
+      setData((prev) => ({
+        ...prev,
+        non_pathological_history: { ...prev.non_pathological_history, [key]: value },
+      }))
+    },
+    [],
+  )
+
+  const setGH = useCallback(
+    <K extends keyof GynecologicalHistory>(key: K, value: GynecologicalHistory[K]) => {
+      setData((prev) => ({
+        ...prev,
+        gynecological_history: { ...prev.gynecological_history, [key]: value },
+      }))
+    },
+    [],
+  )
+
+  const setPsych = useCallback(
+    <K extends keyof PsychiatricHistory>(key: K, value: PsychiatricHistory[K]) => {
+      setData((prev) => ({
+        ...prev,
+        psychiatric_history: { ...prev.psychiatric_history, [key]: value },
+      }))
+    },
+    [],
+  )
+
+  const setDev = useCallback(
+    <K extends keyof DevelopmentalHistory>(key: K, value: DevelopmentalHistory[K]) => {
+      setData((prev) => ({
+        ...prev,
+        developmental_history: { ...prev.developmental_history, [key]: value },
+      }))
+    },
+    [],
+  )
+
+  const setSystemEntry = useCallback((key: SystemKey, patch: Partial<SystemEntry>) => {
+    setSystemsReview((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }))
+  }, [])
+
+  const setCDItem = useCallback((key: string, value: CDItem) => {
+    setData((prev) => ({
+      ...prev,
+      pathological_history: {
+        ...prev.pathological_history,
+        cd: { ...(prev.pathological_history.cd || makeDefaultCD()), [key]: value },
+      },
+    }))
+  }, [])
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      // Sync chip arrays → string fields before saving
+      const saveData: FormData = {
+        ...data,
+        systems_review: JSON.stringify(systemsReview),
+        allergies: allergyItems.length > 0 ? JSON.stringify(allergyItems) : '',
+        pathological_history: {
+          ...data.pathological_history,
+          medications: {
+            ...data.pathological_history.medications,
+            present: medicationChips.length > 0,
+            details: chipsToStr(medicationChips),
+          },
+          other_diseases: {
+            ...data.pathological_history.other_diseases,
+            present: otherDiseaseChips.length > 0,
+            details: chipsToStr(otherDiseaseChips),
+          },
+        },
+        non_pathological_history: {
+          ...data.non_pathological_history,
+          drugs: {
+            ...data.non_pathological_history.drugs,
+            present: data.non_pathological_history.drugs.present,
+            details: chipsToStr(drugChips),
+          },
+        },
+      }
+      const saved = await upsertClinicalHistory({ ...saveData, last_edited_by: editorId })
+      if (saved?.updated_at) setLastSaved(saved.updated_at)
+      showToast('Historial guardado correctamente', 'success')
+    } catch (e) {
+      logger.error('ClinicalHistoryTab.save', e)
+      showToast('Error al guardar el historial', 'error')
+    } finally {
+      setSaving(false)
     }
+  }
 
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center py-16">
-                <Loader2 className="w-8 h-8 text-[#33C7BE] animate-spin" />
-            </div>
-        )
-    }
-
-    const fh = data.family_history
-    const ph = data.pathological_history
-    const nph = data.non_pathological_history
-    const gh = data.gynecological_history
-    const psych = data.psychiatric_history
-    const dev = data.developmental_history
-
-    const SaveBtn = ({ bottom = false }: { bottom?: boolean }) => (
-        <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className={`flex items-center gap-2 bg-[#33C7BE] text-white text-sm font-bold rounded-xl hover:bg-teal-600 disabled:opacity-50 transition-all ${bottom ? 'px-6 py-2.5' : 'px-5 py-2'}`}
-        >
-            {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-            {bottom ? 'Guardar cambios' : 'Guardar'}
-        </button>
-    )
-
+  if (loading) {
     return (
-        <div className="w-full space-y-4">
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="w-8 h-8 text-[#33C7BE] animate-spin" />
+      </div>
+    )
+  }
 
-            {/* Header */}
+  const fh = data.family_history
+  const ph = data.pathological_history
+  const nph = data.non_pathological_history
+  const gh = data.gynecological_history
+  const psych = data.psychiatric_history
+  const dev = data.developmental_history
+
+  const SaveBtn = ({ bottom = false }: { bottom?: boolean }) => (
+    <button
+      type="button"
+      onClick={handleSave}
+      disabled={saving}
+      className={`flex items-center gap-2 bg-[#33C7BE] text-white text-sm font-bold rounded-xl hover:bg-teal-600 disabled:opacity-50 transition-all ${bottom ? 'px-6 py-2.5' : 'px-5 py-2'}`}
+    >
+      {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+      {bottom ? 'Guardar cambios' : 'Guardar'}
+    </button>
+  )
+
+  return (
+    <div className="w-full space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <ClipboardList size={18} className="text-[#33C7BE]" />
+          <h2 className="text-base font-black text-gray-900">Historial Clínico</h2>
+        </div>
+        {!readOnly && (
+          <div className="flex items-center gap-3">
+            {lastSaved && (
+              <span className="text-[10px] text-gray-400 hidden sm:block">
+                Guardado{' '}
+                {new Date(lastSaved).toLocaleDateString('es-MX', {
+                  day: 'numeric',
+                  month: 'short',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </span>
+            )}
+            <SaveBtn />
+          </div>
+        )}
+        {readOnly && (
+          <span className="text-[11px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg">
+            Solo lectura
+          </span>
+        )}
+      </div>
+
+      {/* Read-only notice */}
+      {readOnly && (
+        <div className="flex items-center gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
+          <span className="text-base">🔒</span>
+          <span>
+            Estás viendo el historial en modo de solo lectura. El paciente debe autorizar la edición
+            desde su apartado de Permisos.
+          </span>
+        </div>
+      )}
+
+      <div>
+        {/* ── 1. Antecedentes Importantes ── */}
+        <SectionCard title="Antecedentes Importantes" readOnly={readOnly}>
+          {/* ─ Alergias ─ */}
+          <div className="space-y-3">
+            {/* Subsection header */}
             <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <ClipboardList size={18} className="text-[#33C7BE]" />
-                    <h2 className="text-base font-black text-gray-900">Historial Clínico</h2>
+              <div className="flex items-center gap-2">
+                <span className="text-base">⚠️</span>
+                <div>
+                  <p className="text-sm font-bold text-gray-800">Alergias conocidas</p>
+                  {allergyItems.length > 0 && (
+                    <p className="text-[10px] text-gray-400">
+                      {allergyItems.length} alergia{allergyItems.length !== 1 ? 's' : ''} registrada
+                      {allergyItems.length !== 1 ? 's' : ''}
+                    </p>
+                  )}
                 </div>
-                {!readOnly && (
-                    <div className="flex items-center gap-3">
-                        {lastSaved && (
-                            <span className="text-[10px] text-gray-400 hidden sm:block">
-                                Guardado {new Date(lastSaved).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                        )}
-                        <SaveBtn />
-                    </div>
-                )}
-                {readOnly && (
-                    <span className="text-[11px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg">
-                        Solo lectura
-                    </span>
-                )}
+              </div>
+              {!readOnly && (
+                <button
+                  type="button"
+                  onClick={() => setNewAllergy((prev) => ({ ...prev, open: !prev.open }))}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    newAllergy.open
+                      ? 'bg-gray-100 text-gray-500'
+                      : 'bg-[#33C7BE] text-white hover:bg-teal-600 shadow-sm'
+                  }`}
+                >
+                  {newAllergy.open ? <X size={12} /> : <PlusIcon size={12} />}
+                  {newAllergy.open ? 'Cancelar' : 'Agregar alergia'}
+                </button>
+              )}
             </div>
 
-            {/* Read-only notice */}
-            {readOnly && (
-                <div className="flex items-center gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
-                    <span className="text-base">🔒</span>
-                    <span>Estás viendo el historial en modo de solo lectura. El paciente debe autorizar la edición desde su apartado de Permisos.</span>
+            {/* Add form */}
+            {newAllergy.open && (
+              <div className="p-3 rounded-xl border border-[#33C7BE]/30 bg-teal-50/40 space-y-2">
+                {/* Search / select allergen */}
+                <div className="relative">
+                  {newAllergy.name ? (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[#33C7BE] bg-white">
+                      <span className="text-sm">
+                        {ALLERGY_TYPES.find((t) => t.key === newAllergy.type)?.icon}
+                      </span>
+                      <span className="flex-1 text-sm font-semibold text-gray-800">
+                        {newAllergy.name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setNewAllergy((prev) => ({
+                            ...prev,
+                            name: '',
+                            search: '',
+                            showDropdown: false,
+                          }))
+                        }
+                        className="text-gray-300 hover:text-red-400 transition-colors"
+                      >
+                        <X size={13} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <input
+                        type="text"
+                        autoFocus
+                        value={newAllergy.search}
+                        onChange={(e) =>
+                          setNewAllergy((prev) => ({
+                            ...prev,
+                            search: e.target.value,
+                            showDropdown: true,
+                          }))
+                        }
+                        onFocus={() => setNewAllergy((prev) => ({ ...prev, showDropdown: true }))}
+                        onBlur={() =>
+                          setTimeout(
+                            () => setNewAllergy((prev) => ({ ...prev, showDropdown: false })),
+                            150,
+                          )
+                        }
+                        placeholder="Buscar alérgeno (Penicilina, Mariscos, Polen...)"
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none bg-white"
+                      />
+                      {newAllergy.showDropdown && (
+                        <div className="absolute z-10 w-full mt-1 max-h-48 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg">
+                          {(() => {
+                            const q = newAllergy.search.toLowerCase()
+                            const matches = ALLERGEN_DB.filter(
+                              (a) => !q || a.name.toLowerCase().includes(q),
+                            )
+                            return (
+                              <>
+                                {matches.length > 0 ? (
+                                  matches.map((a) => {
+                                    const typeInfo = ALLERGY_TYPES.find((t) => t.key === a.type)!
+                                    return (
+                                      <button
+                                        key={a.name}
+                                        type="button"
+                                        onMouseDown={() =>
+                                          setNewAllergy((prev) => ({
+                                            ...prev,
+                                            name: a.name,
+                                            search: a.name,
+                                            type: a.type,
+                                            showDropdown: false,
+                                          }))
+                                        }
+                                        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0"
+                                      >
+                                        <span className="text-sm flex-shrink-0">
+                                          {typeInfo.icon}
+                                        </span>
+                                        <span className="flex-1 text-sm text-gray-800">
+                                          {a.name}
+                                        </span>
+                                        <span className="text-[10px] text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded-full">
+                                          {typeInfo.label}
+                                        </span>
+                                      </button>
+                                    )
+                                  })
+                                ) : (
+                                  <div className="px-3 py-3 text-sm text-gray-400">
+                                    Sin resultados — escribe para agregar personalizado
+                                  </div>
+                                )}
+                                {newAllergy.search &&
+                                  !ALLERGEN_DB.find(
+                                    (a) => a.name.toLowerCase() === newAllergy.search.toLowerCase(),
+                                  ) && (
+                                    <button
+                                      type="button"
+                                      onMouseDown={() =>
+                                        setNewAllergy((prev) => ({
+                                          ...prev,
+                                          name: prev.search,
+                                          showDropdown: false,
+                                        }))
+                                      }
+                                      className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-teal-50 border-t border-gray-100 transition-colors"
+                                    >
+                                      <span className="text-sm text-[#33C7BE] font-semibold">
+                                        + Agregar "{newAllergy.search}"
+                                      </span>
+                                    </button>
+                                  )}
+                              </>
+                            )
+                          })()}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
+
+                {newAllergy.name && (
+                  <>
+                    <div className="flex flex-wrap gap-1.5">
+                      {ALLERGY_TYPES.map((t) => (
+                        <button
+                          key={t.key}
+                          type="button"
+                          onClick={() => setNewAllergy((prev) => ({ ...prev, type: t.key }))}
+                          className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${newAllergy.type === t.key ? 'bg-[#33C7BE] text-white' : 'border border-gray-200 text-gray-500 bg-white'}`}
+                        >
+                          <span>{t.icon}</span>
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex gap-1.5">
+                      {ALLERGY_SEVERITY.map((s) => (
+                        <button
+                          key={s.key}
+                          type="button"
+                          onClick={() => setNewAllergy((prev) => ({ ...prev, severity: s.key }))}
+                          className={`flex-1 py-1.5 rounded-full text-xs font-bold border transition-all ${newAllergy.severity === s.key ? s.color : 'border-gray-200 text-gray-400 bg-white'}`}
+                        >
+                          {s.label}
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      type="text"
+                      value={newAllergy.reaction}
+                      onChange={(e) =>
+                        setNewAllergy((prev) => ({ ...prev, reaction: e.target.value }))
+                      }
+                      placeholder="Tipo de reacción (urticaria, angioedema, anafilaxia...)"
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none bg-white"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAllergyItems((prev) => [
+                          ...prev,
+                          {
+                            id: Date.now().toString(),
+                            name: newAllergy.name.trim(),
+                            type: newAllergy.type,
+                            severity: newAllergy.severity,
+                            reaction: newAllergy.reaction.trim(),
+                          },
+                        ])
+                        setNewAllergy({
+                          open: false,
+                          search: '',
+                          name: '',
+                          showDropdown: false,
+                          type: 'medicamento',
+                          severity: 'leve',
+                          reaction: '',
+                        })
+                      }}
+                      className="w-full py-2 bg-[#33C7BE] text-white text-sm font-bold rounded-lg hover:bg-teal-600 transition-colors"
+                    >
+                      Guardar alergia
+                    </button>
+                  </>
+                )}
+              </div>
             )}
 
-            <div>
-
-            {/* ── 1. Antecedentes Importantes ── */}
-            <SectionCard title="Antecedentes Importantes" readOnly={readOnly}>
-
-                {/* ─ Alergias ─ */}
-                <div>
-                    <div className="flex items-center justify-between mb-2">
-                        <p className="text-xs font-bold text-gray-700">Alergias conocidas</p>
-                        {!readOnly && (
-                            <button
-                                type="button"
-                                onClick={() => setNewAllergy(prev => ({ ...prev, open: !prev.open }))}
-                                className="text-[11px] font-semibold text-[#33C7BE] hover:text-teal-700 flex items-center gap-1"
-                            >
-                                <span className="text-base leading-none">+</span> Agregar
-                            </button>
+            {/* Allergy list */}
+            {allergyItems.length > 0 ? (
+              <div className="space-y-2">
+                {allergyItems.map((item) => {
+                  const typeInfo = ALLERGY_TYPES.find((t) => t.key === item.type)!
+                  const sevInfo = ALLERGY_SEVERITY.find((s) => s.key === item.severity)!
+                  return (
+                    <div
+                      key={item.id}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-100 bg-gray-50/60 hover:bg-gray-50 transition-colors"
+                    >
+                      <span className="text-xl leading-none flex-shrink-0">{typeInfo.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 leading-tight">
+                          {item.name}
+                        </p>
+                        {item.reaction && (
+                          <p className="text-xs text-gray-500 mt-0.5">{item.reaction}</p>
                         )}
+                      </div>
+                      <span
+                        className={`text-[11px] font-bold px-2.5 py-1 rounded-full border flex-shrink-0 ${sevInfo.color}`}
+                      >
+                        {sevInfo.label}
+                      </span>
+                      {!readOnly && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setAllergyItems((prev) => prev.filter((a) => a.id !== item.id))
+                          }
+                          className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors flex-shrink-0"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
                     </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 px-4 py-4 rounded-xl border border-dashed border-gray-200 bg-gray-50/40">
+                <span className="text-2xl">🌿</span>
+                <div>
+                  <p className="text-sm font-semibold text-gray-500">Sin alergias registradas</p>
+                  <p className="text-xs text-gray-400">
+                    Usa el botón "Agregar alergia" para registrar una
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
 
-                    {/* Add form */}
-                    {newAllergy.open && (
-                        <div className="mb-3 p-3 rounded-xl border border-[#33C7BE]/30 bg-teal-50/30 space-y-2">
-                            {/* Search / select allergen */}
-                            <div className="relative">
-                                {newAllergy.name ? (
-                                    /* Selected state */
-                                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[#33C7BE] bg-white">
-                                        <span className="text-sm">{ALLERGY_TYPES.find(t => t.key === newAllergy.type)?.icon}</span>
-                                        <span className="flex-1 text-sm font-semibold text-gray-800">{newAllergy.name}</span>
-                                        <button type="button" onClick={() => setNewAllergy(prev => ({ ...prev, name: '', search: '', showDropdown: false }))}
-                                            className="text-gray-300 hover:text-red-400 transition-colors">
-                                            <X size={13} />
-                                        </button>
-                                    </div>
-                                ) : (
-                                    /* Search input */
-                                    <div>
-                                        <input
-                                            type="text"
-                                            autoFocus
-                                            value={newAllergy.search}
-                                            onChange={e => setNewAllergy(prev => ({ ...prev, search: e.target.value, showDropdown: true }))}
-                                            onFocus={() => setNewAllergy(prev => ({ ...prev, showDropdown: true }))}
-                                            onBlur={() => setTimeout(() => setNewAllergy(prev => ({ ...prev, showDropdown: false })), 150)}
-                                            placeholder="Buscar alérgeno (Penicilina, Mariscos, Polen...)"
-                                            className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none bg-white"
-                                        />
-                                        {newAllergy.showDropdown && (
-                                            <div className="absolute z-10 w-full mt-1 max-h-48 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg">
-                                                {(() => {
-                                                    const q = newAllergy.search.toLowerCase()
-                                                    const matches = ALLERGEN_DB.filter(a => !q || a.name.toLowerCase().includes(q))
-                                                    return (
-                                                        <>
-                                                            {matches.length > 0 ? matches.map(a => {
-                                                                const typeInfo = ALLERGY_TYPES.find(t => t.key === a.type)!
-                                                                return (
-                                                                    <button
-                                                                        key={a.name}
-                                                                        type="button"
-                                                                        onMouseDown={() => setNewAllergy(prev => ({
-                                                                            ...prev, name: a.name, search: a.name,
-                                                                            type: a.type, showDropdown: false,
-                                                                        }))}
-                                                                        className="w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0"
-                                                                    >
-                                                                        <span className="text-sm flex-shrink-0">{typeInfo.icon}</span>
-                                                                        <span className="flex-1 text-xs text-gray-800">{a.name}</span>
-                                                                        <span className="text-[10px] text-gray-400">{typeInfo.label}</span>
-                                                                    </button>
-                                                                )
-                                                            }) : (
-                                                                <div className="px-3 py-2 text-xs text-gray-400">Sin resultados — escribe para agregar personalizado</div>
-                                                            )}
-                                                            {/* Allow custom entry */}
-                                                            {newAllergy.search && !ALLERGEN_DB.find(a => a.name.toLowerCase() === newAllergy.search.toLowerCase()) && (
-                                                                <button
-                                                                    type="button"
-                                                                    onMouseDown={() => setNewAllergy(prev => ({ ...prev, name: prev.search, showDropdown: false }))}
-                                                                    className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-teal-50 border-t border-gray-100 transition-colors"
-                                                                >
-                                                                    <span className="text-xs text-[#33C7BE] font-semibold">+ Agregar "{newAllergy.search}"</span>
-                                                                </button>
-                                                            )}
-                                                        </>
-                                                    )
-                                                })()}
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
+          {/* ─ Implantes y dispositivos ─ */}
+          <div className="pt-4 border-t border-gray-100 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-base">🦾</span>
+                <div>
+                  <p className="text-sm font-bold text-gray-800">
+                    Implantes y dispositivos médicos
+                  </p>
+                  {(ph.implants ?? []).length > 0 && (
+                    <p className="text-[10px] text-gray-400">
+                      {(ph.implants ?? []).length} seleccionado
+                      {(ph.implants ?? []).length !== 1 ? 's' : ''}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {IMPLANTS_LIST.map((implant) => {
+                const active = (ph.implants ?? []).includes(implant)
+                return (
+                  <button
+                    key={implant}
+                    type="button"
+                    onClick={() =>
+                      setPH(
+                        'implants',
+                        active
+                          ? ph.implants.filter((i) => i !== implant)
+                          : [...(ph.implants ?? []), implant],
+                      )
+                    }
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
+                      active
+                        ? 'bg-violet-500 text-white border-violet-500 shadow-sm'
+                        : 'border-gray-200 text-gray-600 hover:border-violet-300 hover:text-violet-600 bg-white'
+                    }`}
+                  >
+                    {implant}
+                  </button>
+                )
+              })}
+            </div>
+            <textarea
+              value={ph.implants_notes ?? ''}
+              onChange={(e) => setPH('implants_notes', e.target.value)}
+              placeholder="Detalles adicionales: marca, modelo, fecha de colocación, centro, cirujano..."
+              rows={2}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white resize-none focus:outline-none focus:ring-2 focus:ring-violet-300/40 leading-relaxed text-gray-700 placeholder-gray-400"
+            />
+          </div>
+        </SectionCard>
 
-                            {/* Type selector (shown after name selected) */}
-                            {newAllergy.name && (
-                                <>
-                                    <div className="flex flex-wrap gap-1.5">
-                                        {ALLERGY_TYPES.map(t => (
-                                            <button key={t.key} type="button"
-                                                onClick={() => setNewAllergy(prev => ({ ...prev, type: t.key }))}
-                                                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all ${newAllergy.type === t.key ? 'bg-[#33C7BE] text-white' : 'border border-gray-200 text-gray-500 bg-white'}`}
-                                            >
-                                                <span>{t.icon}</span>{t.label}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    <div className="flex gap-1.5">
-                                        {ALLERGY_SEVERITY.map(s => (
-                                            <button key={s.key} type="button"
-                                                onClick={() => setNewAllergy(prev => ({ ...prev, severity: s.key }))}
-                                                className={`flex-1 py-1 rounded-full text-[11px] font-bold border transition-all ${newAllergy.severity === s.key ? s.color : 'border-gray-200 text-gray-400 bg-white'}`}
-                                            >
-                                                {s.label}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    <input
-                                        type="text"
-                                        value={newAllergy.reaction}
-                                        onChange={e => setNewAllergy(prev => ({ ...prev, reaction: e.target.value }))}
-                                        placeholder="Tipo de reacción (urticaria, angioedema, anafilaxia...)"
-                                        className="w-full px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none bg-white"
-                                    />
+        {/* ── 2. Antecedentes Familiares ── */}
+        <SectionCard title="Antecedentes Familiares" defaultOpen={false} readOnly={readOnly}>
+          <div className="space-y-3">
+            {/* Header + view toggle + add button */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-xs text-gray-400 flex-1">
+                {Object.keys(fh).length === 0
+                  ? 'Sin familiares registrados'
+                  : `${Object.keys(fh).length} familiar${Object.keys(fh).length !== 1 ? 'es' : ''} registrado${Object.keys(fh).length !== 1 ? 's' : ''}`}
+              </p>
+              {Object.keys(fh).length > 0 && (
+                <div className="flex gap-0.5 bg-gray-100 rounded-lg p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setFHView('list')}
+                    className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all ${fhView === 'list' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-400 hover:text-gray-600'}`}
+                  >
+                    Lista
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFHView('tree')}
+                    className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all ${fhView === 'tree' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-400 hover:text-gray-600'}`}
+                  >
+                    Árbol
+                  </button>
+                </div>
+              )}
+              {!readOnly && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddFH((prev) => !prev)
+                    setNewFHRelation('')
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    showAddFH
+                      ? 'bg-gray-100 text-gray-500'
+                      : 'bg-[#33C7BE] text-white hover:bg-teal-600 shadow-sm'
+                  }`}
+                >
+                  {showAddFH ? <X size={12} /> : <PlusIcon size={12} />}
+                  {showAddFH ? 'Cancelar' : 'Agregar familiar'}
+                </button>
+              )}
+            </div>
+
+            {/* Add family member form */}
+            {showAddFH && (
+              <div className="p-3 rounded-xl border border-[#33C7BE]/30 bg-teal-50/40 space-y-2">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                    Relación con el paciente <span className="text-red-400">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={newFHRelation}
+                      onChange={(e) => {
+                        setNewFHRelation(e.target.value)
+                        setShowFHDropdown(true)
+                      }}
+                      onFocus={() => setShowFHDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowFHDropdown(false), 150)}
+                      placeholder="Ej. Padre, Tío materno, Abuela paterna..."
+                      autoFocus
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none bg-white"
+                    />
+                    {showFHDropdown && (
+                      <div className="absolute z-20 w-full mt-1 max-h-48 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg">
+                        {FH_RELATION_SUGGESTIONS.filter(
+                          (s) =>
+                            !newFHRelation || s.toLowerCase().includes(newFHRelation.toLowerCase()),
+                        ).map((s) => (
+                          <button
+                            key={s}
+                            type="button"
+                            onMouseDown={() => {
+                              setNewFHRelation(s)
+                              setShowFHDropdown(false)
+                            }}
+                            className="w-full px-3 py-2.5 text-left text-sm text-gray-800 hover:bg-teal-50 hover:text-[#33C7BE] border-b border-gray-50 last:border-0 transition-colors"
+                          >
+                            {s}
+                          </button>
+                        ))}
+                        {newFHRelation &&
+                          !FH_RELATION_SUGGESTIONS.some(
+                            (s) => s.toLowerCase() === newFHRelation.toLowerCase(),
+                          ) && (
+                            <button
+                              type="button"
+                              onMouseDown={() => setShowFHDropdown(false)}
+                              className="w-full px-3 py-2.5 text-left text-sm text-[#33C7BE] font-semibold hover:bg-teal-50 border-t border-gray-100 transition-colors"
+                            >
+                              + Usar "{newFHRelation}"
+                            </button>
+                          )}
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    Puedes escribir cualquier relación: tío abuelo, primo segundo, etc.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={!newFHRelation.trim()}
+                  onClick={() => {
+                    const key = `fh_${Date.now()}`
+                    setFH(key, { relation: newFHRelation.trim(), diseases: [], notes: '' })
+                    setExpandedFH((prev) => [...prev, key])
+                    setNewFHRelation('')
+                    setShowAddFH(false)
+                  }}
+                  className="w-full py-2 bg-[#33C7BE] text-white text-sm font-bold rounded-lg hover:bg-teal-600 transition-colors disabled:opacity-40"
+                >
+                  Agregar familiar
+                </button>
+              </div>
+            )}
+
+            {/* Empty state */}
+            {Object.keys(fh).length === 0 && !showAddFH && (
+              <div className="flex items-center gap-3 px-4 py-4 rounded-xl border border-dashed border-gray-200 bg-gray-50/40">
+                <span className="text-2xl">👨‍👩‍👦</span>
+                <div>
+                  <p className="text-sm font-semibold text-gray-500">Sin antecedentes familiares</p>
+                  <p className="text-xs text-gray-400">
+                    Agrega familiares para registrar sus antecedentes hereditarios
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* ── Tree view ── */}
+            {fhView === 'tree' && Object.keys(fh).length > 0 && (
+              <div className="space-y-4">
+                {/* Build generations */}
+                {(() => {
+                  const byGen: [string, FHMemberRecord][][] = [[], [], [], [], []]
+                  Object.entries(fh).forEach(([key, record]) => {
+                    const gen = Math.min(getFHGeneration(record.relation || key), 4)
+                    byGen[gen].push([key, record])
+                  })
+                  const rows = byGen
+                    .map((members, gen) => ({ gen, members }))
+                    .filter((r) => r.members.length > 0)
+
+                  return (
+                    <div className="flex flex-col items-center gap-0 py-2">
+                      {rows.map(({ gen, members }, rowIdx) => (
+                        <div key={gen} className="w-full">
+                          {/* Generation label */}
+                          <p className="text-center text-[10px] font-bold text-gray-300 uppercase tracking-widest mb-2">
+                            {GEN_LABELS[gen]}
+                          </p>
+                          {/* Nodes row */}
+                          <div className="flex gap-3 justify-center flex-wrap">
+                            {members.map(([key, record]) => {
+                              const relation = record.relation || key
+                              const count = record.diseases.length
+                              const icon = getFHIcon(relation)
+                              const isSelected = selectedFHKey === key
+                              return (
+                                <div
+                                  key={key}
+                                  className="flex flex-col items-center gap-1 w-[72px]"
+                                >
+                                  <div className="relative">
                                     <button
+                                      type="button"
+                                      onClick={() => setSelectedFHKey(isSelected ? null : key)}
+                                      className={`w-14 h-14 rounded-2xl border-2 flex flex-col items-center justify-center transition-all ${
+                                        isSelected
+                                          ? 'border-[#33C7BE] bg-teal-50 shadow-md scale-105'
+                                          : count > 0
+                                            ? 'border-teal-200 bg-teal-50/50 hover:border-[#33C7BE]'
+                                            : 'border-gray-200 bg-white hover:border-[#33C7BE]/50'
+                                      }`}
+                                    >
+                                      <span className="text-2xl leading-none">{icon}</span>
+                                    </button>
+                                    {count > 0 && (
+                                      <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center bg-[#33C7BE] text-white text-[9px] font-bold rounded-full px-1 shadow">
+                                        {count}
+                                      </span>
+                                    )}
+                                    {!readOnly && (
+                                      <button
                                         type="button"
                                         onClick={() => {
-                                            setAllergyItems(prev => [...prev, {
-                                                id: Date.now().toString(),
-                                                name: newAllergy.name.trim(),
-                                                type: newAllergy.type,
-                                                severity: newAllergy.severity,
-                                                reaction: newAllergy.reaction.trim(),
-                                            }])
-                                            setNewAllergy({ open: false, search: '', name: '', showDropdown: false, type: 'medicamento', severity: 'leve', reaction: '' })
+                                          setData((prev) => {
+                                            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                                            const { [key]: _r, ...rest } = prev.family_history
+                                            return { ...prev, family_history: rest }
+                                          })
+                                          if (selectedFHKey === key) setSelectedFHKey(null)
                                         }}
-                                        className="w-full py-1.5 bg-[#33C7BE] text-white text-xs font-bold rounded-lg hover:bg-teal-600 transition-colors"
-                                    >
-                                        Guardar alergia
-                                    </button>
-                                </>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Allergy list */}
-                    {allergyItems.length > 0 ? (
-                        <div className="space-y-2">
-                            {allergyItems.map(item => {
-                                const typeInfo = ALLERGY_TYPES.find(t => t.key === item.type)!
-                                const sevInfo = ALLERGY_SEVERITY.find(s => s.key === item.severity)!
-                                return (
-                                    <div key={item.id} className="flex items-start gap-3 px-3 py-2.5 rounded-xl border border-gray-100 bg-white">
-                                        <span className="text-lg leading-none mt-0.5 flex-shrink-0">{typeInfo.icon}</span>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-semibold text-gray-800 leading-tight">{item.name}</p>
-                                            {item.reaction && <p className="text-[11px] text-gray-500 mt-0.5">{item.reaction}</p>}
-                                        </div>
-                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border flex-shrink-0 self-start ${sevInfo.color}`}>
-                                            {sevInfo.label}
-                                        </span>
-                                        {!readOnly && (
-                                            <button
-                                                type="button"
-                                                onClick={() => setAllergyItems(prev => prev.filter(a => a.id !== item.id))}
-                                                className="text-gray-300 hover:text-red-400 transition-colors flex-shrink-0 self-start mt-0.5"
-                                            >
-                                                <X size={13} />
-                                            </button>
-                                        )}
-                                    </div>
-                                )
-                            })}
-                        </div>
-                    ) : (
-                        <p className="text-xs text-gray-400 text-center py-3 border border-dashed border-gray-200 rounded-xl">Sin alergias registradas</p>
-                    )}
-                </div>
-
-                {/* ─ Implantes y dispositivos ─ */}
-                <div className="pt-1">
-                    <p className="text-xs font-bold text-gray-700 mb-2">Implantes y dispositivos médicos</p>
-                    <div className="flex flex-wrap gap-1.5">
-                        {IMPLANTS_LIST.map(implant => {
-                            const active = (ph.implants ?? []).includes(implant)
-                            return (
-                                <button
-                                    key={implant}
-                                    type="button"
-                                    onClick={() => setPH('implants', active
-                                        ? ph.implants.filter(i => i !== implant)
-                                        : [...(ph.implants ?? []), implant]
+                                        className="absolute -bottom-1 -right-1 w-4 h-4 flex items-center justify-center bg-white border border-gray-200 rounded-full text-gray-300 hover:text-red-400 hover:border-red-200 transition-colors shadow-sm"
+                                      >
+                                        <X size={9} />
+                                      </button>
                                     )}
-                                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${active
-                                        ? 'bg-violet-500 text-white shadow-sm'
-                                        : 'border border-gray-200 text-gray-500 hover:border-violet-300 bg-white'
-                                    }`}
-                                >
-                                    {implant}
-                                </button>
-                            )
-                        })}
-                    </div>
-                </div>
-
-
-            </SectionCard>
-
-            {/* ── 2. Antecedentes Familiares ── */}
-            <SectionCard title="Antecedentes Familiares" defaultOpen={false} readOnly={readOnly}>
-                <div className="space-y-2">
-                    {FAMILY_MEMBERS.map(m => {
-                        const record: FHMemberRecord = (fh[m.key] as FHMemberRecord | undefined) ?? { diseases: [], notes: '' }
-                        const count = record.diseases.length
-                        const hasAny = count > 0
-                        const isExpanded = readOnly ? hasAny : expandedFH.includes(m.key)
-
-                        return (
-                            <div key={m.key} className={`rounded-xl border transition-all overflow-hidden ${hasAny ? 'border-teal-200' : 'border-gray-100'}`}>
-                                {/* Card header — tap to expand */}
-                                <button
-                                    type="button"
-                                    onClick={() => setExpandedFH(prev =>
-                                        prev.includes(m.key) ? prev.filter(k => k !== m.key) : [...prev, m.key]
-                                    )}
-                                    className={`view-toggle w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${hasAny ? 'bg-teal-50/40 hover:bg-teal-50/60' : 'bg-white hover:bg-gray-50'}`}
-                                >
-                                    <span className="text-xl leading-none">{m.icon}</span>
-                                    <span className={`flex-1 text-sm font-semibold ${hasAny ? 'text-gray-800' : 'text-gray-500'}`}>{m.label}</span>
-                                    {hasAny && (
-                                        <span className="text-[11px] font-bold text-[#33C7BE] bg-teal-100 px-2 py-0.5 rounded-full">
-                                            {count} {count === 1 ? 'enf.' : 'enf.'}
-                                        </span>
-                                    )}
-                                    <ChevronDown
-                                        size={14}
-                                        className={`text-gray-400 transition-transform duration-200 flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`}
-                                    />
-                                </button>
-
-                                {/* Expanded: disease checklist + notes */}
-                                {isExpanded && (
-                                    <div className="px-4 pb-4 pt-2 border-t border-gray-100 bg-white">
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 mb-3">
-                                            {FH_DISEASES.map(({ key: dKey, label }) => {
-                                                const checked = record.diseases.includes(dKey)
-                                                return (
-                                                    <label key={dKey} className="flex items-start gap-2 cursor-pointer group">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={checked}
-                                                            onChange={() => setFH(m.key, {
-                                                                ...record,
-                                                                diseases: checked
-                                                                    ? record.diseases.filter(d => d !== dKey)
-                                                                    : [...record.diseases, dKey],
-                                                            })}
-                                                            className="mt-0.5 w-3.5 h-3.5 flex-shrink-0 rounded accent-[#33C7BE]"
-                                                        />
-                                                        <span className={`text-xs leading-tight ${checked ? 'text-gray-800 font-semibold' : 'text-gray-400 group-hover:text-gray-600'}`}>
-                                                            {label}
-                                                        </span>
-                                                    </label>
-                                                )
-                                            })}
-                                        </div>
-                                        <input
-                                            type="text"
-                                            value={record.notes}
-                                            onChange={e => setFH(m.key, { ...record, notes: e.target.value })}
-                                            placeholder="Notas: edades de diagnóstico, tratamientos..."
-                                            className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none bg-gray-50/50 placeholder:text-gray-300"
-                                        />
-                                    </div>
-                                )}
-                            </div>
-                        )
-                    })}
-                </div>
-            </SectionCard>
-
-            {/* ── 3. A. Personales Patológicos ── */}
-            <SectionCard title="A. Personales Patológicos" defaultOpen={false} readOnly={readOnly}>
-
-                {/* Medicamentos actuales */}
-                <ChipInput
-                    label="Medicamentos actuales"
-                    value={medicationChips}
-                    onChange={setMedicationChips}
-                    suggestions={['Metformina', 'Losartán', 'Atorvastatina', 'Omeprazol', 'Levotiroxina', 'Amlodipino', 'Enalapril', 'Aspirina', 'Paracetamol', 'Ibuprofeno', 'Insulina', 'Warfarina']}
-                />
-
-                {/* ─ Antecedentes previos ─ */}
-                <div className="pt-2">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Antecedentes previos</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {ANTECEDENTES_PREVIOS.map(({ key, label, emoji }) => (
-                            <ConditionCard
-                                key={key}
-                                emoji={emoji}
-                                label={label}
-                                item={(ph[key as keyof PathologicalHistory] as ToggleItem) ?? DEF_TOGGLE}
-                                onChange={v => setPH(key as keyof PathologicalHistory, v as PathologicalHistory[typeof key])}
-                            />
-                        ))}
-                    </div>
-                </div>
-
-                {/* ─ Adicciones ─ */}
-                <div className="pt-1">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Adicciones</p>
-                    <div className="space-y-2">
-                        {([
-                            { key: 'addiction_alcohol' as const, label: 'Alcoholismo' },
-                            { key: 'addiction_tabaco'  as const, label: 'Tabaquismo' },
-                            { key: 'addiction_otras'   as const, label: 'Otras sustancias psicoactivas' },
-                        ]).map(({ key, label }) => (
-                            <div key={key} className={`rounded-xl border p-3 transition-all ${ph[key].present ? 'border-amber-200 bg-amber-50/40' : 'border-gray-100 bg-white'}`}>
-                                <Toggle
-                                    label={label}
-                                    checked={ph[key].present}
-                                    onChange={v => setPH(key, { ...ph[key], present: v })}
-                                />
-                                {ph[key].present && (
-                                    <div className="mt-2">
-                                        <TextAreaField
-                                            value={ph[key].details}
-                                            onChange={v => setPH(key, { ...ph[key], details: v })}
-                                            placeholder="Sustancia, frecuencia, cantidad, tiempo..."
-                                        />
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* ─ Patologías por contagio ─ */}
-                <div className="pt-1">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Patologías por contagio</p>
-
-                    {/* Exantemáticas */}
-                    <div className="mb-4">
-                        <p className="text-xs font-semibold text-gray-600 mb-2">Exantemáticas</p>
-                        <div className="flex flex-wrap gap-2">
-                            {EXANTEMATICAS_LIST.map(disease => {
-                                const active = ph.exantematicas.includes(disease)
-                                return (
-                                    <button
-                                        key={disease}
-                                        type="button"
-                                        onClick={() => setPH('exantematicas', active
-                                            ? ph.exantematicas.filter(d => d !== disease)
-                                            : [...ph.exantematicas, disease]
-                                        )}
-                                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${active
-                                            ? 'bg-rose-500 text-white'
-                                            : 'border border-gray-200 text-gray-600 hover:border-rose-300 bg-white'
-                                        }`}
-                                    >
-                                        {disease}
-                                    </button>
-                                )
-                            })}
-                        </div>
-                        <div className="mt-2">
-                            <input
-                                type="text"
-                                value={ph.exantematica_otra}
-                                onChange={e => setPH('exantematica_otra', e.target.value)}
-                                placeholder="Otra exantemática..."
-                                className="w-full px-3 py-1.5 text-xs border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Infectocontagiosas */}
-                    <div>
-                        <p className="text-xs font-semibold text-gray-600 mb-2">Infectocontagiosas</p>
-                        <div className="flex flex-wrap gap-2">
-                            {INFECTOCONTAGIOSAS_LIST.map(disease => {
-                                const active = ph.infectocontagiosas.includes(disease)
-                                return (
-                                    <button
-                                        key={disease}
-                                        type="button"
-                                        onClick={() => setPH('infectocontagiosas', active
-                                            ? ph.infectocontagiosas.filter(d => d !== disease)
-                                            : [...ph.infectocontagiosas, disease]
-                                        )}
-                                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${active
-                                            ? 'bg-orange-500 text-white'
-                                            : 'border border-gray-200 text-gray-600 hover:border-orange-300 bg-white'
-                                        }`}
-                                    >
-                                        {disease}
-                                    </button>
-                                )
-                            })}
-                        </div>
-                        {ph.infectocontagiosas.includes('Hepatitis') && (
-                            <div className="mt-2 px-3 py-2 bg-orange-50 border border-orange-200 rounded-xl flex flex-wrap gap-5">
-                                {(['a', 'b', 'c'] as const).map(t => (
-                                    <label key={t} className="flex items-center gap-1.5 cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={ph.hepatitis_types[t]}
-                                            onChange={e => setPH('hepatitis_types', { ...ph.hepatitis_types, [t]: e.target.checked })}
-                                            className="w-3.5 h-3.5 rounded accent-orange-500"
-                                        />
-                                        <span className="text-xs text-gray-700 font-medium">Hepatitis {t.toUpperCase()}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        )}
-                        <div className="mt-2">
-                            <input
-                                type="text"
-                                value={ph.infectocontagiosa_otra}
-                                onChange={e => setPH('infectocontagiosa_otra', e.target.value)}
-                                placeholder="Otra infectocontagiosa..."
-                                className="w-full px-3 py-1.5 text-xs border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none"
-                            />
-                        </div>
-                    </div>
-                </div>
-
-                {/* ─ Enfermedades Crónico-Degenerativas ─ */}
-                <div className="pt-1">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Enf. Crónico-Degenerativas</p>
-                    <div className="space-y-1.5">
-                        {CD_DISEASES.map(({ key, label }) => {
-                            const item = (ph.cd?.[key]) ?? { present: false, year: '', details: '' }
-                            return (
-                                <div key={key} className={`rounded-xl border transition-all ${item.present ? 'border-teal-200 bg-teal-50/30' : 'border-gray-100 bg-white'}`}>
-                                    <div className="flex items-center gap-3 px-3 py-2.5">
-                                        <button
-                                            type="button"
-                                            onClick={() => setCDItem(key, { ...item, present: !item.present })}
-                                            className={`w-5 h-5 rounded-full border-2 flex-shrink-0 transition-all flex items-center justify-center ${item.present ? 'bg-[#33C7BE] border-[#33C7BE]' : 'border-gray-300'}`}
-                                        >
-                                            {item.present && <span className="text-white text-[10px] font-bold">✓</span>}
-                                        </button>
-                                        <span className={`text-sm flex-1 leading-tight ${item.present ? 'text-gray-800 font-medium' : 'text-gray-500'}`}>{label}</span>
-                                        {item.present && (
-                                            <input
-                                                type="text"
-                                                value={item.year}
-                                                onChange={e => setCDItem(key, { ...item, year: e.target.value })}
-                                                placeholder="Año"
-                                                maxLength={4}
-                                                className="w-16 text-xs border border-gray-200 rounded-lg px-2 py-1 text-center focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none"
-                                            />
-                                        )}
-                                    </div>
-                                    {item.present && (
-                                        <div className="px-3 pb-3">
-                                            <TextAreaField
-                                                value={item.details}
-                                                onChange={v => setCDItem(key, { ...item, details: v })}
-                                                placeholder="Detalles, tratamiento, evolución..."
-                                            />
-                                        </div>
-                                    )}
+                                  </div>
+                                  <span className="text-[10px] text-gray-600 font-medium text-center leading-tight line-clamp-2 w-full">
+                                    {relation}
+                                  </span>
                                 </div>
-                            )
-                        })}
+                              )
+                            })}
+                          </div>
+                          {/* Connector line to next row */}
+                          {rowIdx < rows.length - 1 && (
+                            <div className="flex justify-center my-2">
+                              <div className="w-px h-6 bg-gray-200" />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      {/* Patient node */}
+                      <div className="flex justify-center mt-2">
+                        <div className="flex flex-col items-center gap-1 w-[72px]">
+                          <div className="flex justify-center mb-1">
+                            <div className="w-px h-5 bg-gray-200" />
+                          </div>
+                          <div className="w-14 h-14 rounded-2xl border-2 border-[#33C7BE] bg-[#33C7BE]/10 flex items-center justify-center">
+                            <span className="text-2xl">🧑</span>
+                          </div>
+                          <span className="text-[10px] text-[#33C7BE] font-bold text-center">
+                            Paciente
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                </div>
-
-            </SectionCard>
-
-            {/* ── 4. A. Personales NO Patológicos ── */}
-            <SectionCard title="A. Personales NO Patológicos" defaultOpen={false} readOnly={readOnly}>
-                <FrequencyPills
-                    label="Tabaquismo"
-                    options={[
-                        { value: 'never', label: 'No fumador' },
-                        { value: 'ex', label: 'Ex-fumador' },
-                        { value: 'occasional', label: 'Ocasional' },
-                        { value: 'moderate', label: 'Moderado' },
-                        { value: 'heavy', label: 'Fuerte' },
-                    ]}
-                    value={nph.smoking.frequency}
-                    onChange={v => setNPH('smoking', {
-                        ...nph.smoking,
-                        frequency: v,
-                        present: v !== 'never' && v !== '',
-                    })}
-                />
-
-                <div className="space-y-3">
-                    <Toggle
-                        label="Toma bebidas alcohólicas"
-                        checked={nph.alcohol.present}
-                        onChange={v => setNPH('alcohol', { ...nph.alcohol, present: v })}
-                    />
-                    {nph.alcohol.present && (
-                        <div className="flex justify-around pt-1 pb-2 px-2 bg-gray-50 rounded-xl border border-gray-100">
-                            <Stepper
-                                label="Veces / semana"
-                                value={nph.alcohol.frequency_per_week}
-                                onChange={v => setNPH('alcohol', { ...nph.alcohol, frequency_per_week: v })}
-                            />
-                            <div className="w-px bg-gray-200 self-stretch" />
-                            <Stepper
-                                label="Copas / día"
-                                value={nph.alcohol.cups_per_day}
-                                onChange={v => setNPH('alcohol', { ...nph.alcohol, cups_per_day: v })}
-                            />
-                        </div>
-                    )}
-                </div>
-
-                <div className="space-y-3">
-                    <Toggle
-                        label="Consume drogas"
-                        checked={nph.drugs.present}
-                        onChange={v => setNPH('drugs', { ...nph.drugs, present: v })}
-                    />
-                    {nph.drugs.present && (
-                        <ChipInput
-                            value={drugChips}
-                            onChange={setDrugChips}
-                            suggestions={['Marihuana', 'Cocaína', 'Alcohol en exceso', 'Tabaco', 'Benzodiacepinas', 'Opioides', 'Otros']}
-                        />
-                    )}
-                </div>
-
-                <FrequencyPills
-                    label="Ejercicio"
-                    options={[
-                        { value: 'never', label: 'No hace' },
-                        { value: 'occasional', label: 'Ocasional' },
-                        { value: 'regular', label: 'Regular (3x/sem)' },
-                        { value: 'daily', label: 'Diario' },
-                    ]}
-                    value={nph.exercise.frequency}
-                    onChange={v => setNPH('exercise', {
-                        ...nph.exercise,
-                        frequency: v,
-                        present: v !== 'never' && v !== '',
-                    })}
-                />
-            </SectionCard>
-
-            {/* ── 5. A. Ginecológicos ── */}
-            <SectionCard title="A. Ginecológicos" defaultOpen={false} readOnly={readOnly}>
-                <Toggle
-                    label="Aplica a este paciente"
-                    checked={gh.applicable}
-                    onChange={v => setGH('applicable', v)}
-                />
-
-                {gh.applicable && (
-                    <div className="space-y-4 pt-1">
-                        <TextField
-                            label="Menarca (edad)"
-                            value={gh.menarche}
-                            onChange={v => setGH('menarche', v)}
-                            placeholder="Edad de la primera menstruación"
-                        />
-
-                        <div>
-                            <p className="text-xs font-semibold text-gray-500 mb-3">Gestas</p>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 justify-items-center bg-gray-50 rounded-xl p-4 border border-gray-100">
-                                {([
-                                    ['gestations', 'Gestaciones'],
-                                    ['births', 'Partos'],
-                                    ['cesareans', 'Cesáreas'],
-                                    ['abortions', 'Abortos'],
-                                    ['stillbirths', 'Óbitos'],
-                                    ['ectopics', 'Ectópicos'],
-                                ] as [keyof GynecologicalHistory, string][]).map(([key, label]) => (
-                                    <Stepper
-                                        key={key}
-                                        label={label}
-                                        value={gh[key] as string}
-                                        onChange={v => setGH(key, v)}
-                                    />
-                                ))}
-                            </div>
-                        </div>
-
-                        <TextField
-                            label="Fecha de última gestación"
-                            value={gh.last_gestation_date}
-                            onChange={v => setGH('last_gestation_date', v)}
-                            type="date"
-                        />
-
-                        <Toggle
-                            label="Continúa menstruando"
-                            checked={gh.still_menstruating}
-                            onChange={v => setGH('still_menstruating', v)}
-                        />
-                        {gh.still_menstruating && (
-                            <div className="space-y-3">
-                                <div className="flex justify-around py-3 px-2 bg-gray-50 rounded-xl border border-gray-100">
-                                    <Stepper
-                                        label="Duración (días)"
-                                        value={gh.duration_days}
-                                        onChange={v => setGH('duration_days', v)}
-                                    />
-                                    <div className="w-px bg-gray-200 self-stretch" />
-                                    <Stepper
-                                        label="Frecuencia (días)"
-                                        value={gh.frequency_days}
-                                        onChange={v => setGH('frequency_days', v)}
-                                    />
-                                </div>
-                                <Toggle
-                                    label="Ciclos menstruales irregulares"
-                                    checked={gh.irregular_cycles}
-                                    onChange={v => setGH('irregular_cycles', v)}
-                                />
-                            </div>
-                        )}
-
-                        <div>
-                            <p className="text-xs font-semibold text-gray-500 mb-2">Anticonceptivos</p>
-                            <ConditionCard
-                                emoji="💊"
-                                label="Anticonceptivos"
-                                item={gh.contraceptives}
-                                onChange={v => setGH('contraceptives', v)}
-                                fullWidth
-                            />
-                        </div>
-
-                        <TextField
-                            label="Fecha Última Regla"
-                            value={gh.last_period_date}
-                            onChange={v => setGH('last_period_date', v)}
-                            type="date"
-                        />
-
-                        <Toggle
-                            label="Embarazo actual"
-                            checked={gh.pregnant}
-                            onChange={v => setGH('pregnant', v)}
-                        />
-                        {gh.pregnant && (
-                            <div className="space-y-3 pl-1">
-                                <TextField
-                                    label="Semanas de gestación"
-                                    value={gh.gestational_age}
-                                    onChange={v => setGH('gestational_age', v)}
-                                    placeholder="Semanas"
-                                />
-                                <TextField
-                                    label="Fecha probable de parto"
-                                    value={gh.probable_birth_date}
-                                    onChange={v => setGH('probable_birth_date', v)}
-                                    type="date"
-                                />
-                                <FrequencyPills
-                                    label="Trimestre"
-                                    options={[
-                                        { value: '1', label: '1er trimestre' },
-                                        { value: '2', label: '2do trimestre' },
-                                        { value: '3', label: '3er trimestre' },
-                                    ]}
-                                    value={gh.trimester}
-                                    onChange={v => setGH('trimester', v)}
-                                />
-                            </div>
-                        )}
-
-                        <TextAreaField
-                            label="Observaciones ginecológicas"
-                            value={gh.details}
-                            onChange={v => setGH('details', v)}
-                        />
-                    </div>
-                )}
-            </SectionCard>
-
-            {/* ── 6. Antecedentes Psiquiátricos ── */}
-            <SectionCard title="A. Psiquiátricos" defaultOpen={false} readOnly={readOnly}>
-                <Toggle
-                    label="Aplica a este paciente"
-                    checked={psych.applicable}
-                    onChange={v => setPsych('applicable', v)}
-                />
-
-                {psych.applicable && (
-                    <div className="space-y-4 pt-1">
-
-                        {/* Diagnósticos previos */}
-                        <div>
-                            <p className="text-xs font-semibold text-gray-500 mb-2">Diagnósticos psiquiátricos previos</p>
-                            <div className="flex flex-wrap gap-1.5 mb-2">
-                                {PSYCHIATRIC_DIAGNOSES.map(d => {
-                                    const active = psych.diagnoses.includes(d)
-                                    return (
-                                        <button
-                                            key={d}
-                                            type="button"
-                                            onClick={() => setPsych('diagnoses', active
-                                                ? psych.diagnoses.filter(x => x !== d)
-                                                : [...psych.diagnoses, d]
-                                            )}
-                                            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${active
-                                                ? 'bg-[#33C7BE] text-white'
-                                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                            }`}
-                                        >
-                                            {active && <span className="mr-1">✓</span>}{d}
-                                        </button>
-                                    )
-                                })}
-                            </div>
-                            <TextField
-                                value={psych.diagnoses_other}
-                                onChange={v => setPsych('diagnoses_other', v)}
-                                placeholder="Otro diagnóstico..."
-                            />
-                        </div>
-
-                        {/* Medicamentos psiquiátricos actuales */}
-                        <div className="space-y-2">
-                            <Toggle
-                                label="Medicamentos psiquiátricos actuales"
-                                checked={psych.current_psychiatric_meds.present}
-                                onChange={v => setPsych('current_psychiatric_meds', { ...psych.current_psychiatric_meds, present: v })}
-                            />
-                            {psych.current_psychiatric_meds.present && (
-                                <TextAreaField
-                                    value={psych.current_psychiatric_meds.details}
-                                    onChange={v => setPsych('current_psychiatric_meds', { ...psych.current_psychiatric_meds, details: v })}
-                                    placeholder="Nombre del medicamento, dosis, frecuencia..."
-                                />
-                            )}
-                        </div>
-
-                        {/* Medicamentos psiquiátricos previos */}
-                        <TextField
-                            label="Medicamentos psiquiátricos previos"
-                            value={psych.previous_psychiatric_meds}
-                            onChange={v => setPsych('previous_psychiatric_meds', v)}
-                            placeholder="Medicamentos utilizados anteriormente..."
-                        />
-
-                        {/* Psicoterapia */}
-                        <div className="space-y-2">
-                            <Toggle
-                                label="Ha recibido psicoterapia"
-                                checked={psych.psychotherapy.present}
-                                onChange={v => setPsych('psychotherapy', { ...psych.psychotherapy, present: v })}
-                            />
-                            {psych.psychotherapy.present && (
-                                <TextAreaField
-                                    value={psych.psychotherapy.details}
-                                    onChange={v => setPsych('psychotherapy', { ...psych.psychotherapy, details: v })}
-                                    placeholder="Tipo de terapia, duración, resultado..."
-                                />
-                            )}
-                        </div>
-
-                        {/* Hospitalización psiquiátrica */}
-                        <div className="space-y-2">
-                            <Toggle
-                                label="Hospitalización psiquiátrica previa"
-                                checked={psych.hospitalization_psychiatric.present}
-                                onChange={v => setPsych('hospitalization_psychiatric', { ...psych.hospitalization_psychiatric, present: v })}
-                            />
-                            {psych.hospitalization_psychiatric.present && (
-                                <TextAreaField
-                                    value={psych.hospitalization_psychiatric.details}
-                                    onChange={v => setPsych('hospitalization_psychiatric', { ...psych.hospitalization_psychiatric, details: v })}
-                                    placeholder="Institución, año, motivo..."
-                                />
-                            )}
-                        </div>
-
-                        {/* Intentos suicidas */}
-                        <div className="space-y-2">
-                            <Toggle
-                                label="Intentos suicidas previos"
-                                checked={psych.suicide_attempts.present}
-                                onChange={v => setPsych('suicide_attempts', { ...psych.suicide_attempts, present: v })}
-                            />
-                            {psych.suicide_attempts.present && (
-                                <TextAreaField
-                                    value={psych.suicide_attempts.details}
-                                    onChange={v => setPsych('suicide_attempts', { ...psych.suicide_attempts, details: v })}
-                                    placeholder="Número de intentos, método, año..."
-                                />
-                            )}
-                        </div>
-
-                        <TextAreaField
-                            label="Notas adicionales"
-                            value={psych.notes}
-                            onChange={v => setPsych('notes', v)}
-                        />
-                    </div>
-                )}
-            </SectionCard>
-
-            {/* ── 7. Antecedentes de Desarrollo ── */}
-            <SectionCard title="A. de Desarrollo" defaultOpen={false} readOnly={readOnly}>
-                <Toggle
-                    label="Aplica a este paciente"
-                    checked={dev.applicable}
-                    onChange={v => setDev('applicable', v)}
-                />
-
-                {dev.applicable && (
-                    <div className="space-y-4 pt-1">
-
-                        {/* Tipo de parto */}
-                        <FrequencyPills
-                            label="Tipo de parto"
-                            options={[
-                                { value: 'eutocico',  label: 'Eutócico' },
-                                { value: 'cesarea',   label: 'Cesárea' },
-                                { value: 'forceps',   label: 'Fórceps' },
-                                { value: 'vacuum',    label: 'Vacuum' },
-                                { value: 'otro',      label: 'Otro' },
-                            ]}
-                            value={dev.birth_type}
-                            onChange={v => setDev('birth_type', v)}
-                        />
-
-                        <TextField
-                            label="Edad gestacional al nacer (semanas)"
-                            value={dev.gestational_age_weeks}
-                            onChange={v => setDev('gestational_age_weeks', v)}
-                            placeholder="Ej. 38"
-                        />
-
-                        {/* Complicaciones perinatales */}
-                        <div className="space-y-2">
-                            <Toggle
-                                label="Complicaciones perinatales"
-                                checked={dev.perinatal_complications.present}
-                                onChange={v => setDev('perinatal_complications', { ...dev.perinatal_complications, present: v })}
-                            />
-                            {dev.perinatal_complications.present && (
-                                <TextAreaField
-                                    value={dev.perinatal_complications.details}
-                                    onChange={v => setDev('perinatal_complications', { ...dev.perinatal_complications, details: v })}
-                                    placeholder="Descripción de complicaciones..."
-                                />
-                            )}
-                        </div>
-
-                        {/* Complicaciones neonatales */}
-                        <div>
-                            <p className="text-xs font-semibold text-gray-500 mb-2">Complicaciones neonatales</p>
-                            <div className="flex flex-wrap gap-1.5">
-                                {NEONATAL_COMPLICATIONS_LIST.map(c => {
-                                    const active = dev.neonatal_complications.includes(c)
-                                    return (
-                                        <button
-                                            key={c}
-                                            type="button"
-                                            onClick={() => setDev('neonatal_complications', active
-                                                ? dev.neonatal_complications.filter(x => x !== c)
-                                                : [...dev.neonatal_complications, c]
-                                            )}
-                                            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${active
-                                                ? 'bg-[#33C7BE] text-white'
-                                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                            }`}
-                                        >
-                                            {active && <span className="mr-1">✓</span>}{c}
-                                        </button>
-                                    )
-                                })}
-                            </div>
-                        </div>
-
-                        {/* Desarrollo psicomotor */}
-                        <div className="space-y-3">
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Desarrollo psicomotor</p>
-                            <FrequencyPills
-                                label="Desarrollo motor"
-                                options={MILESTONE_OPTIONS}
-                                value={dev.motor_milestones}
-                                onChange={v => setDev('motor_milestones', v)}
-                            />
-                            <FrequencyPills
-                                label="Desarrollo del lenguaje"
-                                options={MILESTONE_OPTIONS}
-                                value={dev.language_milestones}
-                                onChange={v => setDev('language_milestones', v)}
-                            />
-                            <FrequencyPills
-                                label="Desarrollo cognitivo"
-                                options={MILESTONE_OPTIONS}
-                                value={dev.cognitive_development}
-                                onChange={v => setDev('cognitive_development', v)}
-                            />
-                        </div>
-
-                        {/* Escolaridad */}
-                        <div className="space-y-3">
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Escolaridad</p>
-                            <FrequencyPills
-                                label="Rendimiento escolar"
-                                options={SCHOOL_PERF_OPTIONS}
-                                value={dev.school_performance}
-                                onChange={v => setDev('school_performance', v)}
-                            />
-                            <FrequencyPills
-                                label="Nivel máximo de estudios"
-                                options={[
-                                    { value: 'sin_escolaridad', label: 'Sin escolaridad' },
-                                    { value: 'primaria',        label: 'Primaria' },
-                                    { value: 'secundaria',      label: 'Secundaria' },
-                                    { value: 'preparatoria',    label: 'Preparatoria' },
-                                    { value: 'tecnico',         label: 'Técnico' },
-                                    { value: 'licenciatura',    label: 'Licenciatura' },
-                                    { value: 'posgrado',        label: 'Posgrado' },
-                                ]}
-                                value={dev.education_level}
-                                onChange={v => setDev('education_level', v)}
-                            />
-                        </div>
-
-                        <TextAreaField
-                            label="Notas adicionales"
-                            value={dev.notes}
-                            onChange={v => setDev('notes', v)}
-                        />
-                    </div>
-                )}
-            </SectionCard>
-
-            {/* ── 8. Interrogatorio por Aparatos y Sistemas ── */}
-            <SectionCard title="Interrogatorio por Aparatos y Sistemas" defaultOpen={false} readOnly={readOnly}>
-                {/* "Mark all normal" shortcut */}
-                <div className="flex items-center justify-between -mt-1 mb-3">
-                    <p className="text-[11px] text-gray-400">Selecciona un sistema para registrar hallazgos.</p>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            const allNormal = makeDefaultSystems()
-                            SYSTEMS_CONFIG.forEach(s => { allNormal[s.key] = { normal: true, symptoms: [], notes: '' } })
-                            setSystemsReview(allNormal)
-                        }}
-                        className="text-[11px] font-semibold text-green-600 hover:text-green-700 flex items-center gap-1 whitespace-nowrap flex-shrink-0"
-                    >
-                        <span className="text-xs">✓</span> Todo normal
-                    </button>
-                </div>
-
-                {/* System grid — 3 columns */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
-                    {SYSTEMS_CONFIG.map(({ key, short, icon }) => {
-                        const entry = systemsReview[key]
-                        const hasFindings = entry.symptoms.length > 0
-                        const isNormal = entry.normal && !hasFindings
-                        const isSelected = activeSystem === key
-                        return (
-                            <button
-                                key={key}
-                                type="button"
-                                onClick={() => setActiveSystem(key)}
-                                className={`view-toggle relative flex flex-col items-center gap-1 py-3 px-1 rounded-2xl border-2 transition-all ${
-                                    isSelected
-                                        ? hasFindings  ? 'border-amber-400 bg-amber-50 shadow-md scale-[1.03]'
-                                        : isNormal     ? 'border-green-400 bg-green-50 shadow-md scale-[1.03]'
-                                                       : 'border-[#33C7BE] bg-teal-50 shadow-md scale-[1.03]'
-                                        : hasFindings  ? 'border-amber-200 bg-amber-50/50 hover:border-amber-300'
-                                        : isNormal     ? 'border-green-200 bg-green-50/50 hover:border-green-300'
-                                                       : 'border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50'
-                                }`}
-                            >
-                                <span className="text-xl leading-none">{icon}</span>
-                                <span className={`text-[10px] font-semibold text-center leading-tight px-1 ${isSelected || hasFindings || isNormal ? 'text-gray-800' : 'text-gray-500'}`}>
-                                    {short}
-                                </span>
-                                {/* Status badge */}
-                                {hasFindings && (
-                                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-amber-400 rounded-full flex items-center justify-center text-[9px] font-bold text-white shadow-sm">
-                                        {entry.symptoms.length}
-                                    </span>
-                                )}
-                                {isNormal && (
-                                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-green-400 rounded-full flex items-center justify-center text-[9px] font-bold text-white shadow-sm">✓</span>
-                                )}
-                            </button>
-                        )
-                    })}
-                </div>
-
-                {/* Detail panel for selected system */}
-                {(() => {
-                    const cfg = SYSTEMS_CONFIG.find(s => s.key === activeSystem)!
-                    const entry = systemsReview[activeSystem]
-                    const hasFindings = entry.symptoms.length > 0
-                    const isNormal = entry.normal && !hasFindings
-                    return (
-                        <div className={`rounded-2xl border-2 p-4 transition-all ${
-                            hasFindings ? 'border-amber-200 bg-amber-50/20'
-                            : isNormal  ? 'border-green-200 bg-green-50/20'
-                                        : 'border-gray-100 bg-white'
-                        }`}>
-                            {/* Panel header */}
-                            <div className="flex items-center justify-between mb-3">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-2xl leading-none">{cfg.icon}</span>
-                                    <div>
-                                        <p className="text-sm font-bold text-gray-800 leading-tight">{cfg.label}</p>
-                                        {hasFindings && (
-                                            <p className="text-[10px] text-amber-600 font-semibold">{entry.symptoms.length} hallazgos</p>
-                                        )}
-                                    </div>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => setSystemEntry(activeSystem, { normal: !entry.normal, symptoms: [], notes: '' })}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold transition-all flex-shrink-0 ${isNormal
-                                        ? 'bg-green-100 text-green-700 border border-green-200'
-                                        : 'border border-gray-200 text-gray-500 hover:border-green-300 hover:text-green-600 bg-white'
-                                    }`}
-                                >
-                                    <span className={`w-1.5 h-1.5 rounded-full ${isNormal ? 'bg-green-500' : 'bg-gray-300'}`} />
-                                    Normal
-                                </button>
-                            </div>
-
-                            {/* Symptom chips */}
-                            <div className="flex flex-wrap gap-2 mb-3">
-                                {cfg.symptoms.map(symptom => {
-                                    const active = entry.symptoms.includes(symptom)
-                                    return (
-                                        <button
-                                            key={symptom}
-                                            type="button"
-                                            onClick={() => {
-                                                const next = active
-                                                    ? entry.symptoms.filter(s => s !== symptom)
-                                                    : [...entry.symptoms, symptom]
-                                                setSystemEntry(activeSystem, { symptoms: next, normal: false })
-                                            }}
-                                            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${active
-                                                ? 'bg-amber-400 text-white shadow-sm'
-                                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                            }`}
-                                        >
-                                            {symptom}
-                                        </button>
-                                    )
-                                })}
-                            </div>
-
-                            {hasFindings && (
-                                <textarea
-                                    value={entry.notes}
-                                    onChange={e => setSystemEntry(activeSystem, { notes: e.target.value })}
-                                    placeholder="Detalles de los hallazgos..."
-                                    rows={2}
-                                    className="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none resize-none bg-white"
-                                />
-                            )}
-                        </div>
-                    )
+                  )
                 })()}
-            </SectionCard>
 
-            {/* ── 9. Padecimiento Actual ── NOM-004 §7.1.5 */}
-            <SectionCard title="Padecimiento Actual" defaultOpen={false} readOnly={readOnly}>
-                <TextAreaField
-                    label="Descripción cronológica del padecimiento actual"
-                    value={data.current_illness}
-                    onChange={v => setData(d => ({ ...d, current_illness: v }))}
-                    placeholder="Describa cronológicamente cómo inició y evolucionó el padecimiento que motiva la consulta: fecha de inicio, síntomas, tratamientos previos, evolución..."
-                    rows={5}
-                />
-            </SectionCard>
-
-            {/* ── 10. Exploración Física Inicial ── NOM-004 §7.1.9 */}
-            <SectionCard title="Exploración Física Inicial" defaultOpen={false} readOnly={readOnly}>
-                {!readOnly && (
-                    <div className="flex flex-wrap gap-1.5 mb-3">
-                        {[
-                            { label: 'Examen normal', text: 'Paciente en buen estado general, consciente y orientado en tiempo, lugar y persona.\nCabeza y cuello: normocéfalo, sin adenopatías, tiroides sin alteraciones.\nCardiopulmonar: ruidos cardíacos rítmicos sin soplos; murmullo vesicular presente y simétrico, sin estertores.\nAbdomen: blando, depresible, sin dolor a la palpación, peristalsis presente, sin visceromegalias.\nExtremidades: sin edema, llenado capilar < 2 s, pulsos periféricos presentes.' },
-                            { label: 'Pediátrico normal', text: 'Paciente pediátrico en buen estado general. Normocéfalo, fontanelas cerradas (en su caso). Orofaringe sin hiperemia. Cardiopulmonar: ruidos normales, sin soplos ni estertores. Abdomen blando, sin megalias. Genitales de acuerdo a edad y sexo. Extremidades íntegras, movilidad conservada. Neurológico: acorde a edad.' },
-                            { label: 'Control crónico', text: 'Exploración sin signos de descompensación aguda. Peso estable. Sin edema periférico. Llenado capilar normal. Resto de exploración sin particularidades en relación a patología de base.' },
-                        ].map(p => (
-                            <button key={p.label} type="button"
-                                onClick={() => setData(d => ({ ...d, physical_examination: p.text }))}
-                                className="px-2.5 py-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full hover:bg-emerald-100 transition-colors"
-                            >
-                                {p.label}
-                            </button>
-                        ))}
-                    </div>
-                )}
-                <TextAreaField
-                    label="Hallazgos de la exploración física"
-                    value={data.physical_examination}
-                    onChange={v => setData(d => ({ ...d, physical_examination: v }))}
-                    placeholder="Signos vitales, aspecto general, cabeza y cuello, tórax, abdomen, extremidades, neurológico..."
-                    rows={6}
-                />
-            </SectionCard>
-
-            {/* ── 11. Diagnóstico Nosológico, Pronóstico y Plan ── NOM-004 §7.1.10-12 */}
-            <SectionCard title="Diagnóstico, Pronóstico y Plan Inicial" defaultOpen={false} readOnly={readOnly}>
-                {/* CIE-10 diagnósticos iniciales */}
-                <div className="space-y-3 mb-4">
-                    <div className="flex items-center justify-between">
-                        <p className="text-xs font-bold text-gray-700">Diagnósticos nosológicos <span className="text-[10px] text-red-400 font-bold">(CIE-10 obligatorio NOM)</span></p>
-                        {!readOnly && (
-                            <button type="button"
-                                onClick={() => setData(d => ({ ...d, initial_diagnoses: [...d.initial_diagnoses, { codigo: '', descripcion: '' }] }))}
-                                className="flex items-center gap-1 text-[11px] font-semibold text-violet-600 hover:text-violet-700"
-                            >
-                                <PlusIcon size={12} /> Agregar
-                            </button>
-                        )}
-                    </div>
-                    {data.initial_diagnoses.length === 0 && readOnly && (
-                        <p className="text-xs text-gray-400">Sin diagnósticos registrados.</p>
-                    )}
-                    {data.initial_diagnoses.map((diag, i) => (
-                        <_Cie10DiagRow
-                            key={i}
-                            index={i}
-                            codigo={diag.codigo}
-                            descripcion={diag.descripcion}
-                            readOnly={readOnly}
-                            onSelect={(code, desc) => setData(d => ({
-                                ...d,
-                                initial_diagnoses: d.initial_diagnoses.map((x, idx) =>
-                                    idx === i ? { codigo: code, descripcion: desc } : x
-                                )
-                            }))}
-                            onChange={(field, val) => setData(d => ({
-                                ...d,
-                                initial_diagnoses: d.initial_diagnoses.map((x, idx) =>
-                                    idx === i ? { ...x, [field]: val } : x
-                                )
-                            }))}
-                            onRemove={() => setData(d => ({
-                                ...d,
-                                initial_diagnoses: d.initial_diagnoses.filter((_, idx) => idx !== i)
-                            }))}
+                {/* Selected node disease panel */}
+                {selectedFHKey &&
+                  fh[selectedFHKey] &&
+                  (() => {
+                    const record = fh[selectedFHKey]
+                    const relation = record.relation || selectedFHKey
+                    const icon = getFHIcon(relation)
+                    return (
+                      <div className="rounded-xl border border-[#33C7BE]/30 bg-teal-50/30 p-4 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">{icon}</span>
+                          <p className="text-sm font-bold text-gray-800">{relation}</p>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedFHKey(null)}
+                            className="ml-auto text-gray-300 hover:text-gray-500"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {FH_DISEASES.map(({ key: dKey, label }) => {
+                            const active = record.diseases.includes(dKey)
+                            return (
+                              <button
+                                key={dKey}
+                                type="button"
+                                onClick={() =>
+                                  setFH(selectedFHKey, {
+                                    ...record,
+                                    diseases: active
+                                      ? record.diseases.filter((d) => d !== dKey)
+                                      : [...record.diseases, dKey],
+                                  })
+                                }
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+                                  active
+                                    ? 'bg-[#33C7BE] text-white border-[#33C7BE] shadow-sm'
+                                    : 'border-gray-200 text-gray-500 hover:border-[#33C7BE]/50 hover:text-[#33C7BE] bg-white'
+                                }`}
+                              >
+                                {active && <span className="text-[10px]">✓</span>}
+                                {label}
+                              </button>
+                            )
+                          })}
+                        </div>
+                        <input
+                          type="text"
+                          value={record.notes}
+                          onChange={(e) =>
+                            setFH(selectedFHKey, { ...record, notes: e.target.value })
+                          }
+                          placeholder="Notas: edades de diagnóstico, tratamientos, fallecimiento..."
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none bg-white"
                         />
-                    ))}
+                      </div>
+                    )
+                  })()}
+              </div>
+            )}
+
+            {/* Family member cards (list view) */}
+            {fhView === 'list' && (
+              <div className="space-y-2">
+                {Object.entries(fh).map(([key, record]) => {
+                  const count = record.diseases.length
+                  const hasAny = count > 0
+                  const isExpanded = readOnly ? hasAny : expandedFH.includes(key)
+                  const relation = record.relation || key
+                  const icon = getFHIcon(relation)
+                  const diseasesSummary =
+                    record.diseases
+                      .slice(0, 2)
+                      .map((d) => FH_DISEASES.find((fd) => fd.key === d)?.label)
+                      .filter(Boolean)
+                      .join(', ') +
+                    (record.diseases.length > 2 ? ` +${record.diseases.length - 2} más` : '')
+
+                  return (
+                    <div
+                      key={key}
+                      className={`rounded-xl border overflow-hidden transition-all ${hasAny ? 'border-teal-200' : 'border-gray-100'}`}
+                    >
+                      {/* Flat card — same style as allergy cards */}
+                      <div
+                        className={`flex items-center gap-3 px-4 py-3 transition-colors ${isExpanded ? 'bg-gray-50' : 'bg-gray-50/60 hover:bg-gray-50'}`}
+                      >
+                        <span className="text-xl leading-none flex-shrink-0">{icon}</span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setExpandedFH((prev) =>
+                              prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
+                            )
+                          }
+                          className="view-toggle flex-1 flex items-center gap-3 text-left min-w-0"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-gray-900 leading-tight">
+                              {relation}
+                            </p>
+                            {hasAny && (
+                              <p className="text-xs text-gray-500 mt-0.5 truncate">
+                                {diseasesSummary}
+                              </p>
+                            )}
+                          </div>
+                          {hasAny && (
+                            <span className="text-[11px] font-bold text-[#33C7BE] bg-teal-100 px-2.5 py-1 rounded-full border border-teal-200 flex-shrink-0">
+                              {count} enf.
+                            </span>
+                          )}
+                          <ChevronDown
+                            size={14}
+                            className={`text-gray-400 transition-transform duration-200 flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`}
+                          />
+                        </button>
+                        {!readOnly && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setData((prev) => {
+                                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                                const { [key]: _removed, ...rest } = prev.family_history
+                                return { ...prev, family_history: rest }
+                              })
+                              setExpandedFH((prev) => prev.filter((k) => k !== key))
+                            }}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors flex-shrink-0"
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Expanded panel: disease chips + notes */}
+                      {isExpanded && (
+                        <div className="px-4 pb-4 pt-3 border-t border-gray-100 bg-white space-y-3">
+                          <div className="flex flex-wrap gap-2">
+                            {FH_DISEASES.map(({ key: dKey, label }) => {
+                              const active = record.diseases.includes(dKey)
+                              return (
+                                <button
+                                  key={dKey}
+                                  type="button"
+                                  onClick={() =>
+                                    setFH(key, {
+                                      ...record,
+                                      diseases: active
+                                        ? record.diseases.filter((d) => d !== dKey)
+                                        : [...record.diseases, dKey],
+                                    })
+                                  }
+                                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+                                    active
+                                      ? 'bg-[#33C7BE] text-white border-[#33C7BE] shadow-sm'
+                                      : 'border-gray-200 text-gray-500 hover:border-[#33C7BE]/50 hover:text-[#33C7BE] bg-white'
+                                  }`}
+                                >
+                                  {active && <span className="text-[10px] leading-none">✓</span>}
+                                  {label}
+                                </button>
+                              )
+                            })}
+                          </div>
+                          <input
+                            type="text"
+                            value={record.notes}
+                            onChange={(e) => setFH(key, { ...record, notes: e.target.value })}
+                            placeholder="Notas: edades de diagnóstico, tratamientos, fallecimiento..."
+                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none bg-gray-50/50 placeholder:text-gray-300"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </SectionCard>
+
+        {/* ── 3. A. Personales Patológicos ── */}
+        <SectionCard title="A. Personales Patológicos" defaultOpen={false} readOnly={readOnly}>
+          {/* Medicamentos actuales */}
+          <ChipInput
+            label="Medicamentos actuales"
+            value={medicationChips}
+            onChange={setMedicationChips}
+            suggestions={[
+              'Metformina',
+              'Losartán',
+              'Atorvastatina',
+              'Omeprazol',
+              'Levotiroxina',
+              'Amlodipino',
+              'Enalapril',
+              'Aspirina',
+              'Paracetamol',
+              'Ibuprofeno',
+              'Insulina',
+              'Warfarina',
+            ]}
+          />
+
+          {/* ─ Antecedentes previos ─ */}
+          <div className="pt-2">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">
+              Antecedentes previos
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {ANTECEDENTES_PREVIOS.map(({ key, label, emoji }) => (
+                <ConditionCard
+                  key={key}
+                  emoji={emoji}
+                  label={label}
+                  item={(ph[key as keyof PathologicalHistory] as ToggleItem) ?? DEF_TOGGLE}
+                  onChange={(v) =>
+                    setPH(key as keyof PathologicalHistory, v as PathologicalHistory[typeof key])
+                  }
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* ─ Adicciones ─ */}
+          <div className="pt-1">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">
+              Adicciones
+            </p>
+            <div className="space-y-2">
+              {[
+                { key: 'addiction_alcohol' as const, label: 'Alcoholismo' },
+                { key: 'addiction_tabaco' as const, label: 'Tabaquismo' },
+                { key: 'addiction_otras' as const, label: 'Otras sustancias psicoactivas' },
+              ].map(({ key, label }) => (
+                <div
+                  key={key}
+                  className={`rounded-xl border p-3 transition-all ${ph[key].present ? 'border-amber-200 bg-amber-50/40' : 'border-gray-100 bg-white'}`}
+                >
+                  <Toggle
+                    label={label}
+                    checked={ph[key].present}
+                    onChange={(v) => setPH(key, { ...ph[key], present: v })}
+                  />
+                  {ph[key].present && (
+                    <div className="mt-2">
+                      <TextAreaField
+                        value={ph[key].details}
+                        onChange={(v) => setPH(key, { ...ph[key], details: v })}
+                        placeholder="Sustancia, frecuencia, cantidad, tiempo..."
+                      />
+                    </div>
+                  )}
                 </div>
+              ))}
+            </div>
+          </div>
 
-                <TextAreaField
-                    label="Pronóstico"
-                    value={data.prognosis}
-                    onChange={v => setData(d => ({ ...d, prognosis: v }))}
-                    placeholder="Perspectiva clínica del padecimiento: favorable, reservado, malo. Factores pronósticos relevantes..."
-                    rows={2}
-                />
-                <TextAreaField
-                    label="Plan de manejo inicial"
-                    value={data.initial_plan}
-                    onChange={v => setData(d => ({ ...d, initial_plan: v }))}
-                    placeholder="Tratamiento instaurado, indicaciones, interconsultas, estudios solicitados, seguimiento..."
-                    rows={3}
-                />
-            </SectionCard>
+          {/* ─ Patologías por contagio ─ */}
+          <div className="pt-1">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">
+              Patologías por contagio
+            </p>
 
+            {/* Exantemáticas */}
+            <div className="mb-4">
+              <p className="text-xs font-semibold text-gray-600 mb-2">Exantemáticas</p>
+              <div className="flex flex-wrap gap-2">
+                {EXANTEMATICAS_LIST.map((disease) => {
+                  const active = ph.exantematicas.includes(disease)
+                  return (
+                    <button
+                      key={disease}
+                      type="button"
+                      onClick={() =>
+                        setPH(
+                          'exantematicas',
+                          active
+                            ? ph.exantematicas.filter((d) => d !== disease)
+                            : [...ph.exantematicas, disease],
+                        )
+                      }
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                        active
+                          ? 'bg-rose-500 text-white'
+                          : 'border border-gray-200 text-gray-600 hover:border-rose-300 bg-white'
+                      }`}
+                    >
+                      {disease}
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="mt-2">
+                <input
+                  type="text"
+                  value={ph.exantematica_otra}
+                  onChange={(e) => setPH('exantematica_otra', e.target.value)}
+                  placeholder="Otra exantemática..."
+                  className="w-full px-3 py-1.5 text-xs border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none"
+                />
+              </div>
             </div>
 
-            {/* Save bottom */}
-            {!readOnly && (
-                <div className="flex justify-end pb-4">
-                    <SaveBtn bottom />
+            {/* Infectocontagiosas */}
+            <div>
+              <p className="text-xs font-semibold text-gray-600 mb-2">Infectocontagiosas</p>
+              <div className="flex flex-wrap gap-2">
+                {INFECTOCONTAGIOSAS_LIST.map((disease) => {
+                  const active = ph.infectocontagiosas.includes(disease)
+                  return (
+                    <button
+                      key={disease}
+                      type="button"
+                      onClick={() =>
+                        setPH(
+                          'infectocontagiosas',
+                          active
+                            ? ph.infectocontagiosas.filter((d) => d !== disease)
+                            : [...ph.infectocontagiosas, disease],
+                        )
+                      }
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                        active
+                          ? 'bg-orange-500 text-white'
+                          : 'border border-gray-200 text-gray-600 hover:border-orange-300 bg-white'
+                      }`}
+                    >
+                      {disease}
+                    </button>
+                  )
+                })}
+              </div>
+              {ph.infectocontagiosas.includes('Hepatitis') && (
+                <div className="mt-2 px-3 py-2 bg-orange-50 border border-orange-200 rounded-xl flex flex-wrap gap-5">
+                  {(['a', 'b', 'c'] as const).map((t) => (
+                    <label key={t} className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={ph.hepatitis_types[t]}
+                        onChange={(e) =>
+                          setPH('hepatitis_types', { ...ph.hepatitis_types, [t]: e.target.checked })
+                        }
+                        className="w-3.5 h-3.5 rounded accent-orange-500"
+                      />
+                      <span className="text-xs text-gray-700 font-medium">
+                        Hepatitis {t.toUpperCase()}
+                      </span>
+                    </label>
+                  ))}
                 </div>
+              )}
+              <div className="mt-2">
+                <input
+                  type="text"
+                  value={ph.infectocontagiosa_otra}
+                  onChange={(e) => setPH('infectocontagiosa_otra', e.target.value)}
+                  placeholder="Otra infectocontagiosa..."
+                  className="w-full px-3 py-1.5 text-xs border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* ─ Enfermedades Crónico-Degenerativas ─ */}
+          <div className="pt-1">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">
+              Enf. Crónico-Degenerativas
+            </p>
+            <div className="space-y-1.5">
+              {CD_DISEASES.map(({ key, label }) => {
+                const item = ph.cd?.[key] ?? { present: false, year: '', details: '' }
+                return (
+                  <div
+                    key={key}
+                    className={`rounded-xl border transition-all ${item.present ? 'border-teal-200 bg-teal-50/30' : 'border-gray-100 bg-white'}`}
+                  >
+                    <div className="flex items-center gap-3 px-3 py-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setCDItem(key, { ...item, present: !item.present })}
+                        className={`w-5 h-5 rounded-full border-2 flex-shrink-0 transition-all flex items-center justify-center ${item.present ? 'bg-[#33C7BE] border-[#33C7BE]' : 'border-gray-300'}`}
+                      >
+                        {item.present && (
+                          <span className="text-white text-[10px] font-bold">✓</span>
+                        )}
+                      </button>
+                      <span
+                        className={`text-sm flex-1 leading-tight ${item.present ? 'text-gray-800 font-medium' : 'text-gray-500'}`}
+                      >
+                        {label}
+                      </span>
+                      {item.present && (
+                        <input
+                          type="text"
+                          value={item.year}
+                          onChange={(e) => setCDItem(key, { ...item, year: e.target.value })}
+                          placeholder="Año"
+                          maxLength={4}
+                          className="w-16 text-xs border border-gray-200 rounded-lg px-2 py-1 text-center focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none"
+                        />
+                      )}
+                    </div>
+                    {item.present && (
+                      <div className="px-3 pb-3">
+                        <TextAreaField
+                          value={item.details}
+                          onChange={(v) => setCDItem(key, { ...item, details: v })}
+                          placeholder="Detalles, tratamiento, evolución..."
+                        />
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </SectionCard>
+
+        {/* ── 4. A. Personales NO Patológicos ── */}
+        <SectionCard title="A. Personales NO Patológicos" defaultOpen={false} readOnly={readOnly}>
+          <div className="space-y-2">
+            <FrequencyPills
+              label="Tabaquismo"
+              options={[
+                { value: 'never', label: 'No fumador' },
+                { value: 'ex', label: 'Ex-fumador' },
+                { value: 'occasional', label: 'Ocasional' },
+                { value: 'moderate', label: 'Moderado' },
+                { value: 'heavy', label: 'Fuerte' },
+              ]}
+              value={nph.smoking.frequency}
+              onChange={(v) =>
+                setNPH('smoking', {
+                  ...nph.smoking,
+                  frequency: v,
+                  present: v !== 'never' && v !== '',
+                })
+              }
+            />
+            {nph.smoking.present && (
+              <textarea
+                value={nph.smoking.details}
+                onChange={(e) => setNPH('smoking', { ...nph.smoking, details: e.target.value })}
+                placeholder="Cantidad, tiempo de consumo, intentos de cese..."
+                rows={2}
+                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white resize-none focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/30 leading-relaxed"
+              />
             )}
+          </div>
+
+          <div className="space-y-3">
+            <Toggle
+              label="Toma bebidas alcohólicas"
+              checked={nph.alcohol.present}
+              onChange={(v) => setNPH('alcohol', { ...nph.alcohol, present: v })}
+            />
+            {nph.alcohol.present && (
+              <>
+                <div className="flex justify-around pt-1 pb-2 px-2 bg-gray-50 rounded-xl border border-gray-100">
+                  <Stepper
+                    label="Veces / semana"
+                    value={nph.alcohol.frequency_per_week}
+                    onChange={(v) => setNPH('alcohol', { ...nph.alcohol, frequency_per_week: v })}
+                  />
+                  <div className="w-px bg-gray-200 self-stretch" />
+                  <Stepper
+                    label="Copas / día"
+                    value={nph.alcohol.cups_per_day}
+                    onChange={(v) => setNPH('alcohol', { ...nph.alcohol, cups_per_day: v })}
+                  />
+                </div>
+                <textarea
+                  value={nph.alcohol.details}
+                  onChange={(e) => setNPH('alcohol', { ...nph.alcohol, details: e.target.value })}
+                  placeholder="Tipo de bebida, patrón de consumo, notas relevantes..."
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white resize-none focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/30 leading-relaxed"
+                />
+              </>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <Toggle
+              label="Consume drogas"
+              checked={nph.drugs.present}
+              onChange={(v) => setNPH('drugs', { ...nph.drugs, present: v })}
+            />
+            {nph.drugs.present && (
+              <ChipInput
+                value={drugChips}
+                onChange={setDrugChips}
+                suggestions={[
+                  'Marihuana',
+                  'Cocaína',
+                  'Alcohol en exceso',
+                  'Tabaco',
+                  'Benzodiacepinas',
+                  'Opioides',
+                  'Otros',
+                ]}
+              />
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <FrequencyPills
+              label="Ejercicio"
+              options={[
+                { value: 'never', label: 'No hace' },
+                { value: 'occasional', label: 'Ocasional' },
+                { value: 'regular', label: 'Regular (3x/sem)' },
+                { value: 'daily', label: 'Diario' },
+              ]}
+              value={nph.exercise.frequency}
+              onChange={(v) =>
+                setNPH('exercise', {
+                  ...nph.exercise,
+                  frequency: v,
+                  present: v !== 'never' && v !== '',
+                })
+              }
+            />
+            {nph.exercise.present && (
+              <textarea
+                value={nph.exercise.details}
+                onChange={(e) => setNPH('exercise', { ...nph.exercise, details: e.target.value })}
+                placeholder="Tipo de actividad, duración, intensidad..."
+                rows={2}
+                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white resize-none focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/30 leading-relaxed"
+              />
+            )}
+          </div>
+        </SectionCard>
+
+        {/* ── 5. A. Ginecológicos ── */}
+        <SectionCard title="A. Ginecológicos" defaultOpen={false} readOnly={readOnly}>
+          <Toggle
+            label="Aplica a este paciente"
+            checked={gh.applicable}
+            onChange={(v) => setGH('applicable', v)}
+          />
+
+          {gh.applicable && (
+            <div className="space-y-4 pt-1">
+              <TextField
+                label="Menarca (edad)"
+                value={gh.menarche}
+                onChange={(v) => setGH('menarche', v)}
+                placeholder="Edad de la primera menstruación"
+              />
+
+              <div>
+                <p className="text-xs font-semibold text-gray-500 mb-3">Gestas</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 justify-items-center bg-gray-50 rounded-xl p-4 border border-gray-100">
+                  {(
+                    [
+                      ['gestations', 'Gestaciones'],
+                      ['births', 'Partos'],
+                      ['cesareans', 'Cesáreas'],
+                      ['abortions', 'Abortos'],
+                      ['stillbirths', 'Óbitos'],
+                      ['ectopics', 'Ectópicos'],
+                    ] as [keyof GynecologicalHistory, string][]
+                  ).map(([key, label]) => (
+                    <Stepper
+                      key={key}
+                      label={label}
+                      value={gh[key] as string}
+                      onChange={(v) => setGH(key, v)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <TextField
+                label="Fecha de última gestación"
+                value={gh.last_gestation_date}
+                onChange={(v) => setGH('last_gestation_date', v)}
+                type="date"
+              />
+
+              <Toggle
+                label="Continúa menstruando"
+                checked={gh.still_menstruating}
+                onChange={(v) => setGH('still_menstruating', v)}
+              />
+              {gh.still_menstruating && (
+                <div className="space-y-3">
+                  <div className="flex justify-around py-3 px-2 bg-gray-50 rounded-xl border border-gray-100">
+                    <Stepper
+                      label="Duración (días)"
+                      value={gh.duration_days}
+                      onChange={(v) => setGH('duration_days', v)}
+                    />
+                    <div className="w-px bg-gray-200 self-stretch" />
+                    <Stepper
+                      label="Frecuencia (días)"
+                      value={gh.frequency_days}
+                      onChange={(v) => setGH('frequency_days', v)}
+                    />
+                  </div>
+                  <Toggle
+                    label="Ciclos menstruales irregulares"
+                    checked={gh.irregular_cycles}
+                    onChange={(v) => setGH('irregular_cycles', v)}
+                  />
+                </div>
+              )}
+
+              <div>
+                <p className="text-xs font-semibold text-gray-500 mb-2">Anticonceptivos</p>
+                <ConditionCard
+                  emoji="💊"
+                  label="Anticonceptivos"
+                  item={gh.contraceptives}
+                  onChange={(v) => setGH('contraceptives', v)}
+                  fullWidth
+                />
+              </div>
+
+              <TextField
+                label="Fecha Última Regla"
+                value={gh.last_period_date}
+                onChange={(v) => setGH('last_period_date', v)}
+                type="date"
+              />
+
+              <Toggle
+                label="Embarazo actual"
+                checked={gh.pregnant}
+                onChange={(v) => setGH('pregnant', v)}
+              />
+              {gh.pregnant && (
+                <div className="space-y-3 pl-1">
+                  <TextField
+                    label="Semanas de gestación"
+                    value={gh.gestational_age}
+                    onChange={(v) => setGH('gestational_age', v)}
+                    placeholder="Semanas"
+                  />
+                  <TextField
+                    label="Fecha probable de parto"
+                    value={gh.probable_birth_date}
+                    onChange={(v) => setGH('probable_birth_date', v)}
+                    type="date"
+                  />
+                  <FrequencyPills
+                    label="Trimestre"
+                    options={[
+                      { value: '1', label: '1er trimestre' },
+                      { value: '2', label: '2do trimestre' },
+                      { value: '3', label: '3er trimestre' },
+                    ]}
+                    value={gh.trimester}
+                    onChange={(v) => setGH('trimester', v)}
+                  />
+                </div>
+              )}
+
+              <TextAreaField
+                label="Observaciones ginecológicas"
+                value={gh.details}
+                onChange={(v) => setGH('details', v)}
+              />
+            </div>
+          )}
+        </SectionCard>
+
+        {/* ── 6. Antecedentes Psiquiátricos ── */}
+        <SectionCard title="A. Psiquiátricos" defaultOpen={false} readOnly={readOnly}>
+          <Toggle
+            label="Aplica a este paciente"
+            checked={psych.applicable}
+            onChange={(v) => setPsych('applicable', v)}
+          />
+
+          {psych.applicable && (
+            <div className="space-y-4 pt-1">
+              {/* Diagnósticos previos */}
+              <div>
+                <p className="text-xs font-semibold text-gray-500 mb-2">
+                  Diagnósticos psiquiátricos previos
+                </p>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {PSYCHIATRIC_DIAGNOSES.map((d) => {
+                    const active = psych.diagnoses.includes(d)
+                    return (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() =>
+                          setPsych(
+                            'diagnoses',
+                            active
+                              ? psych.diagnoses.filter((x) => x !== d)
+                              : [...psych.diagnoses, d],
+                          )
+                        }
+                        className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                          active
+                            ? 'bg-[#33C7BE] text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {active && <span className="mr-1">✓</span>}
+                        {d}
+                      </button>
+                    )
+                  })}
+                </div>
+                <TextField
+                  value={psych.diagnoses_other}
+                  onChange={(v) => setPsych('diagnoses_other', v)}
+                  placeholder="Otro diagnóstico..."
+                />
+              </div>
+
+              {/* Medicamentos psiquiátricos actuales */}
+              <div className="space-y-2">
+                <Toggle
+                  label="Medicamentos psiquiátricos actuales"
+                  checked={psych.current_psychiatric_meds.present}
+                  onChange={(v) =>
+                    setPsych('current_psychiatric_meds', {
+                      ...psych.current_psychiatric_meds,
+                      present: v,
+                    })
+                  }
+                />
+                {psych.current_psychiatric_meds.present && (
+                  <TextAreaField
+                    value={psych.current_psychiatric_meds.details}
+                    onChange={(v) =>
+                      setPsych('current_psychiatric_meds', {
+                        ...psych.current_psychiatric_meds,
+                        details: v,
+                      })
+                    }
+                    placeholder="Nombre del medicamento, dosis, frecuencia..."
+                  />
+                )}
+              </div>
+
+              {/* Medicamentos psiquiátricos previos */}
+              <TextField
+                label="Medicamentos psiquiátricos previos"
+                value={psych.previous_psychiatric_meds}
+                onChange={(v) => setPsych('previous_psychiatric_meds', v)}
+                placeholder="Medicamentos utilizados anteriormente..."
+              />
+
+              {/* Psicoterapia */}
+              <div className="space-y-2">
+                <Toggle
+                  label="Ha recibido psicoterapia"
+                  checked={psych.psychotherapy.present}
+                  onChange={(v) =>
+                    setPsych('psychotherapy', { ...psych.psychotherapy, present: v })
+                  }
+                />
+                {psych.psychotherapy.present && (
+                  <TextAreaField
+                    value={psych.psychotherapy.details}
+                    onChange={(v) =>
+                      setPsych('psychotherapy', { ...psych.psychotherapy, details: v })
+                    }
+                    placeholder="Tipo de terapia, duración, resultado..."
+                  />
+                )}
+              </div>
+
+              {/* Hospitalización psiquiátrica */}
+              <div className="space-y-2">
+                <Toggle
+                  label="Hospitalización psiquiátrica previa"
+                  checked={psych.hospitalization_psychiatric.present}
+                  onChange={(v) =>
+                    setPsych('hospitalization_psychiatric', {
+                      ...psych.hospitalization_psychiatric,
+                      present: v,
+                    })
+                  }
+                />
+                {psych.hospitalization_psychiatric.present && (
+                  <TextAreaField
+                    value={psych.hospitalization_psychiatric.details}
+                    onChange={(v) =>
+                      setPsych('hospitalization_psychiatric', {
+                        ...psych.hospitalization_psychiatric,
+                        details: v,
+                      })
+                    }
+                    placeholder="Institución, año, motivo..."
+                  />
+                )}
+              </div>
+
+              {/* Intentos suicidas */}
+              <div className="space-y-2">
+                <Toggle
+                  label="Intentos suicidas previos"
+                  checked={psych.suicide_attempts.present}
+                  onChange={(v) =>
+                    setPsych('suicide_attempts', { ...psych.suicide_attempts, present: v })
+                  }
+                />
+                {psych.suicide_attempts.present && (
+                  <TextAreaField
+                    value={psych.suicide_attempts.details}
+                    onChange={(v) =>
+                      setPsych('suicide_attempts', { ...psych.suicide_attempts, details: v })
+                    }
+                    placeholder="Número de intentos, método, año..."
+                  />
+                )}
+              </div>
+
+              <TextAreaField
+                label="Notas adicionales"
+                value={psych.notes}
+                onChange={(v) => setPsych('notes', v)}
+              />
+            </div>
+          )}
+        </SectionCard>
+
+        {/* ── 7. Antecedentes de Desarrollo ── */}
+        <SectionCard title="A. de Desarrollo" defaultOpen={false} readOnly={readOnly}>
+          <Toggle
+            label="Aplica a este paciente"
+            checked={dev.applicable}
+            onChange={(v) => setDev('applicable', v)}
+          />
+
+          {dev.applicable && (
+            <div className="space-y-4 pt-1">
+              {/* Tipo de parto */}
+              <FrequencyPills
+                label="Tipo de parto"
+                options={[
+                  { value: 'eutocico', label: 'Eutócico' },
+                  { value: 'cesarea', label: 'Cesárea' },
+                  { value: 'forceps', label: 'Fórceps' },
+                  { value: 'vacuum', label: 'Vacuum' },
+                  { value: 'otro', label: 'Otro' },
+                ]}
+                value={dev.birth_type}
+                onChange={(v) => setDev('birth_type', v)}
+              />
+
+              <TextField
+                label="Edad gestacional al nacer (semanas)"
+                value={dev.gestational_age_weeks}
+                onChange={(v) => setDev('gestational_age_weeks', v)}
+                placeholder="Ej. 38"
+              />
+
+              {/* Complicaciones perinatales */}
+              <div className="space-y-2">
+                <Toggle
+                  label="Complicaciones perinatales"
+                  checked={dev.perinatal_complications.present}
+                  onChange={(v) =>
+                    setDev('perinatal_complications', {
+                      ...dev.perinatal_complications,
+                      present: v,
+                    })
+                  }
+                />
+                {dev.perinatal_complications.present && (
+                  <TextAreaField
+                    value={dev.perinatal_complications.details}
+                    onChange={(v) =>
+                      setDev('perinatal_complications', {
+                        ...dev.perinatal_complications,
+                        details: v,
+                      })
+                    }
+                    placeholder="Descripción de complicaciones..."
+                  />
+                )}
+              </div>
+
+              {/* Complicaciones neonatales */}
+              <div>
+                <p className="text-xs font-semibold text-gray-500 mb-2">
+                  Complicaciones neonatales
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {NEONATAL_COMPLICATIONS_LIST.map((c) => {
+                    const active = dev.neonatal_complications.includes(c)
+                    return (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() =>
+                          setDev(
+                            'neonatal_complications',
+                            active
+                              ? dev.neonatal_complications.filter((x) => x !== c)
+                              : [...dev.neonatal_complications, c],
+                          )
+                        }
+                        className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                          active
+                            ? 'bg-[#33C7BE] text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {active && <span className="mr-1">✓</span>}
+                        {c}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Desarrollo psicomotor */}
+              <div className="space-y-3">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                  Desarrollo psicomotor
+                </p>
+                <FrequencyPills
+                  label="Desarrollo motor"
+                  options={MILESTONE_OPTIONS}
+                  value={dev.motor_milestones}
+                  onChange={(v) => setDev('motor_milestones', v)}
+                />
+                <FrequencyPills
+                  label="Desarrollo del lenguaje"
+                  options={MILESTONE_OPTIONS}
+                  value={dev.language_milestones}
+                  onChange={(v) => setDev('language_milestones', v)}
+                />
+                <FrequencyPills
+                  label="Desarrollo cognitivo"
+                  options={MILESTONE_OPTIONS}
+                  value={dev.cognitive_development}
+                  onChange={(v) => setDev('cognitive_development', v)}
+                />
+              </div>
+
+              {/* Escolaridad */}
+              <div className="space-y-3">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                  Escolaridad
+                </p>
+                <FrequencyPills
+                  label="Rendimiento escolar"
+                  options={SCHOOL_PERF_OPTIONS}
+                  value={dev.school_performance}
+                  onChange={(v) => setDev('school_performance', v)}
+                />
+                <FrequencyPills
+                  label="Nivel máximo de estudios"
+                  options={[
+                    { value: 'sin_escolaridad', label: 'Sin escolaridad' },
+                    { value: 'primaria', label: 'Primaria' },
+                    { value: 'secundaria', label: 'Secundaria' },
+                    { value: 'preparatoria', label: 'Preparatoria' },
+                    { value: 'tecnico', label: 'Técnico' },
+                    { value: 'licenciatura', label: 'Licenciatura' },
+                    { value: 'posgrado', label: 'Posgrado' },
+                  ]}
+                  value={dev.education_level}
+                  onChange={(v) => setDev('education_level', v)}
+                />
+              </div>
+
+              <TextAreaField
+                label="Notas adicionales"
+                value={dev.notes}
+                onChange={(v) => setDev('notes', v)}
+              />
+            </div>
+          )}
+        </SectionCard>
+
+        {/* ── 8. Interrogatorio por Aparatos y Sistemas ── */}
+        <SectionCard
+          title="Interrogatorio por Aparatos y Sistemas"
+          defaultOpen={false}
+          readOnly={readOnly}
+        >
+          {/* "Mark all normal" shortcut */}
+          <div className="flex items-center justify-between -mt-1 mb-3">
+            <p className="text-[11px] text-gray-400">
+              Selecciona un sistema para registrar hallazgos.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                const allNormal = makeDefaultSystems()
+                SYSTEMS_CONFIG.forEach((s) => {
+                  allNormal[s.key] = { normal: true, symptoms: [], notes: '' }
+                })
+                setSystemsReview(allNormal)
+              }}
+              className="text-[11px] font-semibold text-green-600 hover:text-green-700 flex items-center gap-1 whitespace-nowrap flex-shrink-0"
+            >
+              <span className="text-xs">✓</span> Todo normal
+            </button>
+          </div>
+
+          {/* System grid — 3 columns */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
+            {SYSTEMS_CONFIG.map(({ key, short, icon }) => {
+              const entry = systemsReview[key]
+              const hasFindings = entry.symptoms.length > 0
+              const isNormal = entry.normal && !hasFindings
+              const isSelected = activeSystem === key
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setActiveSystem(key)}
+                  className={`view-toggle relative flex flex-col items-center gap-1 py-3 px-1 rounded-2xl border-2 transition-all ${
+                    isSelected
+                      ? hasFindings
+                        ? 'border-amber-400 bg-amber-50 shadow-md scale-[1.03]'
+                        : isNormal
+                          ? 'border-green-400 bg-green-50 shadow-md scale-[1.03]'
+                          : 'border-[#33C7BE] bg-teal-50 shadow-md scale-[1.03]'
+                      : hasFindings
+                        ? 'border-amber-200 bg-amber-50/50 hover:border-amber-300'
+                        : isNormal
+                          ? 'border-green-200 bg-green-50/50 hover:border-green-300'
+                          : 'border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  <span className="text-xl leading-none">{icon}</span>
+                  <span
+                    className={`text-[10px] font-semibold text-center leading-tight px-1 ${isSelected || hasFindings || isNormal ? 'text-gray-800' : 'text-gray-500'}`}
+                  >
+                    {short}
+                  </span>
+                  {/* Status badge */}
+                  {hasFindings && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-amber-400 rounded-full flex items-center justify-center text-[9px] font-bold text-white shadow-sm">
+                      {entry.symptoms.length}
+                    </span>
+                  )}
+                  {isNormal && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-green-400 rounded-full flex items-center justify-center text-[9px] font-bold text-white shadow-sm">
+                      ✓
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Detail panel for selected system */}
+          {(() => {
+            const cfg = SYSTEMS_CONFIG.find((s) => s.key === activeSystem)!
+            const entry = systemsReview[activeSystem]
+            const hasFindings = entry.symptoms.length > 0
+            const isNormal = entry.normal && !hasFindings
+            return (
+              <div
+                className={`rounded-2xl border-2 p-4 transition-all ${
+                  hasFindings
+                    ? 'border-amber-200 bg-amber-50/20'
+                    : isNormal
+                      ? 'border-green-200 bg-green-50/20'
+                      : 'border-gray-100 bg-white'
+                }`}
+              >
+                {/* Panel header */}
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl leading-none">{cfg.icon}</span>
+                    <div>
+                      <p className="text-sm font-bold text-gray-800 leading-tight">{cfg.label}</p>
+                      {hasFindings && (
+                        <p className="text-[10px] text-amber-600 font-semibold">
+                          {entry.symptoms.length} hallazgos
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSystemEntry(activeSystem, {
+                        normal: !entry.normal,
+                        symptoms: [],
+                        notes: '',
+                      })
+                    }
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold transition-all flex-shrink-0 ${
+                      isNormal
+                        ? 'bg-green-100 text-green-700 border border-green-200'
+                        : 'border border-gray-200 text-gray-500 hover:border-green-300 hover:text-green-600 bg-white'
+                    }`}
+                  >
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${isNormal ? 'bg-green-500' : 'bg-gray-300'}`}
+                    />
+                    Normal
+                  </button>
+                </div>
+
+                {/* Symptom chips */}
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {cfg.symptoms.map((symptom) => {
+                    const active = entry.symptoms.includes(symptom)
+                    return (
+                      <button
+                        key={symptom}
+                        type="button"
+                        onClick={() => {
+                          const next = active
+                            ? entry.symptoms.filter((s) => s !== symptom)
+                            : [...entry.symptoms, symptom]
+                          setSystemEntry(activeSystem, { symptoms: next, normal: false })
+                        }}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                          active
+                            ? 'bg-amber-400 text-white shadow-sm'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {symptom}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {hasFindings && (
+                  <textarea
+                    value={entry.notes}
+                    onChange={(e) => setSystemEntry(activeSystem, { notes: e.target.value })}
+                    placeholder="Detalles de los hallazgos..."
+                    rows={2}
+                    className="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none resize-none bg-white"
+                  />
+                )}
+              </div>
+            )
+          })()}
+        </SectionCard>
+      </div>
+
+      {/* Save bottom */}
+      {!readOnly && (
+        <div className="flex justify-end pb-4">
+          <SaveBtn bottom />
         </div>
-    )
+      )}
+    </div>
+  )
 }

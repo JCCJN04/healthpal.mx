@@ -1,8 +1,23 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  CalendarDays, Clock, Building2, Video, Phone, Loader2, Inbox,
-  Check, X, List, ArrowLeft, ArrowRight, ChevronRight, FileText, StickyNote, Plus, Search, Stethoscope,
+  CalendarDays,
+  Clock,
+  Building2,
+  Video,
+  Phone,
+  Loader2,
+  Inbox,
+  Check,
+  X,
+  List,
+  ArrowLeft,
+  ArrowRight,
+  ChevronRight,
+  FileText,
+  StickyNote,
+  Plus,
+  Stethoscope,
 } from 'lucide-react'
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import {
@@ -12,17 +27,34 @@ import {
   type AppointmentMode,
   type AppointmentStatus,
 } from '@/shared/lib/queries/appointments'
-import { createAppointmentCalendarEvent, deleteAppointmentCalendarEvent } from '@/shared/lib/googleCalendar'
+import {
+  createAppointmentCalendarEvent,
+  deleteAppointmentCalendarEvent,
+} from '@/shared/lib/googleCalendar'
 import { logger } from '@/shared/lib/logger'
-import { listDoctorPatients, type PatientProfileLite } from '@/features/doctor/services/patients'
+import { type PatientProfileLite } from '@/features/doctor/services/patients'
 import AgendarCitaModal from '@/shared/components/appointments/AgendarCitaModal'
+import PatientPickerModal from '@/shared/components/appointments/PatientPickerModal'
 import { useAuth } from '@/app/providers/AuthContext'
 import { showToast } from '@/shared/components/ui/Toast'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const MONTHS_LONG = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
-const WEEKDAYS = ['Do','Lu','Ma','Mi','Ju','Vi','Sa']
+const MONTHS_LONG = [
+  'Enero',
+  'Febrero',
+  'Marzo',
+  'Abril',
+  'Mayo',
+  'Junio',
+  'Julio',
+  'Agosto',
+  'Septiembre',
+  'Octubre',
+  'Noviembre',
+  'Diciembre',
+]
+const WEEKDAYS = ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa']
 
 const MODE_LABEL: Record<AppointmentMode, string> = {
   in_person: 'Presencial',
@@ -91,97 +123,6 @@ function toDateKey(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
-// ─── Patient Picker Modal ─────────────────────────────────────────────────────
-
-function PatientPickerModal({
-  doctorId,
-  onSelect,
-  onClose,
-}: {
-  doctorId: string
-  onSelect: (patient: PatientProfileLite) => void
-  onClose: () => void
-}) {
-  const [patients, setPatients] = useState<PatientProfileLite[]>([])
-  const [loading, setLoading] = useState(true)
-  const [query, setQuery] = useState('')
-
-  useEffect(() => {
-    listDoctorPatients(doctorId).then(data => {
-      setPatients(data)
-      setLoading(false)
-    })
-  }, [doctorId])
-
-  const filtered = useMemo(() => {
-    const q = query.toLowerCase().trim()
-    if (!q) return patients
-    return patients.filter(p => (p.full_name ?? '').toLowerCase().includes(q))
-  }, [patients, query])
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <h2 className="text-base font-bold text-gray-900">¿Para qué paciente?</h2>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="p-4 space-y-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Buscar paciente..."
-              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#33C7BE]"
-              autoFocus
-            />
-          </div>
-
-          <div className="max-h-72 overflow-y-auto space-y-1">
-            {loading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="w-6 h-6 text-[#33C7BE] animate-spin" />
-              </div>
-            ) : filtered.length === 0 ? (
-              <p className="text-center text-sm text-gray-400 py-8">
-                {patients.length === 0 ? 'No tienes pacientes con acceso aceptado.' : 'Sin resultados.'}
-              </p>
-            ) : (
-              filtered.map(patient => {
-                const initials = (patient.full_name ?? 'P').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
-                return (
-                  <button
-                    key={patient.id}
-                    onClick={() => onSelect(patient)}
-                    className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-teal-50 transition-colors text-left"
-                  >
-                    {patient.avatar_url ? (
-                      <img src={patient.avatar_url} alt="" className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
-                    ) : (
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-400 to-violet-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                        {initials}
-                      </div>
-                    )}
-                    <div className="min-w-0">
-                      <p className="font-semibold text-gray-800 text-sm truncate">{patient.full_name ?? 'Paciente'}</p>
-                      {patient.email && <p className="text-xs text-gray-400 truncate">{patient.email}</p>}
-                    </div>
-                  </button>
-                )
-              })
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ─── Appointment Detail Modal ─────────────────────────────────────────────────
 
 function AppointmentDetailModal({
@@ -199,7 +140,12 @@ function AppointmentDetailModal({
   onClose: () => void
   onStartConsulta: () => void
 }) {
-  const initials = (appt.patient_name ?? 'P').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+  const initials = (appt.patient_name ?? 'P')
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
   const isPatientProposed = appt.initiated_by === appt.patient_id
   const canConfirm = appt.status === 'pending' && isPatientProposed
   const canCancel = appt.status === 'pending' || appt.status === 'confirmed'
@@ -218,7 +164,10 @@ function AppointmentDetailModal({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <h2 className="text-base font-bold text-gray-900">Detalle de cita</h2>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500">
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500"
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -227,7 +176,11 @@ function AppointmentDetailModal({
           {/* Patient */}
           <div className="flex items-center gap-3">
             {appt.patient_avatar ? (
-              <img src={appt.patient_avatar} alt="" className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
+              <img
+                src={appt.patient_avatar}
+                alt=""
+                className="w-14 h-14 rounded-xl object-cover flex-shrink-0"
+              />
             ) : (
               <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-violet-400 to-violet-600 flex items-center justify-center text-white font-bold text-base flex-shrink-0">
                 {initials}
@@ -235,7 +188,9 @@ function AppointmentDetailModal({
             )}
             <div className="flex-1 min-w-0">
               <p className="font-bold text-gray-900 truncate">{appt.patient_name ?? 'Paciente'}</p>
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border mt-1 ${STATUS_STYLES[appt.status]}`}>
+              <span
+                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border mt-1 ${STATUS_STYLES[appt.status]}`}
+              >
                 {STATUS_LABEL[appt.status]}
               </span>
             </div>
@@ -253,7 +208,9 @@ function AppointmentDetailModal({
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-1">
                 <Clock className="w-3 h-3" /> Horario
               </p>
-              <p className="text-sm font-semibold text-gray-800">{formatTime(appt.scheduled_at)} – {endTime}</p>
+              <p className="text-sm font-semibold text-gray-800">
+                {formatTime(appt.scheduled_at)} – {endTime}
+              </p>
             </div>
             <div className="bg-gray-50 rounded-xl p-3">
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-1">
@@ -303,7 +260,9 @@ function AppointmentDetailModal({
           {/* Proposed by label */}
           {appt.status === 'pending' && (
             <p className="text-xs text-center text-gray-400">
-              {isPatientProposed ? 'Propuesta por el paciente — requiere tu confirmación' : 'Propuesta por ti — esperando respuesta del paciente'}
+              {isPatientProposed
+                ? 'Propuesta por el paciente — requiere tu confirmación'
+                : 'Propuesta por ti — esperando respuesta del paciente'}
             </p>
           )}
 
@@ -316,7 +275,11 @@ function AppointmentDetailModal({
                   disabled={actionLoading}
                   className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#33C7BE] text-white font-semibold rounded-xl hover:bg-teal-600 transition-colors disabled:opacity-50 text-sm"
                 >
-                  {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                  {actionLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Check className="w-4 h-4" />
+                  )}
                   Confirmar
                 </button>
               )}
@@ -326,7 +289,11 @@ function AppointmentDetailModal({
                   disabled={actionLoading}
                   className={`flex items-center justify-center gap-2 py-3 border border-gray-200 text-gray-600 font-semibold rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50 text-sm ${canConfirm ? 'px-4' : 'flex-1'}`}
                 >
-                  {actionLoading && !canConfirm ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
+                  {actionLoading && !canConfirm ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <X className="w-4 h-4" />
+                  )}
                   Cancelar
                 </button>
               )}
@@ -340,14 +307,13 @@ function AppointmentDetailModal({
 
 // ─── Appointment Row (clickable) ──────────────────────────────────────────────
 
-function AppointmentRow({
-  appt,
-  onClick,
-}: {
-  appt: AppointmentWithPatient
-  onClick: () => void
-}) {
-  const initials = (appt.patient_name ?? 'P').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+function AppointmentRow({ appt, onClick }: { appt: AppointmentWithPatient; onClick: () => void }) {
+  const initials = (appt.patient_name ?? 'P')
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
   const isPending = appt.status === 'pending'
 
   return (
@@ -359,7 +325,11 @@ function AppointmentRow({
     >
       <div className="flex items-center gap-3">
         {appt.patient_avatar ? (
-          <img src={appt.patient_avatar} alt="" className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
+          <img
+            src={appt.patient_avatar}
+            alt=""
+            className="w-10 h-10 rounded-xl object-cover flex-shrink-0"
+          />
         ) : (
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-400 to-violet-600 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
             {initials}
@@ -368,8 +338,12 @@ function AppointmentRow({
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
-            <p className="font-semibold text-gray-900 text-sm truncate">{appt.patient_name ?? 'Paciente'}</p>
-            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border flex-shrink-0 ${STATUS_STYLES[appt.status]}`}>
+            <p className="font-semibold text-gray-900 text-sm truncate">
+              {appt.patient_name ?? 'Paciente'}
+            </p>
+            <span
+              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border flex-shrink-0 ${STATUS_STYLES[appt.status]}`}
+            >
               {STATUS_LABEL[appt.status]}
             </span>
           </div>
@@ -383,9 +357,7 @@ function AppointmentRow({
               {MODE_LABEL[appt.mode]}
             </span>
           </div>
-          {appt.reason && (
-            <p className="mt-1 text-xs text-gray-400 truncate">{appt.reason}</p>
-          )}
+          {appt.reason && <p className="mt-1 text-xs text-gray-400 truncate">{appt.reason}</p>}
         </div>
 
         <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
@@ -398,29 +370,29 @@ function AppointmentRow({
 
 const EVENT_BG: Record<AppointmentStatus, string> = {
   confirmed: 'bg-[#33C7BE] text-white',
-  pending:   'bg-amber-400 text-white',
+  pending: 'bg-amber-400 text-white',
   cancelled: 'bg-red-100 text-red-600 line-through',
   completed: 'bg-gray-200 text-gray-500',
 }
 
 const DOT_COLOR: Record<AppointmentStatus, string> = {
   confirmed: 'bg-[#33C7BE]',
-  pending:   'bg-amber-400',
+  pending: 'bg-amber-400',
   cancelled: 'bg-red-300',
   completed: 'bg-gray-300',
 }
 
 const STATUS_LEFT_BORDER: Record<AppointmentStatus, string> = {
   confirmed: 'border-l-[#33C7BE]',
-  pending:   'border-l-amber-400',
+  pending: 'border-l-amber-400',
   cancelled: 'border-l-red-300',
   completed: 'border-l-gray-300',
 }
 
 function dotPriority(appts: { status: AppointmentStatus }[]): string {
-  if (appts.some(a => a.status === 'pending'))   return DOT_COLOR.pending
-  if (appts.some(a => a.status === 'confirmed')) return DOT_COLOR.confirmed
-  if (appts.some(a => a.status === 'completed')) return DOT_COLOR.completed
+  if (appts.some((a) => a.status === 'pending')) return DOT_COLOR.pending
+  if (appts.some((a) => a.status === 'confirmed')) return DOT_COLOR.confirmed
+  if (appts.some((a) => a.status === 'completed')) return DOT_COLOR.completed
   return DOT_COLOR.cancelled
 }
 
@@ -433,8 +405,16 @@ function CalendarView({
   onSelect: (appt: AppointmentWithPatient) => void
   onConfirm?: (appt: AppointmentWithPatient) => void
 }) {
-  const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d }, [])
-  const [viewDate, setViewDate] = useState(() => { const d = new Date(); d.setDate(1); return d })
+  const today = useMemo(() => {
+    const d = new Date()
+    d.setHours(0, 0, 0, 0)
+    return d
+  }, [])
+  const [viewDate, setViewDate] = useState(() => {
+    const d = new Date()
+    d.setDate(1)
+    return d
+  })
   const [overflowDay, setOverflowDay] = useState<string | null>(null)
   const [selectedKey, setSelectedKey] = useState<string>(() => toDateKey(new Date()))
 
@@ -448,7 +428,9 @@ function CalendarView({
       if (!map.has(key)) map.set(key, [])
       map.get(key)!.push(a)
     }
-    map.forEach(arr => arr.sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()))
+    map.forEach((arr) =>
+      arr.sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()),
+    )
     return map
   }, [appointments])
 
@@ -470,11 +452,19 @@ function CalendarView({
     <div className="select-none">
       {/* Month navigation */}
       <div className="flex items-center justify-between mb-4">
-        <button onClick={() => setViewDate(new Date(year, month - 1, 1))} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 transition-colors">
+        <button
+          onClick={() => setViewDate(new Date(year, month - 1, 1))}
+          className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+        >
           <ArrowLeft className="w-4 h-4" />
         </button>
-        <h2 className="text-base font-bold text-gray-900 capitalize">{MONTHS_LONG[month]} {year}</h2>
-        <button onClick={() => setViewDate(new Date(year, month + 1, 1))} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 transition-colors">
+        <h2 className="text-base font-bold text-gray-900 capitalize">
+          {MONTHS_LONG[month]} {year}
+        </h2>
+        <button
+          onClick={() => setViewDate(new Date(year, month + 1, 1))}
+          className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+        >
           <ArrowRight className="w-4 h-4" />
         </button>
       </div>
@@ -483,8 +473,10 @@ function CalendarView({
       <div className="sm:hidden">
         {/* Weekday headers */}
         <div className="grid grid-cols-7 mb-1">
-          {WEEKDAYS.map(d => (
-            <div key={d} className="text-center text-[10px] font-bold text-gray-400 uppercase py-1">{d}</div>
+          {WEEKDAYS.map((d) => (
+            <div key={d} className="text-center text-[10px] font-bold text-gray-400 uppercase py-1">
+              {d}
+            </div>
           ))}
         </div>
 
@@ -507,12 +499,19 @@ function CalendarView({
                     isSelected ? 'bg-[#33C7BE]/10' : 'active:bg-gray-100'
                   }`}
                 >
-                  <span className={`text-sm font-semibold w-7 h-7 flex items-center justify-center rounded-full transition-all ${
-                    isSelected && isToday ? 'bg-[#33C7BE] text-white' :
-                    isSelected ? 'bg-gray-900 text-white' :
-                    isToday ? 'text-[#33C7BE] font-bold' :
-                    day < today ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
+                  <span
+                    className={`text-sm font-semibold w-7 h-7 flex items-center justify-center rounded-full transition-all ${
+                      isSelected && isToday
+                        ? 'bg-[#33C7BE] text-white'
+                        : isSelected
+                          ? 'bg-gray-900 text-white'
+                          : isToday
+                            ? 'text-[#33C7BE] font-bold'
+                            : day < today
+                              ? 'text-gray-300'
+                              : 'text-gray-700'
+                    }`}
+                  >
                     {day.getDate()}
                   </span>
                   {hasDot ? (
@@ -536,32 +535,50 @@ function CalendarView({
           ) : (
             <>
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
-                {formatDate(new Date(selectedKey + 'T12:00:00-06:00').toISOString())} · {selectedDayAppts.length} {selectedDayAppts.length === 1 ? 'cita' : 'citas'}
+                {formatDate(new Date(selectedKey + 'T12:00:00-06:00').toISOString())} ·{' '}
+                {selectedDayAppts.length} {selectedDayAppts.length === 1 ? 'cita' : 'citas'}
               </p>
-              {selectedDayAppts.map(appt => {
-                const initials = (appt.patient_name ?? 'P').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+              {selectedDayAppts.map((appt) => {
+                const initials = (appt.patient_name ?? 'P')
+                  .split(' ')
+                  .map((w) => w[0])
+                  .join('')
+                  .slice(0, 2)
+                  .toUpperCase()
                 const endTime = addMinutes(appt.scheduled_at, appt.duration_min)
-                const isPendingPatient = appt.status === 'pending' && appt.initiated_by === appt.patient_id
+                const isPendingPatient =
+                  appt.status === 'pending' && appt.initiated_by === appt.patient_id
                 return (
-                  <div key={appt.id} className={`flex items-center gap-2 p-3 rounded-2xl border border-gray-100 border-l-4 ${STATUS_LEFT_BORDER[appt.status]} bg-white shadow-sm`}>
+                  <div
+                    key={appt.id}
+                    className={`flex items-center gap-2 p-3 rounded-2xl border border-gray-100 border-l-4 ${STATUS_LEFT_BORDER[appt.status]} bg-white shadow-sm`}
+                  >
                     <button
                       onClick={() => onSelect(appt)}
                       className="flex items-center gap-3 flex-1 min-w-0 text-left active:scale-[0.98] transition-all"
                     >
                       {appt.patient_avatar ? (
-                        <img src={appt.patient_avatar} alt="" className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
+                        <img
+                          src={appt.patient_avatar}
+                          alt=""
+                          className="w-10 h-10 rounded-xl object-cover flex-shrink-0"
+                        />
                       ) : (
                         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-400 to-violet-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
                           {initials}
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="font-bold text-gray-900 text-sm truncate">{appt.patient_name ?? 'Paciente'}</p>
+                        <p className="font-bold text-gray-900 text-sm truncate">
+                          {appt.patient_name ?? 'Paciente'}
+                        </p>
                         <p className="text-xs text-gray-500 mt-0.5">
                           {formatTime(appt.scheduled_at)} – {endTime} · {MODE_LABEL[appt.mode]}
                         </p>
                       </div>
-                      <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold border flex-shrink-0 ${STATUS_STYLES[appt.status]}`}>
+                      <span
+                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold border flex-shrink-0 ${STATUS_STYLES[appt.status]}`}
+                      >
                         {STATUS_LABEL[appt.status]}
                       </span>
                     </button>
@@ -586,21 +603,41 @@ function CalendarView({
       <div className="hidden sm:block">
         {/* Legend — above calendar */}
         <div className="flex items-center gap-4 mb-3">
-          <span className="flex items-center gap-1.5 text-xs text-gray-500"><span className="w-2.5 h-2.5 rounded bg-[#33C7BE]" /> Confirmada</span>
-          <span className="flex items-center gap-1.5 text-xs text-gray-500"><span className="w-2.5 h-2.5 rounded bg-amber-400" /> Pendiente</span>
-          <span className="flex items-center gap-1.5 text-xs text-gray-500"><span className="w-2.5 h-2.5 rounded bg-gray-200" /> Historial</span>
+          <span className="flex items-center gap-1.5 text-xs text-gray-500">
+            <span className="w-2.5 h-2.5 rounded bg-[#33C7BE]" /> Confirmada
+          </span>
+          <span className="flex items-center gap-1.5 text-xs text-gray-500">
+            <span className="w-2.5 h-2.5 rounded bg-amber-400" /> Pendiente
+          </span>
+          <span className="flex items-center gap-1.5 text-xs text-gray-500">
+            <span className="w-2.5 h-2.5 rounded bg-gray-200" /> Historial
+          </span>
         </div>
         <div className="border border-gray-200 rounded-xl overflow-hidden">
           <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50">
-            {['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map(d => (
-              <div key={d} className="py-2 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">{d}</div>
+            {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((d) => (
+              <div
+                key={d}
+                className="py-2 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide"
+              >
+                {d}
+              </div>
             ))}
           </div>
 
           {weeks.map((week, wi) => (
-            <div key={wi} className={`grid grid-cols-7 ${wi < weeks.length - 1 ? 'border-b border-gray-200' : ''}`}>
+            <div
+              key={wi}
+              className={`grid grid-cols-7 ${wi < weeks.length - 1 ? 'border-b border-gray-200' : ''}`}
+            >
               {week.map((day, di) => {
-                if (!day) return <div key={`e-${wi}-${di}`} className="min-h-[120px] bg-gray-50/40 border-r border-gray-200 last:border-r-0" />
+                if (!day)
+                  return (
+                    <div
+                      key={`e-${wi}-${di}`}
+                      className="min-h-[120px] bg-gray-50/40 border-r border-gray-200 last:border-r-0"
+                    />
+                  )
                 const key = toDateKey(day)
                 const dayAppts = apptsByDay.get(key) ?? []
                 const isToday = day.toDateString() === today.toDateString()
@@ -609,27 +646,40 @@ function CalendarView({
                 const overflow = dayAppts.length - MAX_VISIBLE
 
                 return (
-                  <div key={key} className={`min-h-[120px] p-1.5 flex flex-col border-r border-gray-200 last:border-r-0 transition-colors ${isPastDay ? 'bg-gray-50/60' : 'bg-white hover:bg-teal-50/20'}`}>
+                  <div
+                    key={key}
+                    className={`min-h-[120px] p-1.5 flex flex-col border-r border-gray-200 last:border-r-0 transition-colors ${isPastDay ? 'bg-gray-50/60' : 'bg-white hover:bg-teal-50/20'}`}
+                  >
                     <div className="flex items-center justify-end mb-1">
-                      <span className={`text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'bg-[#33C7BE] text-white' : isPastDay ? 'text-gray-400' : 'text-gray-700'}`}>
+                      <span
+                        className={`text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'bg-[#33C7BE] text-white' : isPastDay ? 'text-gray-400' : 'text-gray-700'}`}
+                      >
                         {day.getDate()}
                       </span>
                     </div>
                     <div className="flex-1 space-y-0.5">
-                      {visible.map(appt => {
-                        const isPendingPatient = appt.status === 'pending' && appt.initiated_by === appt.patient_id
+                      {visible.map((appt) => {
+                        const isPendingPatient =
+                          appt.status === 'pending' && appt.initiated_by === appt.patient_id
                         return (
-                          <div key={appt.id} className={`flex items-center gap-0.5 rounded text-xs font-medium leading-5 ${EVENT_BG[appt.status]}`}>
+                          <div
+                            key={appt.id}
+                            className={`flex items-center gap-0.5 rounded text-xs font-medium leading-5 ${EVENT_BG[appt.status]}`}
+                          >
                             <button
                               onClick={() => onSelect(appt)}
                               className="flex-1 text-left px-1.5 py-0.5 truncate hover:opacity-80 transition-opacity"
                               title={`${formatTime(appt.scheduled_at)} · ${appt.patient_name ?? 'Paciente'}`}
                             >
-                              {formatTime(appt.scheduled_at)} · {appt.patient_name?.split(' ')[0] ?? 'Pac.'}
+                              {formatTime(appt.scheduled_at)} ·{' '}
+                              {appt.patient_name?.split(' ')[0] ?? 'Pac.'}
                             </button>
                             {isPendingPatient && onConfirm && (
                               <button
-                                onClick={e => { e.stopPropagation(); onConfirm(appt) }}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  onConfirm(appt)
+                                }}
                                 title="Confirmar cita"
                                 className="px-1 py-0.5 hover:bg-white/20 rounded transition-colors flex-shrink-0"
                               >
@@ -656,25 +706,38 @@ function CalendarView({
         </div>
 
         {/* Overflow popover */}
-        {overflowDay && (() => {
-          const dayAppts = apptsByDay.get(overflowDay) ?? []
-          return (
-            <div className="mt-3 bg-white border border-gray-200 rounded-xl shadow-lg p-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-bold text-gray-800">{formatDate(new Date(overflowDay + 'T12:00:00-06:00').toISOString())}</p>
-                <button onClick={() => setOverflowDay(null)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+        {overflowDay &&
+          (() => {
+            const dayAppts = apptsByDay.get(overflowDay) ?? []
+            return (
+              <div className="mt-3 bg-white border border-gray-200 rounded-xl shadow-lg p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-bold text-gray-800">
+                    {formatDate(new Date(overflowDay + 'T12:00:00-06:00').toISOString())}
+                  </p>
+                  <button
+                    onClick={() => setOverflowDay(null)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                {dayAppts.map((appt) => (
+                  <button
+                    key={appt.id}
+                    onClick={() => {
+                      onSelect(appt)
+                      setOverflowDay(null)
+                    }}
+                    className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-opacity hover:opacity-80 ${EVENT_BG[appt.status]}`}
+                  >
+                    <Clock className="w-3 h-3 flex-shrink-0" />
+                    {formatTime(appt.scheduled_at)} · {appt.patient_name ?? 'Paciente'}
+                  </button>
+                ))}
               </div>
-              {dayAppts.map(appt => (
-                <button key={appt.id} onClick={() => { onSelect(appt); setOverflowDay(null) }}
-                  className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-opacity hover:opacity-80 ${EVENT_BG[appt.status]}`}>
-                  <Clock className="w-3 h-3 flex-shrink-0" />
-                  {formatTime(appt.scheduled_at)} · {appt.patient_name ?? 'Paciente'}
-                </button>
-              ))}
-            </div>
-          )
-        })()}
-
+            )
+          })()}
       </div>
     </div>
   )
@@ -682,7 +745,12 @@ function CalendarView({
 
 // ─── Section ──────────────────────────────────────────────────────────────────
 
-function Section({ title, count, children, accent }: {
+function Section({
+  title,
+  count,
+  children,
+  accent,
+}: {
   title: string
   count: number
   children: React.ReactNode
@@ -693,9 +761,11 @@ function Section({ title, count, children, accent }: {
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest">{title}</h2>
-        <span className={`inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold rounded-full ${
-          accent ? 'bg-amber-400 text-white' : 'bg-gray-200 text-gray-600'
-        }`}>
+        <span
+          className={`inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold rounded-full ${
+            accent ? 'bg-amber-400 text-white' : 'bg-gray-200 text-gray-600'
+          }`}
+        >
           {count}
         </span>
       </div>
@@ -720,13 +790,15 @@ export default function Agenda() {
   const [bookingPatient, setBookingPatient] = useState<PatientProfileLite | null>(null)
 
   const load = useCallback(() => {
-    getDoctorAppointments().then(data => {
+    getDoctorAppointments().then((data) => {
       setAppointments(data)
       setLoading(false)
     })
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+  }, [load])
 
   async function handleConfirm(appt: AppointmentWithPatient) {
     setActionLoading(appt.id)
@@ -750,8 +822,12 @@ export default function Agenda() {
         logger.error('Agenda:calendarSync', calErr)
       }
 
-      setAppointments(prev => prev.map(a => a.id === appt.id ? { ...a, status: 'confirmed' as const } : a))
-      setSelectedAppt(prev => prev?.id === appt.id ? { ...prev, status: 'confirmed' as const } : prev)
+      setAppointments((prev) =>
+        prev.map((a) => (a.id === appt.id ? { ...a, status: 'confirmed' as const } : a)),
+      )
+      setSelectedAppt((prev) =>
+        prev?.id === appt.id ? { ...prev, status: 'confirmed' as const } : prev,
+      )
       showToast('Cita confirmada', 'success')
     } finally {
       setActionLoading(null)
@@ -763,8 +839,12 @@ export default function Agenda() {
     try {
       const ok = await updateAppointmentStatus(apptId, 'cancelled')
       if (ok) {
-        setAppointments(prev => prev.map(a => a.id === apptId ? { ...a, status: 'cancelled' as const } : a))
-        setSelectedAppt(prev => prev?.id === apptId ? { ...prev, status: 'cancelled' as const } : prev)
+        setAppointments((prev) =>
+          prev.map((a) => (a.id === apptId ? { ...a, status: 'cancelled' as const } : a)),
+        )
+        setSelectedAppt((prev) =>
+          prev?.id === apptId ? { ...prev, status: 'cancelled' as const } : prev,
+        )
         // Delete from Google Calendar (non-fatal)
         deleteAppointmentCalendarEvent(apptId)
       }
@@ -773,21 +853,28 @@ export default function Agenda() {
     }
   }
 
-  const pending = appointments.filter(a => a.status === 'pending' && a.initiated_by === a.patient_id)
-  const awaitingPatient = appointments.filter(a => a.status === 'pending' && a.initiated_by !== a.patient_id)
-  const upcoming = appointments.filter(a => a.status === 'confirmed' && !isPast(a.scheduled_at))
-  const past = appointments.filter(a => isPast(a.scheduled_at) || a.status === 'cancelled' || a.status === 'completed')
+  const pending = appointments.filter(
+    (a) => a.status === 'pending' && a.initiated_by === a.patient_id,
+  )
+  const awaitingPatient = appointments.filter(
+    (a) => a.status === 'pending' && a.initiated_by !== a.patient_id,
+  )
+  const upcoming = appointments.filter((a) => a.status === 'confirmed' && !isPast(a.scheduled_at))
+  const past = appointments.filter(
+    (a) => isPast(a.scheduled_at) || a.status === 'cancelled' || a.status === 'completed',
+  )
   const isEmpty = appointments.length === 0
 
   return (
     <DashboardLayout>
       <div className="px-4 sm:px-6 lg:px-8 py-6 space-y-5">
-
         {/* Header */}
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <h1 className="text-xl font-bold text-gray-900">Mi Agenda</h1>
-            <p className="hidden sm:block text-sm text-gray-500 mt-0.5">Gestiona las solicitudes y citas de tus pacientes</p>
+            <p className="hidden sm:block text-sm text-gray-500 mt-0.5">
+              Gestiona las solicitudes y citas de tus pacientes
+            </p>
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -804,7 +891,9 @@ export default function Agenda() {
               <button
                 onClick={() => setView('calendar')}
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  view === 'calendar' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  view === 'calendar'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
                 <CalendarDays className="w-3.5 h-3.5" />
@@ -813,7 +902,9 @@ export default function Agenda() {
               <button
                 onClick={() => setView('list')}
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  view === 'list' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  view === 'list'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
                 <List className="w-3.5 h-3.5" />
@@ -830,7 +921,9 @@ export default function Agenda() {
               {pending.length}
             </span>
             <p className="text-sm font-semibold text-amber-800">
-              {pending.length === 1 ? 'Tienes 1 solicitud que requiere confirmación' : `Tienes ${pending.length} solicitudes que requieren confirmación`}
+              {pending.length === 1
+                ? 'Tienes 1 solicitud que requiere confirmación'
+                : `Tienes ${pending.length} solicitudes que requieren confirmación`}
             </p>
           </div>
         )}
@@ -847,7 +940,9 @@ export default function Agenda() {
                 <Inbox className="w-8 h-8 text-[#33C7BE]" />
               </div>
               <h3 className="text-base font-bold text-gray-900 mb-1">Sin citas aún</h3>
-              <p className="text-sm text-gray-500">Aquí aparecerán las solicitudes de tus pacientes.</p>
+              <p className="text-sm text-gray-500">
+                Aquí aparecerán las solicitudes de tus pacientes.
+              </p>
             </div>
           ) : view === 'calendar' ? (
             <div className="p-5">
@@ -860,25 +955,25 @@ export default function Agenda() {
           ) : (
             <div className="p-5 space-y-8">
               <Section title="Requieren confirmación" count={pending.length} accent>
-                {pending.map(appt => (
+                {pending.map((appt) => (
                   <AppointmentRow key={appt.id} appt={appt} onClick={() => setSelectedAppt(appt)} />
                 ))}
               </Section>
 
               <Section title="Esperando respuesta del paciente" count={awaitingPatient.length}>
-                {awaitingPatient.map(appt => (
+                {awaitingPatient.map((appt) => (
                   <AppointmentRow key={appt.id} appt={appt} onClick={() => setSelectedAppt(appt)} />
                 ))}
               </Section>
 
               <Section title="Próximas confirmadas" count={upcoming.length}>
-                {upcoming.map(appt => (
+                {upcoming.map((appt) => (
                   <AppointmentRow key={appt.id} appt={appt} onClick={() => setSelectedAppt(appt)} />
                 ))}
               </Section>
 
               <Section title="Historial" count={past.length}>
-                {past.map(appt => (
+                {past.map((appt) => (
                   <AppointmentRow key={appt.id} appt={appt} onClick={() => setSelectedAppt(appt)} />
                 ))}
               </Section>
@@ -891,7 +986,7 @@ export default function Agenda() {
       {showPatientPicker && user && (
         <PatientPickerModal
           doctorId={user.id}
-          onSelect={patient => {
+          onSelect={(patient) => {
             setShowPatientPicker(false)
             setBookingPatient(patient)
           }}

@@ -6,7 +6,6 @@ type Status = 'loading' | 'success' | 'error'
 
 const INVOKE_TIMEOUT_MS = 15_000
 
-
 export default function GoogleCalendarCallback() {
   const [status, setStatus] = useState<Status>('loading')
   const [errorMsg, setErrorMsg] = useState('')
@@ -17,7 +16,7 @@ export default function GoogleCalendarCallback() {
     if (handledRef.current) return
     handledRef.current = true
     handleCallback()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function handleCallback() {
@@ -31,21 +30,27 @@ export default function GoogleCalendarCallback() {
     if (errorParam) {
       setStatus('error')
       setErrorMsg('Acceso denegado a Google Calendar')
-      setTimeout(() => { window.location.href = '/dashboard/configuracion' }, 3000)
+      setTimeout(() => {
+        window.location.href = '/dashboard/configuracion'
+      }, 3000)
       return
     }
 
     // Validate state to prevent CSRF
     setDebugStep('validando estado...')
-    const savedState = localStorage.getItem('google_oauth_state')
-    const verifier = localStorage.getItem('google_oauth_verifier')
-    localStorage.removeItem('google_oauth_state')
-    localStorage.removeItem('google_oauth_verifier')
+    const savedState = sessionStorage.getItem('google_oauth_state')
+    const verifier = sessionStorage.getItem('google_oauth_verifier')
+    sessionStorage.removeItem('google_oauth_state')
+    sessionStorage.removeItem('google_oauth_verifier')
 
     if (!code || !state || state !== savedState || !verifier) {
       setStatus('error')
-      setErrorMsg(`Parámetros inválidos: code=${!!code} state=${!!state} match=${state === savedState} verifier=${!!verifier}`)
-      setTimeout(() => { window.location.href = '/dashboard/configuracion' }, 3000)
+      setErrorMsg(
+        `Parámetros inválidos: code=${!!code} state=${!!state} match=${state === savedState} verifier=${!!verifier}`,
+      )
+      setTimeout(() => {
+        window.location.href = '/dashboard/configuracion'
+      }, 3000)
       return
     }
 
@@ -54,8 +59,8 @@ export default function GoogleCalendarCallback() {
       // Token was saved in localStorage by initiateGoogleOAuth() before the redirect.
       // Supabase clears its own session storage when it mistakenly tries to exchange
       // the Google ?code= as a Supabase PKCE callback, so we use our own saved copy.
-      const accessToken = localStorage.getItem('google_oauth_access_token')
-      localStorage.removeItem('google_oauth_access_token')
+      const accessToken = sessionStorage.getItem('google_oauth_access_token')
+      sessionStorage.removeItem('google_oauth_access_token')
       if (!accessToken) throw new Error('No hay sesión activa — inicia sesión de nuevo')
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
@@ -67,23 +72,20 @@ export default function GoogleCalendarCallback() {
 
       let res: Response
       try {
-        res = await fetch(
-          `${supabaseUrl}/functions/v1/google-calendar-auth`,
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'apikey': anonKey,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              code,
-              verifier,
-              redirectUri: `${window.location.origin}/auth/gcal/callback`,
-            }),
-            signal: abortController.signal,
-          }
-        )
+        res = await fetch(`${supabaseUrl}/functions/v1/google-calendar-auth`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            apikey: anonKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            code,
+            verifier,
+            redirectUri: `${window.location.origin}/auth/gcal/callback`,
+          }),
+          signal: abortController.signal,
+        })
       } finally {
         clearTimeout(timeoutId)
       }
@@ -92,7 +94,7 @@ export default function GoogleCalendarCallback() {
         throw new Error('Tiempo de espera agotado al conectar Google Calendar')
       }
 
-      const fnData = await res.json() as { success?: boolean; error?: string }
+      const fnData = (await res.json()) as { success?: boolean; error?: string }
 
       if (!res.ok || !fnData?.success) {
         throw new Error(fnData?.error ?? `Error del servidor (${res.status})`)
@@ -103,12 +105,16 @@ export default function GoogleCalendarCallback() {
       // on the callback URL due to Supabase's PKCE lock). navigate() does a
       // client-side transition that inherits the broken auth state. A hard
       // redirect lets AuthContext reinitialize cleanly from sessionStorage.
-      setTimeout(() => { window.location.href = '/dashboard/configuracion' }, 2000)
+      setTimeout(() => {
+        window.location.href = '/dashboard/configuracion'
+      }, 2000)
     } catch (err: unknown) {
       logger.error('GoogleCalendarCallback', err)
       setStatus('error')
       setErrorMsg(err instanceof Error ? err.message : 'Error inesperado')
-      setTimeout(() => { window.location.href = '/dashboard/configuracion' }, 3000)
+      setTimeout(() => {
+        window.location.href = '/dashboard/configuracion'
+      }, 3000)
     }
   }
 

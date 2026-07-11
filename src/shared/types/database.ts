@@ -723,6 +723,7 @@ export interface BiometricRecord {
   recorded_at: string
   height_cm: number | null
   weight_kg: number | null
+  head_circumference_cm?: number | null
   blood_type: string | null
   notes: string | null
   created_at: string

@@ -10,7 +10,7 @@ export interface Appointment {
   id: string
   patient_id: string
   doctor_id: string
-  initiated_by: string | null   // patient_id = patient proposed, doctor_id = doctor proposed
+  initiated_by: string | null // patient_id = patient proposed, doctor_id = doctor proposed
   scheduled_at: string
   duration_min: number
   mode: AppointmentMode
@@ -43,7 +43,9 @@ export async function createAppointment(data: {
   reason: string
   notes?: string
 }): Promise<Appointment | null> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) return null
 
   const { data: appt, error } = await supabase
@@ -62,11 +64,14 @@ export async function createAppointment(data: {
     .select()
     .single()
 
-  if (error) { logger.error('createAppointment', error); return null }
+  if (error) {
+    logger.error('createAppointment', error)
+    return null
+  }
   return appt as Appointment
 }
 
-/** Doctor creates appointment for a patient — initiated_by = doctor */
+/** Doctor creates appointment for a patient — initiated_by = doctor, auto-confirmed */
 export async function createAppointmentForPatient(data: {
   patientId: string
   scheduledAt: string
@@ -75,7 +80,9 @@ export async function createAppointmentForPatient(data: {
   reason: string
   notes?: string
 }): Promise<Appointment | null> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) return null
 
   const { data: appt, error } = await supabase
@@ -89,19 +96,26 @@ export async function createAppointmentForPatient(data: {
       mode: data.mode,
       reason: data.reason,
       notes: data.notes ?? null,
-      status: 'pending',
+      status: 'confirmed',
     })
     .select()
     .single()
 
-  if (error) { logger.error('createAppointmentForPatient', error); return null }
+  if (error) {
+    logger.error('createAppointmentForPatient', error)
+    return null
+  }
   return appt as Appointment
 }
 
 // ─── Read ─────────────────────────────────────────────────────────────────────
 
-export async function getAppointmentById(appointmentId: string): Promise<AppointmentWithPatient | null> {
-  const { data: { user } } = await supabase.auth.getUser()
+export async function getAppointmentById(
+  appointmentId: string,
+): Promise<AppointmentWithPatient | null> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) return null
 
   const { data: appt, error } = await supabase
@@ -111,7 +125,10 @@ export async function getAppointmentById(appointmentId: string): Promise<Appoint
     .eq('doctor_id', user.id)
     .single()
 
-  if (error || !appt) { logger.error('getAppointmentById', error); return null }
+  if (error || !appt) {
+    logger.error('getAppointmentById', error)
+    return null
+  }
 
   const { data: profile } = await supabase
     .from('profiles')
@@ -127,7 +144,9 @@ export async function getAppointmentById(appointmentId: string): Promise<Appoint
 }
 
 export async function getPatientAppointments(): Promise<AppointmentWithDoctor[]> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) return []
 
   const { data: appts, error } = await supabase
@@ -136,17 +155,20 @@ export async function getPatientAppointments(): Promise<AppointmentWithDoctor[]>
     .eq('patient_id', user.id)
     .order('scheduled_at', { ascending: false })
 
-  if (error) { logger.error('getPatientAppointments', error); return [] }
+  if (error) {
+    logger.error('getPatientAppointments', error)
+    return []
+  }
   if (!appts?.length) return []
 
-  const doctorIds = [...new Set(appts.map(a => a.doctor_id))]
+  const doctorIds = [...new Set(appts.map((a) => a.doctor_id))]
   const { data: profiles } = await supabase
     .from('profiles')
     .select('id, full_name, avatar_url')
     .in('id', doctorIds)
 
-  const map = new Map((profiles ?? []).map(p => [p.id, p]))
-  return appts.map(a => ({
+  const map = new Map((profiles ?? []).map((p) => [p.id, p]))
+  return appts.map((a) => ({
     ...a,
     doctor_name: map.get(a.doctor_id)?.full_name ?? null,
     doctor_avatar: map.get(a.doctor_id)?.avatar_url ?? null,
@@ -154,7 +176,9 @@ export async function getPatientAppointments(): Promise<AppointmentWithDoctor[]>
 }
 
 export async function getDoctorAppointments(): Promise<AppointmentWithPatient[]> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) return []
 
   const { data: appts, error } = await supabase
@@ -163,17 +187,20 @@ export async function getDoctorAppointments(): Promise<AppointmentWithPatient[]>
     .eq('doctor_id', user.id)
     .order('scheduled_at', { ascending: true })
 
-  if (error) { logger.error('getDoctorAppointments', error); return [] }
+  if (error) {
+    logger.error('getDoctorAppointments', error)
+    return []
+  }
   if (!appts?.length) return []
 
-  const patientIds = [...new Set(appts.map(a => a.patient_id))]
+  const patientIds = [...new Set(appts.map((a) => a.patient_id))]
   const { data: profiles } = await supabase
     .from('profiles')
     .select('id, full_name, avatar_url')
     .in('id', patientIds)
 
-  const map = new Map((profiles ?? []).map(p => [p.id, p]))
-  return appts.map(a => ({
+  const map = new Map((profiles ?? []).map((p) => [p.id, p]))
+  return appts.map((a) => ({
     ...a,
     patient_name: map.get(a.patient_id)?.full_name ?? null,
     patient_avatar: map.get(a.patient_id)?.avatar_url ?? null,
@@ -182,11 +209,13 @@ export async function getDoctorAppointments(): Promise<AppointmentWithPatient[]>
 
 /** Returns doctor's non-cancelled appointments for a given date (YYYY-MM-DD) */
 export async function getDoctorAppointmentsForDate(date: string): Promise<Appointment[]> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) return []
 
   const dayStart = `${date}T00:00:00`
-  const dayEnd   = `${date}T23:59:59`
+  const dayEnd = `${date}T23:59:59`
 
   const { data, error } = await supabase
     .from('appointments')
@@ -196,7 +225,10 @@ export async function getDoctorAppointmentsForDate(date: string): Promise<Appoin
     .gte('scheduled_at', dayStart)
     .lte('scheduled_at', dayEnd)
 
-  if (error) { logger.error('getDoctorAppointmentsForDate', error); return [] }
+  if (error) {
+    logger.error('getDoctorAppointmentsForDate', error)
+    return []
+  }
   return (data ?? []) as Appointment[]
 }
 
@@ -204,20 +236,23 @@ export async function getDoctorAppointmentsForDate(date: string): Promise<Appoin
 
 export async function updateAppointmentStatus(
   appointmentId: string,
-  status: AppointmentStatus
+  status: AppointmentStatus,
 ): Promise<boolean> {
   const { error } = await supabase
     .from('appointments')
     .update({ status, updated_at: new Date().toISOString() })
     .eq('id', appointmentId)
 
-  if (error) { logger.error('updateAppointmentStatus', error); return false }
+  if (error) {
+    logger.error('updateAppointmentStatus', error)
+    return false
+  }
   return true
 }
 
 export async function updateAppointmentCalendarEvent(
   appointmentId: string,
-  googleEventId: string
+  googleEventId: string,
 ): Promise<void> {
   const { error } = await supabase
     .from('appointments')

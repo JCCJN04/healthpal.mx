@@ -172,66 +172,6 @@ const MEDICATION_SUGGESTIONS: { name: string; icon: string }[] = [
   { name: 'Fexofenadina 120 mg', icon: '💊' },
 ]
 
-const FAMILY_HISTORY_SUGGESTIONS: { name: string; icon: string }[] = [
-  { name: 'Diabetes (padre)', icon: '🧬' },
-  { name: 'Diabetes (madre)', icon: '🧬' },
-  { name: 'Diabetes (abuelos)', icon: '🧬' },
-  { name: 'Hipertensión (padre)', icon: '🧬' },
-  { name: 'Hipertensión (madre)', icon: '🧬' },
-  { name: 'Infarto al miocardio', icon: '🧬' },
-  { name: 'EVC / Derrame cerebral', icon: '🧬' },
-  { name: 'Cáncer de mama', icon: '🧬' },
-  { name: 'Cáncer colorrectal', icon: '🧬' },
-  { name: 'Cáncer de próstata', icon: '🧬' },
-  { name: 'Cáncer cervicouterino', icon: '🧬' },
-  { name: 'Cáncer gástrico', icon: '🧬' },
-  { name: 'Enfermedad renal crónica', icon: '🧬' },
-  { name: 'Epilepsia', icon: '🧬' },
-  { name: 'Artritis reumatoide', icon: '🧬' },
-  { name: 'Lupus', icon: '🧬' },
-  { name: 'Depresión / Ansiedad', icon: '🧬' },
-  { name: 'Esquizofrenia', icon: '🧬' },
-  { name: 'Alzheimer', icon: '🧬' },
-  { name: 'Parkinson', icon: '🧬' },
-  { name: 'Dislipidemias', icon: '🧬' },
-  { name: 'Obesidad', icon: '🧬' },
-  { name: 'Glaucoma', icon: '🧬' },
-  { name: 'Asma', icon: '🧬' },
-]
-
-const SURGICAL_SUGGESTIONS: { name: string; icon: string }[] = [
-  { name: 'Apendicectomía', icon: '🏥' },
-  { name: 'Colecistectomía', icon: '🏥' },
-  { name: 'Cesárea', icon: '🏥' },
-  { name: 'Histerectomía', icon: '🏥' },
-  { name: 'Hernioplastia inguinal', icon: '🏥' },
-  { name: 'Hernioplastia umbilical', icon: '🏥' },
-  { name: 'Artroscopia de rodilla', icon: '🏥' },
-  { name: 'Artroscopia de hombro', icon: '🏥' },
-  { name: 'Amigdalectomía', icon: '🏥' },
-  { name: 'Cirugía de cataratas', icon: '🏥' },
-  { name: 'Bypass gástrico', icon: '🏥' },
-  { name: 'Manga gástrica', icon: '🏥' },
-  { name: 'Colostomía', icon: '🏥' },
-  { name: 'Mastectomía', icon: '🏥' },
-  { name: 'Prostatectomía', icon: '🏥' },
-  { name: 'Nefrectomía', icon: '🏥' },
-  { name: 'Cirugía de columna', icon: '🏥' },
-  { name: 'Artroplastia de cadera', icon: '🏥' },
-  { name: 'Artroplastia de rodilla', icon: '🏥' },
-  { name: 'Bypass coronario', icon: '🏥' },
-  { name: 'Marcapasos', icon: '🏥' },
-  { name: 'Colposcopia', icon: '🏥' },
-  { name: 'Legrado uterino', icon: '🏥' },
-  { name: 'Vasectomía', icon: '🏥' },
-  { name: 'Salpingoclasia', icon: '🏥' },
-  { name: 'Rinoplastia', icon: '🏥' },
-  { name: 'Septoplastia', icon: '🏥' },
-  { name: 'Hospitalización (neumonía)', icon: '🏥' },
-  { name: 'Hospitalización (infarto)', icon: '🏥' },
-  { name: 'Hospitalización (fractura)', icon: '🏥' },
-]
-
 // ── TagInput component ────────────────────────────────────────────────────────
 
 interface TagInputProps {
@@ -464,32 +404,6 @@ function bmiCategory(bmi: number): { label: string; color: string } {
   if (bmi < 40) return { label: 'Obesidad II', color: 'text-red-600' }
   return { label: 'Obesidad III', color: 'text-red-800' }
 }
-
-// ── Option lists ──────────────────────────────────────────────────────────────
-
-const TOBACCO_OPTIONS = [
-  { value: '', label: 'No especificado' },
-  { value: 'none', label: 'No fumo' },
-  { value: 'ex_smoker', label: 'Ex fumador/a' },
-  { value: 'occasionally', label: 'Ocasionalmente' },
-  { value: 'daily', label: 'Diariamente' },
-]
-
-const ALCOHOL_OPTIONS = [
-  { value: '', label: 'No especificado' },
-  { value: 'none', label: 'No consumo' },
-  { value: 'occasionally', label: 'Ocasionalmente' },
-  { value: 'social', label: 'Social / fines de semana' },
-  { value: 'daily', label: 'Diariamente' },
-]
-
-const EXERCISE_OPTIONS = [
-  { value: '', label: 'No especificado' },
-  { value: 'none', label: 'Sedentario/a' },
-  { value: 'light', label: 'Leve (caminatas)' },
-  { value: 'moderate', label: 'Moderado (3-4 veces/semana)' },
-  { value: 'intense', label: 'Intenso (5+ veces/semana)' },
-]
 
 // ── Main component ────────────────────────────────────────────────────────────
 
@@ -1561,12 +1475,14 @@ export default function HistorialClinico() {
                     (enfermedades en padres, abuelos, hermanos)
                   </span>
                 </div>
-                <TagInput
+                <textarea
                   value={antecedentesForm.family_history}
-                  onChange={(v) => setAntecedentesForm((f) => ({ ...f, family_history: v }))}
-                  suggestions={FAMILY_HISTORY_SUGGESTIONS}
-                  placeholder="Buscar o escribir antecedente familiar…"
-                  tagClass="bg-purple-50 text-purple-700 border border-purple-200"
+                  onChange={(e) =>
+                    setAntecedentesForm((f) => ({ ...f, family_history: e.target.value }))
+                  }
+                  placeholder="Ej. Padre con diabetes tipo 2, abuela materna con hipertensión, hermano con asma…"
+                  rows={3}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 resize-none focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] leading-relaxed"
                 />
               </div>
 
@@ -1578,12 +1494,14 @@ export default function HistorialClinico() {
                     Cirugías u hospitalizaciones previas
                   </label>
                 </div>
-                <TagInput
+                <textarea
                   value={antecedentesForm.surgical_history}
-                  onChange={(v) => setAntecedentesForm((f) => ({ ...f, surgical_history: v }))}
-                  suggestions={SURGICAL_SUGGESTIONS}
-                  placeholder="Buscar o escribir cirugía / hospitalización…"
-                  tagClass="bg-gray-100 text-gray-700 border border-gray-300"
+                  onChange={(e) =>
+                    setAntecedentesForm((f) => ({ ...f, surgical_history: e.target.value }))
+                  }
+                  placeholder="Ej. Apendicectomía 2015, cesárea 2019, hospitalización por neumonía 2021…"
+                  rows={3}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 resize-none focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] leading-relaxed"
                 />
               </div>
 
@@ -1595,55 +1513,43 @@ export default function HistorialClinico() {
                     <label className="block text-xs font-semibold text-gray-500 mb-1.5">
                       🚬 Tabaco
                     </label>
-                    <select
+                    <input
+                      type="text"
                       value={antecedentesForm.tobacco_use}
                       onChange={(e) =>
                         setAntecedentesForm((f) => ({ ...f, tobacco_use: e.target.value }))
                       }
-                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] bg-white"
-                    >
-                      {TOBACCO_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
+                      placeholder="Ej. No fumo, 5 cigarros/día, ex fumador…"
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]"
+                    />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-500 mb-1.5">
                       🍺 Alcohol
                     </label>
-                    <select
+                    <input
+                      type="text"
                       value={antecedentesForm.alcohol_use}
                       onChange={(e) =>
                         setAntecedentesForm((f) => ({ ...f, alcohol_use: e.target.value }))
                       }
-                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] bg-white"
-                    >
-                      {ALCOHOL_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
+                      placeholder="Ej. No consumo, ocasionalmente, fines de semana…"
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]"
+                    />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-500 mb-1.5">
                       🏃 Ejercicio
                     </label>
-                    <select
+                    <input
+                      type="text"
                       value={antecedentesForm.exercise_frequency}
                       onChange={(e) =>
                         setAntecedentesForm((f) => ({ ...f, exercise_frequency: e.target.value }))
                       }
-                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] bg-white"
-                    >
-                      {EXERCISE_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
+                      placeholder="Ej. Caminata 30 min diaria, gym 3 veces/semana…"
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]"
+                    />
                   </div>
                 </div>
               </div>

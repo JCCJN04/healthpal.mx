@@ -63,6 +63,7 @@ import { validateFile } from '@/shared/lib/errors'
 import type { DocCategory } from '@/shared/types/database'
 import AgendarCitaModal from '@/shared/components/appointments/AgendarCitaModal'
 import ClinicalHistoryTab from '@/features/doctor/components/ClinicalHistoryTab'
+import GrowthCurvesTab from '@/features/doctor/components/GrowthCurvesTab'
 import MedicalReportTab from '@/features/doctor/components/MedicalReportTab'
 import { DocumentCard } from '@/shared/components/documents/DocumentCard'
 import { DocumentPreviewModal } from '@/shared/components/documents/DocumentPreviewModal'
@@ -87,14 +88,28 @@ import RecetaPreview, {
   printRxElement,
 } from '@/features/doctor/components/RecetaPreview'
 
-type TabType = 'summary' | 'expediente' | 'historia' | 'informes' | 'consultas' | 'recetas'
+type TabType =
+  'summary' | 'expediente' | 'historia' | 'informes' | 'consultas' | 'recetas' | 'curvas'
 type ConsentGate = 'loading' | 'no-consent' | 'requested' | 'rejected' | 'revoked' | 'accepted'
 
 export default function PatientDetail() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
   const navigate = useNavigate()
-  const [activeTab, setActiveTab] = useState<TabType>('summary')
+  const initialTab = (() => {
+    const t = new URLSearchParams(window.location.search).get('tab')
+    const valid: TabType[] = [
+      'summary',
+      'expediente',
+      'historia',
+      'informes',
+      'consultas',
+      'recetas',
+      'curvas',
+    ]
+    return valid.includes(t as TabType) ? (t as TabType) : 'summary'
+  })()
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [patient, setPatient] = useState<any>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -836,192 +851,121 @@ export default function PatientDetail() {
         {/* ── Body: sidebar + main ──────────────────────────── */}
         <div className="flex flex-1 overflow-hidden">
           {/* ── LEFT SIDEBAR ─────────────────────────────── */}
-          <aside className="hidden lg:flex flex-col w-60 xl:w-64 flex-shrink-0 bg-white border-r border-gray-200 overflow-y-auto">
-            {/* Avatar + name block */}
-            <div className="px-4 py-3 flex items-center gap-3 border-b border-gray-100">
-              <div className="w-12 h-12 rounded-xl overflow-hidden bg-gradient-to-br from-[#33C7BE]/20 to-cyan-100 flex items-center justify-center shadow-sm flex-shrink-0">
-                {patient.avatar_url ? (
-                  <img src={patient.avatar_url} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-xl font-black text-[#33C7BE]">{initials}</span>
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <h2 className="text-sm font-black text-gray-900 leading-tight truncate">
-                  {patient.full_name || 'Paciente'}
-                </h2>
-                <span className="inline-flex items-center gap-1 mt-0.5 text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">
-                  <ShieldCheck size={9} /> Acceso autorizado
-                </span>
-              </div>
-            </div>
-
-            {/* Vitals */}
-            <div className="px-4 py-3 border-b border-gray-100 grid grid-cols-3 gap-2">
-              {[
-                {
-                  label: 'Edad',
-                  value: `${calculateAge(patient.birthdate)}`,
-                  unit: 'años',
-                  color: 'text-blue-700',
-                  bg: 'bg-blue-50',
-                },
-                {
-                  label: 'Sexo',
-                  value: patient.sex === 'male' ? '♂' : patient.sex === 'female' ? '♀' : '—',
-                  unit: patient.sex === 'male' ? 'Hombre' : patient.sex === 'female' ? 'Mujer' : '',
-                  color: 'text-violet-700',
-                  bg: 'bg-violet-50',
-                },
-                {
-                  label: 'Sangre',
-                  value: medProfile?.blood_type || pProfile.blood_type || '—',
-                  unit: '',
-                  color: 'text-red-700',
-                  bg: 'bg-red-50',
-                },
-              ].map((v, i) => (
-                <div key={i} className={`${v.bg} rounded-xl p-2.5 text-center`}>
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">
-                    {v.label}
-                  </p>
-                  <p className={`text-lg font-black ${v.color} leading-tight`}>{v.value}</p>
-                  {v.unit && (
-                    <p className={`text-[9px] font-medium ${v.color} opacity-70`}>{v.unit}</p>
+          <aside className="hidden lg:flex flex-col w-64 xl:w-68 flex-shrink-0 bg-white border-r border-gray-100 overflow-y-auto">
+            {/* ── Patient hero ── */}
+            <div className="px-5 pt-5 pb-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-14 h-14 rounded-2xl overflow-hidden bg-gradient-to-br from-[#33C7BE]/20 to-cyan-100 flex items-center justify-center shadow-sm flex-shrink-0">
+                  {patient.avatar_url ? (
+                    <img src={patient.avatar_url} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-2xl font-black text-[#33C7BE]">{initials}</span>
                   )}
                 </div>
-              ))}
-            </div>
-
-            {/* Biometrics */}
-            <div className="px-4 py-3 border-b border-gray-100">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
-                Mediciones
-              </p>
-              <div className="flex gap-4">
-                <div className="flex items-center gap-1.5">
-                  <Ruler size={11} className="text-gray-300" />
-                  <span className="text-sm font-black text-gray-900">
-                    {medProfile?.height_cm ?? pProfile.height_cm ?? '—'}
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-sm font-black text-gray-900 leading-tight truncate">
+                    {patient.full_name || 'Paciente'}
+                  </h2>
+                  <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-semibold text-green-700 bg-green-50 border border-green-100 px-2 py-0.5 rounded-full">
+                    <ShieldCheck size={9} /> Acceso autorizado
                   </span>
-                  <span className="text-[10px] text-gray-400">cm</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Scale size={11} className="text-gray-300" />
-                  <span className="text-sm font-black text-gray-900">
-                    {medProfile?.weight_kg ?? pProfile.weight_kg ?? '—'}
-                  </span>
-                  <span className="text-[10px] text-gray-400">kg</span>
                 </div>
               </div>
+
+              {/* Compact stats row */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {!!patient.birthdate && (
+                  <span className="flex items-center gap-1 text-xs font-bold text-gray-600 bg-gray-100 px-2.5 py-1 rounded-full">
+                    {calculateAge(patient.birthdate)}{' '}
+                    <span className="font-normal text-gray-400">años</span>
+                  </span>
+                )}
+                {patient.sex && (
+                  <span className="flex items-center gap-1 text-xs font-bold text-gray-600 bg-gray-100 px-2.5 py-1 rounded-full">
+                    {patient.sex === 'male' ? '♂ Hombre' : '♀ Mujer'}
+                  </span>
+                )}
+                {(medProfile?.blood_type || pProfile.blood_type) && (
+                  <span className="flex items-center gap-1 text-xs font-bold text-red-700 bg-red-50 px-2.5 py-1 rounded-full">
+                    🩸 {medProfile?.blood_type || pProfile.blood_type}
+                  </span>
+                )}
+              </div>
+
+              {/* Height / Weight */}
+              {(medProfile?.height_cm ??
+                pProfile.height_cm ??
+                medProfile?.weight_kg ??
+                pProfile.weight_kg) && (
+                <div className="flex items-center gap-4 mt-3 pt-3 border-t border-gray-100">
+                  {(medProfile?.height_cm ?? pProfile.height_cm) && (
+                    <div className="flex items-center gap-1.5">
+                      <Ruler size={11} className="text-gray-300" />
+                      <span className="text-sm font-black text-gray-800">
+                        {medProfile?.height_cm ?? pProfile.height_cm}
+                      </span>
+                      <span className="text-[10px] text-gray-400">cm</span>
+                    </div>
+                  )}
+                  {(medProfile?.weight_kg ?? pProfile.weight_kg) && (
+                    <div className="flex items-center gap-1.5">
+                      <Scale size={11} className="text-gray-300" />
+                      <span className="text-sm font-black text-gray-800">
+                        {medProfile?.weight_kg ?? pProfile.weight_kg}
+                      </span>
+                      <span className="text-[10px] text-gray-400">kg</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
-            {/* Contact */}
+            {/* ── Contact ── */}
             {scopes.share_contact && (contactInfo?.email || contactInfo?.phone) && (
-              <div className="p-4 border-b border-gray-100 space-y-2.5">
+              <div className="px-5 py-3 border-t border-gray-100 space-y-2">
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                   Contacto
                 </p>
                 {contactInfo?.email && (
                   <a
                     href={`mailto:${contactInfo.email}`}
-                    className="flex items-center gap-2.5 text-sm text-gray-700 hover:text-[#33C7BE] transition-colors group"
+                    className="flex items-center gap-2 text-xs text-gray-600 hover:text-[#33C7BE] transition-colors truncate"
                   >
-                    <div className="w-7 h-7 rounded-lg bg-gray-100 group-hover:bg-teal-50 flex items-center justify-center flex-shrink-0 transition-colors">
-                      <Mail size={12} className="text-gray-400 group-hover:text-[#33C7BE]" />
-                    </div>
-                    <span className="truncate text-xs">{contactInfo.email}</span>
+                    <Mail size={12} className="text-gray-300 flex-shrink-0" />
+                    <span className="truncate">{contactInfo.email}</span>
                   </a>
                 )}
                 {contactInfo?.phone && (
-                  <div className="space-y-2">
+                  <div className="flex items-center justify-between">
                     <a
                       href={`tel:${contactInfo.phone}`}
-                      className="flex items-center gap-2 text-gray-700 hover:text-[#33C7BE] transition-colors group"
+                      className="flex items-center gap-2 text-xs text-gray-600 hover:text-[#33C7BE] transition-colors"
                     >
-                      <div className="w-6 h-6 rounded-lg bg-gray-100 group-hover:bg-teal-50 flex items-center justify-center flex-shrink-0 transition-colors">
-                        <Phone size={11} className="text-gray-400 group-hover:text-[#33C7BE]" />
-                      </div>
-                      <span className="text-xs">{contactInfo.phone}</span>
+                      <Phone size={12} className="text-gray-300 flex-shrink-0" />
+                      <span>{contactInfo.phone}</span>
                     </a>
                     <a
                       href={`https://wa.me/${contactInfo.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola ${patient.full_name?.split(' ')[0] ?? ''}, le contacto de parte de su médico.`)}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      title="Enviar mensaje por WhatsApp"
-                      className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-xl transition-colors"
+                      className="flex items-center gap-1 px-2.5 py-1 bg-green-500 hover:bg-green-600 text-white text-[10px] font-bold rounded-lg transition-colors flex-shrink-0"
                     >
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="currentColor"
-                        className="w-4 h-4 flex-shrink-0"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
+                      <svg viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3">
                         <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
                       </svg>
-                      Enviar mensaje
+                      WA
                     </a>
                   </div>
                 )}
               </div>
             )}
 
-            {/* Insurance */}
-            {scopes.share_insurance && patientInsurances.length > 0 && (
-              <div className="px-4 py-3 border-b border-gray-100">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
-                  Seguro médico
-                </p>
-                {patientInsurances.map((ins) => (
-                  <div key={ins.id} className="mb-2 last:mb-0">
-                    <p className="text-sm font-bold text-gray-900">{insuranceDisplayName(ins)}</p>
-                    {ins.policy_number && (
-                      <p className="text-[11px] text-gray-500">Póliza: {ins.policy_number}</p>
-                    )}
-                    {ins.member_id && (
-                      <p className="text-[11px] text-gray-500">ID: {ins.member_id}</p>
-                    )}
-                    {ins.valid_until && (
-                      <p className="text-[11px] text-gray-500">Vigente hasta: {ins.valid_until}</p>
-                    )}
-                    {ins.phone_emergency && (
-                      <a
-                        href={`tel:${ins.phone_emergency}`}
-                        className="text-[11px] text-teal-600 hover:underline"
-                      >
-                        Urgencias: {ins.phone_emergency}
-                      </a>
-                    )}
-                    <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full">
-                      <ShieldCheck size={9} /> Activo
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-            {/* Fallback: show simple insurance_provider if share_insurance not granted but share_medical_notes is */}
-            {!scopes.share_insurance &&
-              scopes.share_medical_notes &&
-              (medProfile?.insurance_provider || pProfile?.insurance_provider) && (
-                <div className="px-4 py-3 border-b border-gray-100">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
-                    Seguro médico
-                  </p>
-                  <p className="text-sm font-bold text-gray-900">
-                    {medProfile?.insurance_provider || pProfile?.insurance_provider}
-                  </p>
-                  <span className="inline-flex items-center gap-1 mt-1.5 text-[10px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full">
-                    <ShieldCheck size={9} /> Activo
-                  </span>
-                </div>
-              )}
-
-            {/* Emergency contact */}
+            {/* ── Emergency contact ── */}
             {scopes.share_contact &&
               (medProfile?.emergency_contact_name || medProfile?.emergency_contact_phone) && (
-                <div className="px-4 py-3 border-b border-gray-100 space-y-2">
+                <div className="px-5 py-3 border-t border-gray-100 space-y-1.5">
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                    Contacto de emergencia
+                    Emergencia
                   </p>
                   {medProfile?.emergency_contact_name && (
                     <p className="text-xs font-semibold text-gray-700">
@@ -1029,93 +973,122 @@ export default function PatientDetail() {
                     </p>
                   )}
                   {medProfile?.emergency_contact_phone && (
-                    <div className="space-y-2">
+                    <div className="flex items-center justify-between">
                       <a
                         href={`tel:${medProfile.emergency_contact_phone}`}
-                        className="flex items-center gap-2 text-xs text-gray-600 hover:text-primary transition-colors"
+                        className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-[#33C7BE] transition-colors"
                       >
-                        <Phone size={11} className="text-gray-400" />
+                        <Phone size={11} className="text-gray-300" />
                         {medProfile.emergency_contact_phone}
                       </a>
                       <a
                         href={`https://wa.me/${medProfile.emergency_contact_phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola, le contactamos por el paciente ${patient.full_name ?? ''}.`)}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        title="Enviar mensaje por WhatsApp"
-                        className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-xl transition-colors"
+                        className="flex items-center gap-1 px-2.5 py-1 bg-green-500 hover:bg-green-600 text-white text-[10px] font-bold rounded-lg transition-colors"
                       >
-                        <svg
-                          viewBox="0 0 24 24"
-                          fill="currentColor"
-                          className="w-4 h-4 flex-shrink-0"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
+                        <svg viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3">
                           <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
                         </svg>
-                        Enviar mensaje
+                        WA
                       </a>
                     </div>
                   )}
                 </div>
               )}
 
-            {/* Biometric history */}
+            {/* ── Insurance ── */}
+            {scopes.share_insurance && patientInsurances.length > 0 && (
+              <div className="px-5 py-3 border-t border-gray-100 space-y-2">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                  Seguro médico
+                </p>
+                {patientInsurances.map((ins) => (
+                  <div
+                    key={ins.id}
+                    className="bg-teal-50 border border-teal-100 rounded-xl px-3 py-2.5 space-y-1"
+                  >
+                    <p className="text-xs font-bold text-gray-900">{insuranceDisplayName(ins)}</p>
+                    {ins.policy_number && (
+                      <p className="text-[10px] text-gray-500">Póliza: {ins.policy_number}</p>
+                    )}
+                    {ins.valid_until && (
+                      <p className="text-[10px] text-gray-500">Vigente hasta: {ins.valid_until}</p>
+                    )}
+                    {ins.phone_emergency && (
+                      <a
+                        href={`tel:${ins.phone_emergency}`}
+                        className="text-[10px] text-teal-600 hover:underline block"
+                      >
+                        Urgencias: {ins.phone_emergency}
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            {!scopes.share_insurance &&
+              scopes.share_medical_notes &&
+              (medProfile?.insurance_provider || pProfile?.insurance_provider) && (
+                <div className="px-5 py-3 border-t border-gray-100">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">
+                    Seguro médico
+                  </p>
+                  <p className="text-xs font-semibold text-gray-800">
+                    {medProfile?.insurance_provider || pProfile?.insurance_provider}
+                  </p>
+                </div>
+              )}
+
+            {/* ── Biometric history ── */}
             {scopes.share_medical_notes && biometricHistory.length > 0 && (
-              <div className="px-4 py-3 border-b border-gray-100">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2.5">
+              <div className="px-5 py-3 border-t border-gray-100">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
                   Historial biométrico
                 </p>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {biometricHistory.slice(0, 3).map((b, i) => (
                     <div
                       key={b.id}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-xl ${i === 0 ? 'bg-teal-50 border border-teal-100' : 'bg-gray-50'}`}
+                      className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs ${i === 0 ? 'bg-teal-50' : 'bg-gray-50'}`}
                     >
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[10px] text-gray-400">
-                          {new Date(b.recorded_at).toLocaleDateString('es-MX', {
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric',
-                          })}
-                        </p>
-                        <div className="flex gap-3 mt-0.5">
-                          {b.weight_kg && (
-                            <span className="text-xs font-bold text-gray-700">
-                              {b.weight_kg} kg
-                            </span>
-                          )}
-                          {b.height_cm && (
-                            <span className="text-xs font-bold text-gray-700">
-                              {b.height_cm} cm
-                            </span>
-                          )}
-                        </div>
+                      <span className="text-gray-400 text-[10px]">
+                        {new Date(b.recorded_at).toLocaleDateString('es-MX', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: '2-digit',
+                        })}
+                      </span>
+                      <div className="flex items-center gap-3">
+                        {b.weight_kg && (
+                          <span className="font-bold text-gray-700">{b.weight_kg} kg</span>
+                        )}
+                        {b.height_cm && (
+                          <span className="font-bold text-gray-700">{b.height_cm} cm</span>
+                        )}
+                        {i === 0 && (
+                          <span className="text-[9px] font-bold text-teal-600">Rec.</span>
+                        )}
                       </div>
-                      {i === 0 && (
-                        <span className="text-[9px] font-bold text-teal-600 bg-teal-100 px-1.5 py-0.5 rounded-full">
-                          Reciente
-                        </span>
-                      )}
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Upcoming appointments */}
+            {/* ── Upcoming appointments ── */}
             {upcomingAppointments.length > 0 && (
-              <div className="px-4 py-3 border-b border-gray-100">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2.5">
+              <div className="px-5 py-3 border-t border-gray-100">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
                   Próximas citas
                 </p>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {upcomingAppointments.slice(0, 3).map((appt) => (
                     <div
                       key={appt.id}
                       className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl"
                     >
-                      <CalendarDays size={12} className="text-primary flex-shrink-0" />
+                      <CalendarDays size={11} className="text-[#33C7BE] flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-semibold text-gray-700">
                           {new Date(appt.scheduled_at).toLocaleDateString('es-MX', {
@@ -1130,7 +1103,7 @@ export default function PatientDetail() {
                             timeZone: 'America/Mexico_City',
                           })}
                         </p>
-                        <p className="text-[10px] text-gray-400 capitalize">
+                        <p className="text-[10px] text-gray-400">
                           {appt.mode === 'in_person'
                             ? 'Presencial'
                             : appt.mode === 'video'
@@ -1139,9 +1112,9 @@ export default function PatientDetail() {
                         </p>
                       </div>
                       <span
-                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${appt.status === 'confirmed' ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'}`}
+                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${appt.status === 'confirmed' ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'}`}
                       >
-                        {appt.status === 'confirmed' ? 'Confirmada' : 'Pendiente'}
+                        {appt.status === 'confirmed' ? 'Confirm.' : 'Pend.'}
                       </span>
                     </div>
                   ))}
@@ -1149,10 +1122,10 @@ export default function PatientDetail() {
               </div>
             )}
 
-            {/* Privacy */}
-            <div className="mt-auto p-4 flex items-center gap-2">
-              <Lock size={11} className="text-gray-300 flex-shrink-0" />
-              <p className="text-[10px] text-gray-400">Cifrado AES-256 · Privado</p>
+            {/* Privacy footer */}
+            <div className="mt-auto px-5 py-3 border-t border-gray-100 flex items-center gap-2">
+              <Lock size={10} className="text-gray-300 flex-shrink-0" />
+              <p className="text-[10px] text-gray-400">AES-256 · Privado</p>
             </div>
           </aside>
 
@@ -1227,6 +1200,14 @@ export default function PatientDetail() {
                     enabled: scopes.share_documents,
                   },
                   { id: 'recetas', label: 'Recetas', icon: ClipboardList, enabled: true },
+                  {
+                    id: 'curvas',
+                    label: 'Curvas de crecimiento',
+                    icon: Activity,
+                    enabled: patient.birthdate
+                      ? (Date.now() - new Date(patient.birthdate).getTime()) / 31557600000 < 19
+                      : false,
+                  },
                 ]
                   .filter((t) => t.enabled)
                   .map((tab) => (
@@ -1264,7 +1245,7 @@ export default function PatientDetail() {
             {/* Tab content */}
             <div className="flex-1 p-4 sm:p-6">
               {activeTab === 'summary' && (
-                <div className="max-w-2xl space-y-6">
+                <div className="space-y-6">
                   {/* AI Clinical Summary */}
                   <div className="relative overflow-hidden rounded-2xl border border-[#33C7BE]/20 bg-gradient-to-br from-[#33C7BE]/5 to-teal-50/60 p-4 shadow-sm">
                     <div className="flex items-start justify-between gap-3 mb-2">
@@ -1329,114 +1310,6 @@ export default function PatientDetail() {
                       <p className="text-sm text-gray-400 italic">Generando resumen clínico...</p>
                     )}
                   </div>
-
-                  {/* Clinical data row */}
-                  {(() => {
-                    const ch = clinicalHistorySummary
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    const ph = ch?.pathological_history as any
-
-                    const chConditions = ph?.cd
-                      ? Object.entries(ph.cd as Record<string, { present: boolean }>)
-                          .filter(([, v]) => v?.present)
-                          .map(([k]) => k.replace(/_/g, ' '))
-                          .join(', ')
-                      : null
-                    const chOtherDiseases = ph?.other_diseases?.present
-                      ? ph.other_diseases.details
-                      : null
-                    const conditionValue = chConditions
-                      ? chOtherDiseases
-                        ? `${chConditions}, ${chOtherDiseases}`
-                        : chConditions
-                      : chOtherDiseases ||
-                        medProfile?.chronic_conditions ||
-                        pProfile?.chronic_conditions ||
-                        null
-
-                    const chAllergies = (() => {
-                      if (!ch?.allergies) return null
-                      try {
-                        const arr = JSON.parse(ch.allergies)
-                        if (Array.isArray(arr) && arr.length > 0)
-                          return arr.map((a: { name: string }) => a.name).join(', ')
-                        if (Array.isArray(arr) && arr.length === 0) return null
-                      } catch {
-                        /* legacy string */
-                      }
-                      return ch.allergies || null
-                    })()
-                    const allergyValue =
-                      chAllergies || medProfile?.allergies || pProfile?.allergies || null
-
-                    const medsValue =
-                      (ph?.medications?.present ? ph.medications.details : null) ||
-                      medProfile?.current_medications ||
-                      pProfile?.current_medications ||
-                      null
-
-                    const items = [
-                      {
-                        emoji: '🫀',
-                        label: 'Condiciones crónicas',
-                        value: conditionValue,
-                        fallback: 'Ninguna registrada',
-                        accent: 'border-l-orange-400',
-                      },
-                      {
-                        emoji: '⚠️',
-                        label: 'Alergias conocidas',
-                        value: allergyValue,
-                        fallback: 'Ninguna conocida',
-                        accent: 'border-l-red-400',
-                      },
-                      {
-                        emoji: '💊',
-                        label: 'Medicación activa',
-                        value: medsValue,
-                        fallback: 'Ninguna',
-                        accent: 'border-l-blue-400',
-                      },
-                    ]
-
-                    return (
-                      <div className="space-y-2.5">
-                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-                          Datos Clínicos
-                        </h3>
-                        {items.map((item, i) => (
-                          <div
-                            key={i}
-                            className={`flex items-center gap-3 p-3.5 bg-white border border-gray-100 border-l-4 ${item.accent} rounded-xl shadow-sm`}
-                          >
-                            <span className="text-xl leading-none flex-shrink-0">{item.emoji}</span>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
-                                {item.label}
-                              </p>
-                              <p
-                                className={`text-sm font-semibold mt-0.5 ${item.value ? 'text-gray-800' : 'text-gray-400'}`}
-                              >
-                                {item.value || item.fallback}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )
-                  })()}
-
-                  {/* Notes for doctor */}
-                  {(medProfile?.notes_for_doctor || pProfile?.notes_for_doctor) && (
-                    <div className="space-y-2">
-                      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-                        Mensaje del paciente
-                      </h3>
-                      <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl text-sm text-gray-700 leading-relaxed italic">
-                        "{medProfile?.notes_for_doctor || pProfile?.notes_for_doctor}"
-                      </div>
-                    </div>
-                  )}
 
                   {/* Clinical signals */}
                   {(() => {
@@ -1540,14 +1413,20 @@ export default function PatientDetail() {
                             {signals.length}
                           </span>
                         </h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div
+                          className={`grid gap-2.5 ${signals.length >= 3 ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2'}`}
+                        >
                           {signals.map((a, i) => {
                             const c = colorMap[a.type]
                             const Icon = a.icon
+                            const isOrphan =
+                              signals.length % 2 !== 0 &&
+                              i === signals.length - 1 &&
+                              signals.length < 3
                             return (
                               <div
                                 key={i}
-                                className={`flex items-start gap-3 p-3.5 rounded-xl border ${c.card}`}
+                                className={`flex items-start gap-3 p-3.5 rounded-xl border ${c.card} ${isOrphan ? 'sm:col-span-2' : ''}`}
                               >
                                 <div
                                   className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${c.badge}`}
@@ -1617,6 +1496,16 @@ export default function PatientDetail() {
                     </p>
                   </div>
                 ))}
+
+              {activeTab === 'curvas' && (
+                <GrowthCurvesTab
+                  patientId={id!}
+                  patientSex={
+                    patient.sex === 'male' || patient.sex === 'female' ? patient.sex : null
+                  }
+                  patientBirthDate={patient.birthdate ?? null}
+                />
+              )}
 
               {activeTab === 'informes' && (
                 <MedicalReportTab

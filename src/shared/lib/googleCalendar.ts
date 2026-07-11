@@ -7,7 +7,7 @@ export interface GoogleCalendarEvent {
   title: string
   description?: string
   location?: string
-  startDateTime: string   // ISO 8601 e.g. "2024-03-15T09:00:00"
+  startDateTime: string // ISO 8601 e.g. "2024-03-15T09:00:00"
   endDateTime: string
   timeZone?: string
 }
@@ -31,7 +31,10 @@ export interface GoogleCalendarTokens {
  */
 export function buildAddToGoogleCalendarUrl(event: GoogleCalendarEvent): string {
   const fmt = (iso: string) =>
-    iso.replace(/[-:]/g, '').replace(/\.\d{3}/, '').replace('Z', '')
+    iso
+      .replace(/[-:]/g, '')
+      .replace(/\.\d{3}/, '')
+      .replace('Z', '')
 
   const params = new URLSearchParams({
     action: 'TEMPLATE',
@@ -54,9 +57,7 @@ export function openAddToGoogleCalendar(event: GoogleCalendarEvent): void {
 
 // ─── OAuth helpers ────────────────────────────────────────────────────────────
 
-const SCOPES = [
-  'https://www.googleapis.com/auth/calendar.events',
-].join(' ')
+const SCOPES = ['https://www.googleapis.com/auth/calendar.events'].join(' ')
 
 /**
  * Initiates Google OAuth 2.0 flow with PKCE.
@@ -72,19 +73,21 @@ export async function initiateGoogleOAuth(): Promise<void> {
 
   // Save access token now — Supabase may clear its session storage when it
   // mistakenly tries to exchange the Google ?code= as its own PKCE callback.
-  const { data: { session: currentSession } } = await supabase.auth.getSession()
+  const {
+    data: { session: currentSession },
+  } = await supabase.auth.getSession()
   if (!currentSession?.access_token) {
     throw new Error('No hay sesión activa')
   }
-  localStorage.setItem('google_oauth_access_token', currentSession.access_token)
+  sessionStorage.setItem('google_oauth_access_token', currentSession.access_token)
 
   // PKCE code verifier + challenge
   const verifier = generateCodeVerifier()
   const challenge = await generateCodeChallenge(verifier)
   const state = generateState()
 
-  localStorage.setItem('google_oauth_verifier', verifier)
-  localStorage.setItem('google_oauth_state', state)
+  sessionStorage.setItem('google_oauth_verifier', verifier)
+  sessionStorage.setItem('google_oauth_state', state)
 
   const params = new URLSearchParams({
     client_id: clientId,
@@ -105,10 +108,7 @@ export async function initiateGoogleOAuth(): Promise<void> {
 
 /** Returns stored tokens for the current user, or null if not connected. */
 export async function getGoogleCalendarTokens(): Promise<GoogleCalendarTokens | null> {
-  const { data, error } = await supabase
-    .from('google_calendar_tokens')
-    .select('*')
-    .single()
+  const { data, error } = await supabase.from('google_calendar_tokens').select('*').single()
 
   if (error) {
     if (error.code !== 'PGRST116') {
@@ -128,7 +128,7 @@ export async function refreshGoogleCalendarToken(): Promise<GoogleCalendarTokens
   try {
     const { data: fnData, error: fnError } = await supabase.functions.invoke(
       'google-calendar-auth',
-      { body: { action: 'refresh' } }
+      { body: { action: 'refresh' } },
     )
 
     if (fnError || !fnData?.success) {
@@ -157,13 +157,12 @@ export async function getValidGoogleCalendarTokens(): Promise<GoogleCalendarToke
 
 /** Disconnects Google Calendar for the current user (deletes stored tokens). */
 export async function disconnectGoogleCalendar(): Promise<void> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
-  const { error } = await supabase
-    .from('google_calendar_tokens')
-    .delete()
-    .eq('user_id', user.id)
+  const { error } = await supabase.from('google_calendar_tokens').delete().eq('user_id', user.id)
 
   if (error) {
     logger.error('disconnectGoogleCalendar', error)
@@ -186,22 +185,19 @@ export function isTokenValid(tokens: GoogleCalendarTokens): boolean {
  */
 export async function createAppointmentCalendarEvent(
   appointmentId: string,
-  event: GoogleCalendarEvent
+  event: GoogleCalendarEvent,
 ): Promise<{ id: string; htmlLink: string } | null> {
   try {
-    const { data, error } = await supabase.functions.invoke(
-      'google-calendar-create-event',
-      {
-        body: {
-          appointmentId,
-          title: event.title,
-          description: event.description ?? '',
-          startDateTime: event.startDateTime,
-          endDateTime: event.endDateTime,
-          timeZone: event.timeZone ?? 'America/Mexico_City',
-        },
-      }
-    )
+    const { data, error } = await supabase.functions.invoke('google-calendar-create-event', {
+      body: {
+        appointmentId,
+        title: event.title,
+        description: event.description ?? '',
+        startDateTime: event.startDateTime,
+        endDateTime: event.endDateTime,
+        timeZone: event.timeZone ?? 'America/Mexico_City',
+      },
+    })
 
     if (error) {
       logger.error('createAppointmentCalendarEvent:invoke', error)
@@ -227,10 +223,9 @@ export async function createAppointmentCalendarEvent(
  */
 export async function deleteAppointmentCalendarEvent(appointmentId: string): Promise<void> {
   try {
-    const { error } = await supabase.functions.invoke(
-      'google-calendar-delete-event',
-      { body: { appointmentId } }
-    )
+    const { error } = await supabase.functions.invoke('google-calendar-delete-event', {
+      body: { appointmentId },
+    })
     if (error) logger.error('deleteAppointmentCalendarEvent', error)
   } catch (err) {
     logger.error('deleteAppointmentCalendarEvent', err)
@@ -240,7 +235,7 @@ export async function deleteAppointmentCalendarEvent(appointmentId: string): Pro
 // ─── Doctor availability ──────────────────────────────────────────────────────
 
 export interface BusyInterval {
-  start: string  // ISO 8601
+  start: string // ISO 8601
   end: string
 }
 
@@ -251,13 +246,12 @@ export interface BusyInterval {
  */
 export async function getDoctorBusySlots(
   doctorId: string,
-  date: string   // 'YYYY-MM-DD'
+  date: string, // 'YYYY-MM-DD'
 ): Promise<BusyInterval[]> {
   try {
-    const { data, error } = await supabase.functions.invoke(
-      'google-calendar-availability',
-      { body: { doctorId, date } }
-    )
+    const { data, error } = await supabase.functions.invoke('google-calendar-availability', {
+      body: { doctorId, date },
+    })
     if (error) {
       logger.error('getDoctorBusySlots', error)
       return []

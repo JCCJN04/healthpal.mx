@@ -47,6 +47,8 @@ const NuevaConsulta = lazy(() => import('@/features/patient/pages/NuevaConsulta'
 const Agenda = lazy(() => import('@/features/doctor/pages/Agenda'))
 const ConsultaActiva = lazy(() => import('@/features/doctor/pages/ConsultaActiva'))
 const Recetas = lazy(() => import('@/features/doctor/pages/Recetas'))
+const ConsultasDoctor = lazy(() => import('@/features/doctor/pages/ConsultasDoctor'))
+const ConsultaDetalleDoctor = lazy(() => import('@/features/doctor/pages/ConsultaDetalleDoctor'))
 
 // Public pages (no auth required)
 const SolicitudDocumento = lazy(() => import('@/features/public/pages/SolicitudDocumento'))
@@ -392,6 +394,34 @@ function App() {
                         <RequireRole allowedRoles={['doctor']}>
                           <Suspense fallback={<DashboardPageSkeleton />}>
                             <Agenda />
+                          </Suspense>
+                        </RequireRole>
+                      </RequireOnboarding>
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/dashboard/mis-consultas"
+                  element={
+                    <RequireAuth>
+                      <RequireOnboarding>
+                        <RequireRole allowedRoles={['doctor']}>
+                          <Suspense fallback={<DashboardPageSkeleton />}>
+                            <ConsultasDoctor />
+                          </Suspense>
+                        </RequireRole>
+                      </RequireOnboarding>
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/dashboard/mis-consultas/:appointmentId"
+                  element={
+                    <RequireAuth>
+                      <RequireOnboarding>
+                        <RequireRole allowedRoles={['doctor']}>
+                          <Suspense fallback={<DashboardPageSkeleton />}>
+                            <ConsultaDetalleDoctor />
                           </Suspense>
                         </RequireRole>
                       </RequireOnboarding>

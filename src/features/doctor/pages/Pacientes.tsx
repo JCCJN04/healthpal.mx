@@ -1,8 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  User, Search, ShieldCheck, ShieldAlert,
-  Clock, Send, Loader2, ShieldX, X, ChevronRight, UserPlus,
+  User,
+  Search,
+  ShieldCheck,
+  ShieldAlert,
+  Clock,
+  Send,
+  Loader2,
+  ShieldX,
+  X,
+  ChevronRight,
+  UserPlus,
 } from 'lucide-react'
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import { useAuth } from '@/app/providers/AuthContext'
@@ -23,7 +32,6 @@ import { mapDashboardPath } from '@/context/DemoContext'
 import { showToast } from '@/shared/components/ui/Toast'
 import { logger } from '@/shared/lib/logger'
 
-
 export default function Pacientes() {
   const navigate = useNavigate()
   const { user, profile } = useAuth()
@@ -43,6 +51,8 @@ export default function Pacientes() {
   const [createName, setCreateName] = useState('')
   const [createEmail, setCreateEmail] = useState('')
   const [createPhone, setCreatePhone] = useState('')
+  const [createBirthdate, setCreateBirthdate] = useState('')
+  const [createSex, setCreateSex] = useState('')
   const [createLoading, setCreateLoading] = useState(false)
 
   // Document request modal
@@ -56,7 +66,7 @@ export default function Pacientes() {
   useEffect(() => {
     if (!user) return
     loadAll()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
   const loadAll = async () => {
@@ -99,7 +109,11 @@ export default function Pacientes() {
     setRequestingId(patientId)
     const { ok, error } = await requestPatientAccess(user.id, patientId, requestReason)
     if (ok) {
-      showToast('Solicitud enviada. El paciente decidirá si comparte su información.', 'success', 4000)
+      showToast(
+        'Solicitud enviada. El paciente decidirá si comparte su información.',
+        'success',
+        4000,
+      )
       setShowReasonFor(null)
       setRequestReason('')
       await loadAll()
@@ -181,7 +195,9 @@ export default function Pacientes() {
           const bodyData = body as { detail?: string; error?: string } | null
           detail = bodyData?.detail ?? bodyData?.error ?? detail
           logger.error('Pacientes.sendWhatsApp', body)
-        } catch { logger.error('Pacientes.sendWhatsApp', fnErr) }
+        } catch {
+          logger.error('Pacientes.sendWhatsApp', fnErr)
+        }
         showToast(`❌ ${detail}`, 'error', 6000)
       } else {
         showToast('✅ Solicitud enviada por WhatsApp al paciente', 'success', 4000)
@@ -213,6 +229,8 @@ export default function Pacientes() {
           email: createEmail.trim().toLowerCase(),
           full_name: createName.trim(),
           phone: createPhone.trim() || undefined,
+          birthdate: createBirthdate || undefined,
+          sex: createSex || undefined,
         },
       })
       if (fnErr) {
@@ -222,20 +240,32 @@ export default function Pacientes() {
           const body = await fnErrWithContext.context?.json?.()
           const bodyData = body as { error?: string } | null
           detail = bodyData?.error ?? detail
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
         showToast(detail, 'error', 4000)
         return
       }
-      const result = data as { patient_id: string; created: boolean }
-      showToast(
-        result.created ? '✅ Paciente creado y vinculado' : '✅ Paciente vinculado a tu lista',
-        'success',
-        4000,
-      )
+      const result = data as { patient_id: string; created: boolean; requires_consent?: boolean }
+      if (result.requires_consent) {
+        showToast(
+          '📨 Este paciente ya tiene cuenta en HealthPal. Se le envió una solicitud de acceso — recibirás acceso cuando la apruebe.',
+          'info',
+          6000,
+        )
+      } else {
+        showToast(
+          result.created ? '✅ Paciente creado y vinculado' : '✅ Paciente vinculado a tu lista',
+          'success',
+          4000,
+        )
+      }
       setCreateOpen(false)
       setCreateName('')
       setCreateEmail('')
       setCreatePhone('')
+      setCreateBirthdate('')
+      setCreateSex('')
       await loadAll()
     } catch (err) {
       logger.error('Pacientes.createPatient', err)
@@ -267,85 +297,78 @@ export default function Pacientes() {
 
   const WaIcon = ({ size = 16 }: { size?: number }) => (
     <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor" aria-hidden="true">
-      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
     </svg>
   )
 
   return (
     <DashboardLayout>
-      <div className="space-y-4 pb-6">
-
+      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
         {/* Header */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary via-teal-400 to-emerald-500 px-5 py-4 text-white shadow-md">
-          <div className="absolute inset-0 opacity-[0.07] pointer-events-none"
-            style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '18px 18px' }} />
-          <div className="relative flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-white/60 mb-0.5">Panel Doctor</p>
-              <h1 className="text-lg font-bold leading-tight">Mis Pacientes</h1>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="bg-white/15 border border-white/20 rounded-xl px-3.5 py-2 text-center">
-                <p className="text-lg font-bold leading-none">{patients.length}</p>
-                <p className="text-[9px] text-white/70 font-medium mt-0.5">Con acceso</p>
-              </div>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Mis Pacientes</h1>
+            <p className="text-sm text-gray-500 mt-0.5">
+              {loading && patients.length === 0
+                ? 'Cargando…'
+                : `${patients.length} paciente${patients.length !== 1 ? 's' : ''} con acceso`}
               {pendingRequests.length > 0 && (
-                <div className="bg-white/15 border border-white/20 rounded-xl px-3.5 py-2 text-center">
-                  <p className="text-lg font-bold leading-none">{pendingRequests.length}</p>
-                  <p className="text-[9px] text-white/70 font-medium mt-0.5">Pendientes</p>
-                </div>
+                <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-100">
+                  <Clock size={10} /> {pendingRequests.length} pendiente
+                  {pendingRequests.length !== 1 ? 's' : ''}
+                </span>
               )}
-            </div>
+            </p>
           </div>
         </div>
 
-        {/* Search + Actions */}
-        <div className="flex flex-col gap-2.5">
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={15} />
-              <input
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                placeholder="Buscar paciente…"
-                className="w-full pl-9 pr-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary shadow-sm transition-all"
-              />
-            </div>
-            <button
-              onClick={handleSearch}
-              disabled={loading}
-              className="px-4 py-2.5 bg-primary text-white font-semibold rounded-xl hover:bg-teal-600 transition-all shadow-sm active:scale-95 disabled:opacity-60 flex items-center gap-1.5 text-sm whitespace-nowrap"
-            >
-              {loading ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
-              Buscar
-            </button>
+        {/* Search */}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={15} />
+            <input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              placeholder="Buscar paciente por nombre…"
+              className="w-full pl-9 pr-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary shadow-sm transition-all"
+            />
           </div>
           <button
-            onClick={() => setCreateOpen(true)}
-            className="w-full flex items-center gap-3 px-4 py-3 bg-white border border-primary/30 hover:border-primary hover:bg-primary/5 rounded-xl transition-all group"
+            onClick={handleSearch}
+            disabled={loading}
+            className="px-4 py-2.5 bg-primary text-white font-semibold rounded-xl hover:bg-teal-600 transition-all shadow-sm active:scale-95 disabled:opacity-60 flex items-center gap-1.5 text-sm whitespace-nowrap"
           >
-            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0 group-hover:bg-primary/20 transition-colors">
-              <UserPlus size={17} />
+            {loading ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+            Buscar
+          </button>
+        </div>
+
+        {/* Quick actions */}
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => setCreateOpen(true)}
+            className="flex flex-col items-start gap-3 p-4 bg-white border border-gray-100 rounded-2xl shadow-sm hover:border-primary/30 hover:shadow-md transition-all text-left group"
+          >
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary/20 transition-colors">
+              <UserPlus size={18} />
             </div>
-            <div className="text-left flex-1">
-              <p className="text-sm font-semibold text-gray-800 leading-tight">Crear paciente</p>
-              <p className="text-[11px] text-gray-400 leading-tight">Registra un paciente directamente</p>
+            <div>
+              <p className="text-sm font-bold text-gray-900">Crear paciente</p>
+              <p className="text-[11px] text-gray-400 mt-0.5">Registra un paciente directamente</p>
             </div>
-            <ChevronRight size={15} className="text-gray-300 group-hover:text-primary transition-colors shrink-0" />
           </button>
           <button
             onClick={() => setDocReqOpen(true)}
-            className="w-full flex items-center gap-3 px-4 py-3 bg-white border border-[#25D366]/40 hover:border-[#25D366] hover:bg-[#25D366]/5 rounded-xl transition-all group"
+            className="flex flex-col items-start gap-3 p-4 bg-white border border-gray-100 rounded-2xl shadow-sm hover:border-[#25D366]/40 hover:shadow-md transition-all text-left group"
           >
-            <div className="w-9 h-9 rounded-lg bg-[#25D366]/10 flex items-center justify-center text-[#25D366] shrink-0 group-hover:bg-[#25D366]/20 transition-colors">
-              <WaIcon size={17} />
+            <div className="w-10 h-10 rounded-xl bg-[#25D366]/10 flex items-center justify-center text-[#25D366] group-hover:bg-[#25D366]/20 transition-colors">
+              <WaIcon size={18} />
             </div>
-            <div className="text-left flex-1">
-              <p className="text-sm font-semibold text-gray-800 leading-tight">Solicitar documento</p>
-              <p className="text-[11px] text-gray-400 leading-tight">Envía una solicitud al paciente por WhatsApp</p>
+            <div>
+              <p className="text-sm font-bold text-gray-900">Solicitar documento</p>
+              <p className="text-[11px] text-gray-400 mt-0.5">Vía WhatsApp al paciente</p>
             </div>
-            <ChevronRight size={15} className="text-gray-300 group-hover:text-[#25D366] transition-colors shrink-0" />
           </button>
         </div>
 
@@ -354,7 +377,9 @@ export default function Pacientes() {
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-4 py-3 border-b border-gray-50 flex items-center gap-2">
               <p className="text-sm font-bold text-gray-800">Resultados</p>
-              <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">{results.length}</span>
+              <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                {results.length}
+              </span>
               {loading && <Loader2 size={13} className="animate-spin text-gray-400 ml-auto" />}
             </div>
             <div className="divide-y divide-gray-50">
@@ -368,14 +393,33 @@ export default function Pacientes() {
                   <div key={p.id} className="px-4 py-3.5 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary/15 to-teal-400/15 flex items-center justify-center text-primary font-bold shrink-0 overflow-hidden text-sm">
-                        {p.avatar_url ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover" /> : <User size={16} />}
+                        {p.avatar_url ? (
+                          <img src={p.avatar_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <User size={16} />
+                        )}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 truncate">{p.full_name || 'Paciente'}</p>
+                        <p className="text-sm font-semibold text-gray-900 truncate">
+                          {p.full_name || 'Paciente'}
+                        </p>
                         <div className="mt-0.5">
-                          {isPending && <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full"><Clock size={8} /> Pendiente</span>}
-                          {isRejected && <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-full"><ShieldX size={8} /> {status === 'rejected' ? 'Rechazado' : 'Revocado'}</span>}
-                          {isAccepted && <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full"><ShieldCheck size={8} /> Con acceso</span>}
+                          {isPending && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">
+                              <Clock size={8} /> Pendiente
+                            </span>
+                          )}
+                          {isRejected && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-full">
+                              <ShieldX size={8} />{' '}
+                              {status === 'rejected' ? 'Rechazado' : 'Revocado'}
+                            </span>
+                          )}
+                          {isAccepted && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">
+                              <ShieldCheck size={8} /> Con acceso
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -388,8 +432,8 @@ export default function Pacientes() {
                           Ver <ChevronRight size={12} />
                         </button>
                       )}
-                      {!status && (
-                        showReasonFor === p.id ? (
+                      {!status &&
+                        (showReasonFor === p.id ? (
                           <div className="flex items-center gap-1.5">
                             <input
                               value={requestReason}
@@ -402,27 +446,37 @@ export default function Pacientes() {
                               disabled={requestingId === p.id}
                               className="inline-flex items-center gap-1 px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-teal-600 disabled:opacity-50 transition-colors"
                             >
-                              {requestingId === p.id ? <Loader2 size={11} className="animate-spin" /> : <Send size={11} />}
+                              {requestingId === p.id ? (
+                                <Loader2 size={11} className="animate-spin" />
+                              ) : (
+                                <Send size={11} />
+                              )}
                               Enviar
                             </button>
                           </div>
                         ) : (
                           <button
-                            onClick={() => { setShowReasonFor(p.id); setRequestReason('') }}
+                            onClick={() => {
+                              setShowReasonFor(p.id)
+                              setRequestReason('')
+                            }}
                             className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-primary border border-primary/25 rounded-lg hover:bg-primary/5 transition-colors"
                           >
                             <ShieldAlert size={11} />
                             Solicitar acceso
                           </button>
-                        )
-                      )}
+                        ))}
                       {isRejected && (
                         <button
                           onClick={() => handleReRequest(p.id)}
                           disabled={requestingId === p.id}
                           className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-orange-600 border border-orange-200 rounded-lg hover:bg-orange-50 disabled:opacity-50 transition-colors"
                         >
-                          {requestingId === p.id ? <Loader2 size={11} className="animate-spin" /> : <Send size={11} />}
+                          {requestingId === p.id ? (
+                            <Loader2 size={11} className="animate-spin" />
+                          ) : (
+                            <Send size={11} />
+                          )}
                           Re-solicitar
                         </button>
                       )}
@@ -440,24 +494,38 @@ export default function Pacientes() {
             <div className="px-4 py-3 border-b border-amber-100 flex items-center gap-2">
               <Clock className="w-3.5 h-3.5 text-amber-500" />
               <p className="text-sm font-bold text-amber-900">Solicitudes pendientes</p>
-              <span className="ml-auto bg-amber-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{pendingRequests.length}</span>
+              <span className="ml-auto bg-amber-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                {pendingRequests.length}
+              </span>
             </div>
             <div className="divide-y divide-amber-100/60">
               {pendingRequests.map((r) => (
                 <div key={r.id} className="flex items-center gap-3 px-4 py-3">
                   <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center text-amber-700 font-bold text-xs shrink-0 overflow-hidden">
-                    {r.patient?.avatar_url
-                      ? <img src={r.patient.avatar_url} alt="" className="w-full h-full object-cover" />
-                      : (r.patient?.full_name?.charAt(0) || 'P').toUpperCase()
-                    }
+                    {r.patient?.avatar_url ? (
+                      <img
+                        src={r.patient.avatar_url}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      (r.patient?.full_name?.charAt(0) || 'P').toUpperCase()
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{r.patient?.full_name || 'Paciente'}</p>
+                    <p className="text-sm font-semibold text-gray-900 truncate">
+                      {r.patient?.full_name || 'Paciente'}
+                    </p>
                     <p className="text-[10px] text-amber-600">
-                      {new Date(r.requested_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
+                      {new Date(r.requested_at).toLocaleDateString('es-MX', {
+                        day: 'numeric',
+                        month: 'short',
+                      })}
                     </p>
                   </div>
-                  <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">Esperando…</span>
+                  <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                    Esperando…
+                  </span>
                 </div>
               ))}
             </div>
@@ -466,34 +534,49 @@ export default function Pacientes() {
 
         {/* Patients with Access */}
         <div>
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-4">
             <ShieldCheck className="w-4 h-4 text-primary" />
             <p className="text-sm font-bold text-gray-800">Pacientes con acceso</p>
             {patients.length > 0 && (
-              <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">{patients.length}</span>
+              <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                {patients.length}
+              </span>
             )}
-            {loading && patients.length === 0 && <Loader2 size={13} className="animate-spin text-gray-400 ml-auto" />}
+            {loading && patients.length === 0 && (
+              <Loader2 size={13} className="animate-spin text-gray-400 ml-auto" />
+            )}
           </div>
 
           {patients.length === 0 && !loading ? (
-            <div className="bg-white rounded-2xl border border-dashed border-gray-200 py-12 text-center">
-              <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-primary/10 to-teal-400/10 flex items-center justify-center">
+            <div className="bg-white rounded-2xl border border-dashed border-gray-200 py-16 text-center">
+              <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-teal-50 flex items-center justify-center">
                 <User size={24} className="text-primary/40" />
               </div>
               <p className="text-sm font-semibold text-gray-600 mb-1">Sin pacientes aún</p>
-              <p className="text-xs text-gray-400 max-w-[200px] mx-auto">Busca pacientes y solicita acceso a su expediente.</p>
+              <p className="text-xs text-gray-400 max-w-[200px] mx-auto">
+                Busca pacientes y solicita acceso a su expediente.
+              </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {patients.map((p) => (
-                <div
+                <button
                   key={p.id}
                   onClick={() => navigate(mapDashboardPath(`/dashboard/pacientes/${p.id}`))}
-                  className="group bg-white rounded-2xl border border-gray-100 p-4 hover:border-primary/30 hover:shadow-md transition-all duration-200 cursor-pointer flex items-center gap-3.5"
+                  className="group bg-white rounded-2xl border border-gray-100 shadow-sm p-4 hover:border-primary/30 hover:shadow-md transition-all duration-200 text-left flex items-center gap-3.5 w-full"
                 >
                   <div className="relative shrink-0">
-                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary/15 to-teal-400/15 flex items-center justify-center text-primary font-bold overflow-hidden">
-                      {p.avatar_url ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover" /> : <User size={18} />}
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-400 to-violet-600 flex items-center justify-center text-white font-bold text-sm overflow-hidden">
+                      {p.avatar_url ? (
+                        <img src={p.avatar_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        (p.full_name ?? 'P')
+                          .split(' ')
+                          .map((w: string) => w[0])
+                          .join('')
+                          .slice(0, 2)
+                          .toUpperCase()
+                      )}
                     </div>
                     <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 rounded-full border-2 border-white" />
                   </div>
@@ -501,12 +584,18 @@ export default function Pacientes() {
                     <p className="font-semibold text-gray-900 truncate group-hover:text-primary transition-colors text-sm">
                       {p.full_name || 'Paciente'}
                     </p>
-                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full mt-0.5">
+                    {p.email && (
+                      <p className="text-[11px] text-gray-400 truncate mt-0.5">{p.email}</p>
+                    )}
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full mt-1">
                       <ShieldCheck size={8} /> Expediente activo
                     </span>
                   </div>
-                  <ChevronRight size={15} className="text-gray-200 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
-                </div>
+                  <ChevronRight
+                    size={15}
+                    className="text-gray-200 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0"
+                  />
+                </button>
               ))}
             </div>
           )}
@@ -525,7 +614,14 @@ export default function Pacientes() {
                 <h2 className="text-sm font-bold text-gray-900">Crear paciente</h2>
               </div>
               <button
-                onClick={() => { setCreateOpen(false); setCreateName(''); setCreateEmail(''); setCreatePhone('') }}
+                onClick={() => {
+                  setCreateOpen(false)
+                  setCreateName('')
+                  setCreateEmail('')
+                  setCreatePhone('')
+                  setCreateBirthdate('')
+                  setCreateSex('')
+                }}
                 className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <X size={16} className="text-gray-400" />
@@ -533,46 +629,85 @@ export default function Pacientes() {
             </div>
             <form onSubmit={handleCreatePatient} className="p-5 space-y-3.5">
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Nombre completo</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+                  Nombre completo
+                </label>
                 <input
                   type="text"
                   value={createName}
-                  onChange={e => setCreateName(e.target.value)}
+                  onChange={(e) => setCreateName(e.target.value)}
                   placeholder="Nombre del paciente"
                   required
                   className="w-full px-3 py-2.5 text-base sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Correo electrónico</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+                  Correo electrónico
+                </label>
                 <input
                   type="email"
                   value={createEmail}
-                  onChange={e => setCreateEmail(e.target.value)}
+                  onChange={(e) => setCreateEmail(e.target.value)}
                   placeholder="paciente@correo.com"
                   required
                   className="w-full px-3 py-2.5 text-base sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Teléfono (opcional)</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+                  Teléfono (opcional)
+                </label>
                 <input
                   type="tel"
                   value={createPhone}
-                  onChange={e => setCreatePhone(e.target.value)}
+                  onChange={(e) => setCreatePhone(e.target.value)}
                   placeholder="52 81 XXXX XXXX"
                   className="w-full px-3 py-2.5 text-base sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                 />
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+                    Fecha de nacimiento (opcional)
+                  </label>
+                  <input
+                    type="date"
+                    value={createBirthdate}
+                    onChange={(e) => setCreateBirthdate(e.target.value)}
+                    max={new Date().toISOString().split('T')[0]}
+                    className="w-full px-3 py-2.5 text-base sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+                    Sexo (opcional)
+                  </label>
+                  <select
+                    value={createSex}
+                    onChange={(e) => setCreateSex(e.target.value)}
+                    className="w-full px-3 py-2.5 text-base sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white"
+                  >
+                    <option value="">—</option>
+                    <option value="male">Masculino</option>
+                    <option value="female">Femenino</option>
+                  </select>
+                </div>
+              </div>
               <p className="text-[11px] text-gray-400 leading-relaxed">
-                Se creará una cuenta pre-registrada. El paciente podrá completar su perfil al iniciar sesión.
+                Se creará una cuenta pre-registrada. El paciente podrá completar su perfil al
+                iniciar sesión.
               </p>
               <button
                 type="submit"
                 disabled={createLoading || !createName.trim() || !createEmail.trim()}
                 className="w-full py-3 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm mt-1 bg-primary hover:bg-teal-600 text-white active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {createLoading ? <Loader2 size={15} className="animate-spin" /> : <UserPlus size={15} />}
+                {createLoading ? (
+                  <Loader2 size={15} className="animate-spin" />
+                ) : (
+                  <UserPlus size={15} />
+                )}
                 Crear paciente
               </button>
             </form>
@@ -592,14 +727,19 @@ export default function Pacientes() {
                 </div>
                 <h2 className="text-sm font-bold text-gray-900">Solicitar documento</h2>
               </div>
-              <button onClick={resetDocReqModal} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+              <button
+                onClick={resetDocReqModal}
+                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+              >
                 <X size={16} className="text-gray-400" />
               </button>
             </div>
 
             <form onSubmit={handleSendWhatsApp} className="p-5 space-y-3.5">
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">WhatsApp del paciente</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+                  WhatsApp del paciente
+                </label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
                     <WaIcon size={14} />
@@ -607,7 +747,7 @@ export default function Pacientes() {
                   <input
                     type="tel"
                     value={docReqPhone}
-                    onChange={e => setDocReqPhone(e.target.value)}
+                    onChange={(e) => setDocReqPhone(e.target.value)}
                     placeholder="52 81 XXXX XXXX"
                     required
                     className="w-full pl-9 pr-3 py-2.5 text-base sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#25D366]/30 focus:border-[#25D366]"
@@ -615,22 +755,26 @@ export default function Pacientes() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Correo (opcional)</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+                  Correo (opcional)
+                </label>
                 <input
                   type="email"
                   value={docReqEmail}
-                  onChange={e => setDocReqEmail(e.target.value)}
+                  onChange={(e) => setDocReqEmail(e.target.value)}
                   placeholder="paciente@correo.com"
                   className="w-full px-3 py-2.5 text-base sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Documento solicitado</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+                  Documento solicitado
+                </label>
                 <input
                   type="text"
                   list="doc-type-options"
                   value={docReqType}
-                  onChange={e => setDocReqType(e.target.value)}
+                  onChange={(e) => setDocReqType(e.target.value)}
                   placeholder="Ej. Análisis de sangre, Radiografía…"
                   required
                   className="w-full px-3 py-2.5 text-base sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
@@ -659,7 +803,11 @@ export default function Pacientes() {
                     : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                 }`}
               >
-                {docReqWaLoading ? <Loader2 size={15} className="animate-spin" /> : <WaIcon size={16} />}
+                {docReqWaLoading ? (
+                  <Loader2 size={15} className="animate-spin" />
+                ) : (
+                  <WaIcon size={16} />
+                )}
                 Enviar por WhatsApp
               </button>
             </form>
