@@ -67,8 +67,17 @@ export default function RequireOnboarding({ children }: RequireOnboardingProps) 
   // Use whichever profile arrived first
   const resolvedProfile = profile ?? fetchedProfile
 
-  // Profile not yet available — render nothing briefly (avoids cascading spinners)
-  if (!resolvedProfile && !fetchError) return null
+  // Profile not yet available — show spinner (returning null here causes blank screen)
+  if (!resolvedProfile && !fetchError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-[#33C7BE] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando...</p>
+        </div>
+      </div>
+    )
+  }
 
   // Profile fetch failed
   if (fetchError && !resolvedProfile) {

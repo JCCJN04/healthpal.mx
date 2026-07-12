@@ -69,10 +69,17 @@ async function decryptField(
   }
 }
 
-function getUserId(authHeader: string): string {
-  const payload = JSON.parse(atob(authHeader.replace(/^Bearer\s+/, '').split('.')[1]))
-  if (!payload.sub) throw new Error('no sub')
-  return payload.sub
+async function getAuthedUserId(
+  supabase: ReturnType<typeof createClient>,
+  authHeader: string,
+): Promise<string | null> {
+  const token = authHeader.replace(/^Bearer\s+/, '')
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser(token)
+  if (error || !user) return null
+  return user.id
 }
 
 Deno.serve(async (req: Request) => {
@@ -109,10 +116,8 @@ Deno.serve(async (req: Request) => {
 
     // ── POST /notas-evolucion/addenda ────────────────────────────────────────
     if (req.method === 'POST' && isAddenda) {
-      let userId: string
-      try {
-        userId = getUserId(authHeader)
-      } catch {
+      const userId = await getAuthedUserId(supabase, authHeader)
+      if (!userId) {
         return new Response(JSON.stringify({ error: 'No autorizado' }), {
           status: 401,
           headers: { ...cors, 'Content-Type': 'application/json' },
@@ -193,10 +198,8 @@ Deno.serve(async (req: Request) => {
 
     // ── POST /notas-evolucion — upsert nota + replace diagnosticos ───────────
     if (req.method === 'POST') {
-      let userId: string
-      try {
-        userId = getUserId(authHeader)
-      } catch {
+      const userId = await getAuthedUserId(supabase, authHeader)
+      if (!userId) {
         return new Response(JSON.stringify({ error: 'No autorizado' }), {
           status: 401,
           headers: { ...cors, 'Content-Type': 'application/json' },

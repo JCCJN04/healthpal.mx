@@ -1,24 +1,54 @@
-import { FileText, Upload, Clock, Share2, Plus, FlaskConical, Pill, ClipboardList, ShieldCheck, ScanLine, Users, CalendarDays, Building2, Video, Phone, ChevronRight, Stethoscope } from 'lucide-react'
+import {
+  FileText,
+  Upload,
+  Clock,
+  Share2,
+  Plus,
+  FlaskConical,
+  Pill,
+  ClipboardList,
+  ShieldCheck,
+  ScanLine,
+  Users,
+  CalendarDays,
+  Building2,
+  Video,
+  Phone,
+  ChevronRight,
+  Stethoscope,
+} from 'lucide-react'
 import { useNavigate, Navigate } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import React from 'react'
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import { showToast } from '@/shared/components/ui/Toast'
 import { useAuth } from '@/app/providers/AuthContext'
-import { getUserDocuments, getDocumentsSharedWithMe, shareEncryptedDocumentKey } from '@/shared/lib/queries/documents'
+import {
+  getUserDocuments,
+  getDocumentsSharedWithMe,
+  shareEncryptedDocumentKey,
+} from '@/shared/lib/queries/documents'
 import { getPatientDoctorAccess } from '@/shared/lib/queries/consent'
 import { useCrypto } from '@/context/CryptoContext'
 import { Skeleton } from '@/shared/components/ui/Skeleton'
 import { DashboardSummary } from '@/shared/components/DashboardSummary'
 import { listDoctorPatients, type PatientProfileLite } from '@/features/doctor/services/patients'
-import { getDoctorAppointments, type AppointmentWithPatient, type AppointmentMode } from '@/shared/lib/queries/appointments'
+import {
+  getDoctorAppointments,
+  type AppointmentWithPatient,
+  type AppointmentMode,
+} from '@/shared/lib/queries/appointments'
 import { logger } from '@/shared/lib/logger'
 import { mapDashboardPath } from '@/context/DemoContext'
 import type { Database } from '@/shared/types/database'
 
 type Doc = Database['public']['Tables']['documents']['Row']
 type ProfileRow = Database['public']['Tables']['profiles']['Row']
-type SharedEntry = { id: string; document?: Doc | null; sender?: { full_name?: string | null } | null }
+type SharedEntry = {
+  id: string
+  document?: Doc | null
+  sender?: { full_name?: string | null } | null
+}
 
 interface SummaryData {
   documentCount: number
@@ -37,13 +67,16 @@ interface DoctorHomeProps {
   navigate: ReturnType<typeof useNavigate>
 }
 
-const CATEGORY_CONFIG: Record<string, { label: string; icon: React.ElementType; colorClass: string }> = {
-  lab:          { label: 'Laboratorio', icon: FlaskConical, colorClass: 'text-orange-600 bg-orange-50' },
-  radiology:    { label: 'Radiología',  icon: ScanLine,     colorClass: 'text-blue-600 bg-blue-50' },
-  prescription: { label: 'Recetas',     icon: Pill,         colorClass: 'text-green-600 bg-green-50' },
-  history:      { label: 'Historial',   icon: ClipboardList,colorClass: 'text-purple-600 bg-purple-50' },
-  insurance:    { label: 'Seguros',     icon: ShieldCheck,  colorClass: 'text-indigo-600 bg-indigo-50' },
-  other:        { label: 'Otros',       icon: FileText,     colorClass: 'text-gray-600 bg-gray-50' },
+const CATEGORY_CONFIG: Record<
+  string,
+  { label: string; icon: React.ElementType; colorClass: string }
+> = {
+  lab: { label: 'Laboratorio', icon: FlaskConical, colorClass: 'text-orange-600 bg-orange-50' },
+  radiology: { label: 'Radiología', icon: ScanLine, colorClass: 'text-blue-600 bg-blue-50' },
+  prescription: { label: 'Recetas', icon: Pill, colorClass: 'text-green-600 bg-green-50' },
+  history: { label: 'Historial', icon: ClipboardList, colorClass: 'text-purple-600 bg-purple-50' },
+  insurance: { label: 'Seguros', icon: ShieldCheck, colorClass: 'text-indigo-600 bg-indigo-50' },
+  other: { label: 'Otros', icon: FileText, colorClass: 'text-gray-600 bg-gray-50' },
 }
 
 const MODE_ICON_SM: Record<AppointmentMode, React.ReactNode> = {
@@ -76,12 +109,26 @@ const STATUS_COLOR: Record<string, string> = {
 
 function formatApptTime(scheduledAt: string) {
   return new Date(scheduledAt).toLocaleTimeString('es-MX', {
-    hour: '2-digit', minute: '2-digit', timeZone: 'America/Mexico_City',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'America/Mexico_City',
   })
 }
 
-const DoctorHome = ({ profile, loading, summaryData, patientSnapshot, todayAppts, upcomingAppts, navigate }: DoctorHomeProps) => {
-  const today = new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
+const DoctorHome = ({
+  profile,
+  loading,
+  summaryData,
+  patientSnapshot,
+  todayAppts,
+  upcomingAppts,
+  navigate,
+}: DoctorHomeProps) => {
+  const today = new Date().toLocaleDateString('es-MX', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  })
   const nextAppt = upcomingAppts[0]
 
   return (
@@ -90,15 +137,25 @@ const DoctorHome = ({ profile, loading, summaryData, patientSnapshot, todayAppts
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
           {profile?.avatar_url ? (
-            <img src={profile.avatar_url} alt={profile.full_name ?? ''} className="w-11 h-11 rounded-full object-cover border-2 border-primary/20 shrink-0" />
+            <img
+              src={profile.avatar_url}
+              alt={profile.full_name ?? ''}
+              className="w-11 h-11 rounded-full object-cover border-2 border-primary/20 shrink-0"
+            />
           ) : (
             <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold border-2 border-primary/20 shrink-0 text-sm">
-              {(profile?.full_name ?? 'D').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+              {(profile?.full_name ?? 'D')
+                .split(' ')
+                .map((n) => n[0])
+                .join('')
+                .slice(0, 2)
+                .toUpperCase()}
             </div>
           )}
           <div>
             <h1 className="text-xl font-bold text-gray-900">
-              Bienvenido, <span className="text-primary">{profile?.full_name?.split(' ')[0] ?? 'Doctor'}</span>
+              Bienvenido,{' '}
+              <span className="text-primary">{profile?.full_name?.split(' ')[0] ?? 'Doctor'}</span>
             </h1>
             <p className="text-xs text-gray-400 capitalize">{today}</p>
           </div>
@@ -130,24 +187,42 @@ const DoctorHome = ({ profile, loading, summaryData, patientSnapshot, todayAppts
       {/* ── Stats ──────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Citas hoy</p>
-          {loading ? <Skeleton className="h-7 w-8" /> : (
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+            Citas hoy
+          </p>
+          {loading ? (
+            <Skeleton className="h-7 w-8" />
+          ) : (
             <p className="text-2xl font-bold text-gray-900">{todayAppts.length}</p>
           )}
           <p className="text-[10px] text-gray-400 mt-0.5">programadas</p>
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Próxima</p>
-          {loading ? <Skeleton className="h-7 w-16" /> : nextAppt ? (
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+            Próxima
+          </p>
+          {loading ? (
+            <Skeleton className="h-7 w-16" />
+          ) : nextAppt ? (
             <>
-              <p className="text-2xl font-bold text-primary">{formatApptTime(nextAppt.scheduled_at)}</p>
+              <p className="text-2xl font-bold text-primary">
+                {formatApptTime(nextAppt.scheduled_at)}
+              </p>
               {(() => {
-                const apptDate = new Date(nextAppt.scheduled_at).toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' })
-                const todayDate = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' })
+                const apptDate = new Date(nextAppt.scheduled_at).toLocaleDateString('en-CA', {
+                  timeZone: 'America/Mexico_City',
+                })
+                const todayDate = new Date().toLocaleDateString('en-CA', {
+                  timeZone: 'America/Mexico_City',
+                })
                 return apptDate !== todayDate ? (
                   <p className="text-[10px] text-amber-500 font-bold mt-0.5">
-                    {new Date(nextAppt.scheduled_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', timeZone: 'America/Mexico_City' })}
+                    {new Date(nextAppt.scheduled_at).toLocaleDateString('es-MX', {
+                      day: 'numeric',
+                      month: 'short',
+                      timeZone: 'America/Mexico_City',
+                    })}
                   </p>
                 ) : null
               })()}
@@ -155,20 +230,32 @@ const DoctorHome = ({ profile, loading, summaryData, patientSnapshot, todayAppts
           ) : (
             <p className="text-sm font-semibold text-gray-400">Sin citas</p>
           )}
-          {nextAppt && <p className="text-[10px] text-gray-400 mt-0.5 truncate">{nextAppt.patient_name ?? '—'}</p>}
+          {nextAppt && (
+            <p className="text-[10px] text-gray-400 mt-0.5 truncate">
+              {nextAppt.patient_name ?? '—'}
+            </p>
+          )}
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Pacientes</p>
-          {loading ? <Skeleton className="h-7 w-8" /> : (
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+            Pacientes
+          </p>
+          {loading ? (
+            <Skeleton className="h-7 w-8" />
+          ) : (
             <p className="text-2xl font-bold text-gray-900">{summaryData.activePatients}</p>
           )}
           <p className="text-[10px] text-gray-400 mt-0.5">con expediente</p>
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Documentos</p>
-          {loading ? <Skeleton className="h-7 w-8" /> : (
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+            Documentos
+          </p>
+          {loading ? (
+            <Skeleton className="h-7 w-8" />
+          ) : (
             <p className="text-2xl font-bold text-gray-900">{summaryData.documentCount}</p>
           )}
           <p className="text-[10px] text-gray-400 mt-0.5">en expedientes</p>
@@ -177,7 +264,6 @@ const DoctorHome = ({ profile, loading, summaryData, patientSnapshot, todayAppts
 
       {/* ── Main grid ──────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-
         {/* Agenda del día */}
         <div className="xl:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <div className="flex items-center justify-between mb-4">
@@ -199,7 +285,11 @@ const DoctorHome = ({ profile, loading, summaryData, patientSnapshot, todayAppts
           </div>
 
           {loading ? (
-            <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-16 rounded-xl" />)}</div>
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-16 rounded-xl" />
+              ))}
+            </div>
           ) : todayAppts.length === 0 ? (
             <div className="text-center py-10">
               <CalendarDays size={36} className="mx-auto text-gray-200 mb-3" />
@@ -213,15 +303,19 @@ const DoctorHome = ({ profile, loading, summaryData, patientSnapshot, todayAppts
             </div>
           ) : (
             <div className="space-y-2">
-              {todayAppts.map(appt => (
+              {todayAppts.map((appt) => (
                 <div
                   key={appt.id}
-                  onClick={() => appt.status !== 'cancelled' && navigate(`/dashboard/consulta/${appt.id}`)}
+                  onClick={() =>
+                    appt.status !== 'cancelled' && navigate(`/dashboard/consulta/${appt.id}`)
+                  }
                   className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${appt.status === 'cancelled' ? 'opacity-50 border-gray-100 bg-gray-50 cursor-default' : 'border-gray-100 hover:border-primary/30 hover:bg-primary/[0.02] cursor-pointer group'}`}
                 >
                   {/* Time */}
                   <div className="w-12 text-center shrink-0">
-                    <p className="text-sm font-bold text-gray-800">{formatApptTime(appt.scheduled_at)}</p>
+                    <p className="text-sm font-bold text-gray-800">
+                      {formatApptTime(appt.scheduled_at)}
+                    </p>
                     <p className="text-[9px] text-gray-400">{appt.duration_min}min</p>
                   </div>
 
@@ -234,10 +328,14 @@ const DoctorHome = ({ profile, loading, summaryData, patientSnapshot, todayAppts
                       {appt.patient_name ?? 'Paciente'}
                     </p>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <span className={`flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${MODE_COLOR_SM[appt.mode]}`}>
+                      <span
+                        className={`flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${MODE_COLOR_SM[appt.mode]}`}
+                      >
                         {MODE_ICON_SM[appt.mode]} {MODE_LABEL_SM[appt.mode]}
                       </span>
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${STATUS_COLOR[appt.status]}`}>
+                      <span
+                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${STATUS_COLOR[appt.status]}`}
+                      >
                         {STATUS_LABEL[appt.status]}
                       </span>
                     </div>
@@ -272,7 +370,11 @@ const DoctorHome = ({ profile, loading, summaryData, patientSnapshot, todayAppts
           </div>
 
           {loading ? (
-            <div className="space-y-3">{[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-10 rounded-xl" />)}</div>
+            <div className="space-y-3">
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="h-10 rounded-xl" />
+              ))}
+            </div>
           ) : patientSnapshot.length === 0 ? (
             <div className="text-center py-8">
               <Users size={32} className="mx-auto text-gray-200 mb-2" />
@@ -280,19 +382,27 @@ const DoctorHome = ({ profile, loading, summaryData, patientSnapshot, todayAppts
             </div>
           ) : (
             <div className="space-y-1.5">
-              {patientSnapshot.slice(0, 8).map(p => (
+              {patientSnapshot.slice(0, 8).map((p) => (
                 <button
                   key={p.id}
                   onClick={() => navigate(mapDashboardPath(`/dashboard/pacientes/${p.id}`))}
                   className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 transition-colors group text-left"
                 >
                   <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-[10px] font-bold shrink-0">
-                    {(p.full_name ?? 'P').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                    {(p.full_name ?? 'P')
+                      .split(' ')
+                      .map((n: string) => n[0])
+                      .join('')
+                      .slice(0, 2)
+                      .toUpperCase()}
                   </div>
                   <p className="text-sm font-semibold text-gray-800 group-hover:text-primary transition-colors truncate flex-1">
                     {p.full_name ?? 'Paciente sin nombre'}
                   </p>
-                  <ChevronRight size={12} className="text-gray-300 group-hover:text-primary transition-colors shrink-0" />
+                  <ChevronRight
+                    size={12}
+                    className="text-gray-300 group-hover:text-primary transition-colors shrink-0"
+                  />
                 </button>
               ))}
             </div>
@@ -300,26 +410,37 @@ const DoctorHome = ({ profile, loading, summaryData, patientSnapshot, todayAppts
 
           {/* Acceso rápido */}
           <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Acceso rápido</p>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+              Acceso rápido
+            </p>
             <button
               onClick={() => navigate(mapDashboardPath('/dashboard/recetas'))}
               className="w-full flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-primary/5 text-gray-600 hover:text-primary text-xs font-semibold rounded-xl transition-colors group"
             >
-              <Pill size={13} className="text-violet-500 group-hover:text-primary transition-colors" />
+              <Pill
+                size={13}
+                className="text-violet-500 group-hover:text-primary transition-colors"
+              />
               Nueva receta
             </button>
             <button
               onClick={() => navigate(mapDashboardPath('/dashboard/documentos'))}
               className="w-full flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-primary/5 text-gray-600 hover:text-primary text-xs font-semibold rounded-xl transition-colors group"
             >
-              <FileText size={13} className="text-blue-500 group-hover:text-primary transition-colors" />
+              <FileText
+                size={13}
+                className="text-blue-500 group-hover:text-primary transition-colors"
+              />
               Subir documento
             </button>
             <button
               onClick={() => navigate(mapDashboardPath('/dashboard/agenda'))}
               className="w-full flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-primary/5 text-gray-600 hover:text-primary text-xs font-semibold rounded-xl transition-colors group"
             >
-              <Stethoscope size={13} className="text-teal-500 group-hover:text-primary transition-colors" />
+              <Stethoscope
+                size={13}
+                className="text-teal-500 group-hover:text-primary transition-colors"
+              />
               Agendar consulta
             </button>
           </div>
@@ -348,8 +469,10 @@ export default function Dashboard() {
   // Cache fetched docs so the key-sync effect can reuse them without an extra network call
   const allDocsRef = useRef<Doc[]>([])
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { loadDashboardData() }, [user])
+  useEffect(() => {
+    loadDashboardData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, profile?.role])
 
   // Patient: silently re-wrap document keys for all consented doctors so they can decrypt files
   useEffect(() => {
@@ -358,20 +481,18 @@ export default function Dashboard() {
       try {
         // Reuse docs already fetched by loadDashboardData (avoids duplicate network call).
         // If ref is empty (crypto ready before data load), fetch fresh.
-        const docsPromise = allDocsRef.current.length > 0
-          ? Promise.resolve(allDocsRef.current)
-          : getUserDocuments(user.id, null, true)
-        const [docs, consents] = await Promise.all([
-          docsPromise,
-          getPatientDoctorAccess(user.id),
-        ])
+        const docsPromise =
+          allDocsRef.current.length > 0
+            ? Promise.resolve(allDocsRef.current)
+            : getUserDocuments(user.id, null, true)
+        const [docs, consents] = await Promise.all([docsPromise, getPatientDoctorAccess(user.id)])
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const encrypted = docs.filter((d) => (d as any).is_encrypted)
         const accepted = consents.filter((c) => c.status === 'accepted')
         if (!encrypted.length || !accepted.length) return
         for (const consent of accepted) {
           await Promise.allSettled(
-            encrypted.map((d) => shareEncryptedDocumentKey(d.id, privateKey, consent.doctor_id))
+            encrypted.map((d) => shareEncryptedDocumentKey(d.id, privateKey, consent.doctor_id)),
           )
         }
       } catch (err) {
@@ -379,8 +500,8 @@ export default function Dashboard() {
       }
     }
     syncKeys()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, privateKey])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, privateKey, profile?.role])
 
   const loadDashboardData = async () => {
     if (!user) return
@@ -410,19 +531,19 @@ export default function Dashboard() {
         const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' }) // YYYY-MM-DD
         const now = new Date()
         const sorted = (allDoctorAppts as AppointmentWithPatient[])
-          .filter(a => a.status !== 'cancelled')
+          .filter((a) => a.status !== 'cancelled')
           .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
         const todayAll = (allDoctorAppts as AppointmentWithPatient[])
-          .filter(a => a.scheduled_at.startsWith(todayStr))
+          .filter((a) => a.scheduled_at.startsWith(todayStr))
           .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
-        const upcoming = sorted.filter(a => new Date(a.scheduled_at) >= now)
+        const upcoming = sorted.filter((a) => new Date(a.scheduled_at) >= now)
         setTodayAppts(todayAll)
         setUpcomingAppts(upcoming)
       }
 
       setSummaryData({
-        documentCount: isDoctor ? (documentsData?.length || 0) : docMap.size,
-        activePatients: isDoctor ? (doctorPatients?.length || 0) : 0,
+        documentCount: isDoctor ? documentsData?.length || 0 : docMap.size,
+        activePatients: isDoctor ? doctorPatients?.length || 0 : 0,
         sharedDocumentCount: (sharedDocuments as SharedEntry[]).length,
       })
     } catch (err) {
@@ -457,7 +578,9 @@ export default function Dashboard() {
           <button
             onClick={() => navigate(mapDashboardPath('/dashboard/documentos'))}
             className="text-primary text-sm font-medium hover:underline"
-          >Ver todo →</button>
+          >
+            Ver todo →
+          </button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 md:gap-6">
@@ -465,7 +588,9 @@ export default function Dashboard() {
             <p className="text-sm font-semibold text-gray-700 mb-4">Por tipo de documento</p>
             {loading ? (
               <div className="grid grid-cols-2 gap-3">
-                {[1, 2, 3, 4, 5, 6].map((i) => <Skeleton key={i} className="h-16 rounded-lg" />)}
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <Skeleton key={i} className="h-16 rounded-lg" />
+                ))}
               </div>
             ) : (
               <>
@@ -479,12 +604,16 @@ export default function Dashboard() {
                         className="flex items-center gap-2.5 p-3 rounded-lg border border-gray-100 hover:border-primary/30 hover:shadow-sm transition-all text-left"
                         onClick={() => navigate(mapDashboardPath('/dashboard/documentos'))}
                       >
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${cfg.colorClass}`}>
+                        <div
+                          className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${cfg.colorClass}`}
+                        >
                           <Icon size={15} />
                         </div>
                         <div>
                           <p className="text-base font-bold text-gray-900 leading-none">{count}</p>
-                          <p className="text-[10px] text-gray-500 mt-0.5 leading-tight">{cfg.label}</p>
+                          <p className="text-[10px] text-gray-500 mt-0.5 leading-tight">
+                            {cfg.label}
+                          </p>
                         </div>
                       </button>
                     )
@@ -506,7 +635,11 @@ export default function Dashboard() {
               <Clock size={15} className="text-gray-400" />
             </div>
             {loading ? (
-              <div className="space-y-3">{[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-14 rounded-lg" />)}</div>
+              <div className="space-y-3">
+                {[1, 2, 3, 4].map((i) => (
+                  <Skeleton key={i} className="h-14 rounded-lg" />
+                ))}
+              </div>
             ) : recentDocs.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-center">
                 <FileText size={40} className="text-gray-200 mb-3" />
@@ -523,18 +656,25 @@ export default function Dashboard() {
                 {recentDocs.slice(0, 5).map((doc) => {
                   const cfg = CATEGORY_CONFIG[doc.category] ?? CATEGORY_CONFIG.other
                   const Icon = cfg.icon
-                  const date = new Date(doc.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
+                  const date = new Date(doc.created_at).toLocaleDateString('es-MX', {
+                    day: 'numeric',
+                    month: 'short',
+                  })
                   return (
                     <div
                       key={doc.id}
                       className="flex items-center gap-3 p-3 border border-gray-100 rounded-lg hover:border-primary/30 transition-colors cursor-pointer group"
                       onClick={() => navigate(mapDashboardPath(`/dashboard/documentos/${doc.id}`))}
                     >
-                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${cfg.colorClass}`}>
+                      <div
+                        className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${cfg.colorClass}`}
+                      >
                         <Icon size={16} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 truncate group-hover:text-primary transition-colors">{doc.title}</p>
+                        <p className="text-sm font-semibold text-gray-900 truncate group-hover:text-primary transition-colors">
+                          {doc.title}
+                        </p>
                         <p className="text-xs text-gray-500">{cfg.label}</p>
                       </div>
                       <span className="text-xs text-gray-400 flex-shrink-0">{date}</span>
@@ -557,7 +697,9 @@ export default function Dashboard() {
             <button
               onClick={() => navigate(mapDashboardPath('/dashboard/documentos'))}
               className="text-primary text-sm font-medium hover:underline"
-            >Ver todos →</button>
+            >
+              Ver todos →
+            </button>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {sharedDocsList.map((entry) => {
@@ -571,11 +713,15 @@ export default function Dashboard() {
                   className="bg-white border border-gray-100 rounded-lg p-3 hover:border-primary/30 hover:shadow-sm transition-all cursor-pointer"
                   onClick={() => navigate(mapDashboardPath(`/dashboard/documentos/${doc.id}`))}
                 >
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 ${cfg.colorClass}`}>
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 ${cfg.colorClass}`}
+                  >
                     <Icon size={15} />
                   </div>
                   <p className="text-sm font-semibold text-gray-900 truncate">{doc.title}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">De {entry?.sender?.full_name || 'Tu médico'}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    De {entry?.sender?.full_name || 'Tu médico'}
+                  </p>
                 </div>
               )
             })}

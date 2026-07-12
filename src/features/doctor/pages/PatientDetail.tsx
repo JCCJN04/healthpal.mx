@@ -31,6 +31,7 @@ import {
   ClipboardList,
   Printer,
   Pencil,
+  Scissors,
 } from 'lucide-react'
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import {
@@ -89,7 +90,14 @@ import RecetaPreview, {
 } from '@/features/doctor/components/RecetaPreview'
 
 type TabType =
-  'summary' | 'expediente' | 'historia' | 'informes' | 'consultas' | 'recetas' | 'curvas'
+  | 'summary'
+  | 'expediente'
+  | 'historia'
+  | 'informes'
+  | 'consultas'
+  | 'recetas'
+  | 'curvas'
+  | 'cirugias'
 type ConsentGate = 'loading' | 'no-consent' | 'requested' | 'rejected' | 'revoked' | 'accepted'
 
 export default function PatientDetail() {
@@ -106,6 +114,7 @@ export default function PatientDetail() {
       'consultas',
       'recetas',
       'curvas',
+      'cirugias',
     ]
     return valid.includes(t as TabType) ? (t as TabType) : 'summary'
   })()
@@ -166,6 +175,12 @@ export default function PatientDetail() {
   const [prescriptionsLoaded, setPrescriptionsLoaded] = useState(false)
 
   const tabScrollRef = useRef<HTMLDivElement>(null)
+  const mountedRef = useRef(true)
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
   const [tabsAtEnd, setTabsAtEnd] = useState(false)
   const handleTabScroll = () => {
     const el = tabScrollRef.current
@@ -536,6 +551,7 @@ export default function PatientDetail() {
       keys.push('clinicalHistory')
 
       const results = await Promise.all(promises)
+      if (!mountedRef.current) return
       keys.forEach((key, i) => {
         switch (key) {
           case 'medProfile':
@@ -1200,6 +1216,7 @@ export default function PatientDetail() {
                     enabled: scopes.share_documents,
                   },
                   { id: 'recetas', label: 'Recetas', icon: ClipboardList, enabled: true },
+                  { id: 'cirugias', label: 'Cirugías', icon: Scissors, enabled: true },
                   {
                     id: 'curvas',
                     label: 'Curvas de crecimiento',
@@ -1515,6 +1532,10 @@ export default function PatientDetail() {
                   medProfile={medProfile}
                   patientInsurances={patientInsurances}
                 />
+              )}
+
+              {activeTab === 'cirugias' && (
+                <CirugiasTab patientId={id!} patientName={patient.full_name ?? 'Paciente'} />
               )}
 
               {activeTab === 'consultas' &&
@@ -2443,6 +2464,897 @@ function ExpedienteDigital({
             )}
           </div>
         </div>
+      )}
+    </div>
+  )
+}
+
+// ── Cirugías Tab ──────────────────────────────────────────────────────────────
+
+type SurgeryNoteType = 'preoperatoria' | 'postoperatoria' | 'seguimiento'
+
+interface SurgeryNote {
+  id: string
+  tipo_nota: SurgeryNoteType
+  fecha_cirugia: string | null
+  diagnostico_preoperatorio: string | null
+  operacion_planeada: string | null
+  tipo_anestesia: string | null
+  riesgo_quirurgico: string | null
+  plan_terapeutico: string | null
+  operacion_realizada: string | null
+  diagnostico_postoperatorio: string | null
+  tecnica_quirurgica: string | null
+  hallazgos: string | null
+  gasas_compresas: string | null
+  incidentes_accidentes: string | null
+  sangrado_ml: number | null
+  estado_postquirurgico: string | null
+  piezas_biopsias: string | null
+  evolucion: string | null
+  resultados_estudios: string | null
+  pronostico: string | null
+  observaciones: string | null
+  created_at: string
+}
+
+type BlankNote = Omit<SurgeryNote, 'id' | 'created_at'>
+
+const BLANK_NOTE: BlankNote = {
+  tipo_nota: 'postoperatoria',
+  fecha_cirugia: new Date().toISOString().slice(0, 10),
+  diagnostico_preoperatorio: '',
+  operacion_planeada: '',
+  tipo_anestesia: '',
+  riesgo_quirurgico: '',
+  plan_terapeutico: '',
+  operacion_realizada: '',
+  diagnostico_postoperatorio: '',
+  tecnica_quirurgica: '',
+  hallazgos: '',
+  gasas_compresas: '',
+  incidentes_accidentes: '',
+  sangrado_ml: null,
+  estado_postquirurgico: '',
+  piezas_biopsias: '',
+  evolucion: '',
+  resultados_estudios: '',
+  pronostico: '',
+  observaciones: '',
+}
+
+const TIPO_LABEL: Record<SurgeryNoteType, string> = {
+  preoperatoria: 'Preoperatoria',
+  postoperatoria: 'Postoperatoria',
+  seguimiento: 'Seguimiento',
+}
+
+const TIPO_COLOR: Record<SurgeryNoteType, string> = {
+  preoperatoria: 'bg-blue-50 text-blue-700 border-blue-100',
+  postoperatoria: 'bg-orange-50 text-orange-700 border-orange-100',
+  seguimiento: 'bg-teal-50 text-teal-700 border-teal-100',
+}
+
+function SurgeryNoteCard({
+  note,
+  onExpand,
+}: {
+  note: SurgeryNote
+  onExpand: (n: SurgeryNote) => void
+}) {
+  const fecha = note.fecha_cirugia
+    ? new Date(note.fecha_cirugia + 'T12:00:00').toLocaleDateString('es-MX', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      })
+    : new Date(note.created_at).toLocaleDateString('es-MX', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      })
+
+  const titulo =
+    note.tipo_nota === 'preoperatoria'
+      ? note.operacion_planeada || note.diagnostico_preoperatorio || 'Nota preoperatoria'
+      : note.tipo_nota === 'postoperatoria'
+        ? note.operacion_realizada || note.diagnostico_postoperatorio || 'Nota postoperatoria'
+        : note.evolucion?.slice(0, 60) || 'Nota de seguimiento'
+
+  return (
+    <div
+      className="border border-gray-100 rounded-xl p-4 bg-white hover:shadow-sm transition-shadow cursor-pointer space-y-2"
+      onClick={() => onExpand(note)}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <span
+          className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${TIPO_COLOR[note.tipo_nota]}`}
+        >
+          NOM-004 §
+          {note.tipo_nota === 'preoperatoria'
+            ? '8.6'
+            : note.tipo_nota === 'postoperatoria'
+              ? '8.8'
+              : '8.13'}{' '}
+          · {TIPO_LABEL[note.tipo_nota]}
+        </span>
+        <span className="text-[10px] text-gray-400 flex-shrink-0">{fecha}</span>
+      </div>
+      <p className="text-sm font-semibold text-gray-800 line-clamp-2">{titulo}</p>
+      {note.observaciones && (
+        <p className="text-xs text-gray-500 line-clamp-2">{note.observaciones}</p>
+      )}
+    </div>
+  )
+}
+
+function SurgeryNoteModal({ note, onClose }: { note: SurgeryNote; onClose: () => void }) {
+  const fecha = note.fecha_cirugia
+    ? new Date(note.fecha_cirugia + 'T12:00:00').toLocaleDateString('es-MX', { dateStyle: 'long' })
+    : null
+
+  const Field = ({ label, value }: { label: string; value: string | number | null | undefined }) =>
+    value ? (
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">
+          {label}
+        </p>
+        <p className="text-sm text-gray-800 whitespace-pre-wrap">{value}</p>
+      </div>
+    ) : null
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-2xl max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+          <div className="flex items-center gap-2">
+            <Scissors size={16} className="text-primary" />
+            <div>
+              <p className="text-sm font-bold text-gray-900">
+                Nota {TIPO_LABEL[note.tipo_nota]}
+                {fecha && <span className="font-normal text-gray-500 ml-1">— {fecha}</span>}
+              </p>
+              <p className="text-[10px] text-gray-400">
+                NOM-004-SSA3-2012 §
+                {note.tipo_nota === 'preoperatoria'
+                  ? '8.6'
+                  : note.tipo_nota === 'postoperatoria'
+                    ? '8.8'
+                    : '8.13'}
+              </p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg">
+            <X size={18} className="text-gray-500" />
+          </button>
+        </div>
+        <div className="p-5 space-y-4">
+          {/* Preoperatoria §8.6 */}
+          {(note.tipo_nota === 'preoperatoria' || note.tipo_nota === 'postoperatoria') && (
+            <>
+              <Field label="Diagnóstico preoperatorio" value={note.diagnostico_preoperatorio} />
+              <Field label="Operación planeada" value={note.operacion_planeada} />
+              <Field label="Tipo de anestesia propuesta" value={note.tipo_anestesia} />
+              <Field label="Riesgo quirúrgico" value={note.riesgo_quirurgico} />
+              {note.tipo_nota === 'preoperatoria' && (
+                <Field label="Plan terapéutico / cuidados" value={note.plan_terapeutico} />
+              )}
+            </>
+          )}
+          {/* Postoperatoria §8.8 */}
+          {note.tipo_nota === 'postoperatoria' && (
+            <>
+              <Field label="Operación realizada" value={note.operacion_realizada} />
+              <Field label="Diagnóstico postoperatorio" value={note.diagnostico_postoperatorio} />
+              <Field label="Descripción de técnica quirúrgica" value={note.tecnica_quirurgica} />
+              <Field label="Hallazgos transoperatorios" value={note.hallazgos} />
+              <Field label="Reporte de gasas y compresas" value={note.gasas_compresas} />
+              <Field label="Incidentes y accidentes" value={note.incidentes_accidentes} />
+              {note.sangrado_ml !== null && (
+                <Field label="Cuantificación de sangrado (mL)" value={note.sangrado_ml} />
+              )}
+              <Field label="Estado postquirúrgico inmediato" value={note.estado_postquirurgico} />
+              <Field label="Plan de manejo postoperatorio" value={note.plan_terapeutico} />
+              <Field label="Piezas / biopsias enviadas" value={note.piezas_biopsias} />
+            </>
+          )}
+          {/* Seguimiento §8.13 */}
+          {note.tipo_nota === 'seguimiento' && (
+            <>
+              <Field label="Evolución y actualización del cuadro clínico" value={note.evolucion} />
+              <Field label="Resultados de estudios" value={note.resultados_estudios} />
+              <Field
+                label="Diagnósticos / problemas clínicos"
+                value={note.diagnostico_postoperatorio}
+              />
+              <Field label="Plan de estudio o tratamiento" value={note.plan_terapeutico} />
+            </>
+          )}
+          {/* Shared */}
+          <Field label="Pronóstico" value={note.pronostico} />
+          <Field label="Observaciones" value={note.observaciones} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CirugiasTab({ patientId, patientName }: { patientId: string; patientName: string }) {
+  const [notes, setNotes] = useState<SurgeryNote[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [docs, setDocs] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const [activeForm, setActiveForm] = useState<'none' | 'note' | 'file'>('none')
+  const [savingNote, setSavingNote] = useState(false)
+  const [uploading, setUploading] = useState(false)
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [previewDoc, setPreviewDoc] = useState<any | null>(null)
+  const [expandedNote, setExpandedNote] = useState<SurgeryNote | null>(null)
+
+  const [noteForm, setNoteForm] = useState<BlankNote>({ ...BLANK_NOTE })
+  const [uploadForm, setUploadForm] = useState<{ file: File | null; title: string; notes: string }>(
+    {
+      file: null,
+      title: '',
+      notes: '',
+    },
+  )
+
+  const loadAll = async () => {
+    setLoading(true)
+    const [notesRes, docsRes] = await Promise.all([
+      supabase
+        .from('surgery_notes')
+        .select('*')
+        .eq('patient_id', patientId)
+        .order('fecha_cirugia', { ascending: false, nullsFirst: false })
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('documents')
+        .select('*')
+        .eq('patient_id', patientId)
+        .eq('category', 'surgery')
+        .order('created_at', { ascending: false }),
+    ])
+    if (!notesRes.error) setNotes((notesRes.data as SurgeryNote[]) || [])
+    else logger.error('CirugiasTab.notes', notesRes.error)
+    if (!docsRes.error) setDocs(docsRes.data || [])
+    else logger.error('CirugiasTab.docs', docsRes.error)
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    loadAll()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patientId])
+
+  const handleSaveNote = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    if (!session) return
+    setSavingNote(true)
+    const payload = {
+      patient_id: patientId,
+      doctor_id: session.user.id,
+      ...noteForm,
+      // normalise empty strings to null for cleanliness
+      ...Object.fromEntries(Object.entries(noteForm).map(([k, v]) => [k, v === '' ? null : v])),
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase.from('surgery_notes') as any).insert(payload)
+    setSavingNote(false)
+    if (error) {
+      logger.error('CirugiasTab.saveNote', error)
+      showToast('Error al guardar la nota', 'error')
+    } else {
+      showToast('Nota guardada', 'success')
+      setActiveForm('none')
+      setNoteForm({ ...BLANK_NOTE })
+      loadAll()
+    }
+  }
+
+  const handleUpload = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!uploadForm.file) {
+      showToast('Selecciona un archivo', 'warning')
+      return
+    }
+    const validationError = validateFile(uploadForm.file, 'document')
+    if (validationError) {
+      showToast(validationError, 'error')
+      return
+    }
+    setUploading(true)
+    const result = await uploadDocumentForPatient(uploadForm.file, patientId, {
+      title: uploadForm.title || uploadForm.file.name,
+      category: 'surgery',
+      notes: uploadForm.notes || undefined,
+    })
+    setUploading(false)
+    if (result.success) {
+      showToast('Archivo subido', 'success')
+      setActiveForm('none')
+      setUploadForm({ file: null, title: '', notes: '' })
+      loadAll()
+    } else {
+      showToast(result.error || 'Error al subir', 'error')
+    }
+  }
+
+  const Field = ({
+    label,
+    value,
+    onChange,
+    required = false,
+    type = 'textarea',
+    rows = 2,
+    hint,
+    placeholder,
+    options,
+  }: {
+    label: string
+    value: string | number | null
+    onChange: (v: string) => void
+    required?: boolean
+    type?: 'input' | 'textarea' | 'number' | 'select'
+    rows?: number
+    hint?: string
+    placeholder?: string
+    options?: { value: string; label: string }[]
+  }) => (
+    <div>
+      <label className="block text-xs font-semibold text-gray-600 mb-1">
+        {label}
+        {required && <span className="text-red-400 ml-0.5">*</span>}
+        {hint && <span className="text-gray-400 font-normal ml-1">({hint})</span>}
+      </label>
+      {type === 'select' && options ? (
+        <select
+          value={value ?? ''}
+          onChange={(e) => onChange(e.target.value)}
+          required={required}
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 bg-white"
+        >
+          <option value="">{placeholder ?? 'Selecciona…'}</option>
+          {options.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      ) : type === 'textarea' ? (
+        <textarea
+          value={value ?? ''}
+          onChange={(e) => onChange(e.target.value)}
+          required={required}
+          rows={rows}
+          placeholder={placeholder}
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
+        />
+      ) : type === 'number' ? (
+        <input
+          type="number"
+          min={0}
+          value={value ?? ''}
+          onChange={(e) => onChange(e.target.value)}
+          required={required}
+          placeholder={placeholder}
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+        />
+      ) : (
+        <input
+          type="text"
+          value={value ?? ''}
+          onChange={(e) => onChange(e.target.value)}
+          required={required}
+          placeholder={placeholder}
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+        />
+      )}
+    </div>
+  )
+
+  const set = (key: keyof BlankNote) => (v: string) =>
+    setNoteForm((prev) => ({ ...prev, [key]: v === '' ? null : v }))
+
+  const isEmpty = notes.length === 0 && docs.length === 0
+
+  return (
+    <div className="animate-in fade-in duration-300 space-y-4">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-bold text-gray-900">Cirugías — {patientName}</h3>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Notas clínicas y archivos de procedimientos quirúrgicos
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setActiveForm((v) => (v === 'note' ? 'none' : 'note'))}
+            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 bg-white border border-primary text-primary text-xs font-bold rounded-lg hover:bg-primary/5 transition-colors"
+          >
+            <StickyNote size={13} />
+            Nueva nota
+          </button>
+          <button
+            onClick={() => setActiveForm((v) => (v === 'file' ? 'none' : 'file'))}
+            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 bg-primary text-white text-xs font-bold rounded-lg hover:bg-teal-600 transition-colors"
+          >
+            <Plus size={13} />
+            Subir archivo
+          </button>
+        </div>
+      </div>
+
+      {/* ── Nota NOM-004 form ─────────────────────────────────────────────── */}
+      {activeForm === 'note' && (
+        <form
+          onSubmit={handleSaveNote}
+          className="bg-gray-50 border border-gray-100 rounded-xl p-4 space-y-4"
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+              <Scissors size={13} className="text-primary" /> Nueva nota quirúrgica
+              (NOM-004-SSA3-2012)
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveForm('none')
+                setNoteForm({ ...BLANK_NOTE })
+              }}
+              className="p-1 hover:bg-gray-200 rounded"
+            >
+              <X size={14} className="text-gray-400" />
+            </button>
+          </div>
+
+          {/* Tipo + Fecha */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">
+                Tipo de nota <span className="text-red-400">*</span>
+              </label>
+              <select
+                value={noteForm.tipo_nota}
+                onChange={(e) =>
+                  setNoteForm((p) => ({ ...p, tipo_nota: e.target.value as SurgeryNoteType }))
+                }
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 bg-white"
+              >
+                <option value="preoperatoria">Preoperatoria</option>
+                <option value="postoperatoria">Postoperatoria</option>
+                <option value="seguimiento">Seguimiento</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">
+                Fecha de {noteForm.tipo_nota === 'preoperatoria' ? 'cirugía programada' : 'cirugía'}{' '}
+                <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="date"
+                value={noteForm.fecha_cirugia ?? ''}
+                onChange={(e) =>
+                  setNoteForm((p) => ({ ...p, fecha_cirugia: e.target.value || null }))
+                }
+                required
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              />
+            </div>
+          </div>
+
+          {/* ── Preoperatoria §8.6 ── */}
+          {(noteForm.tipo_nota === 'preoperatoria' || noteForm.tipo_nota === 'postoperatoria') && (
+            <>
+              <Field
+                label="Diagnóstico preoperatorio"
+                value={noteForm.diagnostico_preoperatorio}
+                onChange={set('diagnostico_preoperatorio')}
+                required
+                rows={2}
+                placeholder="Ej. Colelitiasis sintomática — litiasis vesicular múltiple confirmada por ultrasonido"
+              />
+              <Field
+                label="Operación planeada / plan quirúrgico"
+                value={noteForm.operacion_planeada}
+                onChange={set('operacion_planeada')}
+                required
+                rows={2}
+                placeholder="Ej. Colecistectomía laparoscópica electiva bajo anestesia general"
+              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Field
+                  label="Tipo de anestesia propuesta"
+                  value={noteForm.tipo_anestesia}
+                  onChange={set('tipo_anestesia')}
+                  type="select"
+                  required
+                  placeholder="Selecciona tipo…"
+                  options={[
+                    { value: 'General balanceada con IOT', label: 'General balanceada (IOT)' },
+                    {
+                      value: 'General con mascarilla laríngea',
+                      label: 'General con mascarilla laríngea',
+                    },
+                    { value: 'Regional epidural', label: 'Regional — epidural' },
+                    {
+                      value: 'Regional espinal (raquídea)',
+                      label: 'Regional — espinal (raquídea)',
+                    },
+                    {
+                      value: 'Bloqueo de nervio periférico',
+                      label: 'Bloqueo de nervio periférico',
+                    },
+                    { value: 'Local con sedación IV', label: 'Local con sedación IV' },
+                    { value: 'Local sin sedación', label: 'Local sin sedación' },
+                    { value: 'Tópica', label: 'Tópica' },
+                  ]}
+                />
+                <Field
+                  label="Riesgo quirúrgico (ASA)"
+                  value={noteForm.riesgo_quirurgico}
+                  onChange={set('riesgo_quirurgico')}
+                  type="select"
+                  required
+                  placeholder="Selecciona clasificación…"
+                  options={[
+                    { value: 'ASA I — paciente sano', label: 'ASA I — Paciente sano' },
+                    {
+                      value: 'ASA II — enfermedad sistémica leve',
+                      label: 'ASA II — Enfermedad sistémica leve',
+                    },
+                    {
+                      value: 'ASA III — enfermedad sistémica grave',
+                      label: 'ASA III — Enfermedad sistémica grave',
+                    },
+                    {
+                      value: 'ASA IV — riesgo vital constante',
+                      label: 'ASA IV — Riesgo vital constante',
+                    },
+                    {
+                      value: 'ASA V — moribundo, cirugía de urgencia',
+                      label: 'ASA V — Moribundo / urgencia',
+                    },
+                    {
+                      value: 'ASA VI — muerte cerebral / donación',
+                      label: 'ASA VI — Muerte cerebral',
+                    },
+                  ]}
+                />
+              </div>
+            </>
+          )}
+
+          {/* ── Postoperatoria §8.8 ── */}
+          {noteForm.tipo_nota === 'postoperatoria' && (
+            <>
+              <Field
+                label="Operación realizada"
+                value={noteForm.operacion_realizada}
+                onChange={set('operacion_realizada')}
+                required
+                rows={2}
+                placeholder="Ej. Colecistectomía laparoscópica con conversión a técnica abierta"
+              />
+              <Field
+                label="Diagnóstico postoperatorio"
+                value={noteForm.diagnostico_postoperatorio}
+                onChange={set('diagnostico_postoperatorio')}
+                required
+                rows={2}
+                placeholder="Ej. Colelitiasis complicada con proceso adhesivo moderado en lecho hepático"
+              />
+              <Field
+                label="Descripción de la técnica quirúrgica"
+                value={noteForm.tecnica_quirurgica}
+                onChange={set('tecnica_quirurgica')}
+                required
+                rows={4}
+                placeholder="Ej. Paciente en decúbito supino bajo anestesia general. Se realizó neumoperitoneo con aguja de Veress en región umbilical a 15 mmHg. Colocación de 4 trocares. Disección del triángulo de Calot con identificación de conducto cístico y arteria cística. Clipaje y sección. Extracción de vesícula en bolsa Endobag. Revisión de hemostasia. Cierre por planos."
+              />
+              <Field
+                label="Hallazgos transoperatorios"
+                value={noteForm.hallazgos}
+                onChange={set('hallazgos')}
+                rows={2}
+                placeholder="Ej. Vesícula distendida con pared engrosada, múltiples litos. Adherencias laxas a epiplón mayor. Sin lesión de vía biliar."
+              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Field
+                  label="Reporte de gasas y compresas"
+                  value={noteForm.gasas_compresas}
+                  onChange={set('gasas_compresas')}
+                  type="input"
+                  placeholder="Ej. 10/10 gasas completas, 4/4 compresas"
+                />
+                <Field
+                  label="Cuantificación de sangrado (mL)"
+                  value={noteForm.sangrado_ml}
+                  onChange={(v) =>
+                    setNoteForm((p) => ({ ...p, sangrado_ml: v === '' ? null : Number(v) }))
+                  }
+                  type="number"
+                  required
+                  placeholder="Ej. 80"
+                />
+              </div>
+              <Field
+                label="Incidentes y accidentes"
+                value={noteForm.incidentes_accidentes}
+                onChange={set('incidentes_accidentes')}
+                rows={2}
+                hint="Ninguno si no aplica"
+                placeholder="Ej. Ninguno. / Ej. Laceración menor en arteria cística resuelta con clipaje adicional sin consecuencias."
+              />
+              <Field
+                label="Estado postquirúrgico inmediato"
+                value={noteForm.estado_postquirurgico}
+                onChange={set('estado_postquirurgico')}
+                required
+                rows={2}
+                placeholder="Ej. Paciente estable, extubado en quirófano, tolerando ventilación espontánea. TA 120/80, FC 78, SpO₂ 98%."
+              />
+              <Field
+                label="Plan de manejo postoperatorio"
+                value={noteForm.plan_terapeutico}
+                onChange={set('plan_terapeutico')}
+                required
+                rows={3}
+                placeholder="Ej. Ketorolaco 30 mg IV c/8h × 24h, metoclopramida 10 mg c/8h. Dieta líquida en 6h. Deambulación temprana. Alta en 24h si evolución favorable. Control en consulta externa en 7 días."
+              />
+              <Field
+                label="Piezas / biopsias enviadas"
+                value={noteForm.piezas_biopsias}
+                onChange={set('piezas_biopsias')}
+                type="input"
+                placeholder="Ej. Vesícula biliar enviada a patología para estudio histológico. / Ninguna."
+              />
+            </>
+          )}
+
+          {/* ── Seguimiento §8.13 ── */}
+          {noteForm.tipo_nota === 'seguimiento' && (
+            <>
+              <Field
+                label="Evolución y actualización del cuadro clínico"
+                value={noteForm.evolucion}
+                onChange={set('evolucion')}
+                required
+                rows={4}
+                placeholder="Ej. Paciente a 7 días de colecistectomía laparoscópica. Heridas quirúrgicas sin signos de infección, afebril. Refiere dolor leve EVA 2/10 controlado con analgesia oral. Tolerando dieta blanda sin náuseas. Abdomen blando depresible, peristalsis presente."
+              />
+              <Field
+                label="Resultados de estudios"
+                value={noteForm.resultados_estudios}
+                onChange={set('resultados_estudios')}
+                rows={2}
+                placeholder="Ej. BH: Hb 13.2, Leu 8,500. QS: glucosa 98, creatinina 0.9. Ultrasonido de control: sin líquido libre, sitio quirúrgico sin alteraciones."
+              />
+              <Field
+                label="Diagnósticos / problemas clínicos"
+                value={noteForm.diagnostico_postoperatorio}
+                onChange={set('diagnostico_postoperatorio')}
+                rows={2}
+                placeholder="Ej. Postoperatorio de colecistectomía laparoscópica en evolución satisfactoria."
+              />
+              <Field
+                label="Plan de estudio o tratamiento"
+                value={noteForm.plan_terapeutico}
+                onChange={set('plan_terapeutico')}
+                required
+                rows={3}
+                placeholder="Ej. Continuar ibuprofeno 400 mg c/8h × 3 días. Dieta normal progresiva. Retiro de puntos en 5 días. Próxima consulta en 30 días o antes si aparece fiebre, ictericia o dolor intenso."
+              />
+            </>
+          )}
+
+          {/* Pronóstico + Observaciones — todos los tipos §8.6/§8.8/§8.13 */}
+          <Field
+            label="Pronóstico"
+            value={noteForm.pronostico}
+            onChange={set('pronostico')}
+            required={noteForm.tipo_nota !== 'seguimiento'}
+            type="select"
+            placeholder="Selecciona pronóstico…"
+            options={[
+              { value: 'Favorable', label: 'Favorable' },
+              { value: 'Favorable a corto plazo', label: 'Favorable a corto plazo' },
+              { value: 'Favorable a largo plazo', label: 'Favorable a largo plazo' },
+              { value: 'Reservado', label: 'Reservado' },
+              { value: 'Reservado a corto plazo', label: 'Reservado a corto plazo' },
+              { value: 'Grave', label: 'Grave' },
+              { value: 'Malo', label: 'Malo' },
+              { value: 'Por determinar', label: 'Por determinar' },
+            ]}
+          />
+          <Field
+            label="Observaciones adicionales"
+            value={noteForm.observaciones}
+            onChange={set('observaciones')}
+            rows={2}
+            placeholder="Ej. Paciente y familiar informados del procedimiento, riesgos y cuidados postoperatorios. Consentimiento informado firmado."
+          />
+
+          <div className="flex justify-end gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveForm('none')
+                setNoteForm({ ...BLANK_NOTE })
+              }}
+              className="px-3 py-1.5 text-sm font-semibold text-gray-600 hover:text-gray-800 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={savingNote}
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-primary text-white text-sm font-bold rounded-lg hover:bg-teal-600 disabled:opacity-50 transition-colors"
+            >
+              {savingNote ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+              {savingNote ? 'Guardando…' : 'Guardar nota'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* ── Subir archivo ─────────────────────────────────────────────────── */}
+      {activeForm === 'file' && (
+        <form
+          onSubmit={handleUpload}
+          className="bg-gray-50 border border-gray-100 rounded-xl p-4 space-y-3"
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+              <FileText size={13} className="text-primary" /> Subir archivo de cirugía
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveForm('none')
+                setUploadForm({ file: null, title: '', notes: '' })
+              }}
+              className="p-1 hover:bg-gray-200 rounded"
+            >
+              <X size={14} className="text-gray-400" />
+            </button>
+          </div>
+          <label className="flex flex-col items-center justify-center gap-2 p-4 border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:border-primary/40 hover:bg-primary/5 transition-all">
+            {uploadForm.file ? (
+              <span className="text-sm font-semibold text-gray-800 truncate max-w-full px-2">
+                {uploadForm.file.name}
+              </span>
+            ) : (
+              <>
+                <Download size={22} className="text-gray-300 rotate-180" />
+                <span className="text-xs text-gray-400">PDF, imagen, DOCX — máx. 10 MB</span>
+              </>
+            )}
+            <input
+              type="file"
+              className="sr-only"
+              accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx"
+              onChange={(e) => {
+                const f = e.target.files?.[0] || null
+                setUploadForm((prev) => ({
+                  ...prev,
+                  file: f,
+                  title: prev.title || f?.name.replace(/\.[^/.]+$/, '') || '',
+                }))
+              }}
+            />
+          </label>
+          <input
+            value={uploadForm.title}
+            onChange={(e) => setUploadForm((p) => ({ ...p, title: e.target.value }))}
+            placeholder="Nombre del archivo"
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+          />
+          <textarea
+            value={uploadForm.notes}
+            onChange={(e) => setUploadForm((p) => ({ ...p, notes: e.target.value }))}
+            placeholder="Descripción u observaciones (opcional)"
+            rows={2}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveForm('none')
+                setUploadForm({ file: null, title: '', notes: '' })
+              }}
+              className="px-3 py-1.5 text-sm font-semibold text-gray-600 hover:text-gray-800 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={uploading || !uploadForm.file}
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-primary text-white text-sm font-bold rounded-lg hover:bg-teal-600 disabled:opacity-50 transition-colors"
+            >
+              {uploading ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <Download size={14} className="rotate-180" />
+              )}
+              {uploading ? 'Subiendo…' : 'Subir'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* ── Content ───────────────────────────────────────────────────────── */}
+      {loading ? (
+        <div className="flex justify-center py-10">
+          <Loader2 size={24} className="animate-spin text-primary" />
+        </div>
+      ) : isEmpty ? (
+        <div className="text-center py-14 text-gray-400">
+          <Scissors size={44} className="mx-auto mb-3 opacity-20" />
+          <p className="text-sm font-medium">Sin registros de cirugía.</p>
+          <p className="text-xs mt-1">
+            Agrega una nota clínica o sube un archivo con los botones de arriba.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {/* Notes */}
+          {notes.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+                <StickyNote size={12} /> Notas clínicas
+                <span className="bg-gray-100 text-gray-500 text-[10px] font-bold px-1.5 py-0.5 rounded-full normal-case">
+                  {notes.length}
+                </span>
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {notes.map((n) => (
+                  <SurgeryNoteCard key={n.id} note={n} onExpand={setExpandedNote} />
+                ))}
+              </div>
+            </div>
+          )}
+          {/* Files */}
+          {docs.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                <FileText size={12} /> Archivos
+                <span className="bg-primary/10 text-primary text-[10px] font-bold px-1.5 py-0.5 rounded-full normal-case">
+                  {docs.length}
+                </span>
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {docs.map((doc) => (
+                  <DocumentCard
+                    key={doc.id}
+                    document={doc}
+                    onDelete={() => {}}
+                    onPreview={setPreviewDoc}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <DocumentPreviewModal document={previewDoc} onClose={() => setPreviewDoc(null)} />
+      {expandedNote && (
+        <SurgeryNoteModal note={expandedNote} onClose={() => setExpandedNote(null)} />
       )}
     </div>
   )
