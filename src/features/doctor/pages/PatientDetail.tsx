@@ -177,6 +177,7 @@ export default function PatientDetail() {
   const tabScrollRef = useRef<HTMLDivElement>(null)
   const mountedRef = useRef(true)
   useEffect(() => {
+    mountedRef.current = true
     return () => {
       mountedRef.current = false
     }

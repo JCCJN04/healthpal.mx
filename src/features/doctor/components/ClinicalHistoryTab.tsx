@@ -526,6 +526,9 @@ interface HepatitisItem {
 interface CDItem {
   present: boolean
   year: string
+  tratamiento: string
+  medicamento: string
+  dosis: string
   details: string
 }
 
@@ -569,7 +572,7 @@ const INFECTOCONTAGIOSAS_LIST = [
 ] as const
 
 const ANTECEDENTES_PREVIOS = [
-  { key: 'generales', label: 'Generales', emoji: '⚕️' },
+  { key: 'generales', label: 'Enfermedades', emoji: '⚕️' },
   { key: 'alergicos', label: 'Alérgicos', emoji: '🌿' },
   { key: 'hospitalizaciones', label: 'Hospitalizaciones', emoji: '🏥' },
   { key: 'surgeries', label: 'Quirúrgicos', emoji: '🔪' },
@@ -580,6 +583,8 @@ const ANTECEDENTES_PREVIOS = [
 interface SmokingItem {
   present: boolean
   frequency: string
+  cigarettes_per_day: string
+  years_smoking: string
   details: string
 }
 
@@ -593,8 +598,21 @@ interface AlcoholItem {
   present: boolean
   frequency_per_week: string
   cups_per_day: string
+  tipo_bebida: string
+  ml_por_copa: string
+  grado_alcoholico: string
   details: string
 }
+
+const BEBIDAS_PRESET: { value: string; label: string; ml: string; pct: string }[] = [
+  { value: 'cerveza', label: 'Cerveza (lata/botella)', ml: '355', pct: '4.5' },
+  { value: 'vino', label: 'Vino', ml: '150', pct: '12' },
+  { value: 'tequila', label: 'Tequila / Mezcal', ml: '45', pct: '38' },
+  { value: 'vodka', label: 'Vodka / Whisky / Ron', ml: '45', pct: '40' },
+  { value: 'coctel', label: 'Cóctel / Highball', ml: '180', pct: '10' },
+  { value: 'pulque', label: 'Pulque', ml: '400', pct: '4' },
+  { value: 'otro', label: 'Otro (especificar)', ml: '', pct: '' },
+]
 
 interface PathologicalHistory {
   medications: ToggleItem
@@ -605,10 +623,6 @@ interface PathologicalHistory {
   surgeries: ToggleItem
   traumaticos: ToggleItem
   transfusions: ToggleItem
-  // Adicciones
-  addiction_alcohol: ToggleItem
-  addiction_tabaco: ToggleItem
-  addiction_otras: ToggleItem
   // Enfermedades por contagio
   exantematicas: string[]
   exantematica_otra: string
@@ -776,7 +790,14 @@ function migrateFH(raw: Record<string, unknown>): FamilyHistory {
 function makeDefaultCD(): Record<string, CDItem> {
   const r: Record<string, CDItem> = {}
   CD_DISEASES.forEach((d) => {
-    r[d.key] = { present: false, year: '', details: '' }
+    r[d.key] = {
+      present: false,
+      year: '',
+      tratamiento: '',
+      medicamento: '',
+      dosis: '',
+      details: '',
+    }
   })
   return r
 }
@@ -789,9 +810,6 @@ const DEF_PATHO: PathologicalHistory = {
   surgeries: { ...DEF_TOGGLE },
   traumaticos: { ...DEF_TOGGLE },
   transfusions: { ...DEF_TOGGLE },
-  addiction_alcohol: { ...DEF_TOGGLE },
-  addiction_tabaco: { ...DEF_TOGGLE },
-  addiction_otras: { ...DEF_TOGGLE },
   exantematicas: [],
   exantematica_otra: '',
   infectocontagiosas: [],
@@ -822,12 +840,26 @@ function migratePatho(raw: Record<string, unknown>): PathologicalHistory {
   // Migrate old diabetes → cd
   const legDiab = raw.diabetes as ToggleItem | undefined
   if (legDiab?.present && !base.cd.diabetes_mellitus?.present) {
-    base.cd.diabetes_mellitus = { present: true, year: '', details: legDiab.details || '' }
+    base.cd.diabetes_mellitus = {
+      present: true,
+      year: '',
+      tratamiento: '',
+      medicamento: '',
+      dosis: '',
+      details: legDiab.details || '',
+    }
   }
   // Migrate old hypertension → cd
   const legHtn = raw.hypertension as ToggleItem | undefined
   if (legHtn?.present && !base.cd.hipertension_arterial?.present) {
-    base.cd.hipertension_arterial = { present: true, year: '', details: legHtn.details || '' }
+    base.cd.hipertension_arterial = {
+      present: true,
+      year: '',
+      tratamiento: '',
+      medicamento: '',
+      dosis: '',
+      details: legHtn.details || '',
+    }
   }
   // Migrate old hepatitis → infectocontagiosas + hepatitis_types
   const legHep = raw.hepatitis as HepatitisItem | undefined
@@ -845,8 +877,22 @@ function migratePatho(raw: Record<string, unknown>): PathologicalHistory {
 }
 
 const DEF_NON_PATHO: NonPathologicalHistory = {
-  smoking: { present: false, frequency: '', details: '' },
-  alcohol: { present: false, frequency_per_week: '', cups_per_day: '', details: '' },
+  smoking: {
+    present: false,
+    frequency: '',
+    cigarettes_per_day: '',
+    years_smoking: '',
+    details: '',
+  },
+  alcohol: {
+    present: false,
+    frequency_per_week: '',
+    cups_per_day: '',
+    tipo_bebida: '',
+    ml_por_copa: '',
+    grado_alcoholico: '',
+    details: '',
+  },
   drugs: { ...DEF_TOGGLE },
   exercise: { present: false, frequency: '', details: '' },
 }
@@ -2399,40 +2445,6 @@ export default function ClinicalHistoryTab({
             </div>
           </div>
 
-          {/* ─ Adicciones ─ */}
-          <div className="pt-1">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">
-              Adicciones
-            </p>
-            <div className="space-y-2">
-              {[
-                { key: 'addiction_alcohol' as const, label: 'Alcoholismo' },
-                { key: 'addiction_tabaco' as const, label: 'Tabaquismo' },
-                { key: 'addiction_otras' as const, label: 'Otras sustancias psicoactivas' },
-              ].map(({ key, label }) => (
-                <div
-                  key={key}
-                  className={`rounded-xl border p-3 transition-all ${ph[key].present ? 'border-amber-200 bg-amber-50/40' : 'border-gray-100 bg-white'}`}
-                >
-                  <Toggle
-                    label={label}
-                    checked={ph[key].present}
-                    onChange={(v) => setPH(key, { ...ph[key], present: v })}
-                  />
-                  {ph[key].present && (
-                    <div className="mt-2">
-                      <TextAreaField
-                        value={ph[key].details}
-                        onChange={(v) => setPH(key, { ...ph[key], details: v })}
-                        placeholder="Sustancia, frecuencia, cantidad, tiempo..."
-                      />
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
           {/* ─ Patologías por contagio ─ */}
           <div className="pt-1">
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">
@@ -2546,7 +2558,14 @@ export default function ClinicalHistoryTab({
             </p>
             <div className="space-y-1.5">
               {CD_DISEASES.map(({ key, label }) => {
-                const item = ph.cd?.[key] ?? { present: false, year: '', details: '' }
+                const item = ph.cd?.[key] ?? {
+                  present: false,
+                  year: '',
+                  tratamiento: '',
+                  medicamento: '',
+                  dosis: '',
+                  details: '',
+                }
                 return (
                   <div
                     key={key}
@@ -2572,18 +2591,36 @@ export default function ClinicalHistoryTab({
                           type="text"
                           value={item.year}
                           onChange={(e) => setCDItem(key, { ...item, year: e.target.value })}
-                          placeholder="Año"
+                          placeholder="Año dx"
                           maxLength={4}
                           className="w-16 text-xs border border-gray-200 rounded-lg px-2 py-1 text-center focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none"
                         />
                       )}
                     </div>
                     {item.present && (
-                      <div className="px-3 pb-3">
+                      <div className="px-3 pb-3 space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            value={item.medicamento}
+                            onChange={(e) =>
+                              setCDItem(key, { ...item, medicamento: e.target.value })
+                            }
+                            placeholder="Medicamento actual"
+                            className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none"
+                          />
+                          <input
+                            type="text"
+                            value={item.dosis}
+                            onChange={(e) => setCDItem(key, { ...item, dosis: e.target.value })}
+                            placeholder="Dosis (ej: 10mg c/12h)"
+                            className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none"
+                          />
+                        </div>
                         <TextAreaField
                           value={item.details}
                           onChange={(v) => setCDItem(key, { ...item, details: v })}
-                          placeholder="Detalles, tratamiento, evolución..."
+                          placeholder="Notas, evolución, control..."
                         />
                       </div>
                     )}
@@ -2616,13 +2653,75 @@ export default function ClinicalHistoryTab({
               }
             />
             {nph.smoking.present && (
-              <textarea
-                value={nph.smoking.details}
-                onChange={(e) => setNPH('smoking', { ...nph.smoking, details: e.target.value })}
-                placeholder="Cantidad, tiempo de consumo, intentos de cese..."
-                rows={2}
-                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white resize-none focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/30 leading-relaxed"
-              />
+              <>
+                <div className="flex gap-3 pt-1 pb-2 px-3 bg-gray-50 rounded-xl border border-gray-100">
+                  <div className="flex-1">
+                    <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                      Cigarros / día
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={nph.smoking.cigarettes_per_day}
+                      onChange={(e) =>
+                        setNPH('smoking', { ...nph.smoking, cigarettes_per_day: e.target.value })
+                      }
+                      placeholder="0"
+                      className="mt-1 w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none bg-white"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                      Años fumando
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={nph.smoking.years_smoking}
+                      onChange={(e) =>
+                        setNPH('smoking', { ...nph.smoking, years_smoking: e.target.value })
+                      }
+                      placeholder="0"
+                      className="mt-1 w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none bg-white"
+                    />
+                  </div>
+                  {(() => {
+                    const cpd = parseFloat(nph.smoking.cigarettes_per_day)
+                    const yrs = parseFloat(nph.smoking.years_smoking)
+                    if (!cpd || !yrs) return null
+                    const it = ((cpd * yrs) / 20).toFixed(1)
+                    const risk =
+                      parseFloat(it) >= 20
+                        ? { label: 'Intenso', color: 'text-red-600 bg-red-50 border-red-200' }
+                        : parseFloat(it) >= 5
+                          ? {
+                              label: 'Moderado',
+                              color: 'text-amber-600 bg-amber-50 border-amber-200',
+                            }
+                          : { label: 'Leve', color: 'text-green-600 bg-green-50 border-green-200' }
+                    return (
+                      <div className="flex flex-col items-center justify-center px-3">
+                        <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                          Índice tabáquico
+                        </span>
+                        <span className="text-xl font-bold text-gray-800 mt-0.5">{it}</span>
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full border mt-1 ${risk.color}`}
+                        >
+                          {risk.label}
+                        </span>
+                      </div>
+                    )
+                  })()}
+                </div>
+                <textarea
+                  value={nph.smoking.details}
+                  onChange={(e) => setNPH('smoking', { ...nph.smoking, details: e.target.value })}
+                  placeholder="Intentos de cese, tipo de tabaco, notas..."
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white resize-none focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/30 leading-relaxed"
+                />
+              </>
             )}
           </div>
 
@@ -2634,6 +2733,122 @@ export default function ClinicalHistoryTab({
             />
             {nph.alcohol.present && (
               <>
+                {/* Tipo de bebida */}
+                <div className="space-y-2 pt-1 pb-2 px-3 bg-gray-50 rounded-xl border border-gray-100">
+                  <div>
+                    <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                      Tipo de bebida
+                    </label>
+                    <select
+                      value={nph.alcohol.tipo_bebida}
+                      onChange={(e) => {
+                        const preset = BEBIDAS_PRESET.find((b) => b.value === e.target.value)
+                        setNPH('alcohol', {
+                          ...nph.alcohol,
+                          tipo_bebida: e.target.value,
+                          ml_por_copa: preset?.ml ?? nph.alcohol.ml_por_copa,
+                          grado_alcoholico: preset?.pct ?? nph.alcohol.grado_alcoholico,
+                        })
+                      }}
+                      className="mt-1 w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none bg-white"
+                    >
+                      <option value="">Seleccionar bebida...</option>
+                      {BEBIDAS_PRESET.map((b) => (
+                        <option key={b.value} value={b.value}>
+                          {b.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                        mL por copa
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={nph.alcohol.ml_por_copa}
+                        onChange={(e) =>
+                          setNPH('alcohol', { ...nph.alcohol, ml_por_copa: e.target.value })
+                        }
+                        placeholder="355"
+                        className="mt-1 w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                        % alcohol
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.5"
+                        value={nph.alcohol.grado_alcoholico}
+                        onChange={(e) =>
+                          setNPH('alcohol', { ...nph.alcohol, grado_alcoholico: e.target.value })
+                        }
+                        placeholder="4.5"
+                        className="mt-1 w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-[#33C7BE]/30 focus:outline-none bg-white"
+                      />
+                    </div>
+                  </div>
+                  {/* Gramaje automático */}
+                  {(() => {
+                    const ml = parseFloat(nph.alcohol.ml_por_copa)
+                    const pct = parseFloat(nph.alcohol.grado_alcoholico)
+                    const cups = parseFloat(nph.alcohol.cups_per_day)
+                    if (!ml || !pct) return null
+                    const gramsPerDrink = ((ml * pct) / 100) * 0.8
+                    const gramsPerDay = cups ? gramsPerDrink * cups : null
+                    const risk =
+                      (gramsPerDay ?? gramsPerDrink) >= 40
+                        ? {
+                            label: 'Consumo de riesgo',
+                            color: 'text-red-600 bg-red-50 border-red-200',
+                          }
+                        : (gramsPerDay ?? gramsPerDrink) >= 20
+                          ? {
+                              label: 'Consumo moderado',
+                              color: 'text-amber-600 bg-amber-50 border-amber-200',
+                            }
+                          : {
+                              label: 'Consumo bajo',
+                              color: 'text-green-600 bg-green-50 border-green-200',
+                            }
+                    return (
+                      <div className="flex items-center gap-3 pt-1 pb-0.5">
+                        <div className="text-center">
+                          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block">
+                            Gramos / copa
+                          </span>
+                          <span className="text-lg font-bold text-gray-800">
+                            {gramsPerDrink.toFixed(1)}g
+                          </span>
+                        </div>
+                        {gramsPerDay !== null && (
+                          <>
+                            <div className="w-px bg-gray-200 self-stretch" />
+                            <div className="text-center">
+                              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block">
+                                Gramos / día
+                              </span>
+                              <span className="text-lg font-bold text-gray-800">
+                                {gramsPerDay.toFixed(1)}g
+                              </span>
+                            </div>
+                          </>
+                        )}
+                        <span
+                          className={`ml-auto text-[10px] font-bold px-2 py-1 rounded-full border ${risk.color}`}
+                        >
+                          {risk.label}
+                        </span>
+                      </div>
+                    )
+                  })()}
+                </div>
                 <div className="flex justify-around pt-1 pb-2 px-2 bg-gray-50 rounded-xl border border-gray-100">
                   <Stepper
                     label="Veces / semana"
@@ -2650,7 +2865,7 @@ export default function ClinicalHistoryTab({
                 <textarea
                   value={nph.alcohol.details}
                   onChange={(e) => setNPH('alcohol', { ...nph.alcohol, details: e.target.value })}
-                  placeholder="Tipo de bebida, patrón de consumo, notas relevantes..."
+                  placeholder="Patrón de consumo, notas relevantes..."
                   rows={2}
                   className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white resize-none focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/30 leading-relaxed"
                 />
