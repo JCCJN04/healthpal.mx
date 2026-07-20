@@ -684,8 +684,31 @@ interface PsychiatricHistory {
   notes: string
 }
 
+interface VaccineEntry {
+  vaccine: string
+  dose1: string
+  dose2: string
+  dose3: string
+  booster: string
+  notes: string
+}
+
 interface DevelopmentalHistory {
   applicable: boolean
+  // Registro perinatal
+  peso_nacer: string
+  talla_nacer: string
+  apgar_1min: string
+  apgar_5min: string
+  silverman: string
+  tamiz_metabolico: boolean
+  tamiz_cardiaco: boolean
+  tamiz_auditivo: boolean
+  tamiz_oftalmico: boolean
+  tamiz_cadera: boolean
+  // Vacunación
+  vaccination_records: VaccineEntry[]
+  vaccination_notes: string
   birth_type: string
   gestational_age_weeks: string
   perinatal_complications: ToggleItem
@@ -959,6 +982,32 @@ const SCHOOL_PERF_OPTIONS: FreqOption[] = [
   { value: 'repitencia', label: 'Repitencia escolar' },
 ]
 
+// Cartilla Nacional de Vacunación — México
+const MEXICO_VACCINES: { name: string; doses: number }[] = [
+  { name: 'BCG', doses: 1 },
+  { name: 'Hepatitis B', doses: 3 },
+  { name: 'Pentavalente (DPT-VIP-Hib)', doses: 4 },
+  { name: 'Neumococo conjugada', doses: 3 },
+  { name: 'Rotavirus', doses: 2 },
+  { name: 'SRP (Triple Viral)', doses: 2 },
+  { name: 'Influenza', doses: 2 },
+  { name: 'DPT (Refuerzo)', doses: 1 },
+  { name: 'Varicela', doses: 1 },
+  { name: 'VPH', doses: 2 },
+  { name: 'Td (Adulto)', doses: 1 },
+]
+
+function makeDefaultVaccineRecords(): VaccineEntry[] {
+  return MEXICO_VACCINES.map((v) => ({
+    vaccine: v.name,
+    dose1: '',
+    dose2: '',
+    dose3: '',
+    booster: '',
+    notes: '',
+  }))
+}
+
 const DEF_PSYCHIATRIC: PsychiatricHistory = {
   applicable: false,
   diagnoses: [],
@@ -973,6 +1022,18 @@ const DEF_PSYCHIATRIC: PsychiatricHistory = {
 
 const DEF_DEVELOPMENTAL: DevelopmentalHistory = {
   applicable: false,
+  peso_nacer: '',
+  talla_nacer: '',
+  apgar_1min: '',
+  apgar_5min: '',
+  silverman: '',
+  tamiz_metabolico: false,
+  tamiz_cardiaco: false,
+  tamiz_auditivo: false,
+  tamiz_oftalmico: false,
+  tamiz_cadera: false,
+  vaccination_records: makeDefaultVaccineRecords(),
+  vaccination_notes: '',
   birth_type: '',
   gestational_age_weeks: '',
   perinatal_complications: { ...DEF_TOGGLE },
@@ -3249,6 +3310,80 @@ export default function ClinicalHistoryTab({
                 placeholder="Ej. 38"
               />
 
+              {/* ── Registro Perinatal ── */}
+              <div className="space-y-3 pt-1">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                  Registro Perinatal
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <TextField
+                    label="Peso al nacer (g)"
+                    value={dev.peso_nacer}
+                    onChange={(v) => setDev('peso_nacer', v)}
+                    placeholder="Ej. 3200"
+                  />
+                  <TextField
+                    label="Talla al nacer (cm)"
+                    value={dev.talla_nacer}
+                    onChange={(v) => setDev('talla_nacer', v)}
+                    placeholder="Ej. 50"
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <TextField
+                    label="Apgar 1 min"
+                    value={dev.apgar_1min}
+                    onChange={(v) => setDev('apgar_1min', v)}
+                    placeholder="0-10"
+                  />
+                  <TextField
+                    label="Apgar 5 min"
+                    value={dev.apgar_5min}
+                    onChange={(v) => setDev('apgar_5min', v)}
+                    placeholder="0-10"
+                  />
+                  <TextField
+                    label="Silverman-Andersen"
+                    value={dev.silverman}
+                    onChange={(v) => setDev('silverman', v)}
+                    placeholder="0-10"
+                  />
+                </div>
+                {/* 5 Tamices neonatales */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 mb-2">Tamices neonatales</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(
+                      [
+                        { key: 'tamiz_metabolico', label: 'Metabólico' },
+                        { key: 'tamiz_cardiaco', label: 'Cardíaco' },
+                        { key: 'tamiz_auditivo', label: 'Auditivo' },
+                        { key: 'tamiz_oftalmico', label: 'Oftálmico' },
+                        { key: 'tamiz_cadera', label: 'Cadera' },
+                      ] as const
+                    ).map(({ key, label }) => {
+                      const active = dev[key]
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          disabled={readOnly}
+                          onClick={() => setDev(key, !active)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                            active
+                              ? 'bg-[#33C7BE] text-white'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          {active && <span className="mr-1">✓</span>}
+                          {label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+
               {/* Complicaciones perinatales */}
               <div className="space-y-2">
                 <Toggle
@@ -3358,6 +3493,77 @@ export default function ClinicalHistoryTab({
                   ]}
                   value={dev.education_level}
                   onChange={(v) => setDev('education_level', v)}
+                />
+              </div>
+
+              {/* ── Esquema de Vacunación ── */}
+              <div className="space-y-3 pt-1">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                  Esquema de Vacunación (Cartilla Nacional)
+                </p>
+                <div className="overflow-x-auto -mx-1">
+                  <table className="w-full text-xs border-collapse min-w-[520px]">
+                    <thead>
+                      <tr className="bg-gray-50 text-gray-500 text-left">
+                        <th className="px-2 py-2 font-semibold rounded-l w-44">Vacuna</th>
+                        <th className="px-2 py-2 font-semibold">1ª dosis</th>
+                        <th className="px-2 py-2 font-semibold">2ª dosis</th>
+                        <th className="px-2 py-2 font-semibold">3ª dosis</th>
+                        <th className="px-2 py-2 font-semibold rounded-r">Refuerzo</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dev.vaccination_records.map((row, i) => {
+                        const vDef = MEXICO_VACCINES.find((v) => v.name === row.vaccine)
+                        const maxDoses = vDef?.doses ?? 3
+                        return (
+                          <tr key={row.vaccine} className="border-t border-gray-100">
+                            <td className="px-2 py-1.5 font-medium text-gray-700">{row.vaccine}</td>
+                            {(['dose1', 'dose2', 'dose3'] as const).map((d, di) => (
+                              <td key={d} className="px-2 py-1.5">
+                                {di < Math.min(maxDoses, 3) ? (
+                                  <input
+                                    type="date"
+                                    disabled={readOnly}
+                                    value={row[d]}
+                                    onChange={(e) => {
+                                      const updated = dev.vaccination_records.map((r, ri) =>
+                                        ri === i ? { ...r, [d]: e.target.value } : r,
+                                      )
+                                      setDev('vaccination_records', updated)
+                                    }}
+                                    className="w-full border border-gray-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-teal-300 disabled:bg-gray-50 disabled:text-gray-400"
+                                  />
+                                ) : (
+                                  <span className="text-gray-300">—</span>
+                                )}
+                              </td>
+                            ))}
+                            <td className="px-2 py-1.5">
+                              <input
+                                type="date"
+                                disabled={readOnly}
+                                value={row.booster}
+                                onChange={(e) => {
+                                  const updated = dev.vaccination_records.map((r, ri) =>
+                                    ri === i ? { ...r, booster: e.target.value } : r,
+                                  )
+                                  setDev('vaccination_records', updated)
+                                }}
+                                className="w-full border border-gray-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-teal-300 disabled:bg-gray-50 disabled:text-gray-400"
+                              />
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <TextAreaField
+                  label="Notas de vacunación"
+                  value={dev.vaccination_notes}
+                  onChange={(v) => setDev('vaccination_notes', v)}
+                  placeholder="Vacunas adicionales, observaciones..."
                 />
               </div>
 

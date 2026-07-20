@@ -11,7 +11,6 @@ import { DEMO_DOCTOR_EMAIL, DEMO_DOCTOR_PASSWORD } from '@/data/demoConfig'
 
 const DEFAULT_DEMO_DOCTOR_EMAIL = 'demo@healthpal.mx'
 
-
 type Profile = Database['public']['Tables']['profiles']['Row']
 
 interface AuthContextType {
@@ -20,6 +19,7 @@ interface AuthContextType {
   profile: Profile | null
   loading: boolean
   error: AuthError | null
+  mfaRequired: boolean
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
 }
@@ -40,6 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<AuthError | null>(null)
+  const [mfaRequired, setMfaRequired] = useState(false)
 
   const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const jwtRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -75,11 +76,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (user) {
       // Persist timestamp to localStorage so we can detect idle time after device sleep/restart
-      try { localStorage.setItem(LAST_ACTIVE_KEY, Date.now().toString()) } catch { /* storage unavailable */ }
+      try {
+        localStorage.setItem(LAST_ACTIVE_KEY, Date.now().toString())
+      } catch {
+        /* storage unavailable */
+      }
 
       inactivityTimerRef.current = setTimeout(async () => {
         logger.info('Session expired due to inactivity')
-        try { localStorage.removeItem(LAST_ACTIVE_KEY) } catch { /* ignore */ }
+        try {
+          localStorage.removeItem(LAST_ACTIVE_KEY)
+        } catch {
+          /* ignore */
+        }
         await signOut()
       }, INACTIVITY_TIMEOUT)
     }
@@ -120,7 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Add listeners
-    events.forEach(event => {
+    events.forEach((event) => {
       document.addEventListener(event, handleActivity)
     })
 
@@ -129,7 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Cleanup
     return () => {
-      events.forEach(event => {
+      events.forEach((event) => {
         document.removeEventListener(event, handleActivity)
       })
       if (inactivityTimerRef.current) {
@@ -162,7 +171,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const elapsed = Date.now() - parseInt(lastActive, 10)
           if (elapsed > INACTIVITY_TIMEOUT) {
             logger.info('Session invalidated: app returned from background after long inactivity')
-            try { localStorage.removeItem(LAST_ACTIVE_KEY) } catch { /* ignore */ }
+            try {
+              localStorage.removeItem(LAST_ACTIVE_KEY)
+            } catch {
+              /* ignore */
+            }
             await signOut()
           }
         } else {
@@ -183,7 +196,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const bootstrapDemoAuth = async () => {
         try {
           const expectedEmail = DEMO_DOCTOR_EMAIL.toLowerCase()
-          const { data: { session: currentSession } } = await supabase.auth.getSession()
+          const {
+            data: { session: currentSession },
+          } = await supabase.auth.getSession()
 
           let demoSession = currentSession
           const currentEmail = currentSession?.user?.email?.toLowerCase() || ''
@@ -194,7 +209,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               await supabase.auth.signOut()
             }
 
-            const emailCandidates = Array.from(new Set([DEMO_DOCTOR_EMAIL, DEFAULT_DEMO_DOCTOR_EMAIL]))
+            const emailCandidates = Array.from(
+              new Set([DEMO_DOCTOR_EMAIL, DEFAULT_DEMO_DOCTOR_EMAIL]),
+            )
             const passwordCandidates = Array.from(new Set([DEMO_DOCTOR_PASSWORD]))
 
             let signedIn = false
@@ -204,7 +221,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               if (signedIn) break
 
               for (const password of passwordCandidates) {
-                const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+                const { data, error: signInError } = await supabase.auth.signInWithPassword({
+                  email,
+                  password,
+                })
 
                 if (!signInError && data.session) {
                   demoSession = data.session
@@ -213,7 +233,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 }
 
                 if (signInError) {
-                  logger.warn('demo:signInWithPassword failed', { email, error: signInError.message })
+                  logger.warn('demo:signInWithPassword failed', {
+                    email,
+                    error: signInError.message,
+                  })
                   lastError = signInError
                 }
               }
@@ -268,14 +291,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const elapsed = Date.now() - parseInt(lastActive, 10)
           if (elapsed > INACTIVITY_TIMEOUT) {
             logger.info('Session invalidated: device was inactive too long')
-            try { localStorage.removeItem(LAST_ACTIVE_KEY) } catch { /* ignore */ }
+            try {
+              localStorage.removeItem(LAST_ACTIVE_KEY)
+            } catch {
+              /* ignore */
+            }
             await supabase.auth.signOut()
             if (mounted) setLoading(false)
             return
           }
         }
 
-        const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession()
+        const {
+          data: { session: currentSession },
+          error: sessionError,
+        } = await supabase.auth.getSession()
 
         if (!mounted) return
 
@@ -288,23 +318,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(currentSession)
         setUser(currentSession?.user ?? null)
 
-        // Solo buscar perfil si hay usuario (en background, no bloqueante)
+        // Check MFA assurance level — if user has TOTP enrolled but hasn't completed
+        // the AAL2 challenge yet, flag it so RequireAuth can enforce the redirect.
         if (currentSession?.user) {
+          supabase.auth.mfa
+            .getAuthenticatorAssuranceLevel()
+            .then(({ data: aal }) => {
+              if (mounted) {
+                setMfaRequired(aal?.nextLevel === 'aal2' && aal?.currentLevel !== 'aal2')
+              }
+            })
+            .catch(() => {
+              /* non-critical */
+            })
+
           // Fetch profile in background without blocking
-          fetchProfile().then(profileData => {
-            if (mounted) {
-              setProfile(profileData)
-            }
-          }).catch(err => {
-            logger.error('loadProfile', err)
-          })
+          fetchProfile()
+            .then((profileData) => {
+              if (mounted) {
+                setProfile(profileData)
+              }
+            })
+            .catch((err) => {
+              logger.error('loadProfile', err)
+            })
+        } else {
+          if (mounted) setMfaRequired(false)
         }
 
         // Set loading false immediately, don't wait for profile
         if (mounted) {
           setLoading(false)
         }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (err: any) {
         logger.error('initAuth', err)
         if (mounted) {
@@ -316,42 +362,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initAuth()
 
     // Listener de cambios de autenticación
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, currentSession) => {
-        if (!mounted) return
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, currentSession) => {
+      if (!mounted) return
 
-        // NOM-024 §6.6: log authentication events — deduplicate by access_token
-        // SIGNED_IN fires on every page load (session restore) and token refresh,
-        // so only log when the token actually changes (real new login).
-        if (_event === 'SIGNED_IN' && currentSession?.access_token) {
-          if (currentSession.access_token !== lastLoggedToken.current) {
-            lastLoggedToken.current = currentSession.access_token
-            auditLog.login()
-          }
+      // NOM-024 §6.6: log authentication events — deduplicate by access_token
+      // SIGNED_IN fires on every page load (session restore) and token refresh,
+      // so only log when the token actually changes (real new login).
+      if (_event === 'SIGNED_IN' && currentSession?.access_token) {
+        if (currentSession.access_token !== lastLoggedToken.current) {
+          lastLoggedToken.current = currentSession.access_token
+          auditLog.login()
         }
+      }
 
-        setSession(currentSession)
-        setUser(currentSession?.user ?? null)
+      setSession(currentSession)
+      setUser(currentSession?.user ?? null)
 
-        if (currentSession?.user) {
-          // Fetch profile in background
-          fetchProfile().then(profileData => {
+      if (currentSession?.user) {
+        supabase.auth.mfa
+          .getAuthenticatorAssuranceLevel()
+          .then(({ data: aal }) => {
+            if (mounted) {
+              setMfaRequired(aal?.nextLevel === 'aal2' && aal?.currentLevel !== 'aal2')
+            }
+          })
+          .catch(() => {
+            /* non-critical */
+          })
+
+        // Fetch profile in background
+        fetchProfile()
+          .then((profileData) => {
             if (mounted) {
               setProfile(profileData)
             }
-          }).catch(err => {
+          })
+          .catch((err) => {
             logger.error('authStateChange', err)
           })
-        } else {
-          setProfile(null)
-        }
-
-        // Always set loading to false
-        if (mounted) {
-          setLoading(false)
-        }
+      } else {
+        setProfile(null)
+        setMfaRequired(false)
       }
-    )
+
+      // Always set loading to false
+      if (mounted) {
+        setLoading(false)
+      }
+    })
 
     return () => {
       mounted = false
@@ -368,7 +428,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearInterval(jwtRefreshTimerRef.current)
     }
     // Always remove the activity timestamp so the next session starts clean
-    try { localStorage.removeItem(LAST_ACTIVE_KEY) } catch { /* ignore */ }
+    try {
+      localStorage.removeItem(LAST_ACTIVE_KEY)
+    } catch {
+      /* ignore */
+    }
 
     // NOM-024 §6.6: log logout before session is destroyed
     auditLog.logout()
@@ -407,6 +471,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     profile,
     loading,
     error,
+    mfaRequired,
     signOut,
     refreshProfile,
   }
