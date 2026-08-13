@@ -169,7 +169,7 @@ Deno.serve(async (req: Request) => {
         })
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const decrypted = await Promise.all(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (data || []).map(async (note: any) => {

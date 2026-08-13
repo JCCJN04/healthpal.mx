@@ -135,7 +135,7 @@ export default function PatientConsentManager() {
       }
     }
     syncExistingKeys()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [user?.id, privateKey])
 
   async function loadAll() {

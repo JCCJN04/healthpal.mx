@@ -2036,7 +2036,7 @@ function ExpedienteDigital({
     e.preventDefault()
     setDocReqLoading(true)
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const { data, error } = await createDocumentRequest(docReqEmail, docReqType, docReqDesc)
       if (error || !data) {
         showToast(error || 'Error al crear la solicitud', 'error', 3000)

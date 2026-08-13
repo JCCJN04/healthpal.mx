@@ -321,7 +321,7 @@ Deno.serve(async (req: Request) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           notas_evolucion_diagnosticos: ((fresh as any)?.notas_evolucion_diagnosticos || []).sort(
             (a: { orden: number }, b: { orden: number }) => a.orden - b.orden,
-          ), // eslint-disable-line @typescript-eslint/no-explicit-any
+          ),
         }),
         { headers: { ...cors, 'Content-Type': 'application/json' } },
       )

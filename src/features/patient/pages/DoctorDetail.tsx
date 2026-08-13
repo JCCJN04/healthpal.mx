@@ -129,7 +129,7 @@ export default function DoctorDetail() {
     }
 
     loadHistorial()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [id, user?.id])
 
   const handleSendMessage = () => {

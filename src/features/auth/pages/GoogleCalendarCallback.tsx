@@ -16,7 +16,7 @@ export default function GoogleCalendarCallback() {
     if (handledRef.current) return
     handledRef.current = true
     handleCallback()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [])
 
   async function handleCallback() {
