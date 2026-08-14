@@ -500,7 +500,7 @@ export default function Dashboard() {
       }
     }
     syncKeys()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [user?.id, privateKey, profile?.role])
 
   const loadDashboardData = async () => {

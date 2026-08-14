@@ -51,7 +51,7 @@ export async function getClinicalHistory(patientId: string): Promise<ClinicalHis
 }
 
 export async function upsertClinicalHistory(history: ClinicalHistoryData): Promise<ClinicalHistoryData> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
     const { id: _id, updated_at: _ts, ...payload } = history
 
     const { data, error } = await supabase

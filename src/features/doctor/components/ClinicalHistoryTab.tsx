@@ -2235,7 +2235,7 @@ export default function ClinicalHistoryTab({
                                         type="button"
                                         onClick={() => {
                                           setData((prev) => {
-                                            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
                                             const { [key]: _r, ...rest } = prev.family_history
                                             return { ...prev, family_history: rest }
                                           })
@@ -2403,7 +2403,7 @@ export default function ClinicalHistoryTab({
                             type="button"
                             onClick={() => {
                               setData((prev) => {
-                                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
                                 const { [key]: _removed, ...rest } = prev.family_history
                                 return { ...prev, family_history: rest }
                               })

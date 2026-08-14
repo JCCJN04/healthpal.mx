@@ -524,7 +524,7 @@ export default function HistorialClinico() {
         emergency_contact_phone: patientProfile.emergency_contact_phone ?? '',
       })
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [patientProfile])
 
   const validatePhone = (val: string): boolean => {
