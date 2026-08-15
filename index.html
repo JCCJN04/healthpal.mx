@@ -9,6 +9,36 @@
       Do not add <meta http-equiv="Content-Security-Policy"> here because
       directives like frame-ancestors are ignored in meta tags.
     -->
+    <script>
+      (function () {
+        if (window.location.pathname.startsWith('/auth/gcal/callback')) {
+          var params = new URLSearchParams(window.location.search);
+          var code = params.get('code');
+          var state = params.get('state');
+          var error = params.get('error');
+          if (code || error) {
+            try {
+              if (code) {
+                sessionStorage.setItem('hp_gcal_code', code);
+                localStorage.setItem('hp_gcal_code', code);
+              }
+              if (state) {
+                sessionStorage.setItem('hp_gcal_state', state);
+                localStorage.setItem('hp_gcal_state', state);
+              }
+              if (error) {
+                sessionStorage.setItem('hp_gcal_error', error);
+                localStorage.setItem('hp_gcal_error', error);
+              }
+              // Clean query string immediately so Supabase GoTrue PKCE doesn't intercept it
+              window.history.replaceState(null, '', window.location.pathname + window.location.hash);
+            } catch (e) {
+              console.warn('[hp_gcal] storage error', e);
+            }
+          }
+        }
+      })();
+    </script>
 
     <!-- Primary SEO -->
     <title>HealthPal.mx — Expediente clínico electrónico para médicos y pacientes en México</title>

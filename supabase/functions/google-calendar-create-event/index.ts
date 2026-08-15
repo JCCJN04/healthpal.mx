@@ -1,10 +1,24 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
 
-const ALLOWED_ORIGINS = new Set(['https://healthpal.mx', 'https://www.healthpal.mx', 'http://localhost:3000'])
+function isAllowedOrigin(origin: string): boolean {
+  if (!origin) return false
+  if (
+    origin === 'https://healthpal.mx' ||
+    origin === 'https://www.healthpal.mx' ||
+    origin === 'http://localhost:3000' ||
+    origin === 'http://localhost:5173' ||
+    origin === 'http://127.0.0.1:3000' ||
+    origin === 'http://127.0.0.1:5173' ||
+    origin.endsWith('.vercel.app')
+  ) {
+    return true
+  }
+  return false
+}
 
 function getCorsHeaders(req: Request) {
   const origin = req.headers.get('origin') ?? ''
-  const allowedOrigin = ALLOWED_ORIGINS.has(origin) ? origin : 'https://healthpal.mx'
+  const allowedOrigin = isAllowedOrigin(origin) ? origin : 'https://healthpal.mx'
   return {
     'Access-Control-Allow-Origin': allowedOrigin,
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -15,7 +29,7 @@ function getCorsHeaders(req: Request) {
 async function refreshAccessToken(
   refreshToken: string,
   clientId: string,
-  clientSecret: string
+  clientSecret: string,
 ): Promise<{ access_token: string; expires_in: number } | null> {
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
@@ -41,7 +55,8 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405, headers: { ...cors, 'Content-Type': 'application/json' },
+      status: 405,
+      headers: { ...cors, 'Content-Type': 'application/json' },
     })
   }
 
@@ -53,7 +68,8 @@ Deno.serve(async (req: Request) => {
 
     if (!googleClientId || !googleClientSecret) {
       return new Response(JSON.stringify({ error: 'Google OAuth no está configurado' }), {
-        status: 500, headers: { ...cors, 'Content-Type': 'application/json' },
+        status: 500,
+        headers: { ...cors, 'Content-Type': 'application/json' },
       })
     }
 
@@ -61,7 +77,8 @@ Deno.serve(async (req: Request) => {
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'No autorizado' }), {
-        status: 401, headers: { ...cors, 'Content-Type': 'application/json' },
+        status: 401,
+        headers: { ...cors, 'Content-Type': 'application/json' },
       })
     }
 
@@ -70,10 +87,14 @@ Deno.serve(async (req: Request) => {
     })
 
     const token = authHeader.replace('Bearer ', '')
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser(token)
     if (authError || !user) {
       return new Response(JSON.stringify({ error: 'Token inválido' }), {
-        status: 401, headers: { ...cors, 'Content-Type': 'application/json' },
+        status: 401,
+        headers: { ...cors, 'Content-Type': 'application/json' },
       })
     }
 
@@ -82,7 +103,8 @@ Deno.serve(async (req: Request) => {
 
     if (!appointmentId || !title || !startDateTime || !endDateTime) {
       return new Response(JSON.stringify({ error: 'Parámetros faltantes' }), {
-        status: 400, headers: { ...cors, 'Content-Type': 'application/json' },
+        status: 400,
+        headers: { ...cors, 'Content-Type': 'application/json' },
       })
     }
 
@@ -95,14 +117,16 @@ Deno.serve(async (req: Request) => {
 
     if (apptError || !appt) {
       return new Response(JSON.stringify({ error: 'Cita no encontrada' }), {
-        status: 404, headers: { ...cors, 'Content-Type': 'application/json' },
+        status: 404,
+        headers: { ...cors, 'Content-Type': 'application/json' },
       })
     }
 
     // Caller must be doctor or patient of this appointment
     if (appt.doctor_id !== user.id && appt.patient_id !== user.id) {
       return new Response(JSON.stringify({ error: 'No autorizado' }), {
-        status: 403, headers: { ...cors, 'Content-Type': 'application/json' },
+        status: 403,
+        headers: { ...cors, 'Content-Type': 'application/json' },
       })
     }
 
@@ -116,7 +140,8 @@ Deno.serve(async (req: Request) => {
     if (tokenError || !tokenRow) {
       // Doctor has no calendar connected — skip silently
       return new Response(JSON.stringify({ success: true, skipped: true }), {
-        status: 200, headers: { ...cors, 'Content-Type': 'application/json' },
+        status: 200,
+        headers: { ...cors, 'Content-Type': 'application/json' },
       })
     }
 
@@ -128,19 +153,26 @@ Deno.serve(async (req: Request) => {
       if (!tokenRow.refresh_token) {
         console.error('Token expired and no refresh_token available for doctor:', appt.doctor_id)
         return new Response(JSON.stringify({ success: true, skipped: true }), {
-          status: 200, headers: { ...cors, 'Content-Type': 'application/json' },
+          status: 200,
+          headers: { ...cors, 'Content-Type': 'application/json' },
         })
       }
-      const refreshed = await refreshAccessToken(tokenRow.refresh_token, googleClientId, googleClientSecret)
+      const refreshed = await refreshAccessToken(
+        tokenRow.refresh_token,
+        googleClientId,
+        googleClientSecret,
+      )
       if (!refreshed) {
         console.error('Failed to refresh token for doctor:', appt.doctor_id)
         return new Response(JSON.stringify({ success: true, skipped: true }), {
-          status: 200, headers: { ...cors, 'Content-Type': 'application/json' },
+          status: 200,
+          headers: { ...cors, 'Content-Type': 'application/json' },
         })
       }
       accessToken = refreshed.access_token
       const newExpiry = new Date(Date.now() + refreshed.expires_in * 1000).toISOString()
-      supabase.from('google_calendar_tokens')
+      supabase
+        .from('google_calendar_tokens')
         .update({ access_token: accessToken, expires_at: newExpiry })
         .eq('user_id', appt.doctor_id)
         .then(() => {})
@@ -171,15 +203,19 @@ Deno.serve(async (req: Request) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(eventBody),
-      }
+      },
     )
 
     if (!createRes.ok) {
       const errText = await createRes.text()
       console.error('Google Calendar event creation failed:', createRes.status, errText)
-      return new Response(JSON.stringify({ error: `Error de Google Calendar (${createRes.status})` }), {
-        status: 502, headers: { ...cors, 'Content-Type': 'application/json' },
-      })
+      return new Response(
+        JSON.stringify({ error: `Error de Google Calendar (${createRes.status})` }),
+        {
+          status: 502,
+          headers: { ...cors, 'Content-Type': 'application/json' },
+        },
+      )
     }
 
     const eventData = await createRes.json()
@@ -196,13 +232,14 @@ Deno.serve(async (req: Request) => {
     }
 
     return new Response(JSON.stringify({ success: true, eventId, htmlLink: eventData.htmlLink }), {
-      status: 200, headers: { ...cors, 'Content-Type': 'application/json' },
+      status: 200,
+      headers: { ...cors, 'Content-Type': 'application/json' },
     })
-
   } catch (err) {
     console.error('google-calendar-create-event error:', err)
     return new Response(JSON.stringify({ error: 'Error interno del servidor' }), {
-      status: 500, headers: { ...cors, 'Content-Type': 'application/json' },
+      status: 500,
+      headers: { ...cors, 'Content-Type': 'application/json' },
     })
   }
 })
