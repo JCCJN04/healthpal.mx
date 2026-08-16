@@ -9,7 +9,14 @@ function isAllowedOrigin(origin: string): boolean {
     origin === 'http://localhost:5173' ||
     origin === 'http://127.0.0.1:3000' ||
     origin === 'http://127.0.0.1:5173' ||
-    origin.endsWith('.vercel.app')
+    (() => {
+      try {
+        const u = new URL(origin)
+        return u.hostname === 'vercel.app' || u.hostname.endsWith('.vercel.app')
+      } catch {
+        return false
+      }
+    })()
   ) {
     return true
   }
@@ -18,7 +25,7 @@ function isAllowedOrigin(origin: string): boolean {
 
 function getCorsHeaders(req: Request) {
   const origin = req.headers.get('origin') ?? ''
-  const allowedOrigin = isAllowedOrigin(origin) ? origin : 'https://healthpal.mx'
+  const allowedOrigin = isAllowedOrigin(origin) ? origin : 'null'
   return {
     'Access-Control-Allow-Origin': allowedOrigin,
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',

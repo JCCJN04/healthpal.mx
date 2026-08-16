@@ -26,8 +26,7 @@ function getCorsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get('origin') ?? ''
   const isLocalhost = origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')
   return {
-    'Access-Control-Allow-Origin':
-      ALLOWED_ORIGINS.has(origin) || isLocalhost ? origin : 'https://healthpal.mx',
+    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) || isLocalhost ? origin : 'null',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
   }
