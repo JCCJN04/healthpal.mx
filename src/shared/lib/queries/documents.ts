@@ -690,11 +690,10 @@ export async function deleteFolder(folderId: string, userId: string): Promise<{ 
 
     // Delete files from storage
     if (docsInFolder && docsInFolder.length > 0) {
-      const storagePaths: string[] = []
-      for (const doc of docsInFolder) {
-        const path = await resolveDocumentStoragePath(doc as DocumentPathInput)
-        if (path) storagePaths.push(path)
-      }
+      const paths = await Promise.all(
+        docsInFolder.map(doc => resolveDocumentStoragePath(doc as DocumentPathInput))
+      )
+      const storagePaths = paths.filter((path): path is string => path !== null)
       if (storagePaths.length > 0) {
         const { error: storageError } = await supabase.storage.from('documents').remove(storagePaths)
         if (storageError) logger.error('deleteFolder.storage', storageError)
