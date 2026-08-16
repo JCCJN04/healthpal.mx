@@ -6,7 +6,7 @@ const ALLOWED_ORIGINS = new Set(['https://healthpal.mx', 'https://www.healthpal.
 function getCorsHeaders(req: Request) {
   const origin = req.headers.get('origin') ?? ''
   return {
-    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) ? origin : 'https://healthpal.mx',
+    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) ? origin : 'null',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   }
 }

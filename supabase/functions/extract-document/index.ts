@@ -1,91 +1,107 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
 
 const ALLOWED_ORIGINS = new Set(['https://healthpal.mx', 'https://www.healthpal.mx'])
 
 function getCorsHeaders(req: Request) {
-    const origin = req.headers.get('origin') ?? ''
-    return {
-        'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) ? origin : 'https://healthpal.mx',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    }
+  const origin = req.headers.get('origin') ?? ''
+  return {
+    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) ? origin : 'null',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  }
 }
 
 Deno.serve(async (req) => {
-    const cors = getCorsHeaders(req)
+  const cors = getCorsHeaders(req)
 
-    if (req.method === 'OPTIONS') {
-        return new Response('ok', { headers: cors });
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: cors })
+  }
+
+  try {
+    const body = await req.json()
+    const { documentId, filePath, mimeType } = body
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || Deno.env.get('VITE_SUPABASE_URL')
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    const supabaseAnonKey =
+      Deno.env.get('SUPABASE_ANON_KEY') || Deno.env.get('VITE_SUPABASE_ANON_KEY')
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY')
+
+    if (!documentId || !filePath) {
+      return new Response(JSON.stringify({ success: false, error: 'Parámetros faltantes' }), {
+        headers: { ...cors, 'Content-Type': 'application/json' },
+        status: 400,
+      })
+    }
+    if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Configuración del servidor incompleta' }),
+        {
+          headers: { ...cors, 'Content-Type': 'application/json' },
+          status: 500,
+        },
+      )
+    }
+    if (!geminiApiKey) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Servicio de IA no configurado' }),
+        {
+          headers: { ...cors, 'Content-Type': 'application/json' },
+          status: 503,
+        },
+      )
     }
 
-    try {
-        const body = await req.json();
-        const { documentId, filePath, mimeType } = body;
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response(JSON.stringify({ success: false, error: 'No autorizado' }), {
+        headers: { ...cors, 'Content-Type': 'application/json' },
+        status: 401,
+      })
+    }
+    const token = authHeader.replace(/^Bearer\s+/i, '').trim()
 
-        const supabaseUrl = Deno.env.get('SUPABASE_URL') || Deno.env.get('VITE_SUPABASE_URL');
-        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-        const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || Deno.env.get('VITE_SUPABASE_ANON_KEY');
-        const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+    const userClient = createClient(supabaseUrl, supabaseAnonKey)
+    const {
+      data: { user },
+      error: authErr,
+    } = await userClient.auth.getUser(token)
 
-        if (!documentId || !filePath) {
-            return new Response(JSON.stringify({ success: false, error: 'Parámetros faltantes' }), {
-                headers: { ...cors, 'Content-Type': 'application/json' }, status: 400,
-            });
-        }
-        if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey) {
-            return new Response(JSON.stringify({ success: false, error: 'Configuración del servidor incompleta' }), {
-                headers: { ...cors, 'Content-Type': 'application/json' }, status: 500,
-            });
-        }
-        if (!geminiApiKey) {
-            return new Response(JSON.stringify({ success: false, error: 'Servicio de IA no configurado' }), {
-                headers: { ...cors, 'Content-Type': 'application/json' }, status: 503,
-            });
-        }
+    if (authErr || !user) {
+      return new Response(JSON.stringify({ success: false, error: 'No autorizado' }), {
+        headers: { ...cors, 'Content-Type': 'application/json' },
+        status: 401,
+      })
+    }
 
-        const authHeader = req.headers.get('Authorization');
-        if (!authHeader) {
-            return new Response(JSON.stringify({ success: false, error: 'No autorizado' }), {
-                headers: { ...cors, 'Content-Type': 'application/json' }, status: 401,
-            });
-        }
-        const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+    // Cliente con permisos completos para interactuar con Storage y Base de Datos (bypassing RLS)
+    const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-        const userClient = createClient(supabaseUrl, supabaseAnonKey);
-        const { data: { user }, error: authErr } = await userClient.auth.getUser(token);
+    // 1. Descarga del archivo
+    const { data: fileBlob, error: fileError } = await supabase.storage
+      .from('documents')
+      .download(filePath)
 
-        if (authErr || !user) {
-            return new Response(JSON.stringify({ success: false, error: 'No autorizado' }), {
-                headers: { ...cors, 'Content-Type': 'application/json' }, status: 401,
-            });
-        }
+    if (fileError || !fileBlob) {
+      const errorDetails =
+        fileError?.message || (fileError ? JSON.stringify(fileError) : 'Archivo no encontrado')
+      throw new Error(`Fallo descarga: ${errorDetails}`)
+    }
 
-        // Cliente con permisos completos para interactuar con Storage y Base de Datos (bypassing RLS)
-        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // 2. Base64 eficiente
+    const arrayBuffer = await fileBlob.arrayBuffer()
+    const uint8Array = new Uint8Array(arrayBuffer)
+    let binary = ''
+    const chunkSize = 8192
+    for (let i = 0; i < uint8Array.length; i += chunkSize) {
+      const chunk = uint8Array.subarray(i, i + chunkSize)
+      binary += String.fromCharCode.apply(null, Array.from(chunk))
+    }
+    const base64Data = btoa(binary)
 
-        // 1. Descarga del archivo
-        const { data: fileBlob, error: fileError } = await supabase.storage
-            .from('documents')
-            .download(filePath);
-
-        if (fileError || !fileBlob) {
-            const errorDetails = fileError?.message || (fileError ? JSON.stringify(fileError) : 'Archivo no encontrado');
-            throw new Error(`Fallo descarga: ${errorDetails}`);
-        }
-
-        // 2. Base64 eficiente
-        const arrayBuffer = await fileBlob.arrayBuffer();
-        const uint8Array = new Uint8Array(arrayBuffer);
-        let binary = "";
-        const chunkSize = 8192;
-        for (let i = 0; i < uint8Array.length; i += chunkSize) {
-            const chunk = uint8Array.subarray(i, i + chunkSize);
-            binary += String.fromCharCode.apply(null, Array.from(chunk));
-        }
-        const base64Data = btoa(binary);
-
-        // 3. Prompt de extracción
-        const prompt = `Actúa como un Especialista Clínico en Análisis de Datos de grado premium para la plataforma HealthPal. Tu objetivo es interpretar este documento médico entregando una síntesis de altísimo nivel. Debes traducir toda la terminología médica compleja a un lenguaje claro y tranquilizador que cualquier paciente pueda entender, mientras mantienes el rigor que un médico esperaría ver.
+    // 3. Prompt de extracción
+    const prompt = `Actúa como un Especialista Clínico en Análisis de Datos de grado premium para la plataforma HealthPal. Tu objetivo es interpretar este documento médico entregando una síntesis de altísimo nivel. Debes traducir toda la terminología médica compleja a un lenguaje claro y tranquilizador que cualquier paciente pueda entender, mientras mantienes el rigor que un médico esperaría ver.
 
 Genera tu respuesta estrictamente en formato Markdown, con un tono profesional, empático y estructurado, utilizando la siguiente plantilla:
 
@@ -111,72 +127,87 @@ Genera tu respuesta estrictamente en formato Markdown, con un tono profesional, 
 - (Valores verdaderamente en estado crítico, advertencias de alergias o interacciones que ameriten atención urgente).
 *(Si todo está dentro de parámetros manejables, escribe: "Tu análisis no presenta alertas de riesgo severo identificables").*
 
-*(Nota interna para la IA: El reporte debe sentirse justificar su valor premium, el usuario está pagando por claridad absoluta de su cuerpo o padecimiento, sé excelente en tu análisis).*`;
+*(Nota interna para la IA: El reporte debe sentirse justificar su valor premium, el usuario está pagando por claridad absoluta de su cuerpo o padecimiento, sé excelente en tu análisis).*`
 
-        // 4. Petición Directa REST (v1beta) para evitar problemas de SDK
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiApiKey}`;
+    // 4. Petición Directa REST (v1beta) para evitar problemas de SDK
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiApiKey}`
 
-        const requestBody = {
-            contents: [{
-                parts: [
-                    { text: prompt },
-                    { inlineData: { mimeType: mimeType || 'application/pdf', data: base64Data } }
-                ]
-            }]
-        };
+    const requestBody = {
+      contents: [
+        {
+          parts: [
+            { text: prompt },
+            { inlineData: { mimeType: mimeType || 'application/pdf', data: base64Data } },
+          ],
+        },
+      ],
+    }
 
-        const geminiRes = await fetch(geminiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestBody)
-        });
+    const geminiRes = await fetch(geminiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody),
+    })
 
-        if (!geminiRes.ok) {
-            const gError = await geminiRes.json().catch(() => ({}));
-            console.error('[GEMINI ERROR]', geminiRes.status, gError);
-            return new Response(JSON.stringify({ success: false, error: 'El servicio de IA no está disponible en este momento' }), {
-                headers: { ...cors, 'Content-Type': 'application/json' }, status: 502,
-            });
-        }
+    if (!geminiRes.ok) {
+      const gError = await geminiRes.json().catch(() => ({}))
+      console.error('[GEMINI ERROR]', geminiRes.status, gError)
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'El servicio de IA no está disponible en este momento',
+        }),
+        {
+          headers: { ...cors, 'Content-Type': 'application/json' },
+          status: 502,
+        },
+      )
+    }
 
-        const gData = await geminiRes.json();
-        const text = gData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    const gData = await geminiRes.json()
+    const text = gData.candidates?.[0]?.content?.parts?.[0]?.text?.trim()
 
-        if (!text) throw new Error('La IA no generó contenido');
+    if (!text) throw new Error('La IA no generó contenido')
 
-        // 5. Guardar en Base de Datos
-        const { data: doc } = await supabase.from('documents').select('notes').eq('id', documentId).single();
+    // 5. Guardar en Base de Datos
+    const { data: doc } = await supabase
+      .from('documents')
+      .select('notes')
+      .eq('id', documentId)
+      .single()
 
-        const aiNote = {
-            id: `ai-${Date.now()}`,
-            author: 'HealthPal IA',
-            authorInitial: 'AI',
-            timeAgo: 'Análisis IA',
-            content: text,
-            timestamp: new Date().toISOString()
-        };
+    const aiNote = {
+      id: `ai-${Date.now()}`,
+      author: 'HealthPal IA',
+      authorInitial: 'AI',
+      timeAgo: 'Análisis IA',
+      content: text,
+      timestamp: new Date().toISOString(),
+    }
 
-        let finalNotes = JSON.stringify([aiNote]);
-        try {
-            if (doc?.notes) {
-                const parsed = JSON.parse(doc.notes);
-                if (Array.isArray(parsed)) finalNotes = JSON.stringify([aiNote, ...parsed]);
-            }
-        } catch { /* fallback a aiNote solo */ }
+    let finalNotes = JSON.stringify([aiNote])
+    try {
+      if (doc?.notes) {
+        const parsed = JSON.parse(doc.notes)
+        if (Array.isArray(parsed)) finalNotes = JSON.stringify([aiNote, ...parsed])
+      }
+    } catch {
+      /* fallback a aiNote solo */
+    }
 
-        await supabase.from('documents').update({ notes: finalNotes }).eq('id', documentId);
+    await supabase.from('documents').update({ notes: finalNotes }).eq('id', documentId)
 
-        return new Response(JSON.stringify({ success: true, text }), {
-            headers: { ...cors, 'Content-Type': 'application/json' },
-            status: 200,
-        });
+    return new Response(JSON.stringify({ success: true, text }), {
+      headers: { ...cors, 'Content-Type': 'application/json' },
+      status: 200,
+    })
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (err: any) {
-        console.error('[CRITICAL]', err.message);
-        return new Response(JSON.stringify({ success: false, error: 'Error interno del servidor' }), {
-            headers: { ...cors, 'Content-Type': 'application/json' },
-            status: 500,
-        });
-    }
-});
+  } catch (err: any) {
+    console.error('[CRITICAL]', err.message)
+    return new Response(JSON.stringify({ success: false, error: 'Error interno del servidor' }), {
+      headers: { ...cors, 'Content-Type': 'application/json' },
+      status: 500,
+    })
+  }
+})
