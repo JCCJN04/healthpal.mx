@@ -15,19 +15,26 @@ import {
   X,
 } from 'lucide-react'
 import { supabase } from '@/shared/lib/supabase'
-import { getDocumentRequestByToken, fulfillDocumentRequest } from '@/shared/lib/queries/documentRequests'
+import {
+  getDocumentRequestByToken,
+  fulfillDocumentRequest,
+} from '@/shared/lib/queries/documentRequests'
 import { uploadDocument } from '@/shared/lib/queries/documents'
 import { updateMyProfile, saveOnboardingStep } from '@/shared/lib/queries/profile'
 import { validateFile } from '@/shared/lib/errors'
 import { logger } from '@/shared/lib/logger'
 import type { DocumentRequestWithDoctor } from '@/shared/lib/queries/documentRequests'
 
-function inferCategory(docType: string): 'radiology' | 'prescription' | 'history' | 'lab' | 'insurance' | 'other' {
+function inferCategory(
+  docType: string,
+): 'radiology' | 'prescription' | 'history' | 'lab' | 'insurance' | 'other' {
   const t = docType.toLowerCase()
-  if (/radiograf|resonancia|tomograf|ultrasonido|imagen|rx|eco|densito|electro/.test(t)) return 'radiology'
+  if (/radiograf|resonancia|tomograf|ultrasonido|imagen|rx|eco|densito|electro/.test(t))
+    return 'radiology'
   if (/receta|prescripci/.test(t)) return 'prescription'
   if (/historial|expediente|vacuna/.test(t)) return 'history'
-  if (/laboratorio|análisis|analisis|sangre|orina|cultivo|biometría|biometria|glucosa/.test(t)) return 'lab'
+  if (/laboratorio|análisis|analisis|sangre|orina|cultivo|biometría|biometria|glucosa/.test(t))
+    return 'lab'
   if (/seguro|póliza|poliza/.test(t)) return 'insurance'
   return 'other'
 }
@@ -59,16 +66,30 @@ export default function SolicitudDocumento() {
   const [password, setPassword] = useState('')
 
   useEffect(() => {
-    if (!token) { setStep('invalid'); return }
+    if (!token) {
+      setStep('invalid')
+      return
+    }
     loadRequest()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
 
   async function loadRequest() {
     const { data, error } = await getDocumentRequestByToken(token!)
-    if (error || !data) { setStep('invalid'); return }
-    if (data.status === 'fulfilled') { setStep('fulfilled'); setRequest(data); return }
-    if (new Date(data.expires_at) < new Date()) { setStep('expired'); setRequest(data); return }
+    if (error || !data) {
+      setStep('invalid')
+      return
+    }
+    if (data.status === 'fulfilled') {
+      setStep('fulfilled')
+      setRequest(data)
+      return
+    }
+    if (new Date(data.expires_at) < new Date()) {
+      setStep('expired')
+      setRequest(data)
+      return
+    }
 
     setRequest(data)
 
@@ -106,7 +127,10 @@ export default function SolicitudDocumento() {
     try {
       if (authMode === 'login') {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-        if (error) { setAuthError('Correo o contraseña incorrectos'); return }
+        if (error) {
+          setAuthError('Correo o contraseña incorrectos')
+          return
+        }
         setCurrentUserId(data.user!.id)
         setStep('upload')
       } else {
@@ -118,13 +142,19 @@ export default function SolicitudDocumento() {
             data: { full_name: name, role: 'patient' },
           },
         })
-        if (error) { setAuthError(error.message); return }
-        if (!data.user) { setAuthError('No se pudo crear la cuenta'); return }
+        if (error) {
+          setAuthError(error.message)
+          return
+        }
+        if (!data.user) {
+          setAuthError('No se pudo crear la cuenta')
+          return
+        }
         const newUserId = data.user.id
         setCurrentUserId(newUserId)
 
         // Wait for the profile DB trigger to run, then prepare onboarding in parallel
-        await new Promise(r => setTimeout(r, 1500))
+        await new Promise((r) => setTimeout(r, 1500))
 
         // Run all post-registration setup concurrently during the wait window
         await Promise.allSettled([
@@ -133,18 +163,21 @@ export default function SolicitudDocumento() {
           saveOnboardingStep('basic'),
           // Auto-grant doctor full consent
           request
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            ? (supabase.from('doctor_patient_consent') as any).upsert({
-                doctor_id: request.doctor_id,
-                patient_id: newUserId,
-                status: 'accepted',
-                share_basic_profile: true,
-                share_contact: true,
-                share_documents: true,
-                share_appointments: true,
-                share_medical_notes: true,
-                responded_at: new Date().toISOString(),
-              }, { onConflict: 'doctor_id,patient_id' })
+            ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (supabase.from('doctor_patient_consent') as any).upsert(
+                {
+                  doctor_id: request.doctor_id,
+                  patient_id: newUserId,
+                  status: 'accepted',
+                  share_basic_profile: true,
+                  share_contact: true,
+                  share_documents: true,
+                  share_appointments: true,
+                  share_medical_notes: true,
+                  responded_at: new Date().toISOString(),
+                },
+                { onConflict: 'doctor_id,patient_id' },
+              )
             : Promise.resolve(),
         ])
 
@@ -173,10 +206,13 @@ export default function SolicitudDocumento() {
       else valid.push(f)
     }
 
-    if (errors.length) { setUploadError(errors.join(' · ')); return }
-    setSelectedFiles(prev => {
-      const names = new Set(prev.map(f => f.name))
-      return [...prev, ...valid.filter(f => !names.has(f.name))]
+    if (errors.length) {
+      setUploadError(errors.join(' · '))
+      return
+    }
+    setSelectedFiles((prev) => {
+      const names = new Set(prev.map((f) => f.name))
+      return [...prev, ...valid.filter((f) => !names.has(f.name))]
     })
     setUploadError('')
     // Reset input so the same file can be re-added after removal
@@ -184,7 +220,7 @@ export default function SolicitudDocumento() {
   }
 
   function removeFile(name: string) {
-    setSelectedFiles(prev => prev.filter(f => f.name !== name))
+    setSelectedFiles((prev) => prev.filter((f) => f.name !== name))
   }
 
   async function handleUpload(e: React.FormEvent) {
@@ -196,10 +232,9 @@ export default function SolicitudDocumento() {
 
     try {
       const category = inferCategory(request.document_type || '')
-      const uploadedIds: string[] = []
+      let completed = 0
 
-      for (let i = 0; i < selectedFiles.length; i++) {
-        const file = selectedFiles[i]
+      const uploadPromises = selectedFiles.map(async (file) => {
         const result = await uploadDocument(file, currentUserId, {
           title: file.name.replace(/\.[^.]+$/, ''),
           category,
@@ -207,12 +242,8 @@ export default function SolicitudDocumento() {
         })
 
         if (!result.success || !result.documentId) {
-          setUploadError(`Error al subir "${file.name}": ${result.error || 'error desconocido'}`)
-          setUploading(false)
-          return
+          throw new Error(`Error al subir "${file.name}": ${result.error || 'error desconocido'}`)
         }
-
-        uploadedIds.push(result.documentId)
 
         // Share each document with the doctor
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -225,16 +256,24 @@ export default function SolicitudDocumento() {
           logger.error('solicitud:document_shares', shareError)
         }
 
-        setUploadProgress(Math.round(((i + 1) / selectedFiles.length) * 100))
-      }
+        completed++
+        setUploadProgress(Math.round((completed / selectedFiles.length) * 100))
+        return result.documentId
+      })
+
+      const uploadedIds = await Promise.all(uploadPromises)
 
       // Mark request as fulfilled with the first document
       await fulfillDocumentRequest(token!, currentUserId, uploadedIds[0])
 
       setStep('done')
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('solicitudDocumento:upload', err)
-      setUploadError('Error inesperado al subir los documentos')
+      if (err instanceof Error && err.message.startsWith('Error al subir')) {
+        setUploadError(err.message)
+      } else {
+        setUploadError('Error inesperado al subir los documentos')
+      }
     } finally {
       setUploading(false)
     }
@@ -326,10 +365,14 @@ export default function SolicitudDocumento() {
             <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-2">
               <AlertCircle size={16} className="text-amber-500 shrink-0 mt-0.5" />
               <p className="text-xs text-amber-700">
-                {request?.patient_email
-                  ? <>Esta solicitud es para <strong>{request.patient_email}</strong>. Inicia sesión con esa cuenta o crea una nueva.</>
-                  : 'Esta solicitud fue enviada a un número de teléfono. Inicia sesión o crea una cuenta para subir el documento.'
-                }
+                {request?.patient_email ? (
+                  <>
+                    Esta solicitud es para <strong>{request.patient_email}</strong>. Inicia sesión
+                    con esa cuenta o crea una nueva.
+                  </>
+                ) : (
+                  'Esta solicitud fue enviada a un número de teléfono. Inicia sesión o crea una cuenta para subir el documento.'
+                )}
               </p>
             </div>
           )}
@@ -348,12 +391,15 @@ export default function SolicitudDocumento() {
           <form onSubmit={handleAuth} className="space-y-3">
             {authMode === 'register' && (
               <div className="relative">
-                <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <User
+                  size={16}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                />
                 <input
                   type="text"
                   placeholder="Nombre completo"
                   value={name}
-                  onChange={e => setName(e.target.value)}
+                  onChange={(e) => setName(e.target.value)}
                   required
                   className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
@@ -365,18 +411,21 @@ export default function SolicitudDocumento() {
                 type="email"
                 placeholder="Correo electrónico"
                 value={email}
-                onChange={e => setEmail(e.target.value)}
+                onChange={(e) => setEmail(e.target.value)}
                 required
                 className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </div>
             <div className="relative">
-              <KeyRound size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <KeyRound
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              />
               <input
                 type="password"
                 placeholder="Contraseña"
                 value={password}
-                onChange={e => setPassword(e.target.value)}
+                onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={8}
                 className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
@@ -394,27 +443,39 @@ export default function SolicitudDocumento() {
               disabled={authLoading}
               className="w-full bg-primary text-white py-2.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors disabled:opacity-60"
             >
-              {authLoading ? <Loader2 size={16} className="animate-spin" /> : <ArrowRight size={16} />}
+              {authLoading ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <ArrowRight size={16} />
+              )}
               {authMode === 'register' ? 'Crear cuenta y continuar' : 'Iniciar sesión'}
             </button>
           </form>
 
           <p className="text-center text-xs text-gray-500">
             {authMode === 'login' ? (
-              <>¿No tienes cuenta?{' '}
+              <>
+                ¿No tienes cuenta?{' '}
                 <button
                   type="button"
-                  onClick={() => { setAuthMode('register'); setAuthError('') }}
+                  onClick={() => {
+                    setAuthMode('register')
+                    setAuthError('')
+                  }}
                   className="text-primary font-medium hover:underline"
                 >
                   Crea una gratis
                 </button>
               </>
             ) : (
-              <>¿Ya tienes cuenta?{' '}
+              <>
+                ¿Ya tienes cuenta?{' '}
                 <button
                   type="button"
-                  onClick={() => { setAuthMode('login'); setAuthError('') }}
+                  onClick={() => {
+                    setAuthMode('login')
+                    setAuthError('')
+                  }}
                   className="text-primary font-medium hover:underline"
                 >
                   Inicia sesión
@@ -456,25 +517,37 @@ export default function SolicitudDocumento() {
                 onChange={handleFileChange}
               />
               <div className="w-14 h-14 rounded-2xl bg-gray-100 group-hover:bg-primary/10 flex items-center justify-center mx-auto mb-3 transition-colors">
-                <Upload size={24} className="text-gray-400 group-hover:text-primary transition-colors" />
+                <Upload
+                  size={24}
+                  className="text-gray-400 group-hover:text-primary transition-colors"
+                />
               </div>
               <p className="text-sm font-semibold text-gray-700">
-                {selectedFiles.length ? 'Agregar más archivos' : 'Arrastra o selecciona tus documentos'}
+                {selectedFiles.length
+                  ? 'Agregar más archivos'
+                  : 'Arrastra o selecciona tus documentos'}
               </p>
-              <p className="text-xs text-gray-400 mt-1">PDF, imagen o Word · Máx 10 MB por archivo</p>
+              <p className="text-xs text-gray-400 mt-1">
+                PDF, imagen o Word · Máx 10 MB por archivo
+              </p>
             </div>
 
             {/* File list */}
             {selectedFiles.length > 0 && (
               <ul className="space-y-2">
-                {selectedFiles.map(f => (
-                  <li key={f.name} className="flex items-center gap-3 bg-primary/5 border border-primary/20 rounded-xl px-3.5 py-2.5">
+                {selectedFiles.map((f) => (
+                  <li
+                    key={f.name}
+                    className="flex items-center gap-3 bg-primary/5 border border-primary/20 rounded-xl px-3.5 py-2.5"
+                  >
                     <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                       <FileText size={15} className="text-primary" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-semibold text-gray-800 truncate">{f.name}</p>
-                      <p className="text-[10px] text-gray-400">{(f.size / 1024 / 1024).toFixed(1)} MB</p>
+                      <p className="text-[10px] text-gray-400">
+                        {(f.size / 1024 / 1024).toFixed(1)} MB
+                      </p>
                     </div>
                     {!uploading && (
                       <button
@@ -495,7 +568,10 @@ export default function SolicitudDocumento() {
             {uploading && (
               <div className="space-y-1">
                 <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
-                  <div className="bg-primary h-1.5 rounded-full transition-all duration-300" style={{ width: `${uploadProgress || 10}%` }} />
+                  <div
+                    className="bg-primary h-1.5 rounded-full transition-all duration-300"
+                    style={{ width: `${uploadProgress || 10}%` }}
+                  />
                 </div>
                 <p className="text-xs text-gray-500 text-center">{uploadProgress}% completado</p>
               </div>
@@ -539,9 +615,12 @@ export default function SolicitudDocumento() {
           <p className="text-gray-500 text-sm mt-2">
             {selectedFiles.length > 1
               ? `Tus ${selectedFiles.length} documentos fueron subidos con éxito`
-              : 'Tu documento fue subido con éxito'} y están disponibles para <strong>{doctorName}</strong>.
+              : 'Tu documento fue subido con éxito'}{' '}
+            y están disponibles para <strong>{doctorName}</strong>.
           </p>
-          <p className="text-xs text-gray-400 mt-1">También quedaron guardados en tu expediente personal.</p>
+          <p className="text-xs text-gray-400 mt-1">
+            También quedaron guardados en tu expediente personal.
+          </p>
         </div>
         <button
           onClick={() => navigate(isNewAccount ? '/dashboard' : '/dashboard/documentos')}
