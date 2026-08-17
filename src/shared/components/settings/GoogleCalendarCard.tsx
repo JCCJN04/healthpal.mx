@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Calendar, CheckCircle, AlertCircle, Loader2, ExternalLink, Unlink } from 'lucide-react'
 import {
   getGoogleCalendarTokens,
+  getValidGoogleCalendarTokens,
   initiateGoogleOAuth,
   disconnectGoogleCalendar,
   isTokenValid,
@@ -26,8 +27,15 @@ export default function GoogleCalendarCard({ onToast }: GoogleCalendarCardProps)
   async function loadTokens() {
     try {
       setLoading(true)
-      const t = await getGoogleCalendarTokens()
-      setTokens(t)
+      // Retrieve valid tokens (auto-refreshes seamlessly via Edge Function if expired)
+      const validTokens = await getValidGoogleCalendarTokens()
+      if (validTokens) {
+        setTokens(validTokens)
+      } else {
+        // If auto-refresh failed or not connected, fetch the raw record
+        const rawTokens = await getGoogleCalendarTokens()
+        setTokens(rawTokens)
+      }
     } catch (err) {
       logger.error('GoogleCalendarCard:loadTokens', err)
     } finally {
@@ -169,7 +177,11 @@ function ExpiredState({
         </div>
       </div>
 
-      <ConnectButton onClick={onReconnect} loading={connecting} label="Reconectar Google Calendar" />
+      <ConnectButton
+        onClick={onReconnect}
+        loading={connecting}
+        label="Reconectar Google Calendar"
+      />
     </div>
   )
 }
@@ -184,8 +196,8 @@ function DisconnectedState({
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-600">
-        Conecta tu cuenta de Google para que las citas confirmadas se agreguen
-        automáticamente a tu calendario.
+        Conecta tu cuenta de Google para que las citas confirmadas se agreguen automáticamente a tu
+        calendario.
       </p>
 
       <ul className="space-y-2">
@@ -221,11 +233,7 @@ function ConnectButton({
       disabled={loading}
       className="inline-flex items-center gap-2.5 px-5 py-2.5 bg-white border-2 border-gray-200 text-gray-700 font-semibold text-sm rounded-lg hover:border-gray-300 hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
     >
-      {loading ? (
-        <Loader2 className="w-4 h-4 animate-spin" />
-      ) : (
-        <GoogleIcon />
-      )}
+      {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <GoogleIcon />}
       {label}
     </button>
   )

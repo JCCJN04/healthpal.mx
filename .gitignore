@@ -61,3 +61,6 @@ CHANGELOG.md.tmp
 
 # Graphify output
 graphify-out/
+
+# Playwright MCP
+.playwright-mcp/
