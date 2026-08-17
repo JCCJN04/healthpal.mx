@@ -490,17 +490,15 @@ export default function Dashboard() {
         const encrypted = docs.filter((d) => (d as any).is_encrypted)
         const accepted = consents.filter((c) => c.status === 'accepted')
         if (!encrypted.length || !accepted.length) return
-        for (const consent of accepted) {
-          await Promise.allSettled(
-            encrypted.map((d) => shareEncryptedDocumentKey(d.id, privateKey, consent.doctor_id)),
-          )
-        }
+        const promises = accepted.flatMap((consent) =>
+          encrypted.map((d) => shareEncryptedDocumentKey(d.id, privateKey, consent.doctor_id)),
+        )
+        await Promise.allSettled(promises)
       } catch (err) {
         logger.error('Dashboard.syncDocumentKeys', err)
       }
     }
     syncKeys()
-
   }, [user?.id, privateKey, profile?.role])
 
   const loadDashboardData = async () => {

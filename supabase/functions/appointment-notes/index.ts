@@ -10,7 +10,7 @@ const ALLOWED_ORIGINS = new Set([
 function getCorsHeaders(req: Request) {
   const origin = req.headers.get('origin') ?? ''
   return {
-    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) ? origin : 'https://healthpal.mx',
+    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) ? origin : 'null',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
     'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
   }
@@ -168,7 +168,6 @@ Deno.serve(async (req: Request) => {
           headers: { ...cors, 'Content-Type': 'application/json' },
         })
       }
-
 
       const decrypted = await Promise.all(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
