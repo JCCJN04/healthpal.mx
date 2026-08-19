@@ -29,32 +29,31 @@ export async function getMyProfile(userId?: string): Promise<Profile> {
   let userEmailConfirmed = false
   let userObjForSync: Record<string, unknown> | null = null
 
-  if (!effectiveUserId) {
+  // Always read session to get metadata for sync if available
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+
+  if (session?.user) {
+    if (!effectiveUserId) effectiveUserId = session.user.id
+    userEmail = session.user.email
+    userFullName = (session.user.user_metadata?.full_name as string) || null
+    userPhone = (session.user.user_metadata?.phone as string) || null
+    userRole = (session.user.user_metadata?.role as 'patient' | 'doctor' | 'assistant') || 'patient'
+    userEmailConfirmed = !!session.user.email_confirmed_at
+    userObjForSync = session.user as unknown as Record<string, unknown>
+  } else if (!effectiveUserId) {
     const {
-      data: { session },
-    } = await supabase.auth.getSession()
-    if (session?.user) {
-      effectiveUserId = session.user.id
-      userEmail = session.user.email
-      userFullName = (session.user.user_metadata?.full_name as string) || null
-      userPhone = (session.user.user_metadata?.phone as string) || null
-      userRole =
-        (session.user.user_metadata?.role as 'patient' | 'doctor' | 'assistant') || 'patient'
-      userEmailConfirmed = !!session.user.email_confirmed_at
-      userObjForSync = session.user as unknown as Record<string, unknown>
-    } else {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (user) {
-        effectiveUserId = user.id
-        userEmail = user.email
-        userFullName = (user.user_metadata?.full_name as string) || null
-        userPhone = (user.user_metadata?.phone as string) || null
-        userRole = (user.user_metadata?.role as 'patient' | 'doctor' | 'assistant') || 'patient'
-        userEmailConfirmed = !!user.email_confirmed_at
-        userObjForSync = user as unknown as Record<string, unknown>
-      }
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (user) {
+      effectiveUserId = user.id
+      userEmail = user.email
+      userFullName = (user.user_metadata?.full_name as string) || null
+      userPhone = (user.user_metadata?.phone as string) || null
+      userRole = (user.user_metadata?.role as 'patient' | 'doctor' | 'assistant') || 'patient'
+      userEmailConfirmed = !!user.email_confirmed_at
+      userObjForSync = user as unknown as Record<string, unknown>
     }
   }
 
@@ -140,7 +139,9 @@ export async function getMyProfile(userId?: string): Promise<Profile> {
   }
 
   // Fire-and-forget: sync full_name from user_metadata if missing (non-blocking)
-  syncProfileFromMetadata(profile, user)
+  if (userObjForSync) {
+    syncProfileFromMetadata(profile, userObjForSync).catch(() => {})
+  }
   return profile
 }
 
