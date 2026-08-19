@@ -22,12 +22,13 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
 
-const ALLOWED_ORIGINS = new Set(['null', 'https://www.healthpal.mx'])
+const ALLOWED_ORIGINS = new Set(['https://healthpal.mx', 'https://www.healthpal.mx'])
 
 function getCorsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get('origin') ?? ''
+  const isLocalhost = origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')
   return {
-    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) ? origin : 'null',
+    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) || isLocalhost ? origin : 'null',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
   }

@@ -32,12 +32,14 @@ import {
   Printer,
   Pencil,
   Scissors,
+  UserMinus,
 } from 'lucide-react'
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import {
   getPatientFullProfile,
   getPatientNotes,
   getPatientContactInfo,
+  unlinkPatientFromDoctor,
 } from '@/features/doctor/services/patients'
 import { getClinicalHistory } from '@/shared/lib/queries/clinicalHistory'
 import { getPatientProfile } from '@/shared/lib/queries/profile'
@@ -148,6 +150,9 @@ export default function PatientDetail() {
   const [requestingAccess, setRequestingAccess] = useState(false)
   const [requestReason, setRequestReason] = useState('')
   const [showAgendarModal, setShowAgendarModal] = useState(false)
+  const [showUnlinkModal, setShowUnlinkModal] = useState(false)
+  const [unlinkCancelAppointments, setUnlinkCancelAppointments] = useState(true)
+  const [unlinkLoading, setUnlinkLoading] = useState(false)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [biometricHistory, setBiometricHistory] = useState<any[]>([])
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -615,6 +620,26 @@ export default function PatientDetail() {
     setRequestingAccess(false)
   }
 
+  const handleUnlinkPatient = async () => {
+    if (!user || !id) return
+    setUnlinkLoading(true)
+    try {
+      const res = await unlinkPatientFromDoctor(user.id, id, unlinkCancelAppointments)
+      if (res.ok) {
+        showToast(res.message, 'success', 4500)
+        setShowUnlinkModal(false)
+        navigate(mapDashboardPath('/dashboard/pacientes'))
+      } else {
+        showToast(res.message, 'error', 4000)
+      }
+    } catch (err) {
+      logger.error('PatientDetail.unlink', err)
+      showToast('Error al desvincular paciente', 'error', 3000)
+    } finally {
+      setUnlinkLoading(false)
+    }
+  }
+
   const loadConsultationNotes = async () => {
     if (!id) return
     setLoadingConsultNotes(true)
@@ -839,14 +864,24 @@ export default function PatientDetail() {
               {patient.full_name || 'Paciente'}
             </h1>
           </div>
-          <button
-            onClick={() => setShowAgendarModal(true)}
-            title="Agendar nueva cita para este paciente"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#33C7BE] text-white font-bold text-xs rounded-xl hover:bg-teal-600 transition-colors shadow-sm flex-shrink-0"
-          >
-            <CalendarDays size={14} />
-            <span>Agendar cita</span>
-          </button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={() => setShowUnlinkModal(true)}
+              title="Desvincular paciente de tu lista activa"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-gray-500 hover:text-red-600 hover:bg-red-50 border border-gray-200 font-semibold text-xs rounded-xl transition-colors shrink-0"
+            >
+              <UserMinus size={14} />
+              <span className="hidden sm:inline">Desvincular</span>
+            </button>
+            <button
+              onClick={() => setShowAgendarModal(true)}
+              title="Agendar nueva cita para este paciente"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#33C7BE] text-white font-bold text-xs rounded-xl hover:bg-teal-600 transition-colors shadow-sm shrink-0"
+            >
+              <CalendarDays size={14} />
+              <span>Agendar cita</span>
+            </button>
+          </div>
         </div>
 
         {/* ── Alert strip ──────────────────────────────────── */}
@@ -1800,6 +1835,106 @@ export default function PatientDetail() {
           onSuccess={() => setShowAgendarModal(false)}
         />
       )}
+
+      {/* Unlink Patient Modal */}
+      {showUnlinkModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-red-50/50">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-red-100 flex items-center justify-center text-red-600">
+                  <UserMinus size={17} />
+                </div>
+                <h2 className="text-sm font-bold text-gray-900">Desvincular paciente</h2>
+              </div>
+              <button
+                onClick={() => setShowUnlinkModal(false)}
+                className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-500 to-violet-700 text-white font-bold text-sm flex items-center justify-center shrink-0">
+                  {patient.avatar_url ? (
+                    <img
+                      src={patient.avatar_url}
+                      alt=""
+                      className="w-full h-full object-cover rounded-lg"
+                    />
+                  ) : (
+                    initials
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-gray-900 truncate">
+                    {patient.full_name || 'Paciente'}
+                  </p>
+                  {contactInfo?.email && (
+                    <p className="text-xs text-gray-400 truncate">{contactInfo.email}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="text-xs text-gray-600 space-y-2 bg-amber-50/70 border border-amber-200/60 p-3.5 rounded-xl">
+                <p className="font-semibold text-amber-900 flex items-center gap-1.5">
+                  <AlertTriangle size={14} className="text-amber-600 shrink-0" />
+                  Al desvincular a este paciente:
+                </p>
+                <ul className="list-disc list-inside space-y-1 text-amber-800/90 pl-1">
+                  <li>Se revocará tu acceso activo a su expediente y documentos.</li>
+                  <li>
+                    Las notas médicas y recetas emitidas se{' '}
+                    <strong>conservarán de forma segura</strong> en la cuenta del paciente conforme
+                    a la NOM-004.
+                  </li>
+                  <li>
+                    Si lo vuelves a vincular en el futuro, se reanudará el acceso a su historial.
+                  </li>
+                </ul>
+              </div>
+
+              <label className="flex items-start gap-2.5 cursor-pointer select-none pt-1">
+                <input
+                  type="checkbox"
+                  checked={unlinkCancelAppointments}
+                  onChange={(e) => setUnlinkCancelAppointments(e.target.checked)}
+                  className="mt-0.5 rounded text-primary focus:ring-primary h-4 w-4"
+                />
+                <span className="text-xs text-gray-600 font-medium">
+                  Cancelar citas futuras programadas con este paciente
+                </span>
+              </label>
+
+              <div className="flex gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowUnlinkModal(false)}
+                  disabled={unlinkLoading}
+                  className="flex-1 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-xs font-semibold hover:bg-gray-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleUnlinkPatient}
+                  disabled={unlinkLoading}
+                  className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-60"
+                >
+                  {unlinkLoading ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <UserMinus size={14} />
+                  )}
+                  Confirmar desvinculación
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   )
 }
@@ -2036,7 +2171,6 @@ function ExpedienteDigital({
     e.preventDefault()
     setDocReqLoading(true)
     try {
-
       const { data, error } = await createDocumentRequest(docReqEmail, docReqType, docReqDesc)
       if (error || !data) {
         showToast(error || 'Error al crear la solicitud', 'error', 3000)

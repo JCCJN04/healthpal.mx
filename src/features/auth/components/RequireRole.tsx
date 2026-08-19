@@ -2,6 +2,7 @@ import { Navigate } from 'react-router-dom'
 import { useAuth } from '@/app/providers/AuthContext'
 import type { UserRole } from '@/shared/types/database'
 import { logger } from '@/shared/lib/logger'
+import DashboardPageSkeleton from '@/shared/components/DashboardPageSkeleton'
 
 interface RequireRoleProps {
   children: React.ReactNode
@@ -15,11 +16,6 @@ interface RequireRoleProps {
  * Route guard that restricts access based on user role.
  * Must be used INSIDE RequireAuth and RequireOnboarding so that
  * `profile` is guaranteed to exist when role check runs.
- *
- * Usage:
- *   <RequireRole allowedRoles={['doctor']}>
- *     <Pacientes />
- *   </RequireRole>
  */
 export default function RequireRole({
   children,
@@ -28,8 +24,10 @@ export default function RequireRole({
 }: RequireRoleProps) {
   const { profile, loading: authLoading } = useAuth()
 
-  // While auth or profile is loading, render nothing (parent guards handle loading UI)
-  if (authLoading || !profile) return null
+  // While auth or profile is loading, render skeleton instead of a blank screen
+  if (authLoading || !profile) {
+    return <DashboardPageSkeleton />
+  }
 
   // If the user's role is not in the allowed list, redirect
   if (!allowedRoles.includes(profile.role)) {

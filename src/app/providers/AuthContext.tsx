@@ -44,9 +44,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const jwtRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastLoggedToken = useRef<string | null>(null)
 
-  const fetchProfile = async () => {
+  const fetchProfile = async (userId?: string) => {
     try {
-      return await getMyProfile()
+      return await getMyProfile(userId)
     } catch (err) {
       logger.error('fetchProfile', err)
       return null
@@ -61,7 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (user) {
-      const profileData = await fetchProfile()
+      const profileData = await fetchProfile(user.id)
       setProfile(profileData)
     }
   }
@@ -278,10 +278,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Inicializar autenticación
     const initAuth = async () => {
+      // Safety net: ensure loading is NEVER stuck on true regardless of network stalls
+      const safetyTimeout = setTimeout(() => {
+        if (mounted) {
+          logger.warn('AuthContext: initAuth safety timeout reached')
+          setLoading(false)
+        }
+      }, 3500)
+
       try {
-        // Guard against sessions that survived device sleep/restart beyond the inactivity limit.
-        // The in-memory setTimeout is lost when the app closes, so we persist last-active to
-        // localStorage and invalidate here if too much time has passed.
         const lastActive = localStorage.getItem(LAST_ACTIVE_KEY)
         if (lastActive) {
           const elapsed = Date.now() - parseInt(lastActive, 10)
@@ -292,8 +297,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             } catch {
               /* ignore */
             }
-            await supabase.auth.signOut()
-            if (mounted) setLoading(false)
+            setUser(null)
+            setSession(null)
+            setProfile(null)
+            setLoading(false)
+            clearTimeout(safetyTimeout)
+            supabase.auth.signOut().catch(() => {})
             return
           }
         }
@@ -308,15 +317,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (sessionError) {
           setError(sessionError)
           setLoading(false)
+          clearTimeout(safetyTimeout)
           return
         }
 
         setSession(currentSession)
         setUser(currentSession?.user ?? null)
 
-        // Check MFA assurance level — if user has TOTP enrolled but hasn't completed
-        // the AAL2 challenge yet, flag it so RequireAuth can enforce the redirect.
         if (currentSession?.user) {
+          // Check MFA assurance level
           supabase.auth.mfa
             .getAuthenticatorAssuranceLevel()
             .then(({ data: aal }) => {
@@ -324,31 +333,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setMfaRequired(aal?.nextLevel === 'aal2' && aal?.currentLevel !== 'aal2')
               }
             })
-            .catch(() => {
-              /* non-critical */
-            })
+            .catch(() => {})
 
-          // Fetch profile in background without blocking
-          fetchProfile()
-            .then((profileData) => {
-              if (mounted) {
-                setProfile(profileData)
-              }
-            })
-            .catch((err) => {
-              logger.error('loadProfile', err)
-            })
+          // Fetch profile synchronously with a fast timeout (2s) so profile is ready for guards
+          try {
+            const profileData = await Promise.race([
+              fetchProfile(currentSession.user.id),
+              new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000)),
+            ])
+            if (mounted && profileData) {
+              setProfile(profileData)
+            } else if (mounted) {
+              // If race timeout triggered, continue fetching in background
+              fetchProfile(currentSession.user.id).then((p) => {
+                if (mounted && p) setProfile(p)
+              })
+            }
+          } catch (err) {
+            logger.error('initAuth:fetchProfile', err)
+          }
         } else {
-          if (mounted) setMfaRequired(false)
+          if (mounted) {
+            setProfile(null)
+            setMfaRequired(false)
+          }
         }
-
-        // Set loading false immediately, don't wait for profile
-        if (mounted) {
-          setLoading(false)
-        }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } catch (err: any) {
+      } catch (err: unknown) {
         logger.error('initAuth', err)
+      } finally {
+        clearTimeout(safetyTimeout)
         if (mounted) {
           setLoading(false)
         }
@@ -364,8 +377,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!mounted) return
 
       // NOM-024 §6.6: log authentication events — deduplicate by access_token
-      // SIGNED_IN fires on every page load (session restore) and token refresh,
-      // so only log when the token actually changes (real new login).
       if (_event === 'SIGNED_IN' && currentSession?.access_token) {
         if (currentSession.access_token !== lastLoggedToken.current) {
           lastLoggedToken.current = currentSession.access_token
@@ -384,14 +395,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               setMfaRequired(aal?.nextLevel === 'aal2' && aal?.currentLevel !== 'aal2')
             }
           })
-          .catch(() => {
-            /* non-critical */
-          })
+          .catch(() => {})
 
-        // Fetch profile in background
-        fetchProfile()
+        // Fetch profile with user id
+        fetchProfile(currentSession.user.id)
           .then((profileData) => {
-            if (mounted) {
+            if (mounted && profileData) {
               setProfile(profileData)
             }
           })

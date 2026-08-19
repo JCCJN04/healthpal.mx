@@ -16,35 +16,69 @@ type OnboardingStep = 'role' | 'basic' | 'contact' | 'details' | 'done'
 /**
  * Get current user's profile with extended info
  */
-export async function getMyProfile(): Promise<Profile> {
+export async function getMyProfile(userId?: string): Promise<Profile> {
   if (isDemoMode()) {
     return demoDoctorProfile as Profile
   }
 
-  const { data: { user } } = await supabase.auth.getUser()
+  let effectiveUserId = userId
+  let userEmail: string | undefined
+  let userFullName: string | null = null
+  let userPhone: string | null = null
+  let userRole: 'patient' | 'doctor' | 'assistant' = 'patient'
+  let userEmailConfirmed = false
+  let userObjForSync: Record<string, unknown> | null = null
 
-  if (!user) {
+  if (!effectiveUserId) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    if (session?.user) {
+      effectiveUserId = session.user.id
+      userEmail = session.user.email
+      userFullName = (session.user.user_metadata?.full_name as string) || null
+      userPhone = (session.user.user_metadata?.phone as string) || null
+      userRole =
+        (session.user.user_metadata?.role as 'patient' | 'doctor' | 'assistant') || 'patient'
+      userEmailConfirmed = !!session.user.email_confirmed_at
+      userObjForSync = session.user as unknown as Record<string, unknown>
+    } else {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (user) {
+        effectiveUserId = user.id
+        userEmail = user.email
+        userFullName = (user.user_metadata?.full_name as string) || null
+        userPhone = (user.user_metadata?.phone as string) || null
+        userRole = (user.user_metadata?.role as 'patient' | 'doctor' | 'assistant') || 'patient'
+        userEmailConfirmed = !!user.email_confirmed_at
+        userObjForSync = user as unknown as Record<string, unknown>
+      }
+    }
+  }
+
+  if (!effectiveUserId) {
     throw new Error('Not authenticated')
   }
 
   const { data: profile, error } = await supabase
     .from('profiles')
     .select('*')
-    .eq('id', user.id)
+    .eq('id', effectiveUserId)
     .single()
 
   if (error?.code === 'PGRST116') {
     // If not found, wait 500ms and try again once (handles database trigger lag)
-    await new Promise(resolve => setTimeout(resolve, 500))
+    await new Promise((resolve) => setTimeout(resolve, 500))
     const { data: secondTry, error: secondError } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', user.id)
+      .eq('id', effectiveUserId)
       .single()
 
     if (secondTry) {
-      // Fire-and-forget sync
-      syncProfileFromMetadata(secondTry, user)
+      if (userObjForSync) syncProfileFromMetadata(secondTry, userObjForSync)
       return secondTry as Profile
     }
 
@@ -52,9 +86,23 @@ export async function getMyProfile(): Promise<Profile> {
       throw secondError
     }
 
+    // Fallback: fetch user if not available
+    if (!userEmail) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (user) {
+        userEmail = user.email
+        userFullName = (user.user_metadata?.full_name as string) || null
+        userPhone = (user.user_metadata?.phone as string) || null
+        userRole = (user.user_metadata?.role as 'patient' | 'doctor' | 'assistant') || 'patient'
+        userEmailConfirmed = !!user.email_confirmed_at
+      }
+    }
+
     // Only create a fallback profile if the user's email is confirmed
     // This prevents orphaned profiles for unverified signups
-    if (!user.email_confirmed_at) {
+    if (!userEmailConfirmed) {
       throw new Error('Email not verified. Please confirm your email before continuing.')
     }
 
@@ -63,18 +111,14 @@ export async function getMyProfile(): Promise<Profile> {
     const { data: newProfile, error: insertError } = await supabase
       .from('profiles')
       .insert({
-        id: user.id,
-        email: user.email,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        full_name: (user.user_metadata as any)?.full_name || null,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        phone: (user.user_metadata as any)?.phone || null,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        role: (user.user_metadata as any)?.role || 'patient',
+        id: effectiveUserId,
+        email: userEmail,
+        full_name: userFullName,
+        phone: userPhone,
+        role: userRole,
         onboarding_completed: false,
         onboarding_step: 'role',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any)
+      })
       .select('*')
       .single()
 
@@ -104,15 +148,16 @@ export async function getMyProfile(): Promise<Profile> {
  * If the profile is missing full_name but user_metadata has it,
  * automatically update the profiles table to sync the data.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function syncProfileFromMetadata(profile: any, user: any): Promise<any> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const metaName = (user.user_metadata as any)?.full_name
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const metaPhone = (user.user_metadata as any)?.phone
+async function syncProfileFromMetadata(
+  profile: Profile,
+  user:
+    | { user_metadata?: { full_name?: string; phone?: string } | Record<string, unknown> }
+    | Record<string, unknown>,
+): Promise<Profile> {
+  const metaName = (user as { user_metadata?: { full_name?: string } })?.user_metadata?.full_name
+  const metaPhone = (user as { user_metadata?: { phone?: string } })?.user_metadata?.phone
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const updates: Record<string, any> = {}
+  const updates: Partial<ProfileUpdate> = {}
 
   if (!profile.full_name && metaName) {
     updates.full_name = metaName
@@ -127,8 +172,7 @@ async function syncProfileFromMetadata(profile: any, user: any): Promise<any> {
 
   const { data: updated, error } = await supabase
     .from('profiles')
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .update(updates as any)
+    .update(updates)
     .eq('id', profile.id)
     .select('*')
     .single()
@@ -138,7 +182,7 @@ async function syncProfileFromMetadata(profile: any, user: any): Promise<any> {
     return profile // Return original profile on error
   }
 
-  return updated || profile
+  return (updated as Profile) || profile
 }
 
 /**
@@ -202,7 +246,9 @@ export async function updateMyProfile(updates: ProfileUpdate) {
     }
   }
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
     throw new Error('Not authenticated')
@@ -236,7 +282,9 @@ export async function saveOnboardingStep(step: OnboardingStep) {
     }
   }
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
     throw new Error('Not authenticated')
@@ -263,7 +311,7 @@ export async function saveOnboardingStep(step: OnboardingStep) {
  */
 export async function upsertDoctorProfile(
   doctorId: string,
-  doctorData: Omit<DoctorProfileInsert, 'doctor_id'>
+  doctorData: Omit<DoctorProfileInsert, 'doctor_id'>,
 ) {
   if (isDemoMode()) {
     return {
@@ -277,7 +325,7 @@ export async function upsertDoctorProfile(
     .upsert({
       doctor_id: doctorId,
       ...doctorData,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any)
     .select()
     .single()
@@ -295,7 +343,7 @@ export async function upsertDoctorProfile(
  */
 export async function upsertPatientProfile(
   patientId: string,
-  patientData: Omit<PatientProfileInsert, 'patient_id'>
+  patientData: Omit<PatientProfileInsert, 'patient_id'>,
 ) {
   if (isDemoMode()) {
     return {
@@ -309,7 +357,7 @@ export async function upsertPatientProfile(
     .upsert({
       patient_id: patientId,
       ...patientData,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any)
     .select()
     .single()
@@ -334,7 +382,9 @@ export async function completeOnboarding() {
     }
   }
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
     throw new Error('Not authenticated')
@@ -345,7 +395,7 @@ export async function completeOnboarding() {
     .update({
       onboarding_completed: true,
       onboarding_step: null,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any)
     .eq('id', user.id)
     .select()
@@ -371,7 +421,12 @@ export async function uploadAvatar(userId: string, file: File) {
     return 'https://i.pravatar.cc/200?img=12'
   }
 
-  logger.info('uploadAvatar:start', { userId, fileName: file.name, fileType: file.type, fileSize: file.size })
+  logger.info('uploadAvatar:start', {
+    userId,
+    fileName: file.name,
+    fileType: file.type,
+    fileSize: file.size,
+  })
 
   // 1. Remove any previous avatars for this user (best-effort, don't block)
   try {
@@ -404,17 +459,19 @@ export async function uploadAvatar(userId: string, file: File) {
     })
 
   if (uploadError) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    logger.error('uploadAvatar:upload', { message: uploadError.message, name: (uploadError as any).name, statusCode: (uploadError as any).statusCode })
+    const errObj = uploadError as Error & { statusCode?: string | number }
+    logger.error('uploadAvatar:upload', {
+      message: errObj.message,
+      name: errObj.name,
+      statusCode: errObj.statusCode,
+    })
     throw uploadError
   }
 
   logger.info('uploadAvatar:uploaded', uploadData)
 
   // 4. Return the public URL
-  const { data } = supabase.storage
-    .from('avatars')
-    .getPublicUrl(filePath)
+  const { data } = supabase.storage.from('avatars').getPublicUrl(filePath)
 
   logger.info('uploadAvatar:publicUrl', data.publicUrl)
   return data.publicUrl

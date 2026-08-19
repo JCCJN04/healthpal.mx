@@ -40,16 +40,32 @@ export default function RequireOnboarding({ children }: RequireOnboardingProps) 
   const [fetchError, setFetchError] = useState(false)
   const fetchingRef = useRef(false)
 
+  // Safety timeout: if profile doesn't resolve within 5 seconds, show error/retry instead of infinite spinner
+  useEffect(() => {
+    if (authLoading || !user || profile || fetchedProfile || fetchError) return
+
+    const timer = setTimeout(() => {
+      if (!profile && !fetchedProfile) {
+        logger.warn('RequireOnboarding: profile resolution timeout reached')
+        setFetchError(true)
+      }
+    }, 5000)
+
+    return () => clearTimeout(timer)
+  }, [authLoading, user, profile, fetchedProfile, fetchError])
+
   // Eager fetch when auth is done but AuthContext profile hasn't arrived yet
   useEffect(() => {
     if (authLoading || !user || profile || fetchingRef.current) return
     fetchingRef.current = true
-    getMyProfile()
+    getMyProfile(user.id)
       .then((p) => {
-        setFetchedProfile(p)
-        refreshProfile().catch(() => {
-          /* best-effort */
-        })
+        if (p) {
+          setFetchedProfile(p)
+          refreshProfile().catch(() => {})
+        } else {
+          setFetchError(true)
+        }
       })
       .catch((err) => {
         logger.error('RequireOnboarding:eagerFetch', err)

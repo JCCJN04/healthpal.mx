@@ -78,10 +78,46 @@ Deno.serve(async (req) => {
     // Cliente con permisos completos para interactuar con Storage y Base de Datos (bypassing RLS)
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
+    // 0. Verificar autorización: el usuario debe ser el propietario o médico con consentimiento activo
+    const { data: docRecord, error: docError } = await supabase
+      .from('documents')
+      .select('id, user_id, file_path')
+      .eq('id', documentId)
+      .single()
+
+    if (docError || !docRecord) {
+      return new Response(JSON.stringify({ success: false, error: 'Documento no encontrado' }), {
+        headers: { ...cors, 'Content-Type': 'application/json' },
+        status: 404,
+      })
+    }
+
+    const isOwner = docRecord.user_id === user.id
+    if (!isOwner) {
+      const { data: consent } = await supabase
+        .from('doctor_patient_consent')
+        .select('status, share_documents')
+        .eq('doctor_id', user.id)
+        .eq('patient_id', docRecord.user_id)
+        .eq('status', 'accepted')
+        .eq('share_documents', true)
+        .maybeSingle()
+
+      if (!consent) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'No autorizado para analizar este documento' }),
+          {
+            headers: { ...cors, 'Content-Type': 'application/json' },
+            status: 403,
+          },
+        )
+      }
+    }
+
     // 1. Descarga del archivo
     const { data: fileBlob, error: fileError } = await supabase.storage
       .from('documents')
-      .download(filePath)
+      .download(docRecord.file_path || filePath)
 
     if (fileError || !fileBlob) {
       const errorDetails =

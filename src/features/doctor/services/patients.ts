@@ -57,7 +57,11 @@ export async function listDoctorPatients(doctorId: string): Promise<PatientProfi
     }
 
     return (data || []).map(({ id, full_name, email, avatar_url }) => ({
-      id, full_name, email, avatar_url, consentStatus: 'accepted',
+      id,
+      full_name,
+      email,
+      avatar_url,
+      consentStatus: 'accepted',
     }))
   } catch (err) {
     logger.error('listDoctorPatients', err)
@@ -71,13 +75,20 @@ export async function listDoctorPatients(doctorId: string): Promise<PatientProfi
  * expose email unless the doctor already has consent.
  * Requires minimum 3-character search term.
  */
-export async function searchPatients(term: string, doctorId: string): Promise<PatientProfileLite[]> {
+export async function searchPatients(
+  term: string,
+  doctorId: string,
+): Promise<PatientProfileLite[]> {
   if (!term.trim() || term.trim().length < 3) return []
 
   if (isDemoMode()) {
     const text = term.trim().toLowerCase()
     return demoPatients
-      .filter((patient) => patient.full_name.toLowerCase().includes(text) || patient.email.toLowerCase().includes(text))
+      .filter(
+        (patient) =>
+          patient.full_name.toLowerCase().includes(text) ||
+          patient.email.toLowerCase().includes(text),
+      )
       .map((patient) => ({
         id: patient.id,
         full_name: patient.full_name,
@@ -107,6 +118,107 @@ export async function searchPatients(term: string, doctorId: string): Promise<Pa
   }))
 }
 
+/**
+ * Doctor: Request access to an existing HealthPal user by email or phone.
+ */
+export async function requestAccessByIdentifier(
+  doctorId: string,
+  identifier: string,
+  reason?: string,
+): Promise<{
+  ok: boolean
+  message: string
+  patientId?: string
+  patientName?: string
+  code?: string
+}> {
+  if (!identifier.trim() || !doctorId) {
+    return { ok: false, message: 'Ingresa un correo o teléfono válido.' }
+  }
+
+  if (isDemoMode()) {
+    return { ok: true, message: 'Solicitud enviada (Modo Demo).' }
+  }
+
+  try {
+    const { data, error } = await supabase.rpc('request_access_to_patient_by_identifier', {
+      p_doctor_id: doctorId,
+      p_identifier: identifier.trim(),
+      p_reason: reason?.trim() || null,
+    })
+
+    if (error) {
+      logger.error('requestAccessByIdentifier', error)
+      return { ok: false, message: error.message }
+    }
+
+    const res = data as {
+      success: boolean
+      message: string
+      code?: string
+      patient_id?: string
+      patient_name?: string
+    }
+
+    return {
+      ok: res.success,
+      message: res.message,
+      patientId: res.patient_id,
+      patientName: res.patient_name,
+      code: res.code,
+    }
+  } catch (err) {
+    logger.error('requestAccessByIdentifier', err)
+    return { ok: false, message: 'Error inesperado al solicitar acceso.' }
+  }
+}
+
+/**
+ * Unlink / Remove a patient from doctor's active list.
+ * Revokes consent scopes, sets status = 'revoked', and cancels pending future appointments
+ * while safely preserving historical clinical notes and prescriptions in DB per NOM-004.
+ */
+export async function unlinkPatientFromDoctor(
+  doctorId: string,
+  patientId: string,
+  cancelFutureAppointments = true,
+): Promise<{ ok: boolean; message: string; cancelledAppointments?: number }> {
+  if (!doctorId || !patientId) {
+    return { ok: false, message: 'Parámetros inválidos para desvincular.' }
+  }
+
+  if (isDemoMode()) {
+    return { ok: true, message: 'Paciente desvinculado (Modo Demo).' }
+  }
+
+  try {
+    const { data, error } = await supabase.rpc('doctor_unlink_patient', {
+      p_doctor_id: doctorId,
+      p_patient_id: patientId,
+      p_cancel_future_appointments: cancelFutureAppointments,
+    })
+
+    if (error) {
+      logger.error('unlinkPatientFromDoctor', error)
+      return { ok: false, message: error.message || 'Error al desvincular al paciente.' }
+    }
+
+    const res = data as {
+      success: boolean
+      message: string
+      cancelled_appointments?: number
+    }
+
+    return {
+      ok: res.success,
+      message: res.message,
+      cancelledAppointments: res.cancelled_appointments,
+    }
+  } catch (err) {
+    logger.error('unlinkPatientFromDoctor', err)
+    return { ok: false, message: 'Error inesperado al desvincular paciente.' }
+  }
+}
 
 /**
  * Fetches the patient's profile. RLS on patient_profiles will
@@ -133,10 +245,12 @@ export async function getPatientFullProfile(patientId: string) {
 
   const { data, error } = await supabase
     .from('profiles')
-    .select(`
+    .select(
+      `
       id, full_name, avatar_url, role, birthdate, sex,
       patient_profiles (*)
-    `)
+    `,
+    )
     .eq('id', patientId)
     .single()
 
@@ -188,13 +302,15 @@ export async function getPatientNotes(patientId: string, doctorId: string) {
   }
 
   // Call Edge Function to get decrypted notes
-  const { data: { session } } = await supabase.auth.getSession()
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
   if (!session) return []
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const res = await fetch(
     `${supabaseUrl}/functions/v1/patient-notes?patient_id=${patientId}&doctor_id=${doctorId}`,
-    { headers: { Authorization: `Bearer ${session.access_token}` } }
+    { headers: { Authorization: `Bearer ${session.access_token}` } },
   )
 
   if (!res.ok) {
@@ -206,7 +322,12 @@ export async function getPatientNotes(patientId: string, doctorId: string) {
 }
 
 // Agrega una nueva nota clínica cifrada vía Edge Function
-export async function addPatientNote(patientId: string, _doctorId: string, title: string, body: string) {
+export async function addPatientNote(
+  patientId: string,
+  _doctorId: string,
+  title: string,
+  body: string,
+) {
   if (isDemoMode()) {
     return {
       id: `demo-note-${Date.now()}`,
@@ -218,7 +339,9 @@ export async function addPatientNote(patientId: string, _doctorId: string, title
     }
   }
 
-  const { data: { session } } = await supabase.auth.getSession()
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
   if (!session) throw new Error('No hay sesión activa')
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL

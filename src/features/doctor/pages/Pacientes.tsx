@@ -12,12 +12,17 @@ import {
   X,
   ChevronRight,
   UserPlus,
+  UserCheck,
+  UserMinus,
+  AlertTriangle,
 } from 'lucide-react'
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import { useAuth } from '@/app/providers/AuthContext'
 import {
   searchPatients,
   listDoctorPatients,
+  requestAccessByIdentifier,
+  unlinkPatientFromDoctor,
   PatientProfileLite,
 } from '@/features/doctor/services/patients'
 import {
@@ -46,6 +51,12 @@ export default function Pacientes() {
   // Consent requests sent by this doctor
   const [sentRequests, setSentRequests] = useState<ConsentWithProfile[]>([])
 
+  // Link existing patient modal
+  const [linkOpen, setLinkOpen] = useState(false)
+  const [linkIdentifier, setLinkIdentifier] = useState('')
+  const [linkReason, setLinkReason] = useState('')
+  const [linkLoading, setLinkLoading] = useState(false)
+
   // Create patient modal
   const [createOpen, setCreateOpen] = useState(false)
   const [createName, setCreateName] = useState('')
@@ -62,6 +73,11 @@ export default function Pacientes() {
   const [docReqType, setDocReqType] = useState('')
   const [docReqWaLoading, setDocReqWaLoading] = useState(false)
   const [docReqId, setDocReqId] = useState<string | null>(null)
+
+  // Unlink patient modal
+  const [unlinkTarget, setUnlinkTarget] = useState<PatientProfileLite | null>(null)
+  const [unlinkCancelAppointments, setUnlinkCancelAppointments] = useState(true)
+  const [unlinkLoading, setUnlinkLoading] = useState(false)
 
   useEffect(() => {
     if (!user) return
@@ -219,6 +235,49 @@ export default function Pacientes() {
     setDocReqType('')
   }
 
+  const handleLinkExistingPatient = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user || !linkIdentifier.trim()) return
+    setLinkLoading(true)
+    try {
+      const result = await requestAccessByIdentifier(user.id, linkIdentifier, linkReason)
+      if (result.ok) {
+        showToast(result.message, 'success', 5000)
+        setLinkOpen(false)
+        setLinkIdentifier('')
+        setLinkReason('')
+        await loadAll()
+      } else {
+        showToast(result.message, 'error', 4500)
+      }
+    } catch (err) {
+      logger.error('Pacientes.linkExisting', err)
+      showToast('Error al solicitar acceso al paciente', 'error', 3000)
+    } finally {
+      setLinkLoading(false)
+    }
+  }
+
+  const handleUnlinkPatient = async () => {
+    if (!user || !unlinkTarget) return
+    setUnlinkLoading(true)
+    try {
+      const res = await unlinkPatientFromDoctor(user.id, unlinkTarget.id, unlinkCancelAppointments)
+      if (res.ok) {
+        showToast(res.message, 'success', 5000)
+        setUnlinkTarget(null)
+        await loadAll()
+      } else {
+        showToast(res.message, 'error', 4500)
+      }
+    } catch (err) {
+      logger.error('Pacientes.unlink', err)
+      showToast('Error al desvincular al paciente', 'error', 3000)
+    } finally {
+      setUnlinkLoading(false)
+    }
+  }
+
   const handleCreatePatient = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) return
@@ -330,7 +389,7 @@ export default function Pacientes() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              placeholder="Buscar paciente por nombre…"
+              placeholder="Buscar paciente por nombre, correo o teléfono…"
               className="w-full pl-9 pr-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary shadow-sm transition-all"
             />
           </div>
@@ -345,7 +404,20 @@ export default function Pacientes() {
         </div>
 
         {/* Quick actions */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <button
+            onClick={() => setLinkOpen(true)}
+            className="flex flex-col items-start gap-3 p-4 bg-white border border-gray-100 rounded-2xl shadow-sm hover:border-blue-400/40 hover:shadow-md transition-all text-left group"
+          >
+            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-100 transition-colors">
+              <UserCheck size={18} />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-gray-900">Vincular paciente</p>
+              <p className="text-[11px] text-gray-400 mt-0.5">Ya registrado en HealthPal</p>
+            </div>
+          </button>
+
           <button
             onClick={() => setCreateOpen(true)}
             className="flex flex-col items-start gap-3 p-4 bg-white border border-gray-100 rounded-2xl shadow-sm hover:border-primary/30 hover:shadow-md transition-all text-left group"
@@ -354,10 +426,11 @@ export default function Pacientes() {
               <UserPlus size={18} />
             </div>
             <div>
-              <p className="text-sm font-bold text-gray-900">Crear paciente</p>
-              <p className="text-[11px] text-gray-400 mt-0.5">Registra un paciente directamente</p>
+              <p className="text-sm font-bold text-gray-900">Crear nuevo paciente</p>
+              <p className="text-[11px] text-gray-400 mt-0.5">Registra a quien no tiene cuenta</p>
             </div>
           </button>
+
           <button
             onClick={() => setDocReqOpen(true)}
             className="flex flex-col items-start gap-3 p-4 bg-white border border-gray-100 rounded-2xl shadow-sm hover:border-[#25D366]/40 hover:shadow-md transition-all text-left group"
@@ -560,10 +633,10 @@ export default function Pacientes() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {patients.map((p) => (
-                <button
+                <div
                   key={p.id}
                   onClick={() => navigate(mapDashboardPath(`/dashboard/pacientes/${p.id}`))}
-                  className="group bg-white rounded-2xl border border-gray-100 shadow-sm p-4 hover:border-primary/30 hover:shadow-md transition-all duration-200 text-left flex items-center gap-3.5 w-full"
+                  className="group bg-white rounded-2xl border border-gray-100 shadow-sm p-4 hover:border-primary/30 hover:shadow-md transition-all duration-200 text-left flex items-center gap-3.5 w-full cursor-pointer relative"
                 >
                   <div className="relative shrink-0">
                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-400 to-violet-600 flex items-center justify-center text-white font-bold text-sm overflow-hidden">
@@ -591,16 +664,101 @@ export default function Pacientes() {
                       <ShieldCheck size={8} /> Expediente activo
                     </span>
                   </div>
-                  <ChevronRight
-                    size={15}
-                    className="text-gray-200 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0"
-                  />
-                </button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setUnlinkTarget(p)
+                      }}
+                      title="Desvincular paciente"
+                      className="p-2 rounded-xl text-gray-300 hover:text-red-600 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
+                    >
+                      <UserMinus size={16} />
+                    </button>
+                    <ChevronRight
+                      size={15}
+                      className="text-gray-200 group-hover:text-primary group-hover:translate-x-0.5 transition-all"
+                    />
+                  </div>
+                </div>
               ))}
             </div>
           )}
         </div>
       </div>
+
+      {/* Link Existing Patient Modal */}
+      {linkOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
+                  <UserCheck size={16} />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-gray-900">Vincular paciente</h2>
+                  <p className="text-[10px] text-gray-400">Cuenta existente en HealthPal</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setLinkOpen(false)
+                  setLinkIdentifier('')
+                  setLinkReason('')
+                }}
+                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X size={16} className="text-gray-400" />
+              </button>
+            </div>
+
+            <form onSubmit={handleLinkExistingPatient} className="p-5 space-y-3.5">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                  Correo o teléfono del paciente
+                </label>
+                <input
+                  type="text"
+                  value={linkIdentifier}
+                  onChange={(e) => setLinkIdentifier(e.target.value)}
+                  placeholder="ej. paciente@correo.com o 8121921877"
+                  required
+                  autoFocus
+                  className="w-full px-3 py-2.5 text-base sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                />
+                <p className="text-[11px] text-gray-400 mt-1">
+                  Enviaremos una solicitud de acceso al paciente para que autorice compartir su
+                  expediente.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                  Motivo de la solicitud (opcional)
+                </label>
+                <input
+                  type="text"
+                  value={linkReason}
+                  onChange={(e) => setLinkReason(e.target.value)}
+                  placeholder="ej. Consulta médica general, seguimiento..."
+                  className="w-full px-3 py-2.5 text-base sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={linkLoading || !linkIdentifier.trim()}
+                className="w-full py-3 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm mt-2 bg-blue-600 hover:bg-blue-700 text-white active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {linkLoading ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
+                Solicitar acceso
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Create Patient Modal */}
       {createOpen && (
@@ -811,6 +969,106 @@ export default function Pacientes() {
                 Enviar por WhatsApp
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Unlink Patient Modal */}
+      {unlinkTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-red-50/50">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-red-100 flex items-center justify-center text-red-600">
+                  <UserMinus size={17} />
+                </div>
+                <h2 className="text-sm font-bold text-gray-900">Desvincular paciente</h2>
+              </div>
+              <button
+                onClick={() => setUnlinkTarget(null)}
+                className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-500 to-violet-700 text-white font-bold text-sm flex items-center justify-center shrink-0">
+                  {unlinkTarget.avatar_url ? (
+                    <img
+                      src={unlinkTarget.avatar_url}
+                      alt=""
+                      className="w-full h-full object-cover rounded-lg"
+                    />
+                  ) : (
+                    (unlinkTarget.full_name ?? 'P').slice(0, 2).toUpperCase()
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-gray-900 truncate">
+                    {unlinkTarget.full_name || 'Paciente'}
+                  </p>
+                  {unlinkTarget.email && (
+                    <p className="text-xs text-gray-400 truncate">{unlinkTarget.email}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="text-xs text-gray-600 space-y-2 bg-amber-50/70 border border-amber-200/60 p-3.5 rounded-xl">
+                <p className="font-semibold text-amber-900 flex items-center gap-1.5">
+                  <AlertTriangle size={14} className="text-amber-600 shrink-0" />
+                  Al desvincular a este paciente:
+                </p>
+                <ul className="list-disc list-inside space-y-1 text-amber-800/90 pl-1">
+                  <li>Se revocará tu acceso activo a su expediente y documentos.</li>
+                  <li>
+                    Las notas médicas y recetas emitidas se{' '}
+                    <strong>conservarán de forma segura</strong> en la cuenta del paciente conforme
+                    a la NOM-004.
+                  </li>
+                  <li>
+                    Si lo vuelves a vincular en el futuro, se reanudará el acceso a su historial.
+                  </li>
+                </ul>
+              </div>
+
+              <label className="flex items-start gap-2.5 cursor-pointer select-none pt-1">
+                <input
+                  type="checkbox"
+                  checked={unlinkCancelAppointments}
+                  onChange={(e) => setUnlinkCancelAppointments(e.target.checked)}
+                  className="mt-0.5 rounded text-primary focus:ring-primary h-4 w-4"
+                />
+                <span className="text-xs text-gray-600 font-medium">
+                  Cancelar citas futuras programadas con este paciente
+                </span>
+              </label>
+
+              <div className="flex gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setUnlinkTarget(null)}
+                  disabled={unlinkLoading}
+                  className="flex-1 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-xs font-semibold hover:bg-gray-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleUnlinkPatient}
+                  disabled={unlinkLoading}
+                  className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-60"
+                >
+                  {unlinkLoading ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <UserMinus size={14} />
+                  )}
+                  Confirmar desvinculación
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
