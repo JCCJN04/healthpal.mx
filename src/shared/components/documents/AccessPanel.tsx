@@ -115,7 +115,7 @@ export function AccessPanel({ isOpen, onClose, ownerId }: AccessPanelProps) {
         showToast(result.error || 'Error al revocar acceso', 'error')
       }
     } catch (err: unknown) {
-      showToast(err?.message || 'Error al revocar acceso', 'error')
+      showToast((err as Error)?.message || 'Error al revocar acceso', 'error')
     } finally {
       setRevoking(null)
     }
@@ -142,7 +142,7 @@ export function AccessPanel({ isOpen, onClose, ownerId }: AccessPanelProps) {
         await loadShares()
       }
     } catch (err: unknown) {
-      showToast(err?.message || 'Error al revocar acceso', 'error')
+      showToast((err as Error)?.message || 'Error al revocar acceso', 'error')
     } finally {
       setRevoking(null)
     }

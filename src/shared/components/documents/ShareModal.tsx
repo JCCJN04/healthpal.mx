@@ -116,7 +116,7 @@ export function ShareModal({
         setError(result.error || 'No se pudo compartir')
       }
     } catch (err: unknown) {
-      setError(err?.message || 'Error al compartir documento')
+      setError((err as Error)?.message || 'Error al compartir documento')
     } finally {
       setSubmitting(false)
     }
@@ -137,7 +137,7 @@ export function ShareModal({
         setError(result.error || 'No se pudo revocar el acceso')
       }
     } catch (err: unknown) {
-      setError(err?.message || 'Error al revocar acceso')
+      setError((err as Error)?.message || 'Error al revocar acceso')
     } finally {
       setRevoking(null)
     }

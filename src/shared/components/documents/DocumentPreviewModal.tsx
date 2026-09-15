@@ -230,7 +230,7 @@ export function DocumentPreviewModal({ document, onClose, onShare }: DocumentPre
         showToast(result.error || 'No se pudo descargar', 'error')
       }
     } catch (err: unknown) {
-      showToast(err?.message || 'Error al descargar documento', 'error')
+      showToast((err as Error)?.message || 'Error al descargar documento', 'error')
     } finally {
       setDownloading(false)
     }
