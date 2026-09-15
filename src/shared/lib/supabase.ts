@@ -1,4 +1,9 @@
-import { createClient } from '@supabase/supabase-js'
+import {
+  createClient,
+  type UserResponse,
+  type AuthError,
+  type Session,
+} from '@supabase/supabase-js'
 import type { Database } from '@/shared/types/database'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
@@ -26,19 +31,25 @@ export const supabase = createClient<Database>(supabaseUrl, supabasePublishableK
 // Optimize getUser to use local session instead of network request
 // This prevents rate-limiting and hanging when called frequently by independent queries
 const originalGetUser = supabase.auth.getUser.bind(supabase.auth)
-supabase.auth.getUser = async (jwt?: string) => {
+supabase.auth.getUser = async (jwt?: string): Promise<UserResponse> => {
   if (jwt) return originalGetUser(jwt)
   try {
     const { data, error } = await Promise.race([
       supabase.auth.getSession(),
-      new Promise<{ data: { session: unknown }; error: unknown }>((_, reject) =>
+      new Promise<{ data: { session: Session | null }; error: AuthError | null }>((_, reject) =>
         setTimeout(() => reject(new Error('getSession timeout')), 2000),
       ),
     ])
-    // @ts-expect-error: The signature expects AuthError but standard Error is returned on timeout
-    return { data: { user: data.session?.user ?? null }, error }
+    const user = data.session?.user ?? null
+    if (user) {
+      return { data: { user }, error: null }
+    } else {
+      return {
+        data: { user: null },
+        error: (error as AuthError) || new Error('User not found'),
+      } as UserResponse
+    }
   } catch (err: unknown) {
-    // @ts-expect-error: The signature expects AuthError but standard Error is returned on timeout
-    return { data: { user: null }, error: err }
+    return { data: { user: null }, error: err as AuthError }
   }
 }
