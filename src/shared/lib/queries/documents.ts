@@ -3,9 +3,6 @@
 import { supabase } from '@/shared/lib/supabase'
 import { logger } from '@/shared/lib/logger'
 import type { Database } from '@/shared/types/database'
-import { isDemoMode } from '@/context/DemoContext'
-import { demoDocuments } from '@/data/demoData'
-import { DEMO_DOCTOR_EMAIL, DEMO_DOCTOR_PASSWORD, DEMO_PATIENT_IDS } from '@/data/demoConfig'
 import {
   generateDocumentKey,
   encryptFile,
@@ -15,16 +12,10 @@ import {
   importPublicKey,
 } from '@/shared/lib/crypto'
 
-const DEMO_DOCUMENTS_KEY = 'healthpal:demo:documents'
-const DEMO_FOLDERS_KEY = 'healthpal:demo:folders'
-const DEMO_DOCUMENTS_IN_MEMORY = (import.meta.env.VITE_DEMO_DOCUMENTS_IN_MEMORY as string | undefined) === 'true'
-const DEFAULT_DEMO_DOCTOR_EMAIL = 'demo@healthpal.mx'
-
-function checkInMemoryDemoDocuments(): boolean {
-  return isDemoMode() && DEMO_DOCUMENTS_IN_MEMORY
-}
-
-async function getAuthenticatedUserIdForWrite(): Promise<{ userId: string | null; authError?: string }> {
+async function getAuthenticatedUserIdForWrite(): Promise<{
+  userId: string | null
+  authError?: string
+}> {
   try {
     const { data: currentSessionData } = await supabase.auth.getSession()
     if (currentSessionData.session?.user?.id) {
@@ -36,31 +27,10 @@ async function getAuthenticatedUserIdForWrite(): Promise<{ userId: string | null
       return { userId: currentUserData.user.id }
     }
 
-    if (!isDemoMode()) return { userId: null }
-
-    const emailCandidates = Array.from(new Set([DEMO_DOCTOR_EMAIL, DEFAULT_DEMO_DOCTOR_EMAIL].filter(Boolean)))
-    const passwordCandidates = Array.from(new Set([DEMO_DOCTOR_PASSWORD].filter(Boolean)))
-
-    let lastErrorMessage = 'No se pudo autenticar la sesion de demo'
-
-    for (const email of emailCandidates) {
-      for (const password of passwordCandidates) {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-        if (!error && data.user?.id) {
-          return { userId: data.user.id }
-        }
-
-        if (error) {
-          lastErrorMessage = error.message || lastErrorMessage
-          logger.warn('demo:documents:signInWithPassword failed', { email, error: error.message })
-        }
-      }
-    }
-
-    return { userId: null, authError: lastErrorMessage }
+    return { userId: null, authError: 'No hay una sesión activa' }
   } catch (err: unknown) {
-    logger.error('demo:documents:getAuthenticatedUserIdForWrite', err)
-    return { userId: null, authError: (err as Error)?.message || 'No se pudo autenticar la sesion de demo' }
+    logger.error('documents:getAuthenticatedUserIdForWrite', err)
+    return { userId: null, authError: (err as Error)?.message || 'No se pudo autenticar la sesión' }
   }
 }
 
@@ -86,73 +56,12 @@ type DocumentPathInput =
   | {
       owner_id?: string | null
       id?: string | null
-      demo_preview_url?: string | null
+      external_url?: string | null
       storage_path?: string | null
     }
 
-async function readFileAsDataUrl(file: File): Promise<string | null> {
-  if (typeof FileReader === 'undefined') return null
-
-  return await new Promise((resolve) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        resolve(reader.result)
-        return
-      }
-      resolve(null)
-    }
-    reader.onerror = () => resolve(null)
-    reader.readAsDataURL(file)
-  })
-}
-
 export function buildDeterministicDocumentPath(ownerId: string, documentId: string): string {
   return `${ownerId}/${documentId}/${documentId}.bin`
-}
-
-function getDemoDocumentsState(): Document[] {
-  if (typeof window === 'undefined') return demoDocuments as Document[]
-
-  const raw = window.sessionStorage.getItem(DEMO_DOCUMENTS_KEY)
-  if (!raw) {
-    window.sessionStorage.setItem(DEMO_DOCUMENTS_KEY, JSON.stringify(demoDocuments))
-    return demoDocuments as Document[]
-  }
-
-  try {
-    return JSON.parse(raw) as Document[]
-  } catch {
-    window.sessionStorage.setItem(DEMO_DOCUMENTS_KEY, JSON.stringify(demoDocuments))
-    return demoDocuments as Document[]
-  }
-}
-
-function setDemoDocumentsState(next: Document[]) {
-  if (typeof window === 'undefined') return
-  window.sessionStorage.setItem(DEMO_DOCUMENTS_KEY, JSON.stringify(next))
-}
-
-function getDemoFoldersState(): Folder[] {
-  if (typeof window === 'undefined') return []
-
-  const raw = window.sessionStorage.getItem(DEMO_FOLDERS_KEY)
-  if (!raw) {
-    window.sessionStorage.setItem(DEMO_FOLDERS_KEY, JSON.stringify([]))
-    return []
-  }
-
-  try {
-    return JSON.parse(raw) as Folder[]
-  } catch {
-    window.sessionStorage.setItem(DEMO_FOLDERS_KEY, JSON.stringify([]))
-    return []
-  }
-}
-
-function setDemoFoldersState(next: Folder[]) {
-  if (typeof window === 'undefined') return
-  window.sessionStorage.setItem(DEMO_FOLDERS_KEY, JSON.stringify(next))
 }
 
 async function resolveDocumentStoragePath(input: DocumentPathInput): Promise<string | null> {
@@ -162,22 +71,21 @@ async function resolveDocumentStoragePath(input: DocumentPathInput): Promise<str
     const value = input.trim()
     return value.length > 0 ? value : null
   }
-
   if (input.owner_id && input.id) {
     const defaultPath = buildDeterministicDocumentPath(input.owner_id, input.id)
-    
+
     try {
       const folderPath = `${input.owner_id}/${input.id}`
       const { data } = await supabase.storage.from('documents').list(folderPath, { limit: 10 })
 
-      const realFile = (data || []).find(f => f.name && !f.name.startsWith('.'))
+      const realFile = (data || []).find((f) => f.name && !f.name.startsWith('.'))
       if (realFile) {
         return `${folderPath}/${realFile.name}`
       }
     } catch (e) {
       // Silently fallback to default path
     }
-    
+
     return defaultPath
   }
 
@@ -187,19 +95,13 @@ async function resolveDocumentStoragePath(input: DocumentPathInput): Promise<str
 /**
  * Get documents for current user
  */
-export async function getUserDocuments(userId: string, folderId: string | null = null, allFolders = false): Promise<Document[]> {
-  if (checkInMemoryDemoDocuments()) {
-    return getDemoDocumentsState()
-      .filter((doc) => doc.owner_id === userId)
-      .filter((doc) => allFolders ? true : (folderId ? doc.folder_id === folderId : doc.folder_id === null)) as Document[]
-  }
-
+export async function getUserDocuments(
+  userId: string,
+  folderId: string | null = null,
+  allFolders = false,
+): Promise<Document[]> {
   try {
-    let query = supabase
-      .from('documents')
-      .select('*')
-      .eq('owner_id', userId)
-      .is('deleted_at', null)  // NOM-024 §6.6.2: exclude soft-deleted documents
+    let query = supabase.from('documents').select('*').eq('owner_id', userId).is('deleted_at', null) // NOM-024 §6.6.2: exclude soft-deleted documents
 
     if (!allFolders) {
       if (folderId) {
@@ -238,11 +140,6 @@ export async function getUserDocuments(userId: string, folderId: string | null =
  * Get document by ID
  */
 export async function getDocumentById(documentId: string): Promise<Document | null> {
-  if (checkInMemoryDemoDocuments()) {
-    const found = getDemoDocumentsState().find((doc) => doc.id === documentId)
-    return (found || null) as Document | null
-  }
-
   try {
     const { data, error } = await supabase
       .from('documents')
@@ -266,14 +163,11 @@ export async function getDocumentById(documentId: string): Promise<Document | nu
  * List incoming shares for a user with minimal profile info of sender and document payload.
  */
 export async function getDocumentsSharedWithMe(userId: string) {
-  if (checkInMemoryDemoDocuments()) {
-    return []
-  }
-
   try {
     const { data, error } = await supabase
       .from('document_shares')
-      .select(`
+      .select(
+        `
         id,
         created_at,
         shared_by,
@@ -284,7 +178,8 @@ export async function getDocumentsSharedWithMe(userId: string) {
           id, full_name, email, phone, avatar_url, role,
           doctor_profile:doctor_profiles(specialty)
         )
-      `)
+      `,
+      )
       .eq('shared_with', userId)
       .order('created_at', { ascending: false })
 
@@ -294,8 +189,9 @@ export async function getDocumentsSharedWithMe(userId: string) {
     }
 
     // NOM-024 §6.6.2: exclude soft-deleted documents
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (data || []).filter(item => !(item.document as any)?.deleted_at)
+    return (data || []).filter(
+      (item: { document?: { deleted_at?: string | null } | null }) => !item.document?.deleted_at,
+    )
   } catch (err) {
     logger.error('getDocumentsSharedWithMe', err)
     return []
@@ -307,21 +203,19 @@ export async function getDocumentsSharedWithMe(userId: string) {
  * Used to show doctor-uploaded docs inside a patient's folder view.
  */
 export async function getDocumentsSharedByMeWith(myUserId: string, targetUserId: string) {
-  if (checkInMemoryDemoDocuments()) {
-    return []
-  }
-
   try {
     const { data, error } = await supabase
       .from('document_shares')
-      .select(`
+      .select(
+        `
         id,
         created_at,
         shared_by,
         shared_with,
         document_id,
         document:documents (*)
-      `)
+      `,
+      )
       .eq('shared_by', myUserId)
       .eq('shared_with', targetUserId)
       .order('created_at', { ascending: false })
@@ -351,45 +245,16 @@ export async function uploadDocument(
     folderId?: string | null
     patientId?: string | null
     documentDate?: string | null
-  }
+  },
 ): Promise<{ success: boolean; documentId?: string; error?: string }> {
-  if (checkInMemoryDemoDocuments()) {
-    const id = `demo-doc-${Date.now()}`
-    const createdAt = new Date().toISOString()
-    const demoPreviewUrl = await readFileAsDataUrl(file)
-    const nextDoc = {
-      id,
-      owner_id: userId,
-      patient_id: userId,
-      uploaded_by: userId,
-      title: metadata.title || file.name,
-      category: metadata.category,
-      mime_type: file.type || 'application/octet-stream',
-      file_size: file.size,
-      notes: metadata.notes || null,
-      folder_id: metadata.folderId || null,
-      document_date: metadata.documentDate || null,
-      storage_path: demoPreviewUrl,
-      demo_preview_url: demoPreviewUrl,
-      created_at: createdAt,
-      updated_at: createdAt,
-    } as Document
-
-    const docs = getDemoDocumentsState()
-    setDemoDocumentsState([nextDoc, ...docs])
-
-    logger.info('demo:uploadDocument', { fileName: file.name, userId, metadata, id })
-    return { success: true, documentId: id }
-  }
-
   try {
     const { userId: authenticatedUserId, authError } = await getAuthenticatedUserIdForWrite()
     const ownerId = authenticatedUserId || userId
 
-    if (isDemoMode() && !authenticatedUserId) {
+    if (!authenticatedUserId) {
       return {
         success: false,
-        error: `No se pudo autenticar la sesion demo para subir documentos: ${authError || 'credenciales invalidas'}`,
+        error: authError || 'No se pudo autenticar la sesión para subir documentos',
       }
     }
 
@@ -398,9 +263,7 @@ export async function uploadDocument(
     const filePath = buildDeterministicDocumentPath(ownerId, documentId)
 
     // Upload to storage
-    const { error: uploadError } = await supabase.storage
-      .from('documents')
-      .upload(filePath, file)
+    const { error: uploadError } = await supabase.storage.from('documents').upload(filePath, file)
 
     if (uploadError) {
       logger.error('uploadDocument.storage', uploadError)
@@ -408,21 +271,19 @@ export async function uploadDocument(
     }
 
     // Create document record
-    const { error: dbError } = await supabase
-      .from('documents')
-      .insert({
-        id: documentId,
-        owner_id: ownerId,
-        patient_id: metadata.patientId || ownerId,
-        uploaded_by: ownerId,
-        title: metadata.title || file.name,
-        category: metadata.category,
-        mime_type: file.type,
-        file_size: file.size,
-        notes: metadata.notes || null,
-        folder_id: metadata.folderId || null,
-        document_date: metadata.documentDate || null,
-      })
+    const { error: dbError } = await supabase.from('documents').insert({
+      id: documentId,
+      owner_id: ownerId,
+      patient_id: metadata.patientId || ownerId,
+      uploaded_by: ownerId,
+      title: metadata.title || file.name,
+      category: metadata.category,
+      mime_type: file.type,
+      file_size: file.size,
+      notes: metadata.notes || null,
+      folder_id: metadata.folderId || null,
+      document_date: metadata.documentDate || null,
+    })
 
     if (dbError) {
       logger.error('uploadDocument.db', dbError)
@@ -451,7 +312,7 @@ export async function saveExternalUrlDocument(
     notes?: string
     folderId?: string | null
     patientId?: string | null
-  }
+  },
 ): Promise<{ success: boolean; documentId?: string; error?: string }> {
   try {
     const { data, error } = await supabase
@@ -488,15 +349,8 @@ export async function saveExternalUrlDocument(
  */
 export async function deleteDocument(
   documentId: string,
-  userId: string
+  userId: string,
 ): Promise<{ success: boolean; error?: string }> {
-  if (checkInMemoryDemoDocuments()) {
-    const docs = getDemoDocumentsState()
-    setDemoDocumentsState(docs.filter((doc) => !(doc.id === documentId && doc.owner_id === userId)))
-    logger.info('demo:deleteDocument', { documentId, userId })
-    return { success: true }
-  }
-
   try {
     logger.debug('deleteDocument initiated')
 
@@ -515,9 +369,7 @@ export async function deleteDocument(
     const path = await resolveDocumentStoragePath(document)
     let storageError = null
     if (path) {
-      const result = await supabase.storage
-        .from('documents')
-        .remove([path])
+      const result = await supabase.storage.from('documents').remove([path])
       storageError = result.error
     }
 
@@ -527,7 +379,9 @@ export async function deleteDocument(
 
     // NOM-024 §6.6.2: documents older than 24h are immutable — use soft-delete.
     // The DB trigger enforces this; client mirrors the logic to show the right message.
-    const createdAt = new Date((document as typeof document & { created_at: string }).created_at).getTime()
+    const createdAt = new Date(
+      (document as typeof document & { created_at: string }).created_at,
+    ).getTime()
     const ageHours = (Date.now() - createdAt) / (1000 * 60 * 60)
 
     if (ageHours > 24) {
@@ -572,18 +426,12 @@ export async function deleteDocument(
 /**
  * Get folders for current user
  */
-export async function getFolders(userId: string, parentId: string | null = null): Promise<Folder[]> {
-  if (checkInMemoryDemoDocuments()) {
-    return getDemoFoldersState()
-      .filter((folder) => folder.owner_id === userId)
-      .filter((folder) => folder.parent_id === parentId)
-  }
-
+export async function getFolders(
+  userId: string,
+  parentId: string | null = null,
+): Promise<Folder[]> {
   try {
-    let query = supabase
-      .from('folders')
-      .select('*')
-      .eq('owner_id', userId)
+    let query = supabase.from('folders').select('*').eq('owner_id', userId)
 
     if (parentId) {
       query = query.eq('parent_id', parentId)
@@ -611,29 +459,8 @@ export async function getFolders(userId: string, parentId: string | null = null)
 export async function createFolder(
   name: string,
   userId: string,
-  parentId: string | null = null
+  parentId: string | null = null,
 ): Promise<{ success: boolean; folderId?: string; error?: string }> {
-  if (checkInMemoryDemoDocuments()) {
-    const id = `demo-folder-${Date.now()}`
-    const now = new Date().toISOString()
-    const folder: Folder = {
-      id,
-      owner_id: userId,
-      parent_id: parentId,
-      name,
-      color: '#33C7BE',
-      is_favorite: false,
-      created_at: now,
-      updated_at: now,
-    }
-
-    const folders = getDemoFoldersState()
-    setDemoFoldersState([...folders, folder])
-
-    logger.info('demo:createFolder', { name, userId, parentId, id })
-    return { success: true, folderId: id }
-  }
-
   try {
     const { data, error } = await supabase
       .from('folders')
@@ -660,21 +487,10 @@ export async function createFolder(
 /**
  * Delete a folder
  */
-export async function deleteFolder(folderId: string, userId: string): Promise<{ success: boolean; error?: string }> {
-  if (checkInMemoryDemoDocuments()) {
-    const folders = getDemoFoldersState()
-    const remainingFolders = folders.filter((folder) => !(folder.id === folderId && folder.owner_id === userId))
-    setDemoFoldersState(remainingFolders)
-
-    const docs = getDemoDocumentsState()
-    const docsToDelete = docs.filter((doc) => doc.folder_id === folderId && doc.owner_id === userId)
-    const remainingDocs = docs.filter((doc) => !(doc.folder_id === folderId && doc.owner_id === userId)) as Document[]
-    setDemoDocumentsState(remainingDocs)
-
-    logger.info('demo:deleteFolder', { folderId, userId, deletedDocs: docsToDelete.length })
-    return { success: true }
-  }
-
+export async function deleteFolder(
+  folderId: string,
+  userId: string,
+): Promise<{ success: boolean; error?: string }> {
   try {
     // Fetch all documents in the folder owned by this user
     const { data: docsInFolder, error: fetchError } = await supabase
@@ -691,11 +507,13 @@ export async function deleteFolder(folderId: string, userId: string): Promise<{ 
     // Delete files from storage
     if (docsInFolder && docsInFolder.length > 0) {
       const paths = await Promise.all(
-        docsInFolder.map(doc => resolveDocumentStoragePath(doc as DocumentPathInput))
+        docsInFolder.map((doc) => resolveDocumentStoragePath(doc as DocumentPathInput)),
       )
       const storagePaths = paths.filter((path): path is string => path !== null)
       if (storagePaths.length > 0) {
-        const { error: storageError } = await supabase.storage.from('documents').remove(storagePaths)
+        const { error: storageError } = await supabase.storage
+          .from('documents')
+          .remove(storagePaths)
         if (storageError) logger.error('deleteFolder.storage', storageError)
       }
 
@@ -741,24 +559,8 @@ export async function deleteFolder(folderId: string, userId: string): Promise<{ 
 export async function updateFolder(
   folderId: string,
   userId: string,
-  data: { name?: string; color?: string }
+  data: { name?: string; color?: string },
 ): Promise<{ success: boolean; error?: string }> {
-  if (checkInMemoryDemoDocuments()) {
-    const folders = getDemoFoldersState()
-    const next = folders.map((folder) => {
-      if (folder.id !== folderId || folder.owner_id !== userId) return folder
-      return {
-        ...folder,
-        ...data,
-        updated_at: new Date().toISOString(),
-      }
-    })
-    setDemoFoldersState(next)
-
-    logger.info('demo:updateFolder', { folderId, userId, data })
-    return { success: true }
-  }
-
   try {
     const { error } = await supabase
       .from('folders')
@@ -784,24 +586,8 @@ export async function updateFolder(
 export async function updateDocument(
   documentId: string,
   userId: string,
-  data: { title?: string; notes?: string; folder_id?: string | null; category?: string }
+  data: { title?: string; notes?: string; folder_id?: string | null; category?: string },
 ): Promise<{ success: boolean; error?: string }> {
-  if (checkInMemoryDemoDocuments()) {
-    const docs = getDemoDocumentsState()
-    const next = docs.map((doc) => {
-      if (doc.id !== documentId || doc.owner_id !== userId) return doc
-      return {
-        ...doc,
-        ...data,
-        updated_at: new Date().toISOString(),
-      }
-    }) as Document[]
-    setDemoDocumentsState(next)
-
-    logger.info('demo:updateDocument', { documentId, userId, data })
-    return { success: true }
-  }
-
   try {
     const { error } = await supabase
       .from('documents')
@@ -826,7 +612,7 @@ export async function updateDocument(
  */
 export async function ensureSharedFolderForSender(
   ownerId: string,
-  sender: { full_name?: string | null; email?: string | null; id: string }
+  sender: { full_name?: string | null; email?: string | null; id: string },
 ): Promise<string | null> {
   const folderName = `Compartido de ${sender.full_name || sender.email || sender.id}`
 
@@ -866,13 +652,12 @@ export async function ensureSharedFolderForSender(
  * Copy a shared document into recipient ownership (metadata reuse, storage path reused).
  */
 export async function importSharedDocument(
-  share: { document: Document; sender: { id: string; full_name?: string | null; email?: string | null } },
-  recipientId: string
+  share: {
+    document: Document
+    sender: { id: string; full_name?: string | null; email?: string | null }
+  },
+  recipientId: string,
 ): Promise<{ success: boolean; created?: boolean; documentId?: string; error?: string }> {
-  if (checkInMemoryDemoDocuments()) {
-    return { success: true, created: true, documentId: `demo-import-${Date.now()}` }
-  }
-
   try {
     const sharedDoc = share.document
 
@@ -930,20 +715,18 @@ export async function importSharedDocument(
       return { success: false, error: 'No se pudo copiar el archivo compartido' }
     }
 
-    const { error } = await supabase
-      .from('documents')
-      .insert({
-        id: newId,
-        owner_id: recipientId,
-        patient_id: sharedDoc.patient_id || share.sender.id,
-        uploaded_by: share.sender.id,
-        title: sharedDoc.title,
-        category: sharedDoc.category,
-        mime_type: sharedDoc.mime_type,
-        file_size: sharedDoc.file_size,
-        notes: sharedDoc.notes,
-        folder_id: folderId,
-      })
+    const { error } = await supabase.from('documents').insert({
+      id: newId,
+      owner_id: recipientId,
+      patient_id: sharedDoc.patient_id || share.sender.id,
+      uploaded_by: share.sender.id,
+      title: sharedDoc.title,
+      category: sharedDoc.category,
+      mime_type: sharedDoc.mime_type,
+      file_size: sharedDoc.file_size,
+      notes: sharedDoc.notes,
+      folder_id: folderId,
+    })
 
     if (error) {
       logger.error('importSharedDocument', error)
@@ -960,7 +743,7 @@ export async function importSharedDocument(
 /**
  * Process all shares for a user, importing them into their library if missing.
  */
- 
+
 export async function syncSharedDocumentsIntoLibrary(_userId: string) {
   // Copy-based import disabled for "just shared" model. Keep for backward compatibility return shape.
   return []
@@ -970,15 +753,6 @@ export async function syncSharedDocumentsIntoLibrary(_userId: string) {
  * Find a profile by email (case-insensitive). Returns first match.
  */
 export async function findProfileByEmail(email: string): Promise<Profile | null> {
-  if (checkInMemoryDemoDocuments()) {
-    return {
-      id: DEMO_PATIENT_IDS.ana,
-      email,
-      full_name: 'Paciente Demo',
-      role: 'patient',
-    } as Profile
-  }
-
   try {
     logger.debug('findProfileByEmail initiated')
     const { data, error } = await supabase
@@ -1008,13 +782,11 @@ export async function shareDocumentWithUser(
   sharedById: string,
   target: { userId?: string; email?: string },
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  opts?: { document?: Document; senderProfile?: { full_name?: string | null; email?: string | null } }
+  opts?: {
+    document?: Document
+    senderProfile?: { full_name?: string | null; email?: string | null }
+  },
 ): Promise<{ success: boolean; error?: string; sharedWithUserId?: string }> {
-  if (checkInMemoryDemoDocuments()) {
-    logger.info('demo:shareDocumentWithUser', { documentId, sharedById, target })
-    return { success: true }
-  }
-
   try {
     logger.debug('shareDocumentWithUser initiated')
     let targetUserId = target.userId || null
@@ -1067,19 +839,27 @@ export async function shareDocumentWithUser(
         .select('id, role')
         .in('id', [sharedById, targetUserId])
       if (roles && roles.length === 2) {
-        const sharer = roles.find(r => r.id === sharedById)
-        const target = roles.find(r => r.id === targetUserId)
+        const sharer = roles.find((r) => r.id === sharedById)
+        const target = roles.find((r) => r.id === targetUserId)
         let patientId: string | null = null
         let doctorId: string | null = null
         if (sharer?.role === 'patient' && target?.role === 'doctor') {
-          patientId = sharedById; doctorId = targetUserId
+          patientId = sharedById
+          doctorId = targetUserId
         } else if (sharer?.role === 'doctor' && target?.role === 'patient') {
-          patientId = targetUserId; doctorId = sharedById
+          patientId = targetUserId
+          doctorId = sharedById
         }
         if (patientId && doctorId) {
-          await supabase
-            .from('care_links')
-            .upsert({ patient_id: patientId, doctor_id: doctorId, status: 'active', created_by: sharedById }, { onConflict: 'doctor_id,patient_id', ignoreDuplicates: false })
+          await supabase.from('care_links').upsert(
+            {
+              patient_id: patientId,
+              doctor_id: doctorId,
+              status: 'active',
+              created_by: sharedById,
+            },
+            { onConflict: 'doctor_id,patient_id', ignoreDuplicates: false },
+          )
         }
       }
     } catch (linkErr) {
@@ -1100,11 +880,6 @@ export async function shareDocumentWithUser(
 export async function revokeShareById(
   shareId: string,
 ): Promise<{ success: boolean; error?: string }> {
-  if (checkInMemoryDemoDocuments()) {
-    logger.info('demo:revokeShareById', { shareId })
-    return { success: true }
-  }
-
   try {
     // Fetch first so we can also clean up any matching document_requests
     const { data: shareRow } = await supabase
@@ -1142,15 +917,31 @@ export async function revokeShareById(
       const idA = shareRow.shared_by
       const idB = shareRow.shared_with
       const [res1, res2] = await Promise.all([
-        supabase.from('document_shares').select('id', { count: 'exact', head: true }).eq('shared_by', idA).eq('shared_with', idB),
-        supabase.from('document_shares').select('id', { count: 'exact', head: true }).eq('shared_by', idB).eq('shared_with', idA),
+        supabase
+          .from('document_shares')
+          .select('id', { count: 'exact', head: true })
+          .eq('shared_by', idA)
+          .eq('shared_with', idB),
+        supabase
+          .from('document_shares')
+          .select('id', { count: 'exact', head: true })
+          .eq('shared_by', idB)
+          .eq('shared_with', idA),
       ])
       const totalRemaining = (res1.count ?? 0) + (res2.count ?? 0)
       if (totalRemaining === 0) {
         // Deactivate care_link regardless of which side is patient/doctor
         await Promise.all([
-          supabase.from('care_links').update({ status: 'inactive' }).eq('patient_id', idA).eq('doctor_id', idB),
-          supabase.from('care_links').update({ status: 'inactive' }).eq('patient_id', idB).eq('doctor_id', idA),
+          supabase
+            .from('care_links')
+            .update({ status: 'inactive' })
+            .eq('patient_id', idA)
+            .eq('doctor_id', idB),
+          supabase
+            .from('care_links')
+            .update({ status: 'inactive' })
+            .eq('patient_id', idB)
+            .eq('doctor_id', idA),
         ])
       }
     }
@@ -1165,21 +956,34 @@ export async function revokeShareById(
 /**
  * Get all notes for a document (owner + anyone with shared access can read).
  */
-export async function getDocumentNotes(documentId: string): Promise<Array<{
-  id: string
-  author_id: string
-  content: string
-  created_at: string
-  author: { full_name: string | null; avatar_url: string | null; role: string | null } | null
-}>> {
+export async function getDocumentNotes(documentId: string): Promise<
+  Array<{
+    id: string
+    author_id: string
+    content: string
+    created_at: string
+    author: { full_name: string | null; avatar_url: string | null; role: string | null } | null
+  }>
+> {
   try {
     const { data, error } = await supabase
       .from('document_notes')
-      .select('id, author_id, content, created_at, author:profiles!document_notes_author_id_fkey(full_name, avatar_url, role)')
+      .select(
+        'id, author_id, content, created_at, author:profiles!document_notes_author_id_fkey(full_name, avatar_url, role)',
+      )
       .eq('document_id', documentId)
       .order('created_at', { ascending: false })
-    if (error) { logger.error('getDocumentNotes', error); return [] }
-    return (data || []) as Array<{ id: string; author_id: string; content: string; created_at: string; author: { full_name: string | null; avatar_url: string | null; role: string | null } | null }>
+    if (error) {
+      logger.error('getDocumentNotes', error)
+      return []
+    }
+    return (data || []) as Array<{
+      id: string
+      author_id: string
+      content: string
+      created_at: string
+      author: { full_name: string | null; avatar_url: string | null; role: string | null } | null
+    }>
   } catch (err) {
     logger.error('getDocumentNotes', err)
     return []
@@ -1192,13 +996,16 @@ export async function getDocumentNotes(documentId: string): Promise<Array<{
 export async function addDocumentNote(
   documentId: string,
   authorId: string,
-  content: string
+  content: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const { error } = await supabase
       .from('document_notes')
       .insert({ document_id: documentId, author_id: authorId, content })
-    if (error) { logger.error('addDocumentNote', error); return { success: false, error: error.message } }
+    if (error) {
+      logger.error('addDocumentNote', error)
+      return { success: false, error: error.message }
+    }
     return { success: true }
   } catch (err) {
     logger.error('addDocumentNote', err)
@@ -1212,13 +1019,8 @@ export async function addDocumentNote(
 export async function revokeDocumentShare(
   documentId: string,
   sharedById: string,
-  sharedWithId: string
+  sharedWithId: string,
 ): Promise<{ success: boolean; error?: string }> {
-  if (checkInMemoryDemoDocuments()) {
-    logger.info('demo:revokeDocumentShare', { documentId, sharedById, sharedWithId })
-    return { success: true }
-  }
-
   try {
     const { error, count } = await supabase
       .from('document_shares')
@@ -1247,17 +1049,20 @@ export async function revokeDocumentShare(
  * List all people who have access to a document (via explicit shares OR fulfilled requests).
  * Uses separate queries instead of embedded joins to avoid silent RLS failures.
  */
-export async function listDocumentShares(documentId: string): Promise<Array<{
-  id: string
-  shared_with: string
-  created_at: string
-  source: 'share' | 'request'
-  profiles: { id: string; full_name: string | null; email: string | null; role: string | null } | null
-}>> {
-  if (checkInMemoryDemoDocuments()) {
-    return []
-  }
-
+export async function listDocumentShares(documentId: string): Promise<
+  Array<{
+    id: string
+    shared_with: string
+    created_at: string
+    source: 'share' | 'request'
+    profiles: {
+      id: string
+      full_name: string | null
+      email: string | null
+      role: string | null
+    } | null
+  }>
+> {
   try {
     // Part A: explicit document_shares
     const { data: shares, error: sharesError } = await supabase
@@ -1286,13 +1091,13 @@ export async function listDocumentShares(documentId: string): Promise<Array<{
 
     // Collect all profile IDs to resolve
     const allProfileIds = [
-      ...new Set([
-        ...shareList.map(s => s.shared_with),
-        ...requestList.map(r => r.doctor_id),
-      ]),
+      ...new Set([...shareList.map((s) => s.shared_with), ...requestList.map((r) => r.doctor_id)]),
     ]
 
-    const profileMap = new Map<string, { id: string; full_name: string | null; email: string | null; role: string | null }>()
+    const profileMap = new Map<
+      string,
+      { id: string; full_name: string | null; email: string | null; role: string | null }
+    >()
     if (allProfileIds.length > 0) {
       const { data: profileRows } = await supabase
         .from('profiles')
@@ -1303,7 +1108,7 @@ export async function listDocumentShares(documentId: string): Promise<Array<{
       }
     }
 
-    const shareEntries = shareList.map(row => ({
+    const shareEntries = shareList.map((row) => ({
       id: row.id,
       shared_with: row.shared_with,
       created_at: row.created_at,
@@ -1311,7 +1116,7 @@ export async function listDocumentShares(documentId: string): Promise<Array<{
       profiles: profileMap.get(row.shared_with) ?? null,
     }))
 
-    const requestEntries = requestList.map(row => ({
+    const requestEntries = requestList.map((row) => ({
       id: row.id,
       shared_with: row.doctor_id,
       created_at: row.fulfilled_at || row.created_at,
@@ -1338,19 +1143,22 @@ export async function listDocumentShares(documentId: string): Promise<Array<{
 /**
  * Global search across documents the current user can access
  */
-export async function searchDocuments(term: string, userId: string, limit = 30): Promise<Document[]> {
+export async function searchDocuments(
+  term: string,
+  userId: string,
+  limit = 30,
+): Promise<Document[]> {
   if (!term.trim() || !userId) return []
 
   try {
     const [ownDocs, sharedRaw] = await Promise.all([
       getUserDocuments(userId, null),
-      getDocumentsSharedWithMe(userId)
+      getDocumentsSharedWithMe(userId),
     ])
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sharedDocs = (sharedRaw as any[])
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .map((s) => (s as any).document as Document)
+    const sharedDocs = (sharedRaw as Array<{ document?: Document | null }>)
+      .map((share) => share.document)
       .filter(Boolean)
 
     // Merge own + shared and dedupe by id
@@ -1381,44 +1189,17 @@ export async function searchDocuments(term: string, userId: string, limit = 30):
 /**
  * Download document file directly (forces download)
  */
-export async function downloadDocumentFile(pathOrDocument: DocumentPathInput, fileName: string): Promise<{ success: boolean; error?: string }> {
-  if (checkInMemoryDemoDocuments()) {
-    try {
-      const demoUrl =
-        (typeof pathOrDocument === 'string' && pathOrDocument.startsWith('data:') ? pathOrDocument : null) ||
-        (typeof pathOrDocument === 'object' && pathOrDocument
-          ? (pathOrDocument.demo_preview_url || pathOrDocument.storage_path || null)
-          : null)
-
-      if (!demoUrl) {
-        logger.info('demo:downloadDocumentFile', { fileName, hasPreview: false })
-        return { success: true }
-      }
-
-      const link = document.createElement('a')
-      link.href = demoUrl
-      link.download = fileName
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-
-      logger.info('demo:downloadDocumentFile', { fileName, hasPreview: true })
-      return { success: true }
-    } catch (err) {
-      logger.error('demo:downloadDocumentFile', err)
-      return { success: false, error: 'Error al descargar el archivo en modo demo' }
-    }
-  }
-
+export async function downloadDocumentFile(
+  pathOrDocument: DocumentPathInput,
+  fileName: string,
+): Promise<{ success: boolean; error?: string }> {
   try {
     const resolvedPath = await resolveDocumentStoragePath(pathOrDocument)
     if (!resolvedPath) {
       return { success: false, error: 'No se pudo resolver la ruta del archivo' }
     }
 
-    const { data, error } = await supabase.storage
-      .from('documents')
-      .download(resolvedPath)
+    const { data, error } = await supabase.storage.from('documents').download(resolvedPath)
 
     if (error) {
       logger.error('downloadDocumentFile', error)
@@ -1445,27 +1226,12 @@ export async function downloadDocumentFile(pathOrDocument: DocumentPathInput, fi
 /**
  * Get download URL for document (for preview/viewing)
  */
-export async function getDocumentDownloadUrl(pathOrDocument: DocumentPathInput): Promise<string | null> {
+export async function getDocumentDownloadUrl(
+  pathOrDocument: DocumentPathInput,
+): Promise<string | null> {
   // External URL documents have no storage file — return the URL directly
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if (pathOrDocument && typeof pathOrDocument === 'object' && (pathOrDocument as any).external_url) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (pathOrDocument as any).external_url as string
-  }
-
-  if (checkInMemoryDemoDocuments()) {
-    if (typeof pathOrDocument === 'string') {
-      return pathOrDocument.startsWith('data:') ? pathOrDocument : null
-    }
-
-    if (pathOrDocument && typeof pathOrDocument === 'object') {
-      const url = pathOrDocument.demo_preview_url || pathOrDocument.storage_path || null
-      if (url && typeof url === 'string' && url.startsWith('data:')) {
-        return url
-      }
-    }
-
-    return null
+  if (pathOrDocument && typeof pathOrDocument === 'object' && pathOrDocument.external_url) {
+    return pathOrDocument.external_url
   }
 
   try {
@@ -1502,39 +1268,37 @@ export async function uploadDocumentForPatient(
     title: string
     category: Database['public']['Enums']['doc_category']
     notes?: string
-  }
+  },
 ): Promise<{ success: boolean; documentId?: string; error?: string }> {
   try {
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     if (!session) return { success: false, error: 'No hay sesión activa' }
     const doctorId = session.user.id
 
     const documentId = crypto.randomUUID()
     const filePath = buildDeterministicDocumentPath(doctorId, documentId)
 
-    const { error: uploadError } = await supabase.storage
-      .from('documents')
-      .upload(filePath, file)
+    const { error: uploadError } = await supabase.storage.from('documents').upload(filePath, file)
 
     if (uploadError) {
       logger.error('uploadDocumentForPatient.storage', uploadError)
       return { success: false, error: uploadError.message }
     }
 
-    const { error: dbError } = await supabase
-      .from('documents')
-      .insert({
-        id: documentId,
-        owner_id: doctorId,
-        patient_id: patientId,
-        uploaded_by: doctorId,
-        title: metadata.title || file.name,
-        category: metadata.category,
-        mime_type: file.type,
-        file_size: file.size,
-        notes: metadata.notes || null,
-        folder_id: null,
-      })
+    const { error: dbError } = await supabase.from('documents').insert({
+      id: documentId,
+      owner_id: doctorId,
+      patient_id: patientId,
+      uploaded_by: doctorId,
+      title: metadata.title || file.name,
+      category: metadata.category,
+      mime_type: file.type,
+      file_size: file.size,
+      notes: metadata.notes || null,
+      folder_id: null,
+    })
 
     if (dbError) {
       logger.error('uploadDocumentForPatient.db', dbError)
@@ -1543,13 +1307,16 @@ export async function uploadDocumentForPatient(
     }
 
     // Share with patient so it appears in their documents list
-    await supabase.from('document_shares').insert({
-      document_id: documentId,
-      shared_by: doctorId,
-      shared_with: patientId,
-    }).then(({ error }) => {
-      if (error) logger.warn('uploadDocumentForPatient.share', error)
-    })
+    await supabase
+      .from('document_shares')
+      .insert({
+        document_id: documentId,
+        shared_by: doctorId,
+        shared_with: patientId,
+      })
+      .then(({ error }) => {
+        if (error) logger.warn('uploadDocumentForPatient.share', error)
+      })
 
     return { success: true, documentId }
   } catch (err) {
@@ -1561,9 +1328,7 @@ export async function uploadDocumentForPatient(
 /**
  * Fetch documents that the authenticated doctor has uploaded for a specific patient.
  */
-export async function getDoctorDocumentsForPatient(
-  patientId: string
-): Promise<Document[]> {
+export async function getDoctorDocumentsForPatient(patientId: string): Promise<Document[]> {
   try {
     const { data, error } = await supabase
       .from('documents')
@@ -1588,20 +1353,20 @@ export async function getDoctorDocumentsForPatient(
  * Fetch documents that a patient has shared with a specific doctor.
  * Used in the patient expediente tab to show documents uploaded by the patient via solicitud.
  */
-export async function getAllSharesByOwner(ownerId: string): Promise<Array<{
-  id: string
-  document_id: string
-  document_title: string
-  document_category: string
-  shared_with: string
-  shared_with_name: string | null
-  shared_with_email: string | null
-  shared_with_avatar: string | null
-  created_at: string
-  source: 'share' | 'request'
-}>> {
-  if (checkInMemoryDemoDocuments()) return []
-
+export async function getAllSharesByOwner(ownerId: string): Promise<
+  Array<{
+    id: string
+    document_id: string
+    document_title: string
+    document_category: string
+    shared_with: string
+    shared_with_name: string | null
+    shared_with_email: string | null
+    shared_with_avatar: string | null
+    created_at: string
+    source: 'share' | 'request'
+  }>
+> {
   try {
     // --- Part A: explicit document_shares ---
     const { data: shares, error: sharesError } = await supabase
@@ -1633,15 +1398,12 @@ export async function getAllSharesByOwner(ownerId: string): Promise<Array<{
 
     const allDocIds = [
       ...new Set([
-        ...shareList.map(s => s.document_id),
-        ...requestList.map(r => r.document_id as string),
+        ...shareList.map((s) => s.document_id),
+        ...requestList.map((r) => r.document_id as string),
       ]),
     ]
     const allProfileIds = [
-      ...new Set([
-        ...shareList.map(s => s.shared_with),
-        ...requestList.map(r => r.doctor_id),
-      ]),
+      ...new Set([...shareList.map((s) => s.shared_with), ...requestList.map((r) => r.doctor_id)]),
     ]
 
     const [{ data: docs }, { data: profileRows }] = await Promise.all([
@@ -1649,14 +1411,17 @@ export async function getAllSharesByOwner(ownerId: string): Promise<Array<{
         ? supabase.from('documents').select('id, title, category').in('id', allDocIds)
         : Promise.resolve({ data: [] }),
       allProfileIds.length > 0
-        ? supabase.from('profiles').select('id, full_name, email, avatar_url').in('id', allProfileIds)
+        ? supabase
+            .from('profiles')
+            .select('id, full_name, email, avatar_url')
+            .in('id', allProfileIds)
         : Promise.resolve({ data: [] }),
     ])
 
-    const docMap = new Map((docs || []).map(d => [d.id, d]))
-    const profileMap = new Map((profileRows || []).map(p => [p.id, p]))
+    const docMap = new Map((docs || []).map((d) => [d.id, d]))
+    const profileMap = new Map((profileRows || []).map((p) => [p.id, p]))
 
-    const shareEntries = shareList.map(row => {
+    const shareEntries = shareList.map((row) => {
       const doc = docMap.get(row.document_id)
       const recipient = profileMap.get(row.shared_with)
       return {
@@ -1673,7 +1438,7 @@ export async function getAllSharesByOwner(ownerId: string): Promise<Array<{
       }
     })
 
-    const requestEntries = requestList.map(row => {
+    const requestEntries = requestList.map((row) => {
       const doc = docMap.get(row.document_id as string)
       const doctor = profileMap.get(row.doctor_id)
       return {
@@ -1709,7 +1474,7 @@ export async function getAllSharesByOwner(ownerId: string): Promise<Array<{
 
 export async function getDocumentsSharedByPatientWithDoctor(
   doctorId: string,
-  patientId: string
+  patientId: string,
 ): Promise<Document[]> {
   try {
     const { data, error } = await supabase
@@ -1724,11 +1489,9 @@ export async function getDocumentsSharedByPatientWithDoctor(
       return []
     }
 
-
     return (data || [])
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .map((row: any) => row.document as Document)
-      .filter(Boolean)
+      .map((row: { document?: Document | null }) => row.document)
+      .filter((document): document is Document => Boolean(document))
   } catch (err) {
     logger.error('getDocumentsSharedByPatientWithDoctor', err)
     return []
@@ -1766,13 +1529,8 @@ export async function uploadDocumentEncrypted(
     folderId?: string | null
     patientId?: string | null
     documentDate?: string | null
-  }
+  },
 ): Promise<{ success: boolean; documentId?: string; error?: string }> {
-  if (isDemoMode()) {
-    // Demo mode — fall back to plain upload
-    return uploadDocument(file, userId, metadata)
-  }
-
   try {
     // 1. Generate a fresh AES-256-GCM document key
     const docKey = await generateDocumentKey()
@@ -1788,7 +1546,9 @@ export async function uploadDocumentEncrypted(
     const filePath = buildDeterministicDocumentPath(userId, documentId)
 
     // 5. Upload the encrypted blob
-    const encryptedBlob = new Blob([encryptedData], { type: file.type || 'application/octet-stream' })
+    const encryptedBlob = new Blob([encryptedData], {
+      type: file.type || 'application/octet-stream',
+    })
     const { error: uploadError } = await supabase.storage
       .from('documents')
       .upload(filePath, encryptedBlob)
@@ -1799,22 +1559,20 @@ export async function uploadDocumentEncrypted(
     }
 
     // 6. Insert document record with is_encrypted flag
-    const { error: dbError } = await supabase
-      .from('documents')
-      .insert({
-        id: documentId,
-        owner_id: userId,
-        patient_id: metadata.patientId || userId,
-        uploaded_by: userId,
-        title: metadata.title || file.name,
-        category: metadata.category,
-        mime_type: file.type,
-        file_size: file.size,
-        notes: metadata.notes || null,
-        folder_id: metadata.folderId || null,
-        document_date: metadata.documentDate || null,
-        is_encrypted: true,
-      })
+    const { error: dbError } = await supabase.from('documents').insert({
+      id: documentId,
+      owner_id: userId,
+      patient_id: metadata.patientId || userId,
+      uploaded_by: userId,
+      title: metadata.title || file.name,
+      category: metadata.category,
+      mime_type: file.type,
+      file_size: file.size,
+      notes: metadata.notes || null,
+      folder_id: metadata.folderId || null,
+      document_date: metadata.documentDate || null,
+      is_encrypted: true,
+    })
 
     if (dbError) {
       logger.error('uploadDocumentEncrypted.db', dbError)
@@ -1823,14 +1581,12 @@ export async function uploadDocumentEncrypted(
     }
 
     // 7. Store the wrapped document key for this user
-    const { error: keyError } = await supabase
-      .from('document_keys')
-      .insert({
-        document_id: documentId,
-        user_id: userId,
-        wrapped_key: wrappedKey,
-        doc_iv: docIv,
-      })
+    const { error: keyError } = await supabase.from('document_keys').insert({
+      document_id: documentId,
+      user_id: userId,
+      wrapped_key: wrappedKey,
+      doc_iv: docIv,
+    })
 
     if (keyError) {
       logger.error('uploadDocumentEncrypted.document_keys', keyError)
@@ -1853,11 +1609,13 @@ export async function uploadDocumentEncrypted(
  * The caller is responsible for revoking the URL after use.
  */
 export async function getDecryptedDocumentUrl(
-  pathOrDocument: DocumentPathInput & { id?: string | null; is_encrypted?: boolean; mime_type?: string | null },
-  privateKey: CryptoKey
+  pathOrDocument: DocumentPathInput & {
+    id?: string | null
+    is_encrypted?: boolean
+    mime_type?: string | null
+  },
+  privateKey: CryptoKey,
 ): Promise<string | null> {
-  if (isDemoMode()) return null
-
   try {
     if (!pathOrDocument || typeof pathOrDocument !== 'object') return null
 
@@ -1921,10 +1679,8 @@ export async function downloadDocumentFileDecrypted(
   documentId: string,
   mimeType: string,
   fileName: string,
-  privateKey: CryptoKey
+  privateKey: CryptoKey,
 ): Promise<{ success: boolean; error?: string }> {
-  if (isDemoMode()) return { success: true }
-
   try {
     const resolvedPath = await resolveDocumentStoragePath(pathOrDocument)
     if (!resolvedPath) {
@@ -1988,10 +1744,8 @@ export async function downloadDocumentFileDecrypted(
 export async function shareEncryptedDocumentKey(
   documentId: string,
   senderPrivateKey: CryptoKey,
-  recipientUserId: string
+  recipientUserId: string,
 ): Promise<{ success: boolean; error?: string }> {
-  if (isDemoMode()) return { success: true }
-
   try {
     // 1. Fetch sender's wrapped key for this document
     const { data: keyRow, error: keyError } = await supabase
@@ -2032,14 +1786,12 @@ export async function shareEncryptedDocumentKey(
     // 5. Insert the document key row for the recipient.
     // Plain INSERT (not upsert) — PostgREST checks UPDATE policies even for ON CONFLICT DO NOTHING,
     // which would block the patient from updating the doctor's row. Treat 23505 (unique_violation) as success.
-    const { error: insertError } = await supabase
-      .from('document_keys')
-      .insert({
-        document_id: documentId,
-        user_id: recipientUserId,
-        wrapped_key: recipientWrappedKey,
-        doc_iv: doc_iv,
-      })
+    const { error: insertError } = await supabase.from('document_keys').insert({
+      document_id: documentId,
+      user_id: recipientUserId,
+      wrapped_key: recipientWrappedKey,
+      doc_iv: doc_iv,
+    })
 
     if (insertError && insertError.code !== '23505') {
       logger.error('shareEncryptedDocumentKey.insert', insertError)

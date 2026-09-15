@@ -2,8 +2,6 @@
 // @ts-nocheck
 import { supabase } from '@/shared/lib/supabase'
 import { logger } from '@/shared/lib/logger'
-import { isDemoMode } from '@/context/DemoContext'
-import { demoPatients } from '@/data/demoData'
 
 export type PatientProfileLite = {
   id: string
@@ -19,16 +17,6 @@ export type PatientProfileLite = {
  */
 export async function listDoctorPatients(doctorId: string): Promise<PatientProfileLite[]> {
   if (!doctorId) return []
-
-  if (isDemoMode()) {
-    return demoPatients.map((patient) => ({
-      id: patient.id,
-      full_name: patient.full_name,
-      email: patient.email,
-      avatar_url: patient.avatar_url,
-      consentStatus: 'accepted',
-    }))
-  }
 
   try {
     // Get all accepted consent rows for this doctor
@@ -81,24 +69,6 @@ export async function searchPatients(
 ): Promise<PatientProfileLite[]> {
   if (!term.trim() || term.trim().length < 3) return []
 
-  if (isDemoMode()) {
-    const text = term.trim().toLowerCase()
-    return demoPatients
-      .filter(
-        (patient) =>
-          patient.full_name.toLowerCase().includes(text) ||
-          patient.email.toLowerCase().includes(text),
-      )
-      .map((patient) => ({
-        id: patient.id,
-        full_name: patient.full_name,
-        email: null,
-        avatar_url: patient.avatar_url,
-        consentStatus: 'accepted',
-      }))
-      .slice(0, 10)
-  }
-
   const { data, error } = await supabase.rpc('search_patients_for_doctor', {
     search_term: term.trim(),
     p_doctor_id: doctorId,
@@ -134,10 +104,6 @@ export async function requestAccessByIdentifier(
 }> {
   if (!identifier.trim() || !doctorId) {
     return { ok: false, message: 'Ingresa un correo o teléfono válido.' }
-  }
-
-  if (isDemoMode()) {
-    return { ok: true, message: 'Solicitud enviada (Modo Demo).' }
   }
 
   try {
@@ -187,10 +153,6 @@ export async function unlinkPatientFromDoctor(
     return { ok: false, message: 'Parámetros inválidos para desvincular.' }
   }
 
-  if (isDemoMode()) {
-    return { ok: true, message: 'Paciente desvinculado (Modo Demo).' }
-  }
-
   try {
     const { data, error } = await supabase.rpc('doctor_unlink_patient', {
       p_doctor_id: doctorId,
@@ -225,24 +187,6 @@ export async function unlinkPatientFromDoctor(
  * return null/error if the doctor doesn't have share_basic_profile consent.
  */
 export async function getPatientFullProfile(patientId: string) {
-  if (isDemoMode()) {
-    const found = demoPatients.find((patient) => patient.id === patientId)
-    if (!found) return null
-
-    return {
-      id: found.id,
-      full_name: found.full_name,
-      avatar_url: found.avatar_url,
-      role: 'patient',
-      birthdate: '1990-01-01',
-      sex: 'female',
-      patient_profiles: {
-        blood_type: 'O+',
-        allergies: found.diagnosis,
-      },
-    }
-  }
-
   const { data, error } = await supabase
     .from('profiles')
     .select(
@@ -267,12 +211,6 @@ export async function getPatientFullProfile(patientId: string) {
  * Returns null if doctor lacks the scope.
  */
 export async function getPatientContactInfo(patientId: string) {
-  if (isDemoMode()) {
-    const found = demoPatients.find((patient) => patient.id === patientId)
-    if (!found) return null
-    return { email: found.email, phone: '+52 55 0000 0000' }
-  }
-
   const { data, error } = await supabase
     .from('profiles')
     .select('email, phone')
@@ -288,19 +226,6 @@ export async function getPatientContactInfo(patientId: string) {
 
 // Obtiene las notas clínicas de un paciente — descifradas vía Edge Function
 export async function getPatientNotes(patientId: string, doctorId: string) {
-  if (isDemoMode()) {
-    return [
-      {
-        id: 'demo-note-001',
-        patient_id: patientId,
-        doctor_id: doctorId,
-        title: 'Nota de seguimiento',
-        body: 'Paciente estable, continuar tratamiento actual.',
-        created_at: new Date().toISOString(),
-      },
-    ]
-  }
-
   // Call Edge Function to get decrypted notes
   const {
     data: { session },
@@ -328,17 +253,6 @@ export async function addPatientNote(
   title: string,
   body: string,
 ) {
-  if (isDemoMode()) {
-    return {
-      id: `demo-note-${Date.now()}`,
-      patient_id: patientId,
-      doctor_id: _doctorId,
-      title,
-      body,
-      created_at: new Date().toISOString(),
-    }
-  }
-
   const {
     data: { session },
   } = await supabase.auth.getSession()

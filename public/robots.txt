@@ -6,7 +6,6 @@ Allow: /legal
 
 Disallow: /dashboard/
 Disallow: /onboarding/
-Disallow: /demo/
 Disallow: /solicitud/
 Disallow: /reset-password
 Disallow: /verify-email

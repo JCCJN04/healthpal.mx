@@ -55,7 +55,6 @@ import { supabase } from '@/shared/lib/supabase'
 import { showToast } from '@/shared/components/ui/Toast'
 import { logger } from '@/shared/lib/logger'
 import { validateFile } from '@/shared/lib/errors'
-import { isDemoMode } from '@/context/DemoContext'
 import type { Database } from '@/shared/types/database'
 import { PatientPrescriptionModal } from '@/features/patient/components/PatientPrescriptionModal'
 import type { Prescription } from '@/shared/lib/queries/prescriptions'
@@ -645,8 +644,6 @@ export default function Documentos() {
       if (result.success && result.documentId) {
         successCount++
 
-        if (isDemoMode()) continue
-
         if (currentFolder.id?.startsWith('shared-')) {
           const patientId = currentFolder.id.replace('shared-', '')
           const shareResult = await shareDocumentWithUser(
@@ -673,31 +670,17 @@ export default function Documentos() {
     setUploadProgress(null)
 
     if (successCount > 0) {
-      if (isDemoMode()) {
-        showToast(
-          successCount === 1
-            ? 'Documento subido correctamente (demo)'
-            : `${successCount} documentos subidos (demo)`,
-          'success',
-        )
-        setCurrentFolder({ id: null, name: 'Mis Documentos' })
-        setNavHistory([])
-        setSearchQuery('')
-        setDebouncedSearch('')
-        setSelectedCategory('all')
-      } else {
-        showToast(
-          successCount === total
-            ? total === 1
-              ? 'Documento subido correctamente'
-              : `${total} documentos subidos correctamente`
-            : `${successCount} de ${total} documentos subidos`,
-          successCount === total ? 'success' : 'warning',
-        )
-      }
+      showToast(
+        successCount === total
+          ? total === 1
+            ? 'Documento subido correctamente'
+            : `${total} documentos subidos correctamente`
+          : `${successCount} de ${total} documentos subidos`,
+        successCount === total ? 'success' : 'warning',
+      )
       setUploadModalOpen(false)
       setUploadForm({ files: [], title: '', category: 'other', notes: '', document_date: '' })
-      loadContent(isDemoMode() ? null : currentFolder.id)
+      loadContent(currentFolder.id)
     }
 
     setUploading(false)

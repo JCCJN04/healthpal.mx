@@ -33,7 +33,6 @@ import {
 } from '@/shared/lib/queries/consent'
 import { createDocumentRequest } from '@/shared/lib/queries/documentRequests'
 import { supabase } from '@/shared/lib/supabase'
-import { mapDashboardPath } from '@/context/DemoContext'
 import { showToast } from '@/shared/components/ui/Toast'
 import { logger } from '@/shared/lib/logger'
 
@@ -511,7 +510,7 @@ export default function Pacientes() {
                     <div className="flex gap-2 shrink-0">
                       {isAccepted && (
                         <button
-                          onClick={() => navigate(mapDashboardPath(`/dashboard/pacientes/${p.id}`))}
+                          onClick={() => navigate(`/dashboard/pacientes/${p.id}`)}
                           className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-primary bg-primary/5 rounded-lg hover:bg-primary/10 transition-colors"
                         >
                           Ver <ChevronRight size={12} />
@@ -647,7 +646,7 @@ export default function Pacientes() {
               {patients.map((p) => (
                 <div
                   key={p.id}
-                  onClick={() => navigate(mapDashboardPath(`/dashboard/pacientes/${p.id}`))}
+                  onClick={() => navigate(`/dashboard/pacientes/${p.id}`)}
                   className="group bg-white rounded-2xl border border-gray-100 shadow-sm p-4 hover:border-primary/30 hover:shadow-md transition-all duration-200 text-left flex items-center gap-3.5 w-full cursor-pointer relative"
                 >
                   <div className="relative shrink-0">

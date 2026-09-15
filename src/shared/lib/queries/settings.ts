@@ -1,7 +1,5 @@
 import { supabase } from '@/shared/lib/supabase'
 import { logger } from '@/shared/lib/logger'
-import { isDemoMode } from '@/context/DemoContext'
-import { demoDoctorProfile } from '@/data/demoData'
 
 // Type for user_settings (matches database schema)
 interface UserSettings {
@@ -20,30 +18,21 @@ type UserSettingsUpdate = Partial<Omit<UserSettings, 'user_id' | 'created_at' | 
  * Creates default settings if they don't exist
  */
 export async function getMySettings(): Promise<UserSettings> {
-  if (isDemoMode()) {
-    return {
-      user_id: demoDoctorProfile.id,
-      email_notifications: true,
-      appointment_reminders: true,
-      whatsapp_notifications: false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }
-  }
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  
   if (!user) {
     throw new Error('Not authenticated')
   }
 
   // Try to fetch existing settings
-  const { data: settings, error } = await supabase
+  const { data: settings, error } = (await supabase
     .from('user_settings')
     .select('*')
     .eq('user_id', user.id)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .single() as { data: UserSettings | null; error: any }
+    .single()) as { data: UserSettings | null; error: any }
 
   // If settings don't exist, create them with defaults
   if (error && error.code === 'PGRST116') {
@@ -52,17 +41,17 @@ export async function getMySettings(): Promise<UserSettings> {
       appointment_reminders: true,
       whatsapp_notifications: false,
     }
-    
-    const { data: newSettings, error: createError } = await supabase
+
+    const { data: newSettings, error: createError } = (await supabase
       .from('user_settings')
       .insert({
         user_id: user.id,
         ...defaultSettings,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
       .select()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .single() as { data: UserSettings | null; error: any }
+      .single()) as { data: UserSettings | null; error: any }
 
     if (createError) {
       logger.error('Error creating settings:', createError)
@@ -84,31 +73,22 @@ export async function getMySettings(): Promise<UserSettings> {
  * Update current user's settings
  */
 export async function updateMySettings(updates: UserSettingsUpdate): Promise<UserSettings> {
-  if (isDemoMode()) {
-    return {
-      user_id: demoDoctorProfile.id,
-      email_notifications: updates.email_notifications ?? true,
-      appointment_reminders: updates.appointment_reminders ?? true,
-      whatsapp_notifications: updates.whatsapp_notifications ?? false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }
-  }
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  
   if (!user) {
     throw new Error('Not authenticated')
   }
 
-  const { data, error } = await supabase
+  const { data, error } = (await supabase
     .from('user_settings')
     // @ts-expect-error - user_settings table will exist after migration is applied
     .update(updates)
     .eq('user_id', user.id)
     .select()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .single() as { data: UserSettings | null; error: any }
+    .single()) as { data: UserSettings | null; error: any }
 
   if (error) {
     logger.error('updateMySettings', error)
@@ -123,33 +103,24 @@ export async function updateMySettings(updates: UserSettingsUpdate): Promise<Use
  * Useful when you're not sure if settings exist yet
  */
 export async function upsertMySettings(updates: UserSettingsUpdate): Promise<UserSettings> {
-  if (isDemoMode()) {
-    return {
-      user_id: demoDoctorProfile.id,
-      email_notifications: updates.email_notifications ?? true,
-      appointment_reminders: updates.appointment_reminders ?? true,
-      whatsapp_notifications: updates.whatsapp_notifications ?? false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }
-  }
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  
   if (!user) {
     throw new Error('Not authenticated')
   }
 
-  const { data, error } = await supabase
+  const { data, error } = (await supabase
     .from('user_settings')
     .upsert({
       user_id: user.id,
       ...updates,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any)
     .select()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .single() as { data: UserSettings | null; error: any }
+    .single()) as { data: UserSettings | null; error: any }
 
   if (error) {
     logger.error('Error upserting settings:', error)

@@ -3,24 +3,19 @@
 import { supabase } from '@/shared/lib/supabase'
 import { logger } from '@/shared/lib/logger'
 import type { Database } from '@/shared/types/database'
-import { isDemoMode } from '@/context/DemoContext'
-import { demoDoctorProfile, demoPatients } from '@/data/demoData'
 
 // Type aliases for convenience
 type Profile = Database['public']['Tables']['profiles']['Row']
 type ProfileUpdate = Database['public']['Tables']['profiles']['Update']
 type DoctorProfileInsert = Database['public']['Tables']['doctor_profiles']['Insert']
 type PatientProfileInsert = Database['public']['Tables']['patient_profiles']['Insert']
+type PatientProfile = Database['public']['Tables']['patient_profiles']['Row']
 type OnboardingStep = 'role' | 'basic' | 'contact' | 'details' | 'legal' | 'done'
 
 /**
  * Get current user's profile with extended info
  */
 export async function getMyProfile(userId?: string): Promise<Profile> {
-  if (isDemoMode()) {
-    return demoDoctorProfile as Profile
-  }
-
   let effectiveUserId = userId
   let userEmail: string | undefined
   let userFullName: string | null = null
@@ -190,15 +185,6 @@ async function syncProfileFromMetadata(
  * Get doctor profile (extended)
  */
 export async function getDoctorProfile(doctorId: string) {
-  if (isDemoMode()) {
-    return {
-      doctor_id: doctorId,
-      specialty: 'Medicina General',
-      clinic_name: 'Healthpal Demo Clinic',
-      consultation_fee: 600,
-    }
-  }
-
   const { data, error } = await supabase
     .from('doctor_profiles')
     .select('*')
@@ -213,18 +199,7 @@ export async function getDoctorProfile(doctorId: string) {
 /**
  * Get patient profile (extended)
  */
-export async function getPatientProfile(patientId: string) {
-  if (isDemoMode()) {
-    const found = demoPatients.find((patient) => patient.id === patientId)
-    if (!found) return null
-    return {
-      patient_id: found.id,
-      blood_type: 'O+',
-      allergies: found.diagnosis,
-      chronic_conditions: found.diagnosis,
-    }
-  }
-
+export async function getPatientProfile(patientId: string): Promise<PatientProfile | null> {
   const { data, error } = await supabase
     .from('patient_profiles')
     .select('*')
@@ -240,13 +215,6 @@ export async function getPatientProfile(patientId: string) {
  * Update main profile
  */
 export async function updateMyProfile(updates: ProfileUpdate) {
-  if (isDemoMode()) {
-    return {
-      ...demoDoctorProfile,
-      ...updates,
-    }
-  }
-
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -275,14 +243,6 @@ export async function updateMyProfile(updates: ProfileUpdate) {
  * Persist the current onboarding step for the logged in user
  */
 export async function saveOnboardingStep(step: OnboardingStep) {
-  if (isDemoMode()) {
-    return {
-      id: demoDoctorProfile.id,
-      onboarding_step: step,
-      onboarding_completed: step === 'done',
-    }
-  }
-
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -314,13 +274,6 @@ export async function upsertDoctorProfile(
   doctorId: string,
   doctorData: Omit<DoctorProfileInsert, 'doctor_id'>,
 ) {
-  if (isDemoMode()) {
-    return {
-      doctor_id: doctorId,
-      ...doctorData,
-    }
-  }
-
   const { data, error } = await supabase
     .from('doctor_profiles')
     .upsert({
@@ -346,13 +299,6 @@ export async function upsertPatientProfile(
   patientId: string,
   patientData: Omit<PatientProfileInsert, 'patient_id'>,
 ) {
-  if (isDemoMode()) {
-    return {
-      patient_id: patientId,
-      ...patientData,
-    }
-  }
-
   const { data, error } = await supabase
     .from('patient_profiles')
     .upsert({
@@ -375,14 +321,6 @@ export async function upsertPatientProfile(
  * Mark onboarding as completed
  */
 export async function completeOnboarding() {
-  if (isDemoMode()) {
-    return {
-      ...demoDoctorProfile,
-      onboarding_completed: true,
-      onboarding_step: null,
-    }
-  }
-
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -417,11 +355,6 @@ export async function completeOnboarding() {
  * and returns the public URL of the newly uploaded file.
  */
 export async function uploadAvatar(userId: string, file: File) {
-  if (isDemoMode()) {
-    logger.info('demo:uploadAvatar', { userId, fileName: file.name })
-    return 'https://i.pravatar.cc/200?img=12'
-  }
-
   logger.info('uploadAvatar:start', {
     userId,
     fileName: file.name,
@@ -483,11 +416,6 @@ export async function uploadAvatar(userId: string, file: File) {
  * This calls a SECURITY DEFINER function in the database to handle the deletion.
  */
 export async function deleteMyAccount(): Promise<void> {
-  if (isDemoMode()) {
-    logger.info('demo:deleteMyAccount - Simulated account deletion')
-    return
-  }
-
   const { error } = await supabase.rpc('delete_user_account')
 
   if (error) {

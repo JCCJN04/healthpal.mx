@@ -5,9 +5,6 @@ import { getMyProfile } from '@/shared/lib/queries/profile'
 import { logger } from '@/shared/lib/logger'
 import { auditLog } from '@/shared/lib/audit'
 import type { Database } from '@/shared/types/database'
-import { isDemoMode, demoDoctorUser, disableDemoMode } from '@/context/DemoContext'
-import { demoDoctorProfile } from '@/data/demoData'
-import { DEMO_DOCTOR_EMAIL, DEMO_DOCTOR_PASSWORD } from '@/data/demoConfig'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
 
@@ -54,12 +51,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const refreshProfile = async () => {
-    if (isDemoMode()) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setProfile(demoDoctorProfile as any)
-      return
-    }
-
     if (user) {
       const profileData = await fetchProfile(user.id)
       setProfile(profileData)
@@ -117,7 +108,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Setup activity listeners for inactivity timeout
   useEffect(() => {
-    if (isDemoMode()) return
     if (!user) return
 
     const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'mousemove']
@@ -147,7 +137,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Setup JWT refresh
   useEffect(() => {
-    if (isDemoMode()) return
     setupJWTRefresh()
 
     return () => {
@@ -159,7 +148,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Validate session age when the app becomes visible again (handles phone lock/background)
   useEffect(() => {
-    if (isDemoMode()) return
     if (!user) return
 
     const handleVisibilityChange = async () => {
@@ -189,105 +177,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let mounted = true
-
-    if (isDemoMode()) {
-      if (!import.meta.env.DEV) {
-        // In production, we don't attempt real auth to prevent bundling credentials.
-        // We just use the mock user.
-        setSession(null)
-        setUser(demoDoctorUser as unknown as User)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setProfile(demoDoctorProfile as any)
-        setLoading(false)
-        return () => {
-          mounted = false
-        }
-      }
-
-      const bootstrapDemoAuth = async () => {
-        try {
-          const expectedEmail = DEMO_DOCTOR_EMAIL.toLowerCase()
-          const {
-            data: { session: currentSession },
-          } = await supabase.auth.getSession()
-
-          let demoSession = currentSession
-          const currentEmail = currentSession?.user?.email?.toLowerCase() || ''
-          const shouldRelogin = !currentSession || currentEmail !== expectedEmail
-
-          if (shouldRelogin) {
-            if (currentSession) {
-              await supabase.auth.signOut()
-            }
-
-            const emailCandidates = [DEMO_DOCTOR_EMAIL]
-            const passwordCandidates = [DEMO_DOCTOR_PASSWORD]
-
-            let signedIn = false
-            let lastError: Error | null = null
-
-            for (const email of emailCandidates) {
-              if (signedIn) break
-
-              for (const password of passwordCandidates) {
-                const { data, error: signInError } = await supabase.auth.signInWithPassword({
-                  email,
-                  password,
-                })
-
-                if (!signInError && data.session) {
-                  demoSession = data.session
-                  signedIn = true
-                  break
-                }
-
-                if (signInError) {
-                  logger.warn('demo:signInWithPassword failed', {
-                    email,
-                    error: signInError.message,
-                  })
-                  lastError = signInError
-                }
-              }
-            }
-
-            if (!signedIn) {
-              if (lastError) {
-                logger.error('demo:signInWithPassword', lastError)
-                throw lastError
-              }
-
-              throw new Error('No se pudo autenticar el usuario demo')
-            }
-          }
-
-          if (!mounted) return
-
-          setSession(demoSession ?? null)
-          setUser((demoSession?.user as User) || (demoDoctorUser as unknown as User))
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          setProfile(demoDoctorProfile as any)
-        } catch (err) {
-          logger.error('demo:bootstrapAuth', err)
-          if (!mounted) return
-
-          // Fallback to local demo identity when auth bootstrap is unavailable.
-          setSession(null)
-          setUser(demoDoctorUser as unknown as User)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          setProfile(demoDoctorProfile as any)
-        } finally {
-          if (mounted) {
-            setLoading(false)
-          }
-        }
-      }
-
-      bootstrapDemoAuth()
-      return () => {
-        mounted = false
-      }
-    }
 
     // Inicializar autenticación
     const initAuth = async () => {
@@ -479,21 +368,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Notify CryptoContext to clear in-memory keys (avoids circular import)
     window.dispatchEvent(new Event('healthpal:signout'))
-
-    if (isDemoMode()) {
-      try {
-        await supabase.auth.signOut()
-      } catch (err) {
-        logger.warn('demo:signOut', err)
-      }
-
-      disableDemoMode()
-      setUser(null)
-      setSession(null)
-      setProfile(null)
-      window.location.href = '/'
-      return
-    }
 
     const { error: signOutError } = await supabase.auth.signOut()
     if (signOutError) {

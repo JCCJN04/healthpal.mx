@@ -5,23 +5,29 @@ export default function Privacidad() {
     <LegalDocPage
       title="Aviso de Privacidad"
       subtitle="Cómo Healthpal.mx recaba, usa y protege tus datos personales y datos sensibles de salud conforme a la legislación mexicana."
-      intro="Healthpal.mx es operado por Daniel Vázquez y Juan Carlos Mendoza. Este aviso describe el tratamiento de datos personales conforme a la LFPDPPP. Última modificación: 27 de mayo de 2026."
+      intro="Healthpal.mx es operado por Daniel Vázquez y Juan Carlos Mendoza. Este aviso describe el tratamiento de datos personales conforme a la LFPDPPP."
+      compact
+      lastUpdated="15 de Septiembre de 2026"
       highlights={[
         {
           title: 'No vendemos tus datos',
-          description: 'Healthpal.mx no vende datos personales ni datos sensibles de salud a terceros bajo ninguna circunstancia.',
+          description:
+            'Healthpal.mx no vende datos personales ni datos sensibles de salud a terceros bajo ninguna circunstancia.',
         },
         {
           title: 'Datos sensibles de salud',
-          description: 'Tratamos expedientes, recetas y estudios con cifrado AES-256 y acceso estrictamente controlado por rol.',
+          description:
+            'Tratamos expedientes, recetas y estudios con cifrado AES-256 y acceso estrictamente controlado por rol.',
         },
         {
           title: 'Derechos ARCO',
-          description: 'Puedes Acceder, Rectificar, Cancelar u Oponerte al tratamiento de tus datos enviando un correo a healthpalmx@gmail.com.',
+          description:
+            'Puedes Acceder, Rectificar, Cancelar u Oponerte al tratamiento de tus datos enviando un correo a healthpalmx@gmail.com.',
         },
         {
           title: 'Fase beta limitada',
-          description: 'Solo doctores, profesionales de la salud y usuarios expresamente autorizados tienen acceso a la plataforma.',
+          description:
+            'Solo doctores, profesionales de la salud y usuarios expresamente autorizados tienen acceso a la plataforma.',
         },
       ]}
       sections={[
@@ -135,9 +141,9 @@ export default function Privacidad() {
           id: 'cambios-contacto',
           title: '10. Cambios al Aviso y contacto',
           paragraphs: [
-            'Healthpal.mx podrá modificar este Aviso de Privacidad en cualquier momento para reflejar cambios legales, técnicos u operativos. Cualquier cambio será publicado en https://www.healthpal.mx/ y notificado por correo electrónico u otros medios de contacto.',
+            'Healthpal.mx podrá modificar este Aviso de Privacidad en cualquier momento para reflejar cambios legales, técnicos u operativos. Cualquier cambio será publicado en https://www.healthpal.mx/privacidad y notificado por correo electrónico u otros medios de contacto.',
           ],
-          note: 'Responsables: Daniel Vázquez y Juan Carlos Mendoza — healthpalmx@gmail.com — https://www.healthpal.mx/',
+          note: 'Responsables: Daniel Vázquez y Juan Carlos Mendoza | healthpalmx@gmail.com | https://www.healthpal.mx/',
         },
       ]}
     />

@@ -13,7 +13,6 @@ import {
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '@/app/providers/AuthContext'
 import { logger } from '@/shared/lib/logger'
-import { mapDashboardPath } from '@/context/DemoContext'
 import { prefetchRoute } from '@/shared/lib/prefetch'
 
 interface NavItem {
@@ -112,7 +111,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
-          const resolvedPath = mapDashboardPath(item.path)
+          const resolvedPath = item.path
           const isActive = location.pathname === resolvedPath
 
           return (

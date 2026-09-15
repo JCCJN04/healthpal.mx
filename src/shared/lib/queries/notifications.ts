@@ -3,20 +3,15 @@
 import { supabase } from '@/shared/lib/supabase'
 import { logger } from '@/shared/lib/logger'
 import type { Database } from '@/shared/types/database'
-import { isDemoMode } from '@/context/DemoContext'
 
 type Notification = Database['public']['Tables']['notifications']['Row']
 type NotificationInsert = Database['public']['Tables']['notifications']['Insert']
 
-export async function createNotification(payload: NotificationInsert): Promise<{ success: boolean; error?: string }> {
-  if (isDemoMode()) {
-    return { success: true }
-  }
-
+export async function createNotification(
+  payload: NotificationInsert,
+): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabase
-      .from('notifications')
-      .insert(payload)
+    const { error } = await supabase.from('notifications').insert(payload)
 
     if (error) {
       logger.error('createNotification', error)
@@ -34,10 +29,6 @@ export async function createNotification(payload: NotificationInsert): Promise<{
  * Get unread notifications for user
  */
 export async function getUnreadNotifications(userId: string): Promise<Notification[]> {
-  if (isDemoMode()) {
-    return []
-  }
-
   try {
     const { data, error } = await supabase
       .from('notifications')
@@ -63,12 +54,8 @@ export async function getUnreadNotifications(userId: string): Promise<Notificati
  * Mark notification as read
  */
 export async function markNotificationAsRead(
-  notificationId: string
+  notificationId: string,
 ): Promise<{ success: boolean; error?: string }> {
-  if (isDemoMode()) {
-    return { success: true }
-  }
-
   try {
     const { error } = await supabase
       .from('notifications')
@@ -91,12 +78,8 @@ export async function markNotificationAsRead(
  * Mark all notifications as read for user
  */
 export async function markAllNotificationsAsRead(
-  userId: string
+  userId: string,
 ): Promise<{ success: boolean; error?: string }> {
-  if (isDemoMode()) {
-    return { success: true }
-  }
-
   try {
     const { error } = await supabase
       .from('notifications')

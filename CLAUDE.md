@@ -18,8 +18,6 @@ npm run schema:sync:verbose  # Verbose schema sync
 npm run privacy:verify       # Verify privacy controls
 npm run privacy:backfill:dry # Dry run before encrypting records
 
-# Demo environment
-npm run demo:doctor:setup    # Create demo doctor account
 ```
 
 No test runner is configured in this project.
@@ -31,6 +29,7 @@ HealthPal.mx is a React + TypeScript SPA (Vite) for patient–doctor healthcare 
 ### Routing
 
 `src/App.tsx` contains all ~146 routes with lazy loading. Three authentication guard wrappers protect routes:
+
 - `<RequireAuth>` — must be logged in
 - `<RequireRole role="doctor|patient">` — role check after auth
 - `<RequireOnboarding>` — must have completed onboarding
@@ -40,12 +39,12 @@ Public routes (no auth): `/directorio`, `/agendar/:slug`, `/especialistas`, `/dr
 ### Feature modules (`src/features/`)
 
 Code is organized by user role:
+
 - `auth/` — login, register, forgot/reset password, email verification, and 6-step onboarding flow
 - `patient/` — doctor directory, doctor detail view, patient reviews
 - `doctor/` — patient management, services, availability calendar, reviews
 - `shared/` — Dashboard, Documentos, Consultas, Mensajes, Calendario, Configuracion (shared between roles)
 - `public/` — Public-facing pages before login
-- `demo/` — Demo mode pages; mirrors doctor features without real auth
 
 ### Auth & Session (`src/app/providers/AuthContext.tsx`)
 
@@ -65,10 +64,6 @@ Auto-generated from the Supabase schema. Always use these types when writing que
 
 Row-Level Security is enabled on all tables.
 
-### Demo mode (`src/context/DemoContext.tsx`)
-
-A full test environment using `src/data/demoData.ts` (mock data) and `src/data/demoConfig.ts` (credentials). Session appointments are persisted in `sessionStorage`. Demo routes are under `/demo/doctor/*`. Toggle via `DemoContext`.
-
 ### Security patterns
 
 - **Logger** (`src/shared/lib/logger.ts`): Strips PII/JWTs/UUIDs from log output in production. Always use this logger, never raw `console.log` in feature code.
@@ -79,12 +74,11 @@ A full test environment using `src/data/demoData.ts` (mock data) and `src/data/d
 ### Environment variables
 
 Required in `.env`:
+
 ```
 VITE_SUPABASE_URL
 VITE_SUPABASE_PUBLISHABLE_KEY
 VITE_MAPBOX_TOKEN          # Doctor location map
-VITE_DEMO_DOCTOR_ID        # Demo mode
-VITE_DEMO_DOCTOR_EMAIL
-VITE_DEMO_DOCTOR_PASSWORD
 ```
+
 `SUPABASE_SERVICE_ROLE_KEY` is used only by server-side scripts (never ship to the browser).

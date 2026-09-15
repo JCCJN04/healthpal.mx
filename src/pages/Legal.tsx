@@ -5,23 +5,29 @@ export default function Legal() {
     <LegalDocPage
       title="Términos y Condiciones"
       subtitle="Reglas de uso de Healthpal.mx para médicos, profesionales de la salud y usuarios autorizados durante la fase beta privada."
-      intro="Healthpal.mx es operado por Daniel Vázquez y Juan Carlos Mendoza. Al usar la plataforma aceptas estos términos. Última modificación: 27 de mayo de 2026."
+      intro="Healthpal.mx es operado por Daniel Vázquez y Juan Carlos Mendoza. Al usar la plataforma aceptas estos términos."
+      compact
+      lastUpdated="15 de Septiembre de 2026"
       highlights={[
         {
           title: 'Beta privada y gratuita',
-          description: 'El acceso actual es gratuito e ilimitado en tiempo. Si lanzamos planes de pago, te avisaremos con anticipación.',
+          description:
+            'El acceso actual es gratuito e ilimitado en tiempo. Si lanzamos planes de pago, te avisaremos con anticipación.',
         },
         {
           title: 'No somos servicio médico',
-          description: 'Healthpal.mx es una herramienta de organización. No emite diagnósticos ni sustituye la atención profesional.',
+          description:
+            'Healthpal.mx es una herramienta de organización. No emite diagnósticos ni sustituye la atención profesional.',
         },
         {
           title: 'Tus documentos son tuyos',
-          description: 'No reclamamos propiedad sobre los expedientes o archivos que cargues. Solo los usamos para operar la plataforma.',
+          description:
+            'No reclamamos propiedad sobre los expedientes o archivos que cargues. Solo los usamos para operar la plataforma.',
         },
         {
           title: 'Seguridad razonable',
-          description: 'Implementamos medidas técnicas para proteger tu información, pero ningún sistema es 100% infalible.',
+          description:
+            'Implementamos medidas técnicas para proteger tu información, pero ningún sistema es 100% infalible.',
         },
       ]}
       sections={[

@@ -61,7 +61,6 @@ import { useAuth } from '@/app/providers/AuthContext'
 import { supabase } from '@/shared/lib/supabase'
 import { showToast } from '@/shared/components/ui/Toast'
 import { logger } from '@/shared/lib/logger'
-import { mapDashboardPath } from '@/context/DemoContext'
 import { validateFile } from '@/shared/lib/errors'
 import type { DocCategory } from '@/shared/types/database'
 import AgendarCitaModal from '@/shared/components/appointments/AgendarCitaModal'
@@ -634,7 +633,7 @@ export default function PatientDetail() {
       if (res.ok) {
         showToast(res.message, 'success', 4500)
         setShowUnlinkModal(false)
-        navigate(mapDashboardPath('/dashboard/pacientes'))
+        navigate('/dashboard/pacientes')
       } else {
         showToast(res.message, 'error', 4000)
       }
@@ -737,7 +736,7 @@ export default function PatientDetail() {
         <div className="p-6 text-center">
           <p className="text-red-500 font-bold">No se encontró el paciente solicitado.</p>
           <button
-            onClick={() => navigate(mapDashboardPath('/dashboard'))}
+            onClick={() => navigate('/dashboard')}
             className="mt-4 text-primary hover:underline"
           >
             Volver al dashboard

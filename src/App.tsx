@@ -53,7 +53,6 @@ const ConsultaDetalleDoctor = lazy(() => import('@/features/doctor/pages/Consult
 // Public pages (no auth required)
 const SolicitudDocumento = lazy(() => import('@/features/public/pages/SolicitudDocumento'))
 
-const DemoDoctor = lazy(() => import('@/pages/DemoDoctor'))
 const Privacidad = lazy(() => import('@/pages/Privacidad'))
 const Legal = lazy(() => import('@/pages/Legal'))
 const GoogleCalendarCallback = lazy(() => import('@/features/auth/pages/GoogleCalendarCallback'))
@@ -106,16 +105,6 @@ function App() {
                   element={
                     <Suspense fallback={<PageLoader />}>
                       <GoogleCalendarCallback />
-                    </Suspense>
-                  }
-                />
-
-                {/* Demo doctor route (direct URL access only) */}
-                <Route
-                  path="/demo/doctor/*"
-                  element={
-                    <Suspense fallback={<PageLoader />}>
-                      <DemoDoctor />
                     </Suspense>
                   }
                 />

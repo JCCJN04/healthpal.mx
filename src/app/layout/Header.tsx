@@ -1,7 +1,6 @@
 import { Search, Menu } from 'lucide-react'
 import { useEffect, useState, type KeyboardEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { mapDashboardPath } from '@/context/DemoContext'
 
 interface HeaderProps {
   onMenuClick: () => void
@@ -22,7 +21,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const submitSearch = () => {
     if (!searchTerm.trim()) return
     const params = new URLSearchParams({ q: searchTerm.trim(), from: location.pathname })
-    navigate(`${mapDashboardPath('/dashboard/buscar')}?${params.toString()}`)
+    navigate(`/dashboard/buscar?${params.toString()}`)
     setSearchOpen(false)
   }
 

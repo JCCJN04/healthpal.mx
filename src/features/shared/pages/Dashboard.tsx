@@ -39,7 +39,6 @@ import {
   type AppointmentMode,
 } from '@/shared/lib/queries/appointments'
 import { logger } from '@/shared/lib/logger'
-import { mapDashboardPath } from '@/context/DemoContext'
 import type { Database } from '@/shared/types/database'
 
 type Doc = Database['public']['Tables']['documents']['Row']
@@ -164,19 +163,19 @@ const DoctorHome = ({
         {/* Quick actions */}
         <div className="flex items-center gap-2 flex-wrap">
           <button
-            onClick={() => navigate(mapDashboardPath('/dashboard/agenda'))}
+            onClick={() => navigate('/dashboard/agenda')}
             className="flex items-center gap-1.5 px-3 py-2 bg-primary text-white text-xs font-bold rounded-xl hover:bg-teal-600 transition-colors shadow-sm shadow-primary/20"
           >
             <CalendarDays size={13} /> Ver agenda
           </button>
           <button
-            onClick={() => navigate(mapDashboardPath('/dashboard/recetas'))}
+            onClick={() => navigate('/dashboard/recetas')}
             className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-700 text-xs font-bold rounded-xl hover:border-primary/40 hover:text-primary transition-colors"
           >
             <Pill size={13} /> Nueva receta
           </button>
           <button
-            onClick={() => navigate(mapDashboardPath('/dashboard/pacientes'))}
+            onClick={() => navigate('/dashboard/pacientes')}
             className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-700 text-xs font-bold rounded-xl hover:border-primary/40 hover:text-primary transition-colors"
           >
             <Users size={13} /> Pacientes
@@ -277,7 +276,7 @@ const DoctorHome = ({
               )}
             </div>
             <button
-              onClick={() => navigate(mapDashboardPath('/dashboard/agenda'))}
+              onClick={() => navigate('/dashboard/agenda')}
               className="text-xs font-semibold text-primary hover:underline flex items-center gap-0.5"
             >
               Ver agenda <ChevronRight size={12} />
@@ -295,7 +294,7 @@ const DoctorHome = ({
               <CalendarDays size={36} className="mx-auto text-gray-200 mb-3" />
               <p className="text-sm text-gray-400 font-medium">Sin citas programadas para hoy</p>
               <button
-                onClick={() => navigate(mapDashboardPath('/dashboard/agenda'))}
+                onClick={() => navigate('/dashboard/agenda')}
                 className="mt-3 text-xs text-primary font-semibold hover:underline"
               >
                 Ver agenda completa →
@@ -362,7 +361,7 @@ const DoctorHome = ({
               <h2 className="text-sm font-bold text-gray-800">Pacientes</h2>
             </div>
             <button
-              onClick={() => navigate(mapDashboardPath('/dashboard/pacientes'))}
+              onClick={() => navigate('/dashboard/pacientes')}
               className="text-xs font-semibold text-primary hover:underline flex items-center gap-0.5"
             >
               Ver todos <ChevronRight size={12} />
@@ -385,7 +384,7 @@ const DoctorHome = ({
               {patientSnapshot.slice(0, 8).map((p) => (
                 <button
                   key={p.id}
-                  onClick={() => navigate(mapDashboardPath(`/dashboard/pacientes/${p.id}`))}
+                  onClick={() => navigate(`/dashboard/pacientes/${p.id}`)}
                   className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 transition-colors group text-left"
                 >
                   <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-[10px] font-bold shrink-0">
@@ -414,7 +413,7 @@ const DoctorHome = ({
               Acceso rápido
             </p>
             <button
-              onClick={() => navigate(mapDashboardPath('/dashboard/recetas'))}
+              onClick={() => navigate('/dashboard/recetas')}
               className="w-full flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-primary/5 text-gray-600 hover:text-primary text-xs font-semibold rounded-xl transition-colors group"
             >
               <Pill
@@ -424,7 +423,7 @@ const DoctorHome = ({
               Nueva receta
             </button>
             <button
-              onClick={() => navigate(mapDashboardPath('/dashboard/documentos'))}
+              onClick={() => navigate('/dashboard/documentos')}
               className="w-full flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-primary/5 text-gray-600 hover:text-primary text-xs font-semibold rounded-xl transition-colors group"
             >
               <FileText
@@ -434,7 +433,7 @@ const DoctorHome = ({
               Subir documento
             </button>
             <button
-              onClick={() => navigate(mapDashboardPath('/dashboard/agenda'))}
+              onClick={() => navigate('/dashboard/agenda')}
               className="w-full flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-primary/5 text-gray-600 hover:text-primary text-xs font-semibold rounded-xl transition-colors group"
             >
               <Stethoscope
@@ -574,7 +573,7 @@ export default function Dashboard() {
         <div className="flex items-center justify-between mb-4 md:mb-5">
           <h2 className="text-lg md:text-xl font-semibold text-gray-900">Mi expediente de salud</h2>
           <button
-            onClick={() => navigate(mapDashboardPath('/dashboard/documentos'))}
+            onClick={() => navigate('/dashboard/documentos')}
             className="text-primary text-sm font-medium hover:underline"
           >
             Ver todo →
@@ -600,7 +599,7 @@ export default function Dashboard() {
                       <button
                         key={key}
                         className="flex items-center gap-2.5 p-3 rounded-lg border border-gray-100 hover:border-primary/30 hover:shadow-sm transition-all text-left"
-                        onClick={() => navigate(mapDashboardPath('/dashboard/documentos'))}
+                        onClick={() => navigate('/dashboard/documentos')}
                       >
                         <div
                           className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${cfg.colorClass}`}
@@ -618,7 +617,7 @@ export default function Dashboard() {
                   })}
                 </div>
                 <button
-                  onClick={() => navigate(mapDashboardPath('/dashboard/documentos'))}
+                  onClick={() => navigate('/dashboard/documentos')}
                   className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 bg-primary/5 hover:bg-primary/10 text-primary text-sm font-semibold rounded-lg transition-colors"
                 >
                   <Plus size={14} /> Subir documento
@@ -643,7 +642,7 @@ export default function Dashboard() {
                 <FileText size={40} className="text-gray-200 mb-3" />
                 <p className="text-gray-500 text-sm">Aún no tienes documentos subidos</p>
                 <button
-                  onClick={() => navigate(mapDashboardPath('/dashboard/documentos'))}
+                  onClick={() => navigate('/dashboard/documentos')}
                   className="mt-3 inline-flex items-center gap-1.5 text-primary text-sm font-medium hover:underline"
                 >
                   <Upload size={13} /> Sube tu primer documento
@@ -662,7 +661,7 @@ export default function Dashboard() {
                     <div
                       key={doc.id}
                       className="flex items-center gap-3 p-3 border border-gray-100 rounded-lg hover:border-primary/30 transition-colors cursor-pointer group"
-                      onClick={() => navigate(mapDashboardPath(`/dashboard/documentos/${doc.id}`))}
+                      onClick={() => navigate(`/dashboard/documentos/${doc.id}`)}
                     >
                       <div
                         className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${cfg.colorClass}`}
@@ -693,7 +692,7 @@ export default function Dashboard() {
               Compartidos por tu médico
             </h2>
             <button
-              onClick={() => navigate(mapDashboardPath('/dashboard/documentos'))}
+              onClick={() => navigate('/dashboard/documentos')}
               className="text-primary text-sm font-medium hover:underline"
             >
               Ver todos →
@@ -709,7 +708,7 @@ export default function Dashboard() {
                 <div
                   key={entry.id}
                   className="bg-white border border-gray-100 rounded-lg p-3 hover:border-primary/30 hover:shadow-sm transition-all cursor-pointer"
-                  onClick={() => navigate(mapDashboardPath(`/dashboard/documentos/${doc.id}`))}
+                  onClick={() => navigate(`/dashboard/documentos/${doc.id}`)}
                 >
                   <div
                     className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 ${cfg.colorClass}`}
