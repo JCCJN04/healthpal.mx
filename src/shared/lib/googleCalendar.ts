@@ -79,7 +79,6 @@ export async function initiateGoogleOAuth(): Promise<void> {
     throw new Error('No hay sesión activa')
   }
   sessionStorage.setItem('google_oauth_access_token', currentSession.access_token)
-  localStorage.setItem('google_oauth_access_token', currentSession.access_token)
 
   // PKCE code verifier + challenge
   const verifier = generateCodeVerifier()
@@ -87,11 +86,8 @@ export async function initiateGoogleOAuth(): Promise<void> {
   const state = generateState()
 
   sessionStorage.setItem('google_oauth_verifier', verifier)
-  localStorage.setItem('google_oauth_verifier', verifier)
   sessionStorage.setItem('google_oauth_state', state)
-  localStorage.setItem('google_oauth_state', state)
   sessionStorage.setItem('google_oauth_redirect_uri', redirectUri)
-  localStorage.setItem('google_oauth_redirect_uri', redirectUri)
 
   const params = new URLSearchParams({
     client_id: clientId,

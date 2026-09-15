@@ -114,10 +114,20 @@ Deno.serve(async (req) => {
       }
     }
 
+    if (!docRecord.file_path) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Documento no tiene archivo asociado' }),
+        {
+          headers: { ...cors, 'Content-Type': 'application/json' },
+          status: 400,
+        },
+      )
+    }
+
     // 1. Descarga del archivo
     const { data: fileBlob, error: fileError } = await supabase.storage
       .from('documents')
-      .download(docRecord.file_path || filePath)
+      .download(docRecord.file_path)
 
     if (fileError || !fileBlob) {
       const errorDetails =

@@ -15,7 +15,7 @@ export function isAllowedOrigin(origin: string): boolean {
   try {
     const url = new URL(origin)
     if (
-      url.hostname.endsWith('.vercel.app') &&
+      url.hostname.match(/^healthpal.*\.vercel\.app$/) &&
       (url.protocol === 'https:' || url.protocol === 'http:')
     ) {
       return true

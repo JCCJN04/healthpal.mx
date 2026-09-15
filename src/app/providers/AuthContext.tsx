@@ -191,6 +191,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let mounted = true
 
     if (isDemoMode()) {
+      if (!import.meta.env.DEV) {
+        // In production, we don't attempt real auth to prevent bundling credentials.
+        // We just use the mock user.
+        setSession(null)
+        setUser(demoDoctorUser as unknown as User)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setProfile(demoDoctorProfile as any)
+        setLoading(false)
+        return () => {
+          mounted = false
+        }
+      }
+
       const bootstrapDemoAuth = async () => {
         try {
           const expectedEmail = DEMO_DOCTOR_EMAIL.toLowerCase()
@@ -325,15 +338,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(currentSession?.user ?? null)
 
         if (currentSession?.user) {
-          // Check MFA assurance level
-          supabase.auth.mfa
-            .getAuthenticatorAssuranceLevel()
-            .then(({ data: aal }) => {
-              if (mounted) {
-                setMfaRequired(aal?.nextLevel === 'aal2' && aal?.currentLevel !== 'aal2')
-              }
-            })
-            .catch(() => {})
+          // Check MFA assurance level synchronously before attempting profile load
+          let isMfaNeeded = false
+          try {
+            const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+            isMfaNeeded = aal?.nextLevel === 'aal2' && aal?.currentLevel !== 'aal2'
+          } catch (mfaErr) {
+            logger.warn('initAuth:mfaCheck', mfaErr)
+          }
+
+          if (mounted) {
+            setMfaRequired(isMfaNeeded)
+          }
+
+          if (isMfaNeeded) {
+            if (mounted) {
+              setProfile(null)
+              setLoading(false)
+            }
+            return
+          }
 
           // Fetch profile synchronously with a fast timeout (2s) so profile is ready for guards
           try {
@@ -388,14 +412,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(currentSession?.user ?? null)
 
       if (currentSession?.user) {
-        supabase.auth.mfa
-          .getAuthenticatorAssuranceLevel()
-          .then(({ data: aal }) => {
-            if (mounted) {
-              setMfaRequired(aal?.nextLevel === 'aal2' && aal?.currentLevel !== 'aal2')
-            }
-          })
-          .catch(() => {})
+        let isMfaNeeded = false
+        try {
+          const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+          isMfaNeeded = aal?.nextLevel === 'aal2' && aal?.currentLevel !== 'aal2'
+        } catch (mfaErr) {
+          logger.warn('authStateChange:mfaCheck', mfaErr)
+        }
+
+        if (mounted) {
+          setMfaRequired(isMfaNeeded)
+        }
+
+        if (isMfaNeeded) {
+          if (mounted) {
+            setProfile(null)
+            setLoading(false)
+          }
+          return
+        }
 
         // Fetch profile with user id
         fetchProfile(currentSession.user.id)

@@ -20,15 +20,12 @@
             try {
               if (code) {
                 sessionStorage.setItem('hp_gcal_code', code);
-                localStorage.setItem('hp_gcal_code', code);
               }
               if (state) {
                 sessionStorage.setItem('hp_gcal_state', state);
-                localStorage.setItem('hp_gcal_state', state);
               }
               if (error) {
                 sessionStorage.setItem('hp_gcal_error', error);
-                localStorage.setItem('hp_gcal_error', error);
               }
               // Clean query string immediately so Supabase GoTrue PKCE doesn't intercept it
               window.history.replaceState(null, '', window.location.pathname + window.location.hash);

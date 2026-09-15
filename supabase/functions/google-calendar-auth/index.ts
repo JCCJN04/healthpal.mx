@@ -12,7 +12,7 @@ function isAllowedOrigin(origin: string): boolean {
     (() => {
       try {
         const u = new URL(origin)
-        return u.hostname === 'vercel.app' || u.hostname.endsWith('.vercel.app')
+        return !!u.hostname.match(/^healthpal.*\.vercel\.app$/)
       } catch {
         return false
       }
