@@ -47,8 +47,10 @@ export default function SubscriptionCard({ onToast }: SubscriptionCardProps) {
         return
       }
 
-      let pollInterval: ReturnType<typeof setInterval> | null = null
-      let checkClosed: ReturnType<typeof setInterval> | null = null
+      // eslint-disable-next-line prefer-const
+      let pollInterval: ReturnType<typeof setInterval> | undefined
+      // eslint-disable-next-line prefer-const
+      let checkClosed: ReturnType<typeof setInterval> | undefined
 
       const cleanup = () => {
         if (pollInterval) clearInterval(pollInterval)
