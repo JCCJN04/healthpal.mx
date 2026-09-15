@@ -11,7 +11,7 @@ type Profile = Database['public']['Tables']['profiles']['Row']
 type ProfileUpdate = Database['public']['Tables']['profiles']['Update']
 type DoctorProfileInsert = Database['public']['Tables']['doctor_profiles']['Insert']
 type PatientProfileInsert = Database['public']['Tables']['patient_profiles']['Insert']
-type OnboardingStep = 'role' | 'basic' | 'contact' | 'details' | 'done'
+type OnboardingStep = 'role' | 'basic' | 'contact' | 'details' | 'legal' | 'done'
 
 /**
  * Get current user's profile with extended info

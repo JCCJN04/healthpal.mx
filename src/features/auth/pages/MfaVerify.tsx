@@ -8,6 +8,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { ShieldCheck, Loader2, AlertCircle } from 'lucide-react'
 import { supabase } from '@/shared/lib/supabase'
 import { useCrypto } from '@/context/CryptoContext'
+import { useAuth } from '@/app/providers/AuthContext'
 import { showToast } from '@/shared/components/ui/Toast'
 import { logger } from '@/shared/lib/logger'
 
@@ -20,6 +21,7 @@ export default function MfaVerify() {
   const navigate = useNavigate()
   const location = useLocation()
   const { initializeCrypto } = useCrypto()
+  const { user, loading: authLoading, signOut } = useAuth()
   const state = (location.state as LocationState) ?? {}
 
   const [code, setCode] = useState('')
@@ -59,8 +61,16 @@ export default function MfaVerify() {
   }, [navigate])
 
   useEffect(() => {
-    startChallenge()
-  }, [startChallenge])
+    if (!authLoading && !user) {
+      navigate('/login', { replace: true })
+    }
+  }, [user, authLoading, navigate])
+
+  useEffect(() => {
+    if (user) {
+      startChallenge()
+    }
+  }, [user, startChallenge])
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -90,7 +100,9 @@ export default function MfaVerify() {
 
       // Initialize E2E crypto now that auth is complete
       if (state.password && data.user?.id) {
-        initializeCrypto(state.password, data.user.id).catch(() => {/* safe to ignore */})
+        initializeCrypto(state.password, data.user.id).catch(() => {
+          /* safe to ignore */
+        })
       }
 
       showToast('Verificación exitosa', 'success')
@@ -106,7 +118,11 @@ export default function MfaVerify() {
   return (
     <div
       className="flex flex-col min-h-screen relative font-sans items-center justify-center px-4"
-      style={{ backgroundImage: `url('/monterrey.jpg')`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+      style={{
+        backgroundImage: `url('/monterrey.jpg')`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}
     >
       <div className="absolute inset-0 bg-black/60 z-0" />
 
@@ -127,6 +143,32 @@ export default function MfaVerify() {
           {loadingChallenge ? (
             <div className="flex justify-center py-8">
               <Loader2 className="w-8 h-8 animate-spin text-[#33C7BE]" />
+            </div>
+          ) : !factorId || !challengeId ? (
+            <div className="space-y-4 text-center">
+              {error && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 text-sm text-red-700 text-left">
+                  <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={startChallenge}
+                className="w-full bg-[#33C7BE] text-white rounded-lg h-12 font-semibold transition-colors hover:bg-teal-600 flex items-center justify-center gap-2"
+              >
+                Reintentar
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  await signOut()
+                  navigate('/login', { replace: true })
+                }}
+                className="w-full text-center text-xs text-gray-500 hover:text-gray-800 transition-colors py-2"
+              >
+                ← Cancelar e iniciar con otra cuenta
+              </button>
             </div>
           ) : (
             <form onSubmit={handleVerify} className="space-y-4">
@@ -165,6 +207,16 @@ export default function MfaVerify() {
                 {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Verificar'}
               </button>
 
+              <button
+                type="button"
+                onClick={async () => {
+                  await signOut()
+                  navigate('/login', { replace: true })
+                }}
+                className="w-full text-center text-xs text-gray-500 hover:text-gray-800 transition-colors py-2 mt-2"
+              >
+                ← Cancelar e iniciar con otra cuenta
+              </button>
             </form>
           )}
         </div>

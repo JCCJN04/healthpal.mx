@@ -75,47 +75,52 @@ export default function SolicitudDocumento() {
   }, [token])
 
   async function loadRequest() {
-    const { data, error } = await getDocumentRequestByToken(token!)
-    if (error || !data) {
-      setStep('invalid')
-      return
-    }
-    if (data.status === 'fulfilled') {
-      setStep('fulfilled')
+    try {
+      const { data, error } = await getDocumentRequestByToken(token!)
+      if (error || !data) {
+        setStep('invalid')
+        return
+      }
+      if (data.status === 'fulfilled') {
+        setStep('fulfilled')
+        setRequest(data)
+        return
+      }
+      if (new Date(data.expires_at) < new Date()) {
+        setStep('expired')
+        setRequest(data)
+        return
+      }
+
       setRequest(data)
-      return
-    }
-    if (new Date(data.expires_at) < new Date()) {
-      setStep('expired')
-      setRequest(data)
-      return
-    }
 
-    setRequest(data)
+      // Pre-fill email from request (may be null for phone-only requests)
+      setEmail(data.patient_email ?? '')
 
-    // Pre-fill email from request (may be null for phone-only requests)
-    setEmail(data.patient_email ?? '')
+      // Check if user is already logged in
+      const { data: session } = await supabase.auth.getSession()
+      const sessionUser = session.session?.user
+      const requestEmail = (data.patient_email ?? '').toLowerCase().trim()
 
-    // Check if user is already logged in
-    const { data: session } = await supabase.auth.getSession()
-    const sessionUser = session.session?.user
-    const requestEmail = (data.patient_email ?? '').toLowerCase().trim()
+      if (sessionUser) {
+        const sessionEmail = sessionUser.email?.toLowerCase().trim() ?? ''
 
-    if (sessionUser) {
-      const sessionEmail = sessionUser.email?.toLowerCase().trim() ?? ''
-
-      // Phone-only request (no email) OR emails match → allow upload
-      if (!requestEmail || sessionEmail === requestEmail) {
-        setCurrentUserId(sessionUser.id)
-        setStep('upload')
+        // Phone-only request (no email) OR emails match → allow upload
+        if (!requestEmail || sessionEmail === requestEmail) {
+          setCurrentUserId(sessionUser.id)
+          setStep('upload')
+        } else {
+          // Wrong account — sign out and show correct form
+          await supabase.auth.signOut()
+          setWrongSession(true)
+          setStep('auth')
+        }
       } else {
-        // Wrong account — sign out and show correct form
-        await supabase.auth.signOut()
-        setWrongSession(true)
         setStep('auth')
       }
-    } else {
-      setStep('auth')
+    } catch (err) {
+      logger.error('SolicitudDocumento.loadRequest', err)
+      setStep('invalid')
     }
   }
 

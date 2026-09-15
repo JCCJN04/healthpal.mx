@@ -14,6 +14,7 @@ import {
   Pill,
   X,
   ChevronDown,
+  AlertCircle,
 } from 'lucide-react'
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import {
@@ -209,7 +210,27 @@ export default function ConsultaActiva() {
     )
   }
 
-  if (!appt) return null
+  if (!appt) {
+    return (
+      <DashboardLayout>
+        <div className="flex flex-col items-center justify-center min-h-[400px] text-center p-6">
+          <div className="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center mb-3">
+            <AlertCircle className="w-7 h-7 text-amber-500" />
+          </div>
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">Consulta no disponible</h2>
+          <p className="text-sm text-gray-500 mb-4 max-w-sm">
+            No se pudo cargar la información de esta consulta o no tienes acceso a ella.
+          </p>
+          <button
+            onClick={() => navigate('/dashboard/agenda')}
+            className="px-5 py-2.5 bg-[#33C7BE] text-white rounded-xl font-semibold text-sm hover:bg-teal-600 transition-colors"
+          >
+            Volver a la agenda
+          </button>
+        </div>
+      </DashboardLayout>
+    )
+  }
 
   const initials = (appt.patient_name ?? 'P')
     .split(' ')

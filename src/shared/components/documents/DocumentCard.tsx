@@ -1,9 +1,22 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  MoreVertical, FileText, Activity, Pill, Download,
-  Trash2, Eye, Microscope, ShieldCheck, FolderOpen,
-  Loader2, Share2, Link2, Music, Video, FileSpreadsheet,
+  MoreVertical,
+  FileText,
+  Activity,
+  Pill,
+  Download,
+  Trash2,
+  Eye,
+  Microscope,
+  ShieldCheck,
+  FolderOpen,
+  Loader2,
+  Share2,
+  Link2,
+  Music,
+  Video,
+  FileSpreadsheet,
 } from 'lucide-react'
 import { Document as PdfDocument, Page as PdfPage, pdfjs } from 'react-pdf'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
@@ -26,14 +39,17 @@ interface DocumentCardProps {
   onPreview?: (document: Document) => void
 }
 
-const CATEGORY_CONFIG: Record<DocCategory, {
-  label: string
-  gradient: string
-  iconBg: string
-  textColor: string
-  badge: string
-  icon: React.ReactNode
-}> = {
+const CATEGORY_CONFIG: Record<
+  DocCategory,
+  {
+    label: string
+    gradient: string
+    iconBg: string
+    textColor: string
+    badge: string
+    icon: React.ReactNode
+  }
+> = {
   radiology: {
     label: 'Radiología',
     gradient: 'from-sky-400 to-blue-500',
@@ -129,17 +145,23 @@ const formatFileSize = (bytes: number | null) => {
 }
 
 /** Returns which kind of thumbnail to show, or null for no thumbnail */
-function getThumbnailType(mimeType: string | null): 'image' | 'pdf' | 'video' | 'audio' | 'office' | null {
+function getThumbnailType(
+  mimeType: string | null,
+): 'image' | 'pdf' | 'video' | 'audio' | 'office' | null {
   if (!mimeType) return null
   if (mimeType.startsWith('image/')) return 'image'
   if (mimeType.includes('pdf')) return 'pdf'
   if (mimeType.startsWith('video/')) return 'video'
   if (mimeType.startsWith('audio/')) return 'audio'
   if (
-    mimeType.includes('msword') || mimeType.includes('wordprocessingml') ||
-    mimeType.includes('ms-excel') || mimeType.includes('spreadsheetml') ||
-    mimeType.includes('ms-powerpoint') || mimeType.includes('presentationml')
-  ) return 'office'
+    mimeType.includes('msword') ||
+    mimeType.includes('wordprocessingml') ||
+    mimeType.includes('ms-excel') ||
+    mimeType.includes('spreadsheetml') ||
+    mimeType.includes('ms-powerpoint') ||
+    mimeType.includes('presentationml')
+  )
+    return 'office'
   return null
 }
 
@@ -151,12 +173,16 @@ function ImageThumb({ url, title, gradient }: { url: string; title: string; grad
   return (
     <div className="relative w-full h-full">
       {!loaded && !error && (
-        <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-20 flex items-center justify-center`}>
+        <div
+          className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-20 flex items-center justify-center`}
+        >
           <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
         </div>
       )}
       {error ? (
-        <div className={`w-full h-full bg-gradient-to-br ${gradient} opacity-20 flex items-center justify-center`}>
+        <div
+          className={`w-full h-full bg-gradient-to-br ${gradient} opacity-20 flex items-center justify-center`}
+        >
           <FileText className="w-8 h-8 text-gray-300" />
         </div>
       ) : (
@@ -184,7 +210,9 @@ function PdfThumb({ url, gradient }: { url: string; gradient: string }) {
 
   if (error) {
     return (
-      <div className={`w-full h-full bg-gradient-to-br ${gradient} opacity-15 flex items-center justify-center`}>
+      <div
+        className={`w-full h-full bg-gradient-to-br ${gradient} opacity-15 flex items-center justify-center`}
+      >
         <FileText className="w-8 h-8 text-gray-300" />
       </div>
     )
@@ -193,7 +221,9 @@ function PdfThumb({ url, gradient }: { url: string; gradient: string }) {
   return (
     <div ref={containerRef} className="relative w-full h-full overflow-hidden">
       {(!ready || width === 0) && (
-        <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-15 flex items-center justify-center`}>
+        <div
+          className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-15 flex items-center justify-center`}
+        >
           <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
         </div>
       )}
@@ -219,9 +249,7 @@ function PdfThumb({ url, gradient }: { url: string; gradient: string }) {
   )
 }
 
-function IconThumb({
-  gradient, icon,
-}: { gradient: string; icon: React.ReactNode }) {
+function IconThumb({ gradient, icon }: { gradient: string; icon: React.ReactNode }) {
   return (
     <div className={`w-full h-full bg-gradient-to-br ${gradient} flex items-center justify-center`}>
       <div className="text-white/60 scale-[2]">{icon}</div>
@@ -231,7 +259,14 @@ function IconThumb({
 
 // ── Main card ────────────────────────────────────────────────────────────────
 
-export const DocumentCard = ({ document, onDelete, onDragStart, isMoving, onShare, onPreview }: DocumentCardProps) => {
+export const DocumentCard = ({
+  document,
+  onDelete,
+  onDragStart,
+  isMoving,
+  onShare,
+  onPreview,
+}: DocumentCardProps) => {
   const [menuOpen, setMenuOpen] = useState(false)
   const [thumbUrl, setThumbUrl] = useState<string | null>(null)
   const cardRef = useRef<HTMLDivElement>(null)
@@ -260,16 +295,20 @@ export const DocumentCard = ({ document, onDelete, onDragStart, isMoving, onShar
         if (entries[0].isIntersecting) {
           observer.disconnect()
           if (isEncrypted && privateKey) {
-            getDecryptedDocumentUrl(document, privateKey).then(url => {
-              if (url) {
-                blobUrlRef.current = url
-                setThumbUrl(url)
-              }
-            })
+            getDecryptedDocumentUrl(document, privateKey)
+              .then((url) => {
+                if (url) {
+                  blobUrlRef.current = url
+                  setThumbUrl(url)
+                }
+              })
+              .catch(() => {})
           } else {
-            getDocumentDownloadUrl(document).then(url => {
-              if (url) setThumbUrl(url)
-            })
+            getDocumentDownloadUrl(document)
+              .then((url) => {
+                if (url) setThumbUrl(url)
+              })
+              .catch(() => {})
           }
         }
       },
@@ -321,7 +360,10 @@ export const DocumentCard = ({ document, onDelete, onDragStart, isMoving, onShar
         transition-all duration-150 cursor-pointer group
         ${isMoving ? 'opacity-50 pointer-events-none' : ''}`}
       draggable={!!onDragStart}
-      onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; onDragStart?.(document.id, e) }}
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = 'move'
+        onDragStart?.(document.id, e)
+      }}
       onClick={handleAbrir}
     >
       {isMoving && (
@@ -346,12 +388,16 @@ export const DocumentCard = ({ document, onDelete, onDragStart, isMoving, onShar
           )
         ) : hasThumbnail ? (
           /* loading */
-          <div className={`w-full h-full bg-gradient-to-br ${config.gradient} opacity-[0.08] flex items-center justify-center`}>
+          <div
+            className={`w-full h-full bg-gradient-to-br ${config.gradient} opacity-[0.08] flex items-center justify-center`}
+          >
             <Loader2 className="w-5 h-5 text-gray-300 animate-spin" />
           </div>
         ) : (
           /* no preview — large icon */
-          <div className={`w-full h-full bg-gradient-to-br ${config.gradient} opacity-[0.08] flex items-center justify-center`}>
+          <div
+            className={`w-full h-full bg-gradient-to-br ${config.gradient} opacity-[0.08] flex items-center justify-center`}
+          >
             <div className={`${config.textColor} opacity-40 scale-[3]`}>{config.icon}</div>
           </div>
         )}
@@ -373,10 +419,7 @@ export const DocumentCard = ({ document, onDelete, onDragStart, isMoving, onShar
       </div>
 
       {/* ── Footer: icon + name + menu (Drive-style compact bar) ── */}
-      <div
-        className="flex items-center gap-2 px-3 py-2.5"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="flex items-center gap-2 px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
         {/* Type icon */}
         <span className={`${config.textColor} shrink-0`}>
           {isExternal ? <Link2 className="w-4 h-4" /> : config.icon}
@@ -384,26 +427,42 @@ export const DocumentCard = ({ document, onDelete, onDragStart, isMoving, onShar
 
         {/* Name + meta */}
         <div className="flex-1 min-w-0" onClick={handleAbrir}>
-          <p className="text-sm font-medium text-gray-900 truncate leading-tight">{document.title}</p>
+          <p className="text-sm font-medium text-gray-900 truncate leading-tight">
+            {document.title}
+          </p>
           <p className="text-[11px] text-gray-400 leading-tight mt-0.5">
-            {formatDate(document.created_at)}{fileSize ? ` · ${fileSize}` : ''}
+            {formatDate(document.created_at)}
+            {fileSize ? ` · ${fileSize}` : ''}
           </p>
         </div>
 
         {/* 3-dot menu */}
         <div className="relative shrink-0">
           <button
-            onClick={(e) => { e.stopPropagation(); setMenuOpen(v => !v) }}
+            onClick={(e) => {
+              e.stopPropagation()
+              setMenuOpen((v) => !v)
+            }}
             className="p-1.5 hover:bg-gray-100 rounded-full transition-colors text-gray-400"
           >
             <MoreVertical size={15} />
           </button>
           {menuOpen && (
             <>
-              <div className="fixed inset-0 z-20" onClick={(e) => { e.stopPropagation(); setMenuOpen(false) }} />
+              <div
+                className="fixed inset-0 z-20"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setMenuOpen(false)
+                }}
+              />
               <div className="absolute right-0 bottom-full mb-2 w-44 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 z-30">
                 <button
-                  onClick={(e) => { e.stopPropagation(); setMenuOpen(false); handleAbrir() }}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setMenuOpen(false)
+                    handleAbrir()
+                  }}
                   className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
                 >
                   <Eye size={14} /> Ver
@@ -416,7 +475,11 @@ export const DocumentCard = ({ document, onDelete, onDragStart, isMoving, onShar
                 </button>
                 {onShare && (
                   <button
-                    onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onShare(document.id, document.title) }}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setMenuOpen(false)
+                      onShare(document.id, document.title)
+                    }}
                     className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
                   >
                     <Share2 size={14} /> Compartir

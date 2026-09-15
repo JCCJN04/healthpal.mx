@@ -1,16 +1,58 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, CalendarDays, Clock, Building2, Video, Phone, Loader2, Inbox, Check, X, Search, ArrowLeft, ArrowRight, List, ChevronRight, FileText, StickyNote, Lock } from 'lucide-react'
+import {
+  Plus,
+  CalendarDays,
+  Clock,
+  Building2,
+  Video,
+  Phone,
+  Loader2,
+  Inbox,
+  Check,
+  X,
+  Search,
+  ArrowLeft,
+  ArrowRight,
+  List,
+  ChevronRight,
+  FileText,
+  StickyNote,
+  Lock,
+} from 'lucide-react'
 import DashboardLayout from '@/app/layout/DashboardLayout'
-import { getPatientAppointments, updateAppointmentStatus, type AppointmentWithDoctor, type AppointmentMode, type AppointmentStatus } from '@/shared/lib/queries/appointments'
+import {
+  getPatientAppointments,
+  updateAppointmentStatus,
+  type AppointmentWithDoctor,
+  type AppointmentMode,
+  type AppointmentStatus,
+} from '@/shared/lib/queries/appointments'
 import { deleteAppointmentCalendarEvent } from '@/shared/lib/googleCalendar'
 import { useAuth } from '@/app/providers/AuthContext'
 import { getPatientDoctors, type DoctorWithProfile } from '@/features/patient/services/doctors'
-import { getAppointmentNotesByAppointment, type AppointmentNote } from '@/shared/lib/queries/appointmentNotes'
+import {
+  getAppointmentNotesByAppointment,
+  type AppointmentNote,
+} from '@/shared/lib/queries/appointmentNotes'
+import { logger } from '@/shared/lib/logger'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const MONTHS_LONG = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+const MONTHS_LONG = [
+  'Enero',
+  'Febrero',
+  'Marzo',
+  'Abril',
+  'Mayo',
+  'Junio',
+  'Julio',
+  'Agosto',
+  'Septiembre',
+  'Octubre',
+  'Noviembre',
+  'Diciembre',
+]
 
 const MODE_LABEL: Record<AppointmentMode, string> = {
   in_person: 'Presencial',
@@ -100,7 +142,12 @@ function AppointmentDetailModal({
       .finally(() => setNotesLoading(false))
   }, [appt.id, showNotes])
 
-  const initials = (appt.doctor_name ?? 'D').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+  const initials = (appt.doctor_name ?? 'D')
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
   const isDoctorProposed = appt.status === 'pending' && appt.initiated_by !== appt.patient_id
   const isPatientProposed = appt.status === 'pending' && appt.initiated_by === appt.patient_id
   const endTime = (() => {
@@ -124,7 +171,10 @@ function AppointmentDetailModal({
 
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <h2 className="text-base font-bold text-gray-900">Detalle de cita</h2>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500">
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500"
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -133,7 +183,11 @@ function AppointmentDetailModal({
           {/* Doctor */}
           <div className="flex items-center gap-3">
             {appt.doctor_avatar ? (
-              <img src={appt.doctor_avatar} alt="" className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
+              <img
+                src={appt.doctor_avatar}
+                alt=""
+                className="w-14 h-14 rounded-xl object-cover flex-shrink-0"
+              />
             ) : (
               <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#33C7BE] to-teal-700 flex items-center justify-center text-white font-bold text-base flex-shrink-0">
                 {initials}
@@ -141,7 +195,9 @@ function AppointmentDetailModal({
             )}
             <div className="flex-1 min-w-0">
               <p className="font-bold text-gray-900 truncate">{appt.doctor_name ?? 'Doctor'}</p>
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border mt-1 ${STATUS_STYLES[appt.status]}`}>
+              <span
+                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border mt-1 ${STATUS_STYLES[appt.status]}`}
+              >
                 {STATUS_LABEL[appt.status]}
               </span>
             </div>
@@ -159,7 +215,9 @@ function AppointmentDetailModal({
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-1">
                 <Clock className="w-3 h-3" /> Horario
               </p>
-              <p className="text-sm font-semibold text-gray-800">{formatTime(appt.scheduled_at)} – {endTime}</p>
+              <p className="text-sm font-semibold text-gray-800">
+                {formatTime(appt.scheduled_at)} – {endTime}
+              </p>
             </div>
             <div className="bg-gray-50 rounded-xl p-3">
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-1">
@@ -206,15 +264,19 @@ function AppointmentDetailModal({
                 <p className="text-xs text-gray-400 text-center py-3">Sin notas registradas</p>
               ) : (
                 <div className="space-y-2">
-                  {consultNotes.map(note => (
+                  {consultNotes.map((note) => (
                     <div key={note.id} className="bg-teal-50 border border-teal-100 rounded-xl p-3">
                       {note.title && (
                         <p className="text-xs font-semibold text-teal-700 mb-1">{note.title}</p>
                       )}
-                      <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{note.body}</p>
+                      <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                        {note.body}
+                      </p>
                       <div className="flex items-center gap-1 mt-2">
                         <Lock className="w-2.5 h-2.5 text-teal-400" />
-                        <span className="text-[10px] text-teal-400 font-medium">Cifrada AES-256</span>
+                        <span className="text-[10px] text-teal-400 font-medium">
+                          Cifrada AES-256
+                        </span>
                       </div>
                     </div>
                   ))}
@@ -225,20 +287,32 @@ function AppointmentDetailModal({
 
           {appt.status === 'pending' && (
             <p className="text-xs text-center text-gray-400">
-              {isDoctorProposed ? 'Tu doctor propone esta cita — requiere tu respuesta' : 'Esperando confirmación del doctor'}
+              {isDoctorProposed
+                ? 'Tu doctor propone esta cita — requiere tu respuesta'
+                : 'Esperando confirmación del doctor'}
             </p>
           )}
 
           {/* Actions */}
           {isDoctorProposed && (
             <div className="flex gap-3 pt-1">
-              <button onClick={onAccept} disabled={actionLoading}
-                className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#33C7BE] text-white font-semibold rounded-xl hover:bg-teal-600 transition-colors disabled:opacity-50 text-sm">
-                {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              <button
+                onClick={onAccept}
+                disabled={actionLoading}
+                className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#33C7BE] text-white font-semibold rounded-xl hover:bg-teal-600 transition-colors disabled:opacity-50 text-sm"
+              >
+                {actionLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Check className="w-4 h-4" />
+                )}
                 Aceptar
               </button>
-              <button onClick={onDecline} disabled={actionLoading}
-                className="px-4 flex items-center justify-center gap-2 py-3 border border-gray-200 text-gray-600 font-semibold rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50 text-sm">
+              <button
+                onClick={onDecline}
+                disabled={actionLoading}
+                className="px-4 flex items-center justify-center gap-2 py-3 border border-gray-200 text-gray-600 font-semibold rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50 text-sm"
+              >
                 <X className="w-4 h-4" />
                 Rechazar
               </button>
@@ -246,9 +320,16 @@ function AppointmentDetailModal({
           )}
 
           {isPatientProposed && (
-            <button onClick={onCancel} disabled={actionLoading}
-              className="w-full flex items-center justify-center gap-2 py-3 border border-gray-200 text-gray-600 font-semibold rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50 text-sm">
-              {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
+            <button
+              onClick={onCancel}
+              disabled={actionLoading}
+              className="w-full flex items-center justify-center gap-2 py-3 border border-gray-200 text-gray-600 font-semibold rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50 text-sm"
+            >
+              {actionLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <X className="w-4 h-4" />
+              )}
               Cancelar solicitud
             </button>
           )}
@@ -261,24 +342,28 @@ function AppointmentDetailModal({
 // ─── Appointment Row (clickable) ──────────────────────────────────────────────
 
 const STATUS_LEFT_BORDER: Record<AppointmentStatus, string> = {
-  pending:   'border-l-amber-400',
+  pending: 'border-l-amber-400',
   confirmed: 'border-l-[#33C7BE]',
   cancelled: 'border-l-red-300',
   completed: 'border-l-gray-300',
 }
 
-function AppointmentCard({
-  appt,
-  onClick,
-}: {
-  appt: AppointmentWithDoctor
-  onClick: () => void
-}) {
+function AppointmentCard({ appt, onClick }: { appt: AppointmentWithDoctor; onClick: () => void }) {
   const past = isPast(appt.scheduled_at)
-  const initials = (appt.doctor_name ?? 'D').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+  const initials = (appt.doctor_name ?? 'D')
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
   const isDoctorProposed = appt.status === 'pending' && appt.initiated_by !== appt.patient_id
   const endMs = new Date(appt.scheduled_at).getTime() + appt.duration_min * 60_000
-  const endTime = new Date(endMs).toLocaleTimeString('es-MX', { timeZone: 'America/Mexico_City', hour: '2-digit', minute: '2-digit', hour12: false })
+  const endTime = new Date(endMs).toLocaleTimeString('es-MX', {
+    timeZone: 'America/Mexico_City',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
 
   return (
     <button
@@ -288,7 +373,11 @@ function AppointmentCard({
       <div className="flex items-center gap-3 p-3 sm:p-4">
         {/* Avatar */}
         {appt.doctor_avatar ? (
-          <img src={appt.doctor_avatar} alt="" className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl object-cover flex-shrink-0" />
+          <img
+            src={appt.doctor_avatar}
+            alt=""
+            className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl object-cover flex-shrink-0"
+          />
         ) : (
           <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-[#33C7BE] to-teal-700 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
             {initials}
@@ -298,8 +387,12 @@ function AppointmentCard({
         {/* Info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5">
-            <p className="font-bold text-gray-900 text-sm truncate flex-1">{appt.doctor_name ?? 'Doctor'}</p>
-            <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold border flex-shrink-0 ${STATUS_STYLES[appt.status]}`}>
+            <p className="font-bold text-gray-900 text-sm truncate flex-1">
+              {appt.doctor_name ?? 'Doctor'}
+            </p>
+            <span
+              className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold border flex-shrink-0 ${STATUS_STYLES[appt.status]}`}
+            >
               {STATUS_LABEL[appt.status]}
             </span>
           </div>
@@ -319,7 +412,11 @@ function AppointmentCard({
               {MODE_ICON[appt.mode]}
               {MODE_LABEL[appt.mode]}
             </span>
-            {isDoctorProposed && <span className="text-blue-500 font-medium truncate">· Tu doctor propone esta cita</span>}
+            {isDoctorProposed && (
+              <span className="text-blue-500 font-medium truncate">
+                · Tu doctor propone esta cita
+              </span>
+            )}
           </div>
         </div>
 
@@ -333,22 +430,22 @@ function AppointmentCard({
 
 const EVENT_BG: Record<AppointmentStatus, string> = {
   confirmed: 'bg-[#33C7BE] text-white',
-  pending:   'bg-amber-400 text-white',
+  pending: 'bg-amber-400 text-white',
   cancelled: 'bg-red-100 text-red-500',
   completed: 'bg-gray-100 text-gray-500',
 }
 
 const DOT_COLOR: Record<AppointmentStatus, string> = {
   confirmed: 'bg-[#33C7BE]',
-  pending:   'bg-amber-400',
+  pending: 'bg-amber-400',
   cancelled: 'bg-red-300',
   completed: 'bg-gray-300',
 }
 
 function dotPriority(appts: { status: AppointmentStatus }[]): string {
-  if (appts.some(a => a.status === 'pending'))   return DOT_COLOR.pending
-  if (appts.some(a => a.status === 'confirmed'))  return DOT_COLOR.confirmed
-  if (appts.some(a => a.status === 'cancelled'))  return DOT_COLOR.cancelled
+  if (appts.some((a) => a.status === 'pending')) return DOT_COLOR.pending
+  if (appts.some((a) => a.status === 'confirmed')) return DOT_COLOR.confirmed
+  if (appts.some((a) => a.status === 'cancelled')) return DOT_COLOR.cancelled
   return DOT_COLOR.completed
 }
 
@@ -361,8 +458,16 @@ function CalendarView({
   appointments: AppointmentWithDoctor[]
   onSelect: (appt: AppointmentWithDoctor) => void
 }) {
-  const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d }, [])
-  const [viewDate, setViewDate] = useState(() => { const d = new Date(); d.setDate(1); return d })
+  const today = useMemo(() => {
+    const d = new Date()
+    d.setHours(0, 0, 0, 0)
+    return d
+  }, [])
+  const [viewDate, setViewDate] = useState(() => {
+    const d = new Date()
+    d.setDate(1)
+    return d
+  })
   const [selectedKey, setSelectedKey] = useState<string>(() => toDateKey(today))
   const [overflowDay, setOverflowDay] = useState<string | null>(null)
 
@@ -376,7 +481,9 @@ function CalendarView({
       if (!map.has(key)) map.set(key, [])
       map.get(key)!.push(a)
     }
-    map.forEach(arr => arr.sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()))
+    map.forEach((arr) =>
+      arr.sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()),
+    )
     return map
   }, [appointments])
 
@@ -400,15 +507,21 @@ function CalendarView({
   // Shared month nav + weekday header
   const nav = (
     <div className="flex items-center justify-between mb-3">
-      <button onClick={() => setViewDate(new Date(year, month - 1, 1))}
-        className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 text-gray-500 transition-colors active:scale-95">
+      <button
+        onClick={() => setViewDate(new Date(year, month - 1, 1))}
+        className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 text-gray-500 transition-colors active:scale-95"
+      >
         <ArrowLeft className="w-4 h-4" />
       </button>
       <div className="text-center">
-        <h2 className="text-base font-bold text-gray-900 capitalize">{MONTHS_LONG[month]} {year}</h2>
+        <h2 className="text-base font-bold text-gray-900 capitalize">
+          {MONTHS_LONG[month]} {year}
+        </h2>
       </div>
-      <button onClick={() => setViewDate(new Date(year, month + 1, 1))}
-        className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 text-gray-500 transition-colors active:scale-95">
+      <button
+        onClick={() => setViewDate(new Date(year, month + 1, 1))}
+        className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 text-gray-500 transition-colors active:scale-95"
+      >
         <ArrowRight className="w-4 h-4" />
       </button>
     </div>
@@ -416,8 +529,10 @@ function CalendarView({
 
   const weekdayRow = (
     <div className="grid grid-cols-7 mb-1">
-      {['D','L','M','X','J','V','S'].map((d, i) => (
-        <div key={i} className="text-center text-[11px] font-bold text-gray-400 py-1">{d}</div>
+      {['D', 'L', 'M', 'X', 'J', 'V', 'S'].map((d, i) => (
+        <div key={i} className="text-center text-[11px] font-bold text-gray-400 py-1">
+          {d}
+        </div>
       ))}
     </div>
   )
@@ -439,13 +554,20 @@ function CalendarView({
             const isSelected = key === selectedKey
 
             return (
-              <button key={key} onClick={() => setSelectedKey(key)}
-                className="flex flex-col items-center justify-center h-11 rounded-xl transition-all active:scale-90">
-                <span className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-semibold transition-all ${
-                  isSelected ? 'bg-[#33C7BE] text-white shadow-md' :
-                  isToday ? 'ring-2 ring-[#33C7BE] text-[#33C7BE]' :
-                  'text-gray-700'
-                }`}>
+              <button
+                key={key}
+                onClick={() => setSelectedKey(key)}
+                className="flex flex-col items-center justify-center h-11 rounded-xl transition-all active:scale-90"
+              >
+                <span
+                  className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-semibold transition-all ${
+                    isSelected
+                      ? 'bg-[#33C7BE] text-white shadow-md'
+                      : isToday
+                        ? 'ring-2 ring-[#33C7BE] text-[#33C7BE]'
+                        : 'text-gray-700'
+                  }`}
+                >
                   {day.getDate()}
                 </span>
                 {dayAppts.length > 0 && !isSelected && (
@@ -459,8 +581,19 @@ function CalendarView({
         {/* Selected day event list */}
         <div className="border-t border-gray-100 pt-4">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
-            {isSelectedToday ? 'Hoy' : selectedDate.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Mexico_City' })}
-            {selectedAppts.length > 0 && <span className="ml-2 text-[#33C7BE]">· {selectedAppts.length} cita{selectedAppts.length > 1 ? 's' : ''}</span>}
+            {isSelectedToday
+              ? 'Hoy'
+              : selectedDate.toLocaleDateString('es-MX', {
+                  weekday: 'long',
+                  day: 'numeric',
+                  month: 'long',
+                  timeZone: 'America/Mexico_City',
+                })}
+            {selectedAppts.length > 0 && (
+              <span className="ml-2 text-[#33C7BE]">
+                · {selectedAppts.length} cita{selectedAppts.length > 1 ? 's' : ''}
+              </span>
+            )}
           </p>
           {selectedAppts.length === 0 ? (
             <div className="flex flex-col items-center py-8 text-gray-400">
@@ -469,25 +602,52 @@ function CalendarView({
             </div>
           ) : (
             <div className="space-y-2">
-              {selectedAppts.map(appt => {
+              {selectedAppts.map((appt) => {
                 const endMs = new Date(appt.scheduled_at).getTime() + appt.duration_min * 60_000
-                const endTime = new Date(endMs).toLocaleTimeString('es-MX', { timeZone: 'America/Mexico_City', hour: '2-digit', minute: '2-digit', hour12: false })
-                const initials = (appt.doctor_name ?? 'D').split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase()
+                const endTime = new Date(endMs).toLocaleTimeString('es-MX', {
+                  timeZone: 'America/Mexico_City',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: false,
+                })
+                const initials = (appt.doctor_name ?? 'D')
+                  .split(' ')
+                  .map((w) => w[0])
+                  .join('')
+                  .slice(0, 2)
+                  .toUpperCase()
                 return (
-                  <button key={appt.id} onClick={() => onSelect(appt)}
-                    className="w-full text-left flex items-center gap-3 p-3 rounded-2xl border border-gray-100 bg-white shadow-sm active:scale-[0.98] transition-all hover:shadow-md">
-                    {appt.doctor_avatar
-                      ? <img src={appt.doctor_avatar} className="w-11 h-11 rounded-xl object-cover flex-shrink-0" alt="" />
-                      : <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#33C7BE] to-teal-700 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">{initials}</div>
-                    }
+                  <button
+                    key={appt.id}
+                    onClick={() => onSelect(appt)}
+                    className="w-full text-left flex items-center gap-3 p-3 rounded-2xl border border-gray-100 bg-white shadow-sm active:scale-[0.98] transition-all hover:shadow-md"
+                  >
+                    {appt.doctor_avatar ? (
+                      <img
+                        src={appt.doctor_avatar}
+                        className="w-11 h-11 rounded-xl object-cover flex-shrink-0"
+                        alt=""
+                      />
+                    ) : (
+                      <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#33C7BE] to-teal-700 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                        {initials}
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-gray-900 text-sm truncate">{appt.doctor_name ?? 'Doctor'}</p>
+                      <p className="font-bold text-gray-900 text-sm truncate">
+                        {appt.doctor_name ?? 'Doctor'}
+                      </p>
                       <p className="text-xs text-gray-500 mt-0.5">
-                        <span className="font-semibold text-gray-700">{formatTime(appt.scheduled_at)} – {endTime}</span>
-                        {' · '}{MODE_LABEL[appt.mode]}
+                        <span className="font-semibold text-gray-700">
+                          {formatTime(appt.scheduled_at)} – {endTime}
+                        </span>
+                        {' · '}
+                        {MODE_LABEL[appt.mode]}
                       </p>
                     </div>
-                    <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex-shrink-0 border ${STATUS_STYLES[appt.status]}`}>
+                    <span
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex-shrink-0 border ${STATUS_STYLES[appt.status]}`}
+                    >
                       {STATUS_LABEL[appt.status]}
                     </span>
                   </button>
@@ -505,15 +665,29 @@ function CalendarView({
         <div className="border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
           {/* Weekday headers */}
           <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50/80">
-            {['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map(d => (
-              <div key={d} className="py-2.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">{d}</div>
+            {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((d) => (
+              <div
+                key={d}
+                className="py-2.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider"
+              >
+                {d}
+              </div>
             ))}
           </div>
 
           {weeks.map((week, wi) => (
-            <div key={wi} className={`grid grid-cols-7 ${wi < weeks.length - 1 ? 'border-b border-gray-200' : ''}`}>
+            <div
+              key={wi}
+              className={`grid grid-cols-7 ${wi < weeks.length - 1 ? 'border-b border-gray-200' : ''}`}
+            >
               {week.map((day, di) => {
-                if (!day) return <div key={`e-${wi}-${di}`} className="min-h-[120px] bg-gray-50/50 border-r border-gray-100 last:border-r-0" />
+                if (!day)
+                  return (
+                    <div
+                      key={`e-${wi}-${di}`}
+                      className="min-h-[120px] bg-gray-50/50 border-r border-gray-100 last:border-r-0"
+                    />
+                  )
                 const key = toDateKey(day)
                 const dayAppts = apptsByDay.get(key) ?? []
                 const isToday = day.toDateString() === today.toDateString()
@@ -522,23 +696,40 @@ function CalendarView({
                 const overflow = dayAppts.length - MAX_VISIBLE
 
                 return (
-                  <div key={key} className={`min-h-[120px] p-2 flex flex-col border-r border-gray-100 last:border-r-0 ${isPastDay ? 'bg-gray-50/60' : 'bg-white hover:bg-teal-50/20 transition-colors'}`}>
+                  <div
+                    key={key}
+                    className={`min-h-[120px] p-2 flex flex-col border-r border-gray-100 last:border-r-0 ${isPastDay ? 'bg-gray-50/60' : 'bg-white hover:bg-teal-50/20 transition-colors'}`}
+                  >
                     <div className="flex justify-end mb-1.5">
-                      <span className={`w-7 h-7 flex items-center justify-center rounded-full text-xs font-bold ${
-                        isToday ? 'bg-[#33C7BE] text-white shadow-sm' : isPastDay ? 'text-gray-400' : 'text-gray-700 hover:bg-gray-100'
-                      }`}>{day.getDate()}</span>
+                      <span
+                        className={`w-7 h-7 flex items-center justify-center rounded-full text-xs font-bold ${
+                          isToday
+                            ? 'bg-[#33C7BE] text-white shadow-sm'
+                            : isPastDay
+                              ? 'text-gray-400'
+                              : 'text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        {day.getDate()}
+                      </span>
                     </div>
                     <div className="flex-1 space-y-1">
-                      {visible.map(appt => (
-                        <button key={appt.id} onClick={() => onSelect(appt)}
+                      {visible.map((appt) => (
+                        <button
+                          key={appt.id}
+                          onClick={() => onSelect(appt)}
                           className={`w-full text-left px-2 py-1 rounded-lg text-xs font-medium truncate transition-all hover:opacity-90 hover:shadow-sm ${EVENT_BG[appt.status]}`}
-                          title={`${formatTime(appt.scheduled_at)} · ${appt.doctor_name ?? 'Doctor'}`}>
-                          {formatTime(appt.scheduled_at)} · {appt.doctor_name?.split(' ')[0] ?? 'Dr.'}
+                          title={`${formatTime(appt.scheduled_at)} · ${appt.doctor_name ?? 'Doctor'}`}
+                        >
+                          {formatTime(appt.scheduled_at)} ·{' '}
+                          {appt.doctor_name?.split(' ')[0] ?? 'Dr.'}
                         </button>
                       ))}
                       {overflow > 0 && (
-                        <button onClick={() => setOverflowDay(overflowDay === key ? null : key)}
-                          className="w-full text-left px-2 py-0.5 text-xs text-gray-400 hover:text-[#33C7BE] font-medium transition-colors">
+                        <button
+                          onClick={() => setOverflowDay(overflowDay === key ? null : key)}
+                          className="w-full text-left px-2 py-0.5 text-xs text-gray-400 hover:text-[#33C7BE] font-medium transition-colors"
+                        >
                           +{overflow} más
                         </button>
                       )}
@@ -551,28 +742,49 @@ function CalendarView({
         </div>
 
         {/* Overflow popover */}
-        {overflowDay && (() => {
-          const dayAppts = apptsByDay.get(overflowDay) ?? []
-          return (
-            <div className="mt-3 bg-white border border-gray-200 rounded-2xl shadow-xl p-4 space-y-2">
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-sm font-bold text-gray-800">{formatDate(new Date(overflowDay + 'T12:00:00-06:00').toISOString())}</p>
-                <button onClick={() => setOverflowDay(null)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400"><X className="w-4 h-4" /></button>
+        {overflowDay &&
+          (() => {
+            const dayAppts = apptsByDay.get(overflowDay) ?? []
+            return (
+              <div className="mt-3 bg-white border border-gray-200 rounded-2xl shadow-xl p-4 space-y-2">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-sm font-bold text-gray-800">
+                    {formatDate(new Date(overflowDay + 'T12:00:00-06:00').toISOString())}
+                  </p>
+                  <button
+                    onClick={() => setOverflowDay(null)}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                {dayAppts.map((appt) => (
+                  <button
+                    key={appt.id}
+                    onClick={() => {
+                      onSelect(appt)
+                      setOverflowDay(null)
+                    }}
+                    className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all hover:opacity-90 hover:shadow-sm ${EVENT_BG[appt.status]}`}
+                  >
+                    <Clock className="w-3.5 h-3.5 flex-shrink-0" />
+                    {formatTime(appt.scheduled_at)} · {appt.doctor_name ?? 'Doctor'}
+                  </button>
+                ))}
               </div>
-              {dayAppts.map(appt => (
-                <button key={appt.id} onClick={() => { onSelect(appt); setOverflowDay(null) }}
-                  className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all hover:opacity-90 hover:shadow-sm ${EVENT_BG[appt.status]}`}>
-                  <Clock className="w-3.5 h-3.5 flex-shrink-0" />
-                  {formatTime(appt.scheduled_at)} · {appt.doctor_name ?? 'Doctor'}
-                </button>
-              ))}
-            </div>
-          )
-        })()}
+            )
+          })()}
 
         {/* Legend */}
         <div className="flex items-center gap-5 mt-4">
-          {([['confirmed','Confirmada'],['pending','Pendiente'],['cancelled','Cancelada'],['completed','Completada']] as [AppointmentStatus,string][]).map(([s, label]) => (
+          {(
+            [
+              ['confirmed', 'Confirmada'],
+              ['pending', 'Pendiente'],
+              ['cancelled', 'Cancelada'],
+              ['completed', 'Completada'],
+            ] as [AppointmentStatus, string][]
+          ).map(([s, label]) => (
             <span key={s} className="flex items-center gap-1.5 text-xs text-gray-500">
               <span className={`w-2.5 h-2.5 rounded-sm ${EVENT_BG[s].split(' ')[0]}`} /> {label}
             </span>
@@ -599,16 +811,26 @@ function DoctorPickerModal({
   const [query, setQuery] = useState('')
 
   useEffect(() => {
-    getPatientDoctors(patientId).then(data => {
-      setDoctors(data)
-      setLoadingDocs(false)
-    })
+    let cancelled = false
+    getPatientDoctors(patientId)
+      .then((data) => {
+        if (!cancelled) setDoctors(data)
+      })
+      .catch((err) => {
+        console.error('DoctorPickerModal:getPatientDoctors', err)
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingDocs(false)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [patientId])
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim()
     if (!q) return doctors
-    return doctors.filter(d => (d.full_name ?? '').toLowerCase().includes(q))
+    return doctors.filter((d) => (d.full_name ?? '').toLowerCase().includes(q))
   }, [doctors, query])
 
   return (
@@ -617,7 +839,10 @@ function DoctorPickerModal({
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <h2 className="text-base font-bold text-gray-900">¿Con qué doctor?</h2>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500">
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500"
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -627,7 +852,7 @@ function DoctorPickerModal({
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               value={query}
-              onChange={e => setQuery(e.target.value)}
+              onChange={(e) => setQuery(e.target.value)}
               placeholder="Buscar doctor..."
               className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#33C7BE]"
             />
@@ -643,8 +868,13 @@ function DoctorPickerModal({
                 {doctors.length === 0 ? 'No tienes doctores vinculados aún.' : 'Sin resultados.'}
               </p>
             ) : (
-              filtered.map(doc => {
-                const initials = (doc.full_name ?? 'D').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+              filtered.map((doc) => {
+                const initials = (doc.full_name ?? 'D')
+                  .split(' ')
+                  .map((w) => w[0])
+                  .join('')
+                  .slice(0, 2)
+                  .toUpperCase()
                 return (
                   <button
                     key={doc.id}
@@ -652,16 +882,24 @@ function DoctorPickerModal({
                     className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-teal-50 transition-colors text-left"
                   >
                     {doc.avatar_url ? (
-                      <img src={doc.avatar_url} alt="" className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
+                      <img
+                        src={doc.avatar_url}
+                        alt=""
+                        className="w-10 h-10 rounded-xl object-cover flex-shrink-0"
+                      />
                     ) : (
                       <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#33C7BE] to-teal-700 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
                         {initials}
                       </div>
                     )}
                     <div className="min-w-0">
-                      <p className="font-semibold text-gray-800 text-sm truncate">{doc.full_name ?? 'Doctor'}</p>
+                      <p className="font-semibold text-gray-800 text-sm truncate">
+                        {doc.full_name ?? 'Doctor'}
+                      </p>
                       {doc.doctor_profile?.specialty && (
-                        <p className="text-xs text-gray-400 truncate">{doc.doctor_profile.specialty}</p>
+                        <p className="text-xs text-gray-400 truncate">
+                          {doc.doctor_profile.specialty}
+                        </p>
                       )}
                     </div>
                   </button>
@@ -713,15 +951,21 @@ export default function Consultas() {
   const [selectedAppt, setSelectedAppt] = useState<AppointmentWithDoctor | null>(null)
 
   useEffect(() => {
-    getPatientAppointments().then(data => {
-      setAppointments(data)
-      setLoading(false)
-    })
+    getPatientAppointments()
+      .then((data) => {
+        setAppointments(data)
+      })
+      .catch((err) => {
+        logger.error('Consultas.getPatientAppointments', err)
+      })
+      .finally(() => {
+        setLoading(false)
+      })
   }, [])
 
   function patchStatus(apptId: string, status: AppointmentStatus) {
-    setAppointments(prev => prev.map(a => a.id === apptId ? { ...a, status } : a))
-    setSelectedAppt(prev => prev?.id === apptId ? { ...prev, status } : prev)
+    setAppointments((prev) => prev.map((a) => (a.id === apptId ? { ...a, status } : a)))
+    setSelectedAppt((prev) => (prev?.id === apptId ? { ...prev, status } : prev))
   }
 
   async function handleAccept(apptId: string) {
@@ -751,25 +995,24 @@ export default function Consultas() {
     setActionLoading(null)
   }
 
-  const upcoming = appointments.filter(a =>
-    !isPast(a.scheduled_at) || a.status === 'pending'
-  ).sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
+  const upcoming = appointments
+    .filter((a) => !isPast(a.scheduled_at) || a.status === 'pending')
+    .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
 
-  const past = appointments.filter(a =>
-    isPast(a.scheduled_at) && a.status !== 'pending'
-  )
+  const past = appointments.filter((a) => isPast(a.scheduled_at) && a.status !== 'pending')
 
   const displayed = tab === 'upcoming' ? upcoming : past
 
   return (
     <DashboardLayout>
       <div className="px-4 sm:px-6 lg:px-8 py-6 space-y-5">
-
         {/* Header */}
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <h1 className="text-2xl font-bold text-gray-900">Mis Consultas</h1>
-            <p className="hidden sm:block text-sm text-gray-500 mt-0.5">Gestiona tus citas médicas</p>
+            <p className="hidden sm:block text-sm text-gray-500 mt-0.5">
+              Gestiona tus citas médicas
+            </p>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             {/* View toggle */}
@@ -777,7 +1020,9 @@ export default function Consultas() {
               <button
                 onClick={() => setView('list')}
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  view === 'list' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  view === 'list'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
                 <List className="w-3.5 h-3.5" />
@@ -786,7 +1031,9 @@ export default function Consultas() {
               <button
                 onClick={() => setView('calendar')}
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  view === 'calendar' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  view === 'calendar'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
                 <CalendarDays className="w-3.5 h-3.5" />
@@ -808,10 +1055,25 @@ export default function Consultas() {
         {!loading && appointments.length > 0 && (
           <div className="grid grid-cols-3 gap-3">
             {[
-              { label: 'Confirmadas', count: appointments.filter(a => a.status === 'confirmed').length, color: 'text-[#33C7BE]', bg: 'bg-teal-50' },
-              { label: 'Pendientes',  count: appointments.filter(a => a.status === 'pending').length,   color: 'text-amber-600', bg: 'bg-amber-50' },
-              { label: 'Canceladas',  count: appointments.filter(a => a.status === 'cancelled').length, color: 'text-red-500',   bg: 'bg-red-50' },
-            ].map(s => (
+              {
+                label: 'Confirmadas',
+                count: appointments.filter((a) => a.status === 'confirmed').length,
+                color: 'text-[#33C7BE]',
+                bg: 'bg-teal-50',
+              },
+              {
+                label: 'Pendientes',
+                count: appointments.filter((a) => a.status === 'pending').length,
+                color: 'text-amber-600',
+                bg: 'bg-amber-50',
+              },
+              {
+                label: 'Canceladas',
+                count: appointments.filter((a) => a.status === 'cancelled').length,
+                color: 'text-red-500',
+                bg: 'bg-red-50',
+              },
+            ].map((s) => (
               <div key={s.label} className={`${s.bg} rounded-xl px-4 py-3`}>
                 <p className={`text-2xl font-bold ${s.color}`}>{s.count}</p>
                 <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
@@ -826,7 +1088,12 @@ export default function Consultas() {
             <>
               {/* List tabs */}
               <div className="flex border-b border-gray-100 px-2 pt-1">
-                {([['upcoming', 'Próximas'], ['past', 'Historial']] as [Tab, string][]).map(([id, label]) => (
+                {(
+                  [
+                    ['upcoming', 'Próximas'],
+                    ['past', 'Historial'],
+                  ] as [Tab, string][]
+                ).map(([id, label]) => (
                   <button
                     key={id}
                     onClick={() => setTab(id)}
@@ -834,7 +1101,9 @@ export default function Consultas() {
                       tab === id ? 'text-[#33C7BE]' : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
-                    {tab === id && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#33C7BE] rounded-t" />}
+                    {tab === id && (
+                      <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#33C7BE] rounded-t" />
+                    )}
                     {label}
                     {id === 'upcoming' && upcoming.length > 0 && (
                       <span className="ml-2 inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold rounded-full bg-[#33C7BE] text-white">
@@ -854,7 +1123,7 @@ export default function Consultas() {
                   <EmptyState onNew={() => setShowDoctorPicker(true)} />
                 ) : (
                   <div className="space-y-2">
-                    {displayed.map(appt => (
+                    {displayed.map((appt) => (
                       <AppointmentCard
                         key={appt.id}
                         appt={appt}
@@ -874,10 +1143,7 @@ export default function Consultas() {
               ) : appointments.length === 0 ? (
                 <EmptyState onNew={() => setShowDoctorPicker(true)} />
               ) : (
-                <CalendarView
-                  appointments={appointments}
-                  onSelect={setSelectedAppt}
-                />
+                <CalendarView appointments={appointments} onSelect={setSelectedAppt} />
               )}
             </div>
           )}
@@ -898,7 +1164,7 @@ export default function Consultas() {
       {showDoctorPicker && user && (
         <DoctorPickerModal
           patientId={user.id}
-          onSelect={doctorId => {
+          onSelect={(doctorId) => {
             setShowDoctorPicker(false)
             navigate(`/dashboard/consultas/nueva?doctor=${doctorId}`)
           }}

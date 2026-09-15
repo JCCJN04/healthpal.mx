@@ -1,25 +1,52 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import {
-  ArrowLeft, ArrowRight, Check, Loader2, CalendarDays,
-  Building2, Video, Phone, CheckCircle, Calendar,
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Loader2,
+  CalendarDays,
+  Building2,
+  Video,
+  Phone,
+  CheckCircle,
+  Calendar,
 } from 'lucide-react'
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import AppointmentSummaryCard from '@/features/patient/components/AppointmentSummaryCard'
 import { getDoctorById, type DoctorWithProfile } from '@/features/patient/services/doctors'
 import { createAppointment, type AppointmentMode } from '@/shared/lib/queries/appointments'
-import { createAppointmentCalendarEvent, getDoctorBusySlots, type BusyInterval } from '@/shared/lib/googleCalendar'
+import {
+  createAppointmentCalendarEvent,
+  getDoctorBusySlots,
+  type BusyInterval,
+} from '@/shared/lib/googleCalendar'
 import { logger } from '@/shared/lib/logger'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const MONTHS = [
-  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+  'Enero',
+  'Febrero',
+  'Marzo',
+  'Abril',
+  'Mayo',
+  'Junio',
+  'Julio',
+  'Agosto',
+  'Septiembre',
+  'Octubre',
+  'Noviembre',
+  'Diciembre',
 ]
 const WEEKDAYS = ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa']
 
-const MODE_OPTIONS: { value: AppointmentMode; label: string; icon: React.ReactNode; desc: string }[] = [
+const MODE_OPTIONS: {
+  value: AppointmentMode
+  label: string
+  icon: React.ReactNode
+  desc: string
+}[] = [
   {
     value: 'in_person',
     label: 'Presencial',
@@ -74,11 +101,16 @@ function addMinutes(time: string, minutes: number): string {
 }
 
 /** Returns true if [slotStart, slotStart+duration) overlaps any busy interval. */
-function isSlotBusy(date: Date, slotTime: string, durationMin: number, busy: BusyInterval[]): boolean {
+function isSlotBusy(
+  date: Date,
+  slotTime: string,
+  durationMin: number,
+  busy: BusyInterval[],
+): boolean {
   const [h, m] = slotTime.split(':').map(Number)
   const slotStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m).getTime()
   const slotEnd = slotStart + durationMin * 60_000
-  return busy.some(b => {
+  return busy.some((b) => {
     const bStart = new Date(b.start).getTime()
     const bEnd = new Date(b.end).getTime()
     return slotStart < bEnd && slotEnd > bStart
@@ -103,18 +135,22 @@ function StepIndicator({ step }: { step: number }) {
                   done
                     ? 'bg-[#33C7BE] border-[#33C7BE] text-white'
                     : active
-                    ? 'border-[#33C7BE] text-[#33C7BE] bg-white'
-                    : 'border-gray-200 text-gray-400 bg-white'
+                      ? 'border-[#33C7BE] text-[#33C7BE] bg-white'
+                      : 'border-gray-200 text-gray-400 bg-white'
                 }`}
               >
                 {done ? <Check className="w-4 h-4" /> : idx}
               </div>
-              <span className={`text-[11px] mt-1 font-medium ${active ? 'text-[#33C7BE]' : done ? 'text-gray-500' : 'text-gray-400'}`}>
+              <span
+                className={`text-[11px] mt-1 font-medium ${active ? 'text-[#33C7BE]' : done ? 'text-gray-500' : 'text-gray-400'}`}
+              >
                 {label}
               </span>
             </div>
             {i < steps.length - 1 && (
-              <div className={`w-16 sm:w-24 h-0.5 mb-4 mx-1 transition-colors ${done ? 'bg-[#33C7BE]' : 'bg-gray-200'}`} />
+              <div
+                className={`w-16 sm:w-24 h-0.5 mb-4 mx-1 transition-colors ${done ? 'bg-[#33C7BE]' : 'bg-gray-200'}`}
+              />
             )}
           </div>
         )
@@ -151,21 +187,29 @@ function CalendarPicker({ value, onChange }: { value: Date | null; onChange: (d:
     <div className="select-none">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <button onClick={prevMonth} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 transition-colors">
+        <button
+          onClick={prevMonth}
+          className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+        >
           <ArrowLeft className="w-4 h-4" />
         </button>
         <span className="font-semibold text-gray-900 capitalize">
           {MONTHS[month]} {year}
         </span>
-        <button onClick={nextMonth} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 transition-colors">
+        <button
+          onClick={nextMonth}
+          className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+        >
           <ArrowRight className="w-4 h-4" />
         </button>
       </div>
 
       {/* Weekday headers */}
       <div className="grid grid-cols-7 mb-1">
-        {WEEKDAYS.map(d => (
-          <div key={d} className="text-center text-[11px] font-bold text-gray-400 py-1">{d}</div>
+        {WEEKDAYS.map((d) => (
+          <div key={d} className="text-center text-[11px] font-bold text-gray-400 py-1">
+            {d}
+          </div>
         ))}
       </div>
 
@@ -231,11 +275,18 @@ export default function NuevaConsulta() {
       navigate('/dashboard/doctores')
       return
     }
-    getDoctorById(doctorId).then(d => {
-      if (!d) setDoctorError(true)
-      else setDoctor(d)
-      setLoadingDoctor(false)
-    })
+    getDoctorById(doctorId)
+      .then((d) => {
+        if (!d) setDoctorError(true)
+        else setDoctor(d)
+      })
+      .catch((err) => {
+        logger.error('NuevaConsulta.getDoctorById', err)
+        setDoctorError(true)
+      })
+      .finally(() => {
+        setLoadingDoctor(false)
+      })
   }, [doctorId, navigate])
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -252,10 +303,16 @@ export default function NuevaConsulta() {
     setLoadingAvailability(true)
     setBusySlots([])
     setSelectedTime(null)
-    getDoctorBusySlots(doctor.id, dateStr).then(busy => {
-      setBusySlots(busy)
-      setLoadingAvailability(false)
-    })
+    getDoctorBusySlots(doctor.id, dateStr)
+      .then((busy) => {
+        setBusySlots(busy)
+      })
+      .catch((err) => {
+        logger.error('NuevaConsulta.getDoctorBusySlots', err)
+      })
+      .finally(() => {
+        setLoadingAvailability(false)
+      })
   }, [selectedDate, doctor])
 
   // ─── Submit ────────────────────────────────────────────────────────────────
@@ -290,7 +347,9 @@ export default function NuevaConsulta() {
             `Motivo: ${reason}`,
             notes ? `Notas: ${notes}` : '',
             '\nCita agendada a través de HealthPal.mx',
-          ].filter(Boolean).join('\n'),
+          ]
+            .filter(Boolean)
+            .join('\n'),
           startDateTime: `${dateStr}T${selectedTime}:00`,
           endDateTime: `${dateStr}T${endTime}:00`,
           timeZone: 'America/Mexico_City',
@@ -351,8 +410,8 @@ export default function NuevaConsulta() {
               <h2 className="text-xl font-bold text-gray-900">¡Solicitud enviada!</h2>
               <p className="text-gray-500 text-sm mt-1">
                 Tu solicitud fue enviada a{' '}
-                <span className="font-semibold text-gray-700">{doctor.full_name}</span>.
-                El doctor la revisará y confirmará a la brevedad.
+                <span className="font-semibold text-gray-700">{doctor.full_name}</span>. El doctor
+                la revisará y confirmará a la brevedad.
               </p>
             </div>
 
@@ -399,10 +458,11 @@ export default function NuevaConsulta() {
   return (
     <DashboardLayout>
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 space-y-5">
-
         {/* Back */}
         <button
-          onClick={() => step > 1 ? setStep(s => s - 1) : navigate(`/dashboard/doctores/${doctor.id}`)}
+          onClick={() =>
+            step > 1 ? setStep((s) => s - 1) : navigate(`/dashboard/doctores/${doctor.id}`)
+          }
           className="inline-flex items-center gap-1.5 text-gray-500 hover:text-gray-800 text-sm font-medium transition-colors group"
         >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
@@ -419,13 +479,19 @@ export default function NuevaConsulta() {
             />
           ) : (
             <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#33C7BE] to-teal-700 flex items-center justify-center text-white font-bold text-base flex-shrink-0">
-              {(doctor.full_name ?? 'D').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+              {(doctor.full_name ?? 'D')
+                .split(' ')
+                .map((w) => w[0])
+                .join('')
+                .slice(0, 2)
+                .toUpperCase()}
             </div>
           )}
           <div className="min-w-0">
             <p className="font-semibold text-gray-900 truncate">{doctor.full_name}</p>
             <p className="text-xs text-gray-500 truncate">
-              {doctor.doctor_profile?.specialty ?? 'Doctor'}{doctor.doctor_profile?.clinic_name ? ` · ${doctor.doctor_profile.clinic_name}` : ''}
+              {doctor.doctor_profile?.specialty ?? 'Doctor'}
+              {doctor.doctor_profile?.clinic_name ? ` · ${doctor.doctor_profile.clinic_name}` : ''}
             </p>
           </div>
           <div className="ml-auto flex-shrink-0">
@@ -444,9 +510,11 @@ export default function NuevaConsulta() {
 
               {/* Consultation type */}
               <div>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Tipo de consulta</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
+                  Tipo de consulta
+                </p>
                 <div className="grid grid-cols-3 gap-3">
-                  {MODE_OPTIONS.map(opt => (
+                  {MODE_OPTIONS.map((opt) => (
                     <button
                       key={opt.value}
                       onClick={() => setMode(opt.value)}
@@ -465,7 +533,9 @@ export default function NuevaConsulta() {
 
               {/* Calendar */}
               <div>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Selecciona una fecha</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
+                  Selecciona una fecha
+                </p>
                 <CalendarPicker value={selectedDate} onChange={setSelectedDate} />
               </div>
 
@@ -485,36 +555,43 @@ export default function NuevaConsulta() {
                   {loadingAvailability ? (
                     <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
                       {Array.from({ length: 12 }).map((_, i) => (
-                        <div key={i} className="py-2 px-1 rounded-lg bg-gray-100 animate-pulse h-9" />
+                        <div
+                          key={i}
+                          className="py-2 px-1 rounded-lg bg-gray-100 animate-pulse h-9"
+                        />
                       ))}
                     </div>
-                  ) : (() => {
-                    const available = timeSlots.filter(s => !isSlotBusy(selectedDate, s, slotDuration, busySlots))
-                    if (available.length === 0) {
-                      return (
-                        <p className="text-sm text-gray-500 py-4 text-center">
-                          No hay horarios disponibles para este día.
-                        </p>
+                  ) : (
+                    (() => {
+                      const available = timeSlots.filter(
+                        (s) => !isSlotBusy(selectedDate, s, slotDuration, busySlots),
                       )
-                    }
-                    return (
-                      <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-                        {available.map(slot => (
-                          <button
-                            key={slot}
-                            onClick={() => setSelectedTime(slot)}
-                            className={`py-2 px-1 rounded-lg text-sm font-medium border transition-colors ${
-                              selectedTime === slot
-                                ? 'bg-[#33C7BE] border-[#33C7BE] text-white shadow-sm'
-                                : 'border-gray-100 text-gray-600 hover:border-[#33C7BE] hover:text-[#33C7BE]'
-                            }`}
-                          >
-                            {slot}
-                          </button>
-                        ))}
-                      </div>
-                    )
-                  })()}
+                      if (available.length === 0) {
+                        return (
+                          <p className="text-sm text-gray-500 py-4 text-center">
+                            No hay horarios disponibles para este día.
+                          </p>
+                        )
+                      }
+                      return (
+                        <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                          {available.map((slot) => (
+                            <button
+                              key={slot}
+                              onClick={() => setSelectedTime(slot)}
+                              className={`py-2 px-1 rounded-lg text-sm font-medium border transition-colors ${
+                                selectedTime === slot
+                                  ? 'bg-[#33C7BE] border-[#33C7BE] text-white shadow-sm'
+                                  : 'border-gray-100 text-gray-600 hover:border-[#33C7BE] hover:text-[#33C7BE]'
+                              }`}
+                            >
+                              {slot}
+                            </button>
+                          ))}
+                        </div>
+                      )
+                    })()
+                  )}
                 </div>
               )}
 
@@ -540,7 +617,7 @@ export default function NuevaConsulta() {
                 </label>
                 <textarea
                   value={reason}
-                  onChange={e => setReason(e.target.value)}
+                  onChange={(e) => setReason(e.target.value)}
                   placeholder="Describe brevemente por qué deseas consultar a este doctor..."
                   rows={4}
                   maxLength={500}
@@ -555,7 +632,7 @@ export default function NuevaConsulta() {
                 </label>
                 <textarea
                   value={notes}
-                  onChange={e => setNotes(e.target.value)}
+                  onChange={(e) => setNotes(e.target.value)}
                   placeholder="Síntomas, medicamentos actuales, alergias u otra información relevante..."
                   rows={3}
                   maxLength={500}
@@ -583,11 +660,7 @@ export default function NuevaConsulta() {
             <div className="space-y-5">
               <h2 className="text-lg font-bold text-gray-900">Revisa tu solicitud</h2>
 
-              <AppointmentSummaryCard
-                data={summaryData}
-                isConfirmed
-                onEdit={() => setStep(1)}
-              />
+              <AppointmentSummaryCard data={summaryData} isConfirmed onEdit={() => setStep(1)} />
 
               {submitError && (
                 <div className="px-4 py-3 bg-red-50 border border-red-100 rounded-xl text-sm text-red-700">

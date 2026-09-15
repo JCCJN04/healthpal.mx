@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '@/app/providers/AuthContext'
 
@@ -13,36 +12,9 @@ interface OnlyOnboardingProps {
  */
 export default function OnlyOnboarding({ children }: OnlyOnboardingProps) {
   const { user, profile, loading: authLoading } = useAuth()
-  const [checking, setChecking] = useState(true)
 
-  useEffect(() => {
-    checkOnboardingStatus()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, profile])
-
-  const checkOnboardingStatus = async () => {
-    if (!user) {
-      setChecking(false)
-      return
-    }
-
-    // If profile hasn't loaded yet, wait
-    if (!profile && authLoading) {
-      return
-    }
-
-    // If onboarding is already complete, redirect to dashboard
-    if (profile?.onboarding_completed) {
-      setChecking(false)
-      return
-    }
-
-    // Otherwise, allow access to onboarding
-    setChecking(false)
-  }
-
-  // Show loading state
-  if (authLoading || checking) {
+  // While auth is resolving, show loading spinner
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -53,13 +25,8 @@ export default function OnlyOnboarding({ children }: OnlyOnboardingProps) {
     )
   }
 
-  // If not authenticated, this will be handled by RequireAuth
-  if (!user) {
-    return <>{children}</>
-  }
-
   // If onboarding is complete, redirect to dashboard (prevent going back to onboarding)
-  if (profile?.onboarding_completed) {
+  if (user && profile?.onboarding_completed) {
     return <Navigate to="/dashboard" replace />
   }
 

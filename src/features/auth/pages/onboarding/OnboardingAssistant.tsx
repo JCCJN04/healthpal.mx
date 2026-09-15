@@ -4,7 +4,11 @@ import { UserCircle2, CheckCircle2, Clock, Mail } from 'lucide-react'
 import OnboardingLayout from './OnboardingLayout'
 import Stepper from '@/shared/components/ui/Stepper'
 import Button from '@/shared/components/ui/Button'
-import { getPendingInvitationsForMe, acceptInvitation, type DoctorAssistant } from '@/shared/lib/queries/assistants'
+import {
+  getPendingInvitationsForMe,
+  acceptInvitation,
+  type DoctorAssistant,
+} from '@/shared/lib/queries/assistants'
 import { saveOnboardingStep } from '@/shared/lib/queries/profile'
 import { showToast } from '@/shared/components/ui/Toast'
 import { logger } from '@/shared/lib/logger'
@@ -20,25 +24,37 @@ export default function OnboardingAssistant() {
 
   useEffect(() => {
     getPendingInvitationsForMe()
-      .then(data => { setInvitations(data); setLoading(false) })
-      .catch(err => { logger.error('OnboardingAssistant:load', err); setLoading(false) })
+      .then((data) => {
+        setInvitations(data)
+        setLoading(false)
+      })
+      .catch((err) => {
+        logger.error('OnboardingAssistant:load', err)
+        setLoading(false)
+      })
   }, [])
 
   const handleAccept = async (invite: DoctorAssistant) => {
     setAccepting(invite.id)
-    const result = await acceptInvitation(invite.id)
-    if (result.ok) {
-      setAccepted(prev => new Set([...prev, invite.id]))
-      showToast(`Vinculado con Dr. ${invite.doctor?.full_name ?? 'médico'}`, 'success')
-    } else {
-      showToast(result.error ?? 'Error al aceptar invitación', 'error')
+    try {
+      const result = await acceptInvitation(invite.id)
+      if (result.ok) {
+        setAccepted((prev) => new Set([...prev, invite.id]))
+        showToast(`Vinculado con Dr. ${invite.doctor?.full_name ?? 'médico'}`, 'success')
+      } else {
+        showToast(result.error ?? 'Error al aceptar invitación', 'error')
+      }
+    } catch (err) {
+      logger.error('OnboardingAssistant:accept', err)
+      showToast('Error al aceptar invitación', 'error')
+    } finally {
+      setAccepting(null)
     }
-    setAccepting(null)
   }
 
   const handleContinue = async () => {
     try {
-      await saveOnboardingStep('done')
+      await saveOnboardingStep('legal')
       navigate('/onboarding/legal')
     } catch (err) {
       logger.error('OnboardingAssistant:continue', err)
@@ -64,7 +80,9 @@ export default function OnboardingAssistant() {
             <Mail size={32} className="text-amber-400 mx-auto mb-3" />
             <p className="text-sm font-semibold text-amber-800 mb-1">Sin invitaciones pendientes</p>
             <p className="text-xs text-amber-600 max-w-xs mx-auto">
-              Pide al médico que te agregue desde su panel de <strong>Configuración → Asistentes</strong>. Una vez que lo haga, regresa aquí o inicia sesión de nuevo.
+              Pide al médico que te agregue desde su panel de{' '}
+              <strong>Configuración → Asistentes</strong>. Una vez que lo haga, regresa aquí o
+              inicia sesión de nuevo.
             </p>
           </div>
         ) : (
@@ -75,20 +93,21 @@ export default function OnboardingAssistant() {
                 ? 'Tienes una invitación pendiente:'
                 : `Tienes ${invitations.length} invitaciones pendientes:`}
             </p>
-            {invitations.map(invite => {
+            {invitations.map((invite) => {
               const isAccepted = accepted.has(invite.id)
               return (
                 <div
                   key={invite.id}
                   className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-colors ${
-                    isAccepted
-                      ? 'border-green-200 bg-green-50'
-                      : 'border-gray-100 bg-white'
+                    isAccepted ? 'border-green-200 bg-green-50' : 'border-gray-100 bg-white'
                   }`}
                 >
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                     {invite.doctor?.avatar_url ? (
-                      <img src={invite.doctor.avatar_url} className="w-10 h-10 rounded-full object-cover" />
+                      <img
+                        src={invite.doctor.avatar_url}
+                        className="w-10 h-10 rounded-full object-cover"
+                      />
                     ) : (
                       <UserCircle2 size={22} className="text-primary" />
                     )}
@@ -112,7 +131,9 @@ export default function OnboardingAssistant() {
                     >
                       {accepting === invite.id ? (
                         <Clock size={14} className="animate-spin" />
-                      ) : 'Aceptar'}
+                      ) : (
+                        'Aceptar'
+                      )}
                     </Button>
                   )}
                 </div>
@@ -125,12 +146,7 @@ export default function OnboardingAssistant() {
           <Button type="button" variant="secondary" onClick={() => navigate('/onboarding/contact')}>
             Atrás
           </Button>
-          <Button
-            type="button"
-            variant="primary"
-            onClick={handleContinue}
-            disabled={loading}
-          >
+          <Button type="button" variant="primary" onClick={handleContinue} disabled={loading}>
             {accepted.size > 0 ? 'Continuar' : 'Continuar sin vincular'}
           </Button>
         </div>

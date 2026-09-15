@@ -124,28 +124,38 @@ export default function Configuracion() {
   const loadAssistants = async () => {
     if (!user) return
     setAssistantsLoading(true)
-    getDoctorAssistants(user.id).then((data) => {
+    try {
+      const data = await getDoctorAssistants(user.id)
       setAssistants(data)
+    } catch (err) {
+      logger.error('Configuracion:loadAssistants', err)
+    } finally {
       setAssistantsLoading(false)
-    })
+    }
   }
 
   const handleAddAssistant = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user || !newAssistantEmail.trim()) return
     setAddingAssistant(true)
-    const result = await addAssistant(user.id, newAssistantEmail.trim())
-    if (result.ok) {
-      setToast({
-        message: 'Asistente agregado. Se le notificará al aceptar la invitación.',
-        type: 'success',
-      })
-      setNewAssistantEmail('')
-      loadAssistants()
-    } else {
-      setToast({ message: result.error ?? 'Error al agregar asistente', type: 'error' })
+    try {
+      const result = await addAssistant(user.id, newAssistantEmail.trim())
+      if (result.ok) {
+        setToast({
+          message: 'Asistente agregado. Se le notificará al aceptar la invitación.',
+          type: 'success',
+        })
+        setNewAssistantEmail('')
+        loadAssistants()
+      } else {
+        setToast({ message: result.error ?? 'Error al agregar asistente', type: 'error' })
+      }
+    } catch (err) {
+      logger.error('Configuracion:addAssistant', err)
+      setToast({ message: 'Error al agregar asistente', type: 'error' })
+    } finally {
+      setAddingAssistant(false)
     }
-    setAddingAssistant(false)
   }
 
   const handleRemoveAssistant = async (id: string) => {

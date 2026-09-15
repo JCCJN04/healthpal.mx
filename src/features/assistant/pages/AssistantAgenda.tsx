@@ -2,17 +2,35 @@
 // @ts-nocheck
 import { useState, useEffect, useCallback } from 'react'
 import {
-  Clock, Building2, Video, Phone, Loader2, Inbox,
-  Check, X, UserCircle2, Plus, ChevronLeft, ChevronRight,
+  Clock,
+  Building2,
+  Video,
+  Phone,
+  Loader2,
+  Inbox,
+  Check,
+  X,
+  UserCircle2,
+  Plus,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import { useAuth } from '@/app/providers/AuthContext'
-import { getMyDoctorLink, linkPendingInvitations, type DoctorAssistant } from '@/shared/lib/queries/assistants'
+import {
+  getMyDoctorLink,
+  linkPendingInvitations,
+  type DoctorAssistant,
+} from '@/shared/lib/queries/assistants'
 import { supabase } from '@/shared/lib/supabase'
 import { logger } from '@/shared/lib/logger'
 import { showToast } from '@/shared/components/ui/Toast'
 import AgendarCitaModal from '@/shared/components/appointments/AgendarCitaModal'
-import type { AppointmentMode, AppointmentStatus, AppointmentWithPatient } from '@/shared/lib/queries/appointments'
+import type {
+  AppointmentMode,
+  AppointmentStatus,
+  AppointmentWithPatient,
+} from '@/shared/lib/queries/appointments'
 
 const MODE_LABEL: Record<AppointmentMode, string> = {
   in_person: 'Presencial',
@@ -36,16 +54,35 @@ const STATUS_LABEL: Record<AppointmentStatus, string> = {
   cancelled: 'Cancelada',
   completed: 'Completada',
 }
-const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+const MONTHS = [
+  'Enero',
+  'Febrero',
+  'Marzo',
+  'Abril',
+  'Mayo',
+  'Junio',
+  'Julio',
+  'Agosto',
+  'Septiembre',
+  'Octubre',
+  'Noviembre',
+  'Diciembre',
+]
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('es-MX', {
-    timeZone: 'America/Mexico_City', day: 'numeric', month: 'short', year: 'numeric',
+    timeZone: 'America/Mexico_City',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
   })
 }
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString('es-MX', {
-    timeZone: 'America/Mexico_City', hour: '2-digit', minute: '2-digit', hour12: false,
+    timeZone: 'America/Mexico_City',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
   })
 }
 function toDateKey(d: Date) {
@@ -62,17 +99,20 @@ async function getAppointmentsForDoctor(doctorId: string): Promise<AppointmentWi
     .eq('doctor_id', doctorId)
     .order('scheduled_at', { ascending: true })
 
-  if (error) { logger.error('assistant:getAppointments', error); return [] }
+  if (error) {
+    logger.error('assistant:getAppointments', error)
+    return []
+  }
   if (!appts?.length) return []
 
-  const patientIds = [...new Set(appts.map(a => a.patient_id))]
+  const patientIds = [...new Set(appts.map((a) => a.patient_id))]
   const { data: profiles } = await supabase
     .from('profiles')
     .select('id, full_name, avatar_url')
     .in('id', patientIds)
 
-  const map = new Map((profiles ?? []).map(p => [p.id, p]))
-  return appts.map(a => ({
+  const map = new Map((profiles ?? []).map((p) => [p.id, p]))
+  return appts.map((a) => ({
     ...a,
     patient_name: map.get(a.patient_id)?.full_name ?? null,
     patient_avatar: map.get(a.patient_id)?.avatar_url ?? null,
@@ -104,28 +144,38 @@ export default function AssistantAgenda() {
   useEffect(() => {
     // Auto-link any pending invitations by email (covers case where doctor
     // added the assistant before they registered, or assistant_id was null)
-    linkPendingInvitations().then(() =>
-      getMyDoctorLink().then(l => {
+    linkPendingInvitations()
+      .then(() => getMyDoctorLink())
+      .then((l) => {
         setLink(l)
+      })
+      .catch((err) => {
+        logger.error('AssistantAgenda.linkPendingInvitations', err)
+      })
+      .finally(() => {
         setLinkLoading(false)
       })
-    )
   }, [])
 
   const load = useCallback(() => {
     if (!link) return
     setLoading(true)
     getAppointmentsForDoctor(link.doctor_id)
-      .then(data => { setAppointments(data); setLoading(false) })
+      .then((data) => {
+        setAppointments(data)
+        setLoading(false)
+      })
       .catch(() => setLoading(false))
   }, [link])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+  }, [load])
 
   const handleStatusChange = async (id: string, status: AppointmentStatus) => {
     try {
       await setStatus(id, status)
-      setAppointments(prev => prev.map(a => a.id === id ? { ...a, status } : a))
+      setAppointments((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)))
       showToast(status === 'confirmed' ? 'Cita confirmada' : 'Cita cancelada', 'success')
     } catch (err) {
       logger.error('assistant:setStatus', err)
@@ -145,15 +195,19 @@ export default function AssistantAgenda() {
     return acc
   }, {})
 
-  const dayAppointments = appointments.filter(a => apptDateKey(a.scheduled_at) === selectedDate)
+  const dayAppointments = appointments.filter((a) => apptDateKey(a.scheduled_at) === selectedDate)
 
   const prevMonth = () => {
-    if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11) }
-    else setViewMonth(m => m - 1)
+    if (viewMonth === 0) {
+      setViewYear((y) => y - 1)
+      setViewMonth(11)
+    } else setViewMonth((m) => m - 1)
   }
   const nextMonth = () => {
-    if (viewMonth === 11) { setViewYear(y => y + 1); setViewMonth(0) }
-    else setViewMonth(m => m + 1)
+    if (viewMonth === 11) {
+      setViewYear((y) => y + 1)
+      setViewMonth(0)
+    } else setViewMonth((m) => m + 1)
   }
 
   if (linkLoading) {
@@ -175,19 +229,34 @@ export default function AssistantAgenda() {
           </div>
           <p className="font-bold text-gray-800 mb-2">Aún no estás vinculado a ningún médico</p>
           <p className="text-sm text-gray-500 max-w-sm mb-6">
-            Para poder usar tu cuenta, el médico al que asistes debe agregarte desde su configuración.
+            Para poder usar tu cuenta, el médico al que asistes debe agregarte desde su
+            configuración.
           </p>
           <div className="bg-gray-50 border border-gray-200 rounded-2xl p-5 text-left max-w-sm w-full space-y-3">
-            <p className="text-xs font-bold text-gray-700 uppercase tracking-wide">Pasos a seguir</p>
+            <p className="text-xs font-bold text-gray-700 uppercase tracking-wide">
+              Pasos a seguir
+            </p>
             <ol className="space-y-2 text-sm text-gray-600">
-              <li className="flex gap-2"><span className="font-bold text-primary">1.</span> Dile al médico que inicie sesión en Healthpal</li>
-              <li className="flex gap-2"><span className="font-bold text-primary">2.</span> Ir a <strong>Configuración → Asistentes</strong></li>
-              <li className="flex gap-2"><span className="font-bold text-primary">3.</span> Agregar tu correo: <strong className="break-all">{user?.email}</strong></li>
-              <li className="flex gap-2"><span className="font-bold text-primary">4.</span> Una vez agregado, cierra sesión y vuelve a entrar</li>
+              <li className="flex gap-2">
+                <span className="font-bold text-primary">1.</span> Dile al médico que inicie sesión
+                en Healthpal
+              </li>
+              <li className="flex gap-2">
+                <span className="font-bold text-primary">2.</span> Ir a{' '}
+                <strong>Configuración → Asistentes</strong>
+              </li>
+              <li className="flex gap-2">
+                <span className="font-bold text-primary">3.</span> Agregar tu correo:{' '}
+                <strong className="break-all">{user?.email}</strong>
+              </li>
+              <li className="flex gap-2">
+                <span className="font-bold text-primary">4.</span> Una vez agregado, cierra sesión y
+                vuelve a entrar
+              </li>
             </ol>
           </div>
           <button
-            onClick={() => linkPendingInvitations().then(() => window.location.reload())}
+            onClick={() => linkPendingInvitations().finally(() => window.location.reload())}
             className="mt-5 px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary/90 transition-colors"
           >
             Ya me agregaron — Recargar
@@ -205,7 +274,10 @@ export default function AssistantAgenda() {
           <div>
             <h1 className="text-xl font-bold text-gray-900">Agenda</h1>
             <p className="text-xs text-gray-500 mt-0.5">
-              Asistiendo a <span className="font-semibold text-primary">{link.doctor?.full_name ?? 'médico'}</span>
+              Asistiendo a{' '}
+              <span className="font-semibold text-primary">
+                {link.doctor?.full_name ?? 'médico'}
+              </span>
             </p>
           </div>
           <button
@@ -231,13 +303,17 @@ export default function AssistantAgenda() {
               </button>
             </div>
             <div className="grid grid-cols-7 gap-0.5 mb-1">
-              {['Do','Lu','Ma','Mi','Ju','Vi','Sa'].map(d => (
-                <div key={d} className="text-center text-[10px] font-bold text-gray-400 py-1">{d}</div>
+              {['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa'].map((d) => (
+                <div key={d} className="text-center text-[10px] font-bold text-gray-400 py-1">
+                  {d}
+                </div>
               ))}
             </div>
             <div className="grid grid-cols-7 gap-0.5">
-              {Array.from({ length: startOffset }).map((_, i) => <div key={`e${i}`} />)}
-              {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
+              {Array.from({ length: startOffset }).map((_, i) => (
+                <div key={`e${i}`} />
+              ))}
+              {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => {
                 const key = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
                 const isSelected = key === selectedDate
                 const isToday = key === toDateKey(today)
@@ -250,13 +326,15 @@ export default function AssistantAgenda() {
                       isSelected
                         ? 'bg-primary text-white'
                         : isToday
-                        ? 'bg-primary/10 text-primary font-bold'
-                        : 'hover:bg-gray-50 text-gray-700'
+                          ? 'bg-primary/10 text-primary font-bold'
+                          : 'hover:bg-gray-50 text-gray-700'
                     }`}
                   >
                     {day}
                     {count > 0 && (
-                      <span className={`absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-primary'}`} />
+                      <span
+                        className={`absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-primary'}`}
+                      />
                     )}
                   </button>
                 )
@@ -280,16 +358,17 @@ export default function AssistantAgenda() {
               </div>
             ) : (
               <div className="space-y-3">
-                {dayAppointments.map(appt => (
+                {dayAppointments.map((appt) => (
                   <div
                     key={appt.id}
                     className="flex items-start gap-3 p-3 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors"
                   >
                     <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
-                      {appt.patient_avatar
-                        ? <img src={appt.patient_avatar} className="w-10 h-10 object-cover" />
-                        : <UserCircle2 size={20} className="text-gray-400" />
-                      }
+                      {appt.patient_avatar ? (
+                        <img src={appt.patient_avatar} className="w-10 h-10 object-cover" />
+                      ) : (
+                        <UserCircle2 size={20} className="text-gray-400" />
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-900 truncate">
@@ -302,7 +381,9 @@ export default function AssistantAgenda() {
                         <span className="flex items-center gap-1 text-xs text-gray-500">
                           {MODE_ICON[appt.mode]} {MODE_LABEL[appt.mode]}
                         </span>
-                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${STATUS_STYLES[appt.status]}`}>
+                        <span
+                          className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${STATUS_STYLES[appt.status]}`}
+                        >
                           {STATUS_LABEL[appt.status]}
                         </span>
                       </div>

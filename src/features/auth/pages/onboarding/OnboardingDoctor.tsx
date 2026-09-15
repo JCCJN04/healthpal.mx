@@ -7,7 +7,12 @@ import Stepper from '@/shared/components/ui/Stepper'
 import { InputField } from '@/shared/components/ui/FormField'
 import Button from '@/shared/components/ui/Button'
 import SearchableSelect from '@/shared/components/ui/SearchableSelect'
-import { getMyProfile, getDoctorProfile, upsertDoctorProfile, saveOnboardingStep } from '@/shared/lib/queries/profile'
+import {
+  getMyProfile,
+  getDoctorProfile,
+  upsertDoctorProfile,
+  saveOnboardingStep,
+} from '@/shared/lib/queries/profile'
 import { showToast } from '@/shared/components/ui/Toast'
 import { logger } from '@/shared/lib/logger'
 import { SPECIALTIES } from '@/shared/lib/specialties'
@@ -75,12 +80,12 @@ export default function OnboardingDoctor() {
         professional_license: formData.professional_license.trim() || null,
         years_experience: formData.years_experience ? parseInt(formData.years_experience) : null,
       })
-      await saveOnboardingStep('done')
+      await saveOnboardingStep('legal')
 
       showToast('Perfil de doctor guardado exitosamente', 'success')
 
       // Wait briefly for Supabase to process
-      await new Promise(resolve => setTimeout(resolve, 50))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       navigate('/onboarding/legal')
     } catch (error: unknown) {
@@ -92,10 +97,7 @@ export default function OnboardingDoctor() {
   }
 
   return (
-    <OnboardingLayout
-      title="Perfil Profesional"
-      description="Información sobre tu práctica médica"
-    >
+    <OnboardingLayout title="Perfil Profesional" description="Información sobre tu práctica médica">
       <Stepper currentStep={4} totalSteps={6} steps={STEPS} />
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -145,11 +147,7 @@ export default function OnboardingDoctor() {
 
         {/* Navigation */}
         <div className="flex justify-between pt-6">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => navigate('/onboarding/contact')}
-          >
+          <Button type="button" variant="secondary" onClick={() => navigate('/onboarding/contact')}>
             Atrás
           </Button>
           <Button type="submit" variant="primary" disabled={loading}>

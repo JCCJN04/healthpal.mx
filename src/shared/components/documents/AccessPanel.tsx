@@ -1,7 +1,17 @@
 import { useState, useEffect } from 'react'
 import {
-  X, Users, FileText, Trash2, Loader2, Activity, Pill,
-  Microscope, ShieldCheck, ChevronDown, ChevronRight, UserX,
+  X,
+  Users,
+  FileText,
+  Trash2,
+  Loader2,
+  Activity,
+  Pill,
+  Microscope,
+  ShieldCheck,
+  ChevronDown,
+  ChevronRight,
+  UserX,
 } from 'lucide-react'
 import { getAllSharesByOwner, revokeShareById } from '@/shared/lib/queries/documents'
 import { revokeRequestAccess } from '@/shared/lib/queries/documentRequests'
@@ -47,12 +57,18 @@ const CATEGORY_LABELS: Record<string, string> = {
 function CategoryIcon({ category }: { category: string }) {
   const cls = 'text-primary'
   switch (category) {
-    case 'radiology': return <Activity size={13} className={cls} />
-    case 'prescription': return <Pill size={13} className={cls} />
-    case 'history': return <FileText size={13} className={cls} />
-    case 'lab': return <Microscope size={13} className={cls} />
-    case 'insurance': return <ShieldCheck size={13} className={cls} />
-    default: return <FileText size={13} className={cls} />
+    case 'radiology':
+      return <Activity size={13} className={cls} />
+    case 'prescription':
+      return <Pill size={13} className={cls} />
+    case 'history':
+      return <FileText size={13} className={cls} />
+    case 'lab':
+      return <Microscope size={13} className={cls} />
+    case 'insurance':
+      return <ShieldCheck size={13} className={cls} />
+    default:
+      return <FileText size={13} className={cls} />
   }
 }
 
@@ -64,60 +80,76 @@ export function AccessPanel({ isOpen, onClose, ownerId }: AccessPanelProps) {
 
   useEffect(() => {
     if (isOpen) loadShares()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, ownerId])
 
   async function loadShares() {
     setLoading(true)
-    const data = await getAllSharesByOwner(ownerId)
-    setShares(data)
-    // Auto-expand all doctors on first load
-    setExpanded(new Set(data.map(s => s.shared_with)))
-    setLoading(false)
+    try {
+      const data = await getAllSharesByOwner(ownerId)
+      setShares(data)
+      // Auto-expand all doctors on first load
+      setExpanded(new Set(data.map((s) => s.shared_with)))
+    } catch (err) {
+      console.error('AccessPanel:loadShares', err)
+      showToast('Error al cargar accesos', 'error')
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function handleRevoke(share: ShareEntry) {
     setRevoking(share.id)
-    const result = share.source === 'request'
-      ? await revokeRequestAccess(share.id)
-      : await revokeShareById(share.id)
-    if (result.success) {
-      if (share.source === 'request') {
-        await revokeConsentByDoctorPatient(share.shared_with, ownerId)
+    try {
+      const result =
+        share.source === 'request'
+          ? await revokeRequestAccess(share.id)
+          : await revokeShareById(share.id)
+      if (result.success) {
+        if (share.source === 'request') {
+          await revokeConsentByDoctorPatient(share.shared_with, ownerId)
+        }
+        setShares((prev) => prev.filter((s) => s.id !== share.id))
+        showToast('Acceso revocado', 'success')
+      } else {
+        showToast(result.error || 'Error al revocar acceso', 'error')
       }
-      setShares(prev => prev.filter(s => s.id !== share.id))
-      showToast('Acceso revocado', 'success')
-    } else {
-      showToast(result.error || 'Error al revocar acceso', 'error')
+    } catch (err: unknown) {
+      showToast(err?.message || 'Error al revocar acceso', 'error')
+    } finally {
+      setRevoking(null)
     }
-    setRevoking(null)
   }
 
   async function handleRevokeAll(doctorId: string, doctorDocs: ShareEntry[]) {
     setRevoking(doctorId)
-    let failed = 0
-    const hasRequestSource = doctorDocs.some(s => s.source === 'request')
-    for (const s of doctorDocs) {
-      const result = s.source === 'request'
-        ? await revokeRequestAccess(s.id)
-        : await revokeShareById(s.id)
-      if (!result.success) failed++
+    try {
+      let failed = 0
+      const hasRequestSource = doctorDocs.some((s) => s.source === 'request')
+      for (const s of doctorDocs) {
+        const result =
+          s.source === 'request' ? await revokeRequestAccess(s.id) : await revokeShareById(s.id)
+        if (!result.success) failed++
+      }
+      if (hasRequestSource) {
+        await revokeConsentByDoctorPatient(doctorId, ownerId)
+      }
+      if (failed === 0) {
+        setShares((prev) => prev.filter((s) => s.shared_with !== doctorId))
+        showToast('Acceso completamente revocado', 'success')
+      } else {
+        showToast(`${failed} documento(s) no pudieron revocarse`, 'error')
+        await loadShares()
+      }
+    } catch (err: unknown) {
+      showToast(err?.message || 'Error al revocar acceso', 'error')
+    } finally {
+      setRevoking(null)
     }
-    if (hasRequestSource) {
-      await revokeConsentByDoctorPatient(doctorId, ownerId)
-    }
-    if (failed === 0) {
-      setShares(prev => prev.filter(s => s.shared_with !== doctorId))
-      showToast('Acceso completamente revocado', 'success')
-    } else {
-      showToast(`${failed} documento(s) no pudieron revocarse`, 'error')
-      await loadShares()
-    }
-    setRevoking(null)
   }
 
   function toggleDoctor(doctorId: string) {
-    setExpanded(prev => {
+    setExpanded((prev) => {
       const next = new Set(prev)
       next.has(doctorId) ? next.delete(doctorId) : next.add(doctorId)
       return next
@@ -147,10 +179,7 @@ export function AccessPanel({ isOpen, onClose, ownerId }: AccessPanelProps) {
   return (
     <>
       {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/40 z-40 transition-opacity"
-        onClick={onClose}
-      />
+      <div className="fixed inset-0 bg-black/40 z-40 transition-opacity" onClick={onClose} />
 
       {/* Slide-in panel */}
       <div className="fixed right-0 top-0 bottom-0 w-full max-w-sm bg-white z-50 shadow-2xl flex flex-col">
@@ -193,7 +222,7 @@ export function AccessPanel({ isOpen, onClose, ownerId }: AccessPanelProps) {
               </p>
             </div>
           ) : (
-            byDoctor.map(doctor => {
+            byDoctor.map((doctor) => {
               const isExpanded = expanded.has(doctor.doctorId)
               const isRevokingAll = revoking === doctor.doctorId
 
@@ -221,31 +250,37 @@ export function AccessPanel({ isOpen, onClose, ownerId }: AccessPanelProps) {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-900 truncate">{doctor.name}</p>
                       <p className="text-xs text-gray-400">
-                        {doctor.documents.length} documento{doctor.documents.length !== 1 ? 's' : ''}
+                        {doctor.documents.length} documento
+                        {doctor.documents.length !== 1 ? 's' : ''}
                       </p>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <button
-                        onClick={e => { e.stopPropagation(); handleRevokeAll(doctor.doctorId, doctor.documents) }}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleRevokeAll(doctor.doctorId, doctor.documents)
+                        }}
                         disabled={!!revoking}
                         className="text-xs font-medium text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors cursor-pointer disabled:opacity-40"
                       >
-                        {isRevokingAll
-                          ? <Loader2 size={11} className="animate-spin" />
-                          : 'Revocar todo'
-                        }
+                        {isRevokingAll ? (
+                          <Loader2 size={11} className="animate-spin" />
+                        ) : (
+                          'Revocar todo'
+                        )}
                       </button>
-                      {isExpanded
-                        ? <ChevronDown size={15} className="text-gray-400 shrink-0" />
-                        : <ChevronRight size={15} className="text-gray-400 shrink-0" />
-                      }
+                      {isExpanded ? (
+                        <ChevronDown size={15} className="text-gray-400 shrink-0" />
+                      ) : (
+                        <ChevronRight size={15} className="text-gray-400 shrink-0" />
+                      )}
                     </div>
                   </div>
 
                   {/* Documents list */}
                   {isExpanded && (
                     <div className="border-t border-gray-100 divide-y divide-gray-50">
-                      {doctor.documents.map(share => (
+                      {doctor.documents.map((share) => (
                         <div key={share.id} className="flex items-center gap-3 px-4 py-2.5">
                           <div className="w-7 h-7 rounded-lg bg-primary/5 flex items-center justify-center shrink-0">
                             <CategoryIcon category={share.document_category} />
@@ -257,7 +292,9 @@ export function AccessPanel({ isOpen, onClose, ownerId }: AccessPanelProps) {
                             <p className="text-[10px] text-gray-400 uppercase tracking-wide">
                               {CATEGORY_LABELS[share.document_category] || 'Otro'}
                               {share.source === 'request' && (
-                                <span className="ml-1 text-[10px] text-amber-500 font-semibold normal-case tracking-normal">· vía solicitud</span>
+                                <span className="ml-1 text-[10px] text-amber-500 font-semibold normal-case tracking-normal">
+                                  · vía solicitud
+                                </span>
                               )}
                             </p>
                           </div>
@@ -267,10 +304,11 @@ export function AccessPanel({ isOpen, onClose, ownerId }: AccessPanelProps) {
                             className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer disabled:opacity-40"
                             aria-label="Revocar acceso a este documento"
                           >
-                            {revoking === share.id
-                              ? <Loader2 size={13} className="animate-spin" />
-                              : <Trash2 size={13} />
-                            }
+                            {revoking === share.id ? (
+                              <Loader2 size={13} className="animate-spin" />
+                            ) : (
+                              <Trash2 size={13} />
+                            )}
                           </button>
                         </div>
                       ))}

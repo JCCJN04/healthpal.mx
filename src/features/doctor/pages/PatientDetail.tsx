@@ -606,18 +606,24 @@ export default function PatientDetail() {
   const handleRequestAccess = async () => {
     if (!user || !id) return
     setRequestingAccess(true)
-    const { ok, error } = await requestPatientAccess(user.id, id, requestReason)
-    if (ok) {
-      showToast(
-        'Solicitud enviada. El paciente decidirá qué información compartir.',
-        'success',
-        4000,
-      )
-      setConsentGate('requested')
-    } else {
-      showToast(error || 'Error al solicitar acceso', 'error', 3000)
+    try {
+      const { ok, error } = await requestPatientAccess(user.id, id, requestReason)
+      if (ok) {
+        showToast(
+          'Solicitud enviada. El paciente decidirá qué información compartir.',
+          'success',
+          4000,
+        )
+        setConsentGate('requested')
+      } else {
+        showToast(error || 'Error al solicitar acceso', 'error', 3000)
+      }
+    } catch (err) {
+      logger.error('PatientDetail.requestAccess', err)
+      showToast('Error al solicitar acceso', 'error', 3000)
+    } finally {
+      setRequestingAccess(false)
     }
-    setRequestingAccess(false)
   }
 
   const handleUnlinkPatient = async () => {
@@ -2845,25 +2851,30 @@ function CirugiasTab({ patientId, patientName }: { patientId: string; patientNam
 
   const loadAll = async () => {
     setLoading(true)
-    const [notesRes, docsRes] = await Promise.all([
-      supabase
-        .from('surgery_notes')
-        .select('*')
-        .eq('patient_id', patientId)
-        .order('fecha_cirugia', { ascending: false, nullsFirst: false })
-        .order('created_at', { ascending: false }),
-      supabase
-        .from('documents')
-        .select('*')
-        .eq('patient_id', patientId)
-        .eq('category', 'surgery')
-        .order('created_at', { ascending: false }),
-    ])
-    if (!notesRes.error) setNotes((notesRes.data as SurgeryNote[]) || [])
-    else logger.error('CirugiasTab.notes', notesRes.error)
-    if (!docsRes.error) setDocs(docsRes.data || [])
-    else logger.error('CirugiasTab.docs', docsRes.error)
-    setLoading(false)
+    try {
+      const [notesRes, docsRes] = await Promise.all([
+        supabase
+          .from('surgery_notes')
+          .select('*')
+          .eq('patient_id', patientId)
+          .order('fecha_cirugia', { ascending: false, nullsFirst: false })
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('documents')
+          .select('*')
+          .eq('patient_id', patientId)
+          .eq('category', 'surgery')
+          .order('created_at', { ascending: false }),
+      ])
+      if (!notesRes.error) setNotes((notesRes.data as SurgeryNote[]) || [])
+      else logger.error('CirugiasTab.notes', notesRes.error)
+      if (!docsRes.error) setDocs(docsRes.data || [])
+      else logger.error('CirugiasTab.docs', docsRes.error)
+    } catch (err) {
+      logger.error('CirugiasTab.loadAll', err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {

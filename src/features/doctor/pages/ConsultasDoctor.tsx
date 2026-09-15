@@ -23,6 +23,7 @@ import { type PatientProfileLite } from '@/features/doctor/services/patients'
 import AgendarCitaModal from '@/shared/components/appointments/AgendarCitaModal'
 import PatientPickerModal from '@/shared/components/appointments/PatientPickerModal'
 import { useAuth } from '@/app/providers/AuthContext'
+import { logger } from '@/shared/lib/logger'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -151,10 +152,16 @@ export default function ConsultasDoctor() {
   const [bookingPatient, setBookingPatient] = useState<PatientProfileLite | null>(null)
 
   const load = useCallback(() => {
-    getDoctorAppointments().then((data) => {
-      setAppointments(data)
-      setLoading(false)
-    })
+    getDoctorAppointments()
+      .then((data) => {
+        setAppointments(data)
+      })
+      .catch((err) => {
+        logger.error('ConsultasDoctor.getDoctorAppointments', err)
+      })
+      .finally(() => {
+        setLoading(false)
+      })
   }, [])
 
   useEffect(() => {

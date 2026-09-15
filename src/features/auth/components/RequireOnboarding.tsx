@@ -29,20 +29,25 @@ function getOnboardingRedirect(p: Profile): string {
   if (p.onboarding_step === 'contact') return '/onboarding/contact'
   if (p.onboarding_step === 'assistant') return '/onboarding/assistant'
   if (p.onboarding_step === 'details')
-    return p.role === 'doctor' ? '/onboarding/doctor' : '/onboarding/patient'
+    return p.role === 'doctor'
+      ? '/onboarding/doctor'
+      : p.role === 'assistant'
+        ? '/onboarding/assistant'
+        : '/onboarding/patient'
+  if (p.onboarding_step === 'legal') return '/onboarding/legal'
   if (p.onboarding_step === 'done') return '/onboarding/done'
   return '/onboarding/role'
 }
 
 export default function RequireOnboarding({ children }: RequireOnboardingProps) {
-  const { user, profile, loading: authLoading, refreshProfile } = useAuth()
+  const { user, profile, loading: authLoading, mfaRequired, refreshProfile, signOut } = useAuth()
   const [fetchedProfile, setFetchedProfile] = useState<Profile | null>(null)
   const [fetchError, setFetchError] = useState(false)
   const fetchingRef = useRef(false)
 
   // Safety timeout: if profile doesn't resolve within 5 seconds, show error/retry instead of infinite spinner
   useEffect(() => {
-    if (authLoading || !user || profile || fetchedProfile || fetchError) return
+    if (authLoading || !user || profile || fetchedProfile || fetchError || mfaRequired) return
 
     const timer = setTimeout(() => {
       if (!profile && !fetchedProfile) {
@@ -52,11 +57,11 @@ export default function RequireOnboarding({ children }: RequireOnboardingProps) 
     }, 5000)
 
     return () => clearTimeout(timer)
-  }, [authLoading, user, profile, fetchedProfile, fetchError])
+  }, [authLoading, user, profile, fetchedProfile, fetchError, mfaRequired])
 
   // Eager fetch when auth is done but AuthContext profile hasn't arrived yet
   useEffect(() => {
-    if (authLoading || !user || profile || fetchingRef.current) return
+    if (authLoading || !user || profile || fetchingRef.current || mfaRequired) return
     fetchingRef.current = true
     getMyProfile(user.id)
       .then((p) => {
@@ -72,13 +77,18 @@ export default function RequireOnboarding({ children }: RequireOnboardingProps) 
         setFetchError(true)
       })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, user?.id, profile])
+  }, [authLoading, user?.id, profile, mfaRequired])
 
   // Auth still initializing — render nothing (RequireAuth already shows its spinner)
   if (authLoading) return null
 
   // No user — RequireAuth handles redirect
   if (!user) return <>{children}</>
+
+  // MFA pending — redirect directly to verification page
+  if (mfaRequired) {
+    return <Navigate to="/auth/mfa" replace />
+  }
 
   // Use whichever profile arrived first
   const resolvedProfile = profile ?? fetchedProfile
@@ -117,12 +127,23 @@ export default function RequireOnboarding({ children }: RequireOnboardingProps) 
           </div>
           <p className="font-semibold text-gray-900 mb-1">Error al cargar tu perfil</p>
           <p className="text-sm text-gray-500 mb-4">Verifica tu conexión e intenta de nuevo.</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-primary text-white rounded-xl font-semibold hover:bg-primary/90 transition-colors text-sm"
-          >
-            Reintentar
-          </button>
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-primary text-white rounded-xl font-semibold hover:bg-primary/90 transition-colors text-sm"
+            >
+              Reintentar
+            </button>
+            <button
+              onClick={async () => {
+                await signOut()
+                window.location.href = '/login'
+              }}
+              className="text-xs text-gray-500 hover:text-gray-800 underline transition-colors pt-1"
+            >
+              Cerrar sesión e iniciar de nuevo
+            </button>
+          </div>
         </div>
       </div>
     )

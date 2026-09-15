@@ -30,10 +30,20 @@ export default function PatientPickerModal({
   const [regLoading, setRegLoading] = useState(false)
 
   useEffect(() => {
-    listDoctorPatients(doctorId).then((data) => {
-      setPatients(data)
-      setLoading(false)
-    })
+    let cancelled = false
+    listDoctorPatients(doctorId)
+      .then((data) => {
+        if (!cancelled) setPatients(data)
+      })
+      .catch((err) => {
+        console.error('PatientPickerModal:listDoctorPatients', err)
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [doctorId])
 
   const filtered = useMemo(() => {

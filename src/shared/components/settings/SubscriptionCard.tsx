@@ -40,16 +40,29 @@ export default function SubscriptionCard({ onToast }: SubscriptionCardProps) {
     try {
       setActionLoading(true)
       const url = await createCheckoutSession()
-      // Open Stripe in new tab — keeps current session alive
+      // Open Stripe in new tab — fallback to same tab if blocked
       const stripeWindow = window.open(url, '_blank')
+      if (!stripeWindow) {
+        window.location.href = url
+        return
+      }
+
+      let pollInterval: ReturnType<typeof setInterval> | null = null
+      let checkClosed: ReturnType<typeof setInterval> | null = null
+
+      const cleanup = () => {
+        if (pollInterval) clearInterval(pollInterval)
+        if (checkClosed) clearInterval(checkClosed)
+        setActionLoading(false)
+      }
+
       // Poll for subscription completion while Stripe tab is open
-      const pollInterval = setInterval(async () => {
+      pollInterval = setInterval(async () => {
         try {
           const sub = await getMySubscription()
           if (sub && (sub.status === 'active' || sub.status === 'trialing')) {
-            clearInterval(pollInterval)
+            cleanup()
             setSubscription(sub)
-            setActionLoading(false)
             onToast('¡Suscripción activada exitosamente!', 'success')
             if (stripeWindow && !stripeWindow.closed) stripeWindow.close()
           }
@@ -57,24 +70,27 @@ export default function SubscriptionCard({ onToast }: SubscriptionCardProps) {
           /* keep polling */
         }
       }, 3000)
-      // Stop polling after 10 minutes or if window closed without subscription
+
+      // Stop polling after 10 minutes
       setTimeout(() => {
-        clearInterval(pollInterval)
-        setActionLoading(false)
+        cleanup()
       }, 600000)
+
       // Also stop when Stripe window closes
-      const checkClosed = setInterval(() => {
-        if (stripeWindow && stripeWindow.closed) {
+      checkClosed = setInterval(() => {
+        if (stripeWindow.closed) {
           clearInterval(checkClosed)
           // Give webhook a moment to process, then check once more
           setTimeout(async () => {
-            const sub = await getMySubscription()
-            if (sub && (sub.status === 'active' || sub.status === 'trialing')) {
-              setSubscription(sub)
-              onToast('¡Suscripción activada exitosamente!', 'success')
+            try {
+              const sub = await getMySubscription()
+              if (sub && (sub.status === 'active' || sub.status === 'trialing')) {
+                setSubscription(sub)
+                onToast('¡Suscripción activada exitosamente!', 'success')
+              }
+            } finally {
+              cleanup()
             }
-            clearInterval(pollInterval)
-            setActionLoading(false)
           }, 3000)
         }
       }, 1000)

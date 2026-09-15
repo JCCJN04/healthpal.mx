@@ -2,14 +2,25 @@
 // @ts-nocheck
 import { useState, useEffect, useMemo } from 'react'
 import {
-  UserCircle2, Loader2, Search, Phone,
-  CalendarDays, ChevronDown, ChevronUp, X,
+  UserCircle2,
+  Loader2,
+  Search,
+  Phone,
+  CalendarDays,
+  ChevronDown,
+  ChevronUp,
+  X,
 } from 'lucide-react'
 
 function WhatsAppIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={className} xmlns="http://www.w3.org/2000/svg">
-      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
     </svg>
   )
 }
@@ -129,7 +140,9 @@ function WaModal({ patient, doctorName, nextAppt, onClose }: WaModalProps) {
           {/* Template selector */}
           {!useCustom && (
             <div className="space-y-2">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Plantilla</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                Plantilla
+              </p>
               <div className="grid grid-cols-2 gap-2">
                 {WA_TEMPLATES.map((t, i) => (
                   <button
@@ -154,7 +167,7 @@ function WaModal({ patient, doctorName, nextAppt, onClose }: WaModalProps) {
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Mensaje</p>
               <button
                 onClick={() => {
-                  setUseCustom(v => !v)
+                  setUseCustom((v) => !v)
                   if (!useCustom) setCustomText(builtMessage)
                 }}
                 className="text-xs text-primary hover:underline"
@@ -165,7 +178,7 @@ function WaModal({ patient, doctorName, nextAppt, onClose }: WaModalProps) {
             {useCustom ? (
               <textarea
                 value={customText}
-                onChange={e => setCustomText(e.target.value)}
+                onChange={(e) => setCustomText(e.target.value)}
                 rows={4}
                 className="w-full text-sm text-gray-700 border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary resize-none"
               />
@@ -188,7 +201,7 @@ function WaModal({ patient, doctorName, nextAppt, onClose }: WaModalProps) {
             href={url ?? '#'}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={!url ? e => e.preventDefault() : undefined}
+            onClick={!url ? (e) => e.preventDefault() : undefined}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl transition-colors ${
               url
                 ? 'bg-green-500 hover:bg-green-600 text-white'
@@ -213,11 +226,16 @@ interface PatientCardProps {
   onWhatsApp: () => void
 }
 
-function PatientCard({ patient, appointments, doctorName: _doctorName, onWhatsApp }: PatientCardProps) {
+function PatientCard({
+  patient,
+  appointments,
+  doctorName: _doctorName,
+  onWhatsApp,
+}: PatientCardProps) {
   const [expanded, setExpanded] = useState(false)
 
   const upcoming = appointments
-    .filter(a => a.status !== 'cancelled' && new Date(a.scheduled_at) >= new Date())
+    .filter((a) => a.status !== 'cancelled' && new Date(a.scheduled_at) >= new Date())
     .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
 
   const nextAppt = upcoming[0]
@@ -225,10 +243,16 @@ function PatientCard({ patient, appointments, doctorName: _doctorName, onWhatsAp
   const nextApptLabel = nextAppt
     ? new Date(nextAppt.scheduled_at).toLocaleDateString('es-MX', {
         timeZone: 'America/Mexico_City',
-        day: 'numeric', month: 'short', year: 'numeric',
-      }) + ' ' +
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      }) +
+      ' ' +
       new Date(nextAppt.scheduled_at).toLocaleTimeString('es-MX', {
-        timeZone: 'America/Mexico_City', hour: '2-digit', minute: '2-digit', hour12: false,
+        timeZone: 'America/Mexico_City',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
       })
     : undefined
 
@@ -237,10 +261,11 @@ function PatientCard({ patient, appointments, doctorName: _doctorName, onWhatsAp
       <div className="flex items-center gap-3 p-4">
         {/* Avatar */}
         <div className="w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
-          {patient.avatar_url
-            ? <img src={patient.avatar_url} className="w-11 h-11 object-cover" />
-            : <UserCircle2 size={22} className="text-gray-400" />
-          }
+          {patient.avatar_url ? (
+            <img src={patient.avatar_url} className="w-11 h-11 object-cover" />
+          ) : (
+            <UserCircle2 size={22} className="text-gray-400" />
+          )}
         </div>
 
         {/* Info */}
@@ -273,7 +298,7 @@ function PatientCard({ patient, appointments, doctorName: _doctorName, onWhatsAp
           </button>
           {appointments.length > 0 && (
             <button
-              onClick={() => setExpanded(v => !v)}
+              onClick={() => setExpanded((v) => !v)}
               className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 transition-colors"
             >
               {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
@@ -291,25 +316,41 @@ function PatientCard({ patient, appointments, doctorName: _doctorName, onWhatsAp
           {appointments
             .sort((a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime())
             .slice(0, 5)
-            .map(appt => (
-              <div key={appt.id} className="flex items-center justify-between text-xs py-1.5 border-b border-gray-50 last:border-0">
+            .map((appt) => (
+              <div
+                key={appt.id}
+                className="flex items-center justify-between text-xs py-1.5 border-b border-gray-50 last:border-0"
+              >
                 <span className="text-gray-600">
                   {new Date(appt.scheduled_at).toLocaleDateString('es-MX', {
                     timeZone: 'America/Mexico_City',
-                    day: 'numeric', month: 'short', year: 'numeric',
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
                   })}
                 </span>
-                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                  appt.status === 'confirmed' ? 'bg-green-50 text-green-600 border-green-100' :
-                  appt.status === 'pending'   ? 'bg-amber-50 text-amber-600 border-amber-100' :
-                  appt.status === 'cancelled' ? 'bg-red-50 text-red-500 border-red-100' :
-                                                'bg-gray-100 text-gray-500 border-gray-200'
-                }`}>
-                  {{ confirmed: 'Confirmada', pending: 'Pendiente', cancelled: 'Cancelada', completed: 'Completada' }[appt.status]}
+                <span
+                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                    appt.status === 'confirmed'
+                      ? 'bg-green-50 text-green-600 border-green-100'
+                      : appt.status === 'pending'
+                        ? 'bg-amber-50 text-amber-600 border-amber-100'
+                        : appt.status === 'cancelled'
+                          ? 'bg-red-50 text-red-500 border-red-100'
+                          : 'bg-gray-100 text-gray-500 border-gray-200'
+                  }`}
+                >
+                  {
+                    {
+                      confirmed: 'Confirmada',
+                      pending: 'Pendiente',
+                      cancelled: 'Cancelada',
+                      completed: 'Completada',
+                    }[appt.status]
+                  }
                 </span>
               </div>
-            ))
-          }
+            ))}
         </div>
       )}
     </div>
@@ -328,10 +369,16 @@ export default function AssistantPacientes() {
   const [waPatient, setWaPatient] = useState<PatientBasic | null>(null)
 
   useEffect(() => {
-    getMyDoctorLink().then(l => {
-      setLink(l)
-      setLinkLoading(false)
-    })
+    getMyDoctorLink()
+      .then((l) => {
+        setLink(l)
+      })
+      .catch((err) => {
+        logger.error('AssistantPacientes.getMyDoctorLink', err)
+      })
+      .finally(() => {
+        setLinkLoading(false)
+      })
   }, [])
 
   useEffect(() => {
@@ -345,15 +392,20 @@ export default function AssistantPacientes() {
         .select('*')
         .eq('doctor_id', link.doctor_id)
         .order('scheduled_at', { ascending: false }),
-    ]).then(([pRes, aRes]) => {
-      if (pRes.error) logger.error('AssistantPacientes:patients', pRes.error)
-      else setPatients((pRes.data ?? []) as PatientBasic[])
+    ])
+      .then(([pRes, aRes]) => {
+        if (pRes.error) logger.error('AssistantPacientes:patients', pRes.error)
+        else setPatients((pRes.data ?? []) as PatientBasic[])
 
-      if (aRes.error) logger.error('AssistantPacientes:appts', aRes.error)
-      else setAppointments((aRes.data ?? []) as AppointmentWithPatient[])
-
-      setLoading(false)
-    })
+        if (aRes.error) logger.error('AssistantPacientes:appts', aRes.error)
+        else setAppointments((aRes.data ?? []) as AppointmentWithPatient[])
+      })
+      .catch((err) => {
+        logger.error('AssistantPacientes.loadPatients', err)
+      })
+      .finally(() => {
+        setLoading(false)
+      })
   }, [link])
 
   const apptsByPatient = useMemo(() => {
@@ -369,26 +421,35 @@ export default function AssistantPacientes() {
   const filtered = useMemo(() => {
     if (!search.trim()) return patients
     const q = search.toLowerCase()
-    return patients.filter(p =>
-      p.full_name?.toLowerCase().includes(q) ||
-      p.phone?.includes(q) ||
-      p.email?.toLowerCase().includes(q)
+    return patients.filter(
+      (p) =>
+        p.full_name?.toLowerCase().includes(q) ||
+        p.phone?.includes(q) ||
+        p.email?.toLowerCase().includes(q),
     )
   }, [patients, search])
 
   const waNextAppt = (patientId: string): string | undefined => {
     const appts = apptsByPatient.get(patientId) ?? []
     const next = appts
-      .filter(a => a.status !== 'cancelled' && new Date(a.scheduled_at) >= new Date())
+      .filter((a) => a.status !== 'cancelled' && new Date(a.scheduled_at) >= new Date())
       .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())[0]
     if (!next) return undefined
-    return new Date(next.scheduled_at).toLocaleDateString('es-MX', {
-      timeZone: 'America/Mexico_City',
-      day: 'numeric', month: 'long', year: 'numeric',
-    }) + ' a las ' +
-    new Date(next.scheduled_at).toLocaleTimeString('es-MX', {
-      timeZone: 'America/Mexico_City', hour: '2-digit', minute: '2-digit', hour12: false,
-    })
+    return (
+      new Date(next.scheduled_at).toLocaleDateString('es-MX', {
+        timeZone: 'America/Mexico_City',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      }) +
+      ' a las ' +
+      new Date(next.scheduled_at).toLocaleTimeString('es-MX', {
+        timeZone: 'America/Mexico_City',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      })
+    )
   }
 
   if (linkLoading) {
@@ -419,8 +480,11 @@ export default function AssistantPacientes() {
         <div>
           <h1 className="text-xl font-bold text-gray-900">Pacientes</h1>
           <p className="text-xs text-gray-500 mt-0.5">
-            Pacientes de <span className="font-semibold text-primary">{link.doctor?.full_name ?? 'médico'}</span>
-            {!loading && <span className="ml-1 text-gray-400">· {patients.length} registrados</span>}
+            Pacientes de{' '}
+            <span className="font-semibold text-primary">{link.doctor?.full_name ?? 'médico'}</span>
+            {!loading && (
+              <span className="ml-1 text-gray-400">· {patients.length} registrados</span>
+            )}
           </p>
         </div>
 
@@ -431,11 +495,14 @@ export default function AssistantPacientes() {
             type="text"
             placeholder="Buscar por nombre o teléfono..."
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary bg-white"
           />
           {search && (
-            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2">
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2"
+            >
               <X size={14} className="text-gray-400" />
             </button>
           )}
@@ -455,7 +522,7 @@ export default function AssistantPacientes() {
           </div>
         ) : (
           <div className="space-y-3">
-            {filtered.map(p => (
+            {filtered.map((p) => (
               <PatientCard
                 key={p.id}
                 patient={p}

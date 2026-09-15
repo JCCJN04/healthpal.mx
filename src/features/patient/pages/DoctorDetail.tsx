@@ -28,6 +28,7 @@ import type { DoctorLocation } from '@/shared/types/database'
 import { geocodeAddress } from '@/shared/lib/geocoding'
 import { formatSpecialty } from '@/shared/lib/specialties'
 import { supabase } from '@/shared/lib/supabase'
+import { logger } from '@/shared/lib/logger'
 import type { Prescription } from '@/shared/lib/queries/prescriptions'
 import type { Appointment } from '@/shared/lib/queries/appointments'
 import { useAuth } from '@/app/providers/AuthContext'
@@ -75,22 +76,27 @@ export default function DoctorDetail() {
     if (!stateDoctor) setLoading(true)
     setError(null)
 
-    const data = await getDoctorById(id)
-    if (!data) {
-      if (!stateDoctor) setError('No se pudo cargar la información del doctor')
+    try {
+      const data = await getDoctorById(id)
+      if (!data) {
+        if (!stateDoctor) setError('No se pudo cargar la información del doctor')
+        return
+      }
+
+      setDoctor(data)
+
+      const loc = data.doctor_profile?.location as DoctorLocation | null
+      const hasStoredCoords = loc && typeof loc.lat === 'number' && typeof loc.lng === 'number'
+      if (!hasStoredCoords && data.doctor_profile?.address_text) {
+        geocodeAddress(data.doctor_profile.address_text).then((result) => {
+          if (result) setGeocodedCoords({ lat: result.lat, lng: result.lng })
+        })
+      }
+    } catch (err) {
+      logger.error('DoctorDetail.loadDoctor', err)
+      if (!stateDoctor) setError('Error al cargar la información del doctor')
+    } finally {
       setLoading(false)
-      return
-    }
-
-    setDoctor(data)
-    setLoading(false)
-
-    const loc = data.doctor_profile?.location as DoctorLocation | null
-    const hasStoredCoords = loc && typeof loc.lat === 'number' && typeof loc.lng === 'number'
-    if (!hasStoredCoords && data.doctor_profile?.address_text) {
-      geocodeAddress(data.doctor_profile.address_text).then((result) => {
-        if (result) setGeocodedCoords({ lat: result.lat, lng: result.lng })
-      })
     }
   }
 
@@ -101,35 +107,38 @@ export default function DoctorDetail() {
 
     async function loadHistorial() {
       if (!id) return
-      // Step 1: appointments + prescriptions + docs (parallel)
-      const [apptRes, rxRes, docsRes] = await Promise.all([
-        supabase
-          .from('appointments')
-          .select('*')
-          .eq('doctor_id', id)
-          .order('scheduled_at', { ascending: false }),
-        supabase
-          .from('prescriptions')
-          .select('*')
-          .eq('doctor_id', id)
-          .eq('is_template', false)
-          .order('issued_at', { ascending: false }),
-        supabase
-          .from('document_shares')
-          .select('documents(id, title, category, created_at)')
-          .eq('shared_by', id),
-      ])
+      try {
+        // Step 1: appointments + prescriptions + docs (parallel)
+        const [apptRes, rxRes, docsRes] = await Promise.all([
+          supabase
+            .from('appointments')
+            .select('*')
+            .eq('doctor_id', id)
+            .order('scheduled_at', { ascending: false }),
+          supabase
+            .from('prescriptions')
+            .select('*')
+            .eq('doctor_id', id)
+            .eq('is_template', false)
+            .order('issued_at', { ascending: false }),
+          supabase
+            .from('document_shares')
+            .select('documents(id, title, category, created_at)')
+            .eq('shared_by', id),
+        ])
 
-      setAppointments((apptRes.data ?? []) as Appointment[])
-      setPrescriptions((rxRes.data ?? []) as Prescription[])
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setSharedDocs((docsRes.data ?? []).flatMap((s: any) => (s.documents ? [s.documents] : [])))
-
-      setHistorialLoading(false)
+        setAppointments((apptRes.data ?? []) as Appointment[])
+        setPrescriptions((rxRes.data ?? []) as Prescription[])
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setSharedDocs((docsRes.data ?? []).flatMap((s: any) => (s.documents ? [s.documents] : [])))
+      } catch (err) {
+        logger.error('DoctorDetail.loadHistorial', err)
+      } finally {
+        setHistorialLoading(false)
+      }
     }
 
     loadHistorial()
-
   }, [id, user?.id])
 
   const handleSendMessage = () => {

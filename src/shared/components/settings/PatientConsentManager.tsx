@@ -1,8 +1,21 @@
 import { useState, useEffect } from 'react'
 import {
-  ShieldCheck, ShieldAlert, ShieldX, Clock, UserCheck, UserX,
-  Loader2, XCircle, ChevronDown, ChevronUp, Save,
-  FileText, Phone, StickyNote, CalendarDays, ShieldPlus,
+  ShieldCheck,
+  ShieldAlert,
+  ShieldX,
+  Clock,
+  UserCheck,
+  UserX,
+  Loader2,
+  XCircle,
+  ChevronDown,
+  ChevronUp,
+  Save,
+  FileText,
+  Phone,
+  StickyNote,
+  CalendarDays,
+  ShieldPlus,
 } from 'lucide-react'
 import { useAuth } from '@/app/providers/AuthContext'
 import { useCrypto } from '@/context/CryptoContext'
@@ -110,7 +123,7 @@ export default function PatientConsentManager() {
 
   useEffect(() => {
     if (user?.id) loadAll()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id])
 
   // Retroactively share document keys with all doctors that already have accepted consent
@@ -127,7 +140,7 @@ export default function PatientConsentManager() {
         if (encrypted.length === 0) return
         for (const consent of accepted) {
           await Promise.allSettled(
-            encrypted.map((d) => shareEncryptedDocumentKey(d.id, privateKey, consent.doctor_id))
+            encrypted.map((d) => shareEncryptedDocumentKey(d.id, privateKey, consent.doctor_id)),
           )
         }
       } catch (err) {
@@ -135,7 +148,6 @@ export default function PatientConsentManager() {
       }
     }
     syncExistingKeys()
-
   }, [user?.id, privateKey])
 
   async function loadAll() {
@@ -162,55 +174,75 @@ export default function PatientConsentManager() {
   const confirmAccept = async () => {
     if (!confirmingRow || !user?.id) return
     setActionLoading(confirmingRow.id)
-    const { ok, error } = await acceptConsentRequest(confirmingRow.id, acceptScopes)
-    if (ok) {
-      await linkDoctorToPatient(user.id, confirmingRow.doctor_id)
-      if (privateKey && acceptScopes.share_documents) {
-        try {
-          const docs = await getUserDocuments(user.id, null, true)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const encrypted = docs.filter((d) => (d as any).is_encrypted)
-          await Promise.allSettled(
-            encrypted.map((d) => shareEncryptedDocumentKey(d.id, privateKey, confirmingRow.doctor_id))
-          )
-        } catch (err) {
-          logger.error('PatientConsentManager.shareKeys', err)
+    try {
+      const { ok, error } = await acceptConsentRequest(confirmingRow.id, acceptScopes)
+      if (ok) {
+        await linkDoctorToPatient(user.id, confirmingRow.doctor_id)
+        if (privateKey && acceptScopes.share_documents) {
+          try {
+            const docs = await getUserDocuments(user.id, null, true)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const encrypted = docs.filter((d) => (d as any).is_encrypted)
+            await Promise.allSettled(
+              encrypted.map((d) =>
+                shareEncryptedDocumentKey(d.id, privateKey, confirmingRow.doctor_id),
+              ),
+            )
+          } catch (err) {
+            logger.error('PatientConsentManager.shareKeys', err)
+          }
         }
+        showToast('Acceso concedido', 'success')
+        await loadAll()
+      } else {
+        showToast(error || 'Error', 'error')
       }
-      showToast('Acceso concedido', 'success')
-      await loadAll()
-    } else {
-      showToast(error || 'Error', 'error')
+    } catch (err) {
+      logger.error('PatientConsentManager.confirmAccept', err)
+      showToast('Error al conceder acceso', 'error')
+    } finally {
+      setActionLoading(null)
+      setConfirmingRow(null)
     }
-    setActionLoading(null)
-    setConfirmingRow(null)
   }
 
   const handleReject = async (id: string) => {
     setActionLoading(id)
-    const { ok, error } = await rejectConsentRequest(id)
-    if (ok) {
-      showToast('Solicitud rechazada', 'success')
-      await loadAll()
-    } else {
-      showToast(error || 'Error', 'error')
+    try {
+      const { ok, error } = await rejectConsentRequest(id)
+      if (ok) {
+        showToast('Solicitud rechazada', 'success')
+        await loadAll()
+      } else {
+        showToast(error || 'Error', 'error')
+      }
+    } catch (err) {
+      logger.error('PatientConsentManager.reject', err)
+      showToast('Error al rechazar solicitud', 'error')
+    } finally {
+      setActionLoading(null)
     }
-    setActionLoading(null)
   }
 
   const handleRevoke = async (id: string, doctorId: string) => {
     if (!confirm('¿Revocar el acceso de este doctor a tu expediente?')) return
     if (!user?.id) return
     setActionLoading(id)
-    const { ok, error } = await revokeConsentAccess(id, doctorId, user.id)
-    if (ok) {
-      await unlinkDoctorFromPatient(user.id, doctorId)
-      showToast('Acceso revocado', 'success')
-      await loadAll()
-    } else {
-      showToast(error || 'Error', 'error')
+    try {
+      const { ok, error } = await revokeConsentAccess(id, doctorId, user.id)
+      if (ok) {
+        await unlinkDoctorFromPatient(user.id, doctorId)
+        showToast('Acceso revocado', 'success')
+        await loadAll()
+      } else {
+        showToast(error || 'Error', 'error')
+      }
+    } catch (err) {
+      logger.error('PatientConsentManager.revoke', err)
+      showToast('Error al revocar acceso', 'error')
+    } finally {
+      setActionLoading(null)
     }
-    setActionLoading(null)
   }
 
   const openEditScopes = (row: ConsentWithProfile) => {
@@ -239,7 +271,7 @@ export default function PatientConsentManager() {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const encrypted = docs.filter((d) => (d as any).is_encrypted)
             await Promise.allSettled(
-              encrypted.map((d) => shareEncryptedDocumentKey(d.id, privateKey, doctorId))
+              encrypted.map((d) => shareEncryptedDocumentKey(d.id, privateKey, doctorId)),
             )
           } catch (err) {
             logger.error('PatientConsentManager.resyncKeys', err)
@@ -288,7 +320,9 @@ export default function PatientConsentManager() {
               <div>
                 <p className="text-sm font-semibold text-gray-900">
                   {label}
-                  {isRequired && <span className="ml-1.5 text-[10px] text-gray-400">(requerido)</span>}
+                  {isRequired && (
+                    <span className="ml-1.5 text-[10px] text-gray-400">(requerido)</span>
+                  )}
                 </p>
                 <p className="text-[11px] text-gray-500">{description}</p>
               </div>
@@ -300,15 +334,25 @@ export default function PatientConsentManager() {
   )
 
   const StatusBadge = ({ status }: { status: string }) => {
-    const map: Record<string, { bg: string; text: string; label: string; Icon: React.ElementType }> = {
+    const map: Record<
+      string,
+      { bg: string; text: string; label: string; Icon: React.ElementType }
+    > = {
       accepted: { bg: 'bg-green-50', text: 'text-green-700', label: 'Activo', Icon: ShieldCheck },
       rejected: { bg: 'bg-red-50', text: 'text-red-700', label: 'Rechazado', Icon: ShieldX },
-      revoked: { bg: 'bg-orange-50', text: 'text-orange-700', label: 'Revocado', Icon: ShieldAlert },
+      revoked: {
+        bg: 'bg-orange-50',
+        text: 'text-orange-700',
+        label: 'Revocado',
+        Icon: ShieldAlert,
+      },
       requested: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Pendiente', Icon: Clock },
     }
     const s = map[status] || map.requested
     return (
-      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold ${s.bg} ${s.text}`}>
+      <span
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold ${s.bg} ${s.text}`}
+      >
         <s.Icon className="w-3 h-3" />
         {s.label}
       </span>
@@ -325,7 +369,6 @@ export default function PatientConsentManager() {
 
   return (
     <div className="space-y-8">
-
       {/* ── Pending Requests ──────────────────────────── */}
       <section>
         <div className="flex items-center gap-2 mb-4">
@@ -346,11 +389,18 @@ export default function PatientConsentManager() {
         ) : (
           <div className="space-y-3">
             {pending.map((row) => (
-              <div key={row.id} className="bg-white rounded-xl border border-blue-100 shadow-sm p-5">
+              <div
+                key={row.id}
+                className="bg-white rounded-xl border border-blue-100 shadow-sm p-5"
+              >
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg flex-shrink-0 overflow-hidden">
                     {row.doctor?.avatar_url ? (
-                      <img src={row.doctor.avatar_url} alt="" className="w-full h-full object-cover rounded-full" />
+                      <img
+                        src={row.doctor.avatar_url}
+                        alt=""
+                        className="w-full h-full object-cover rounded-full"
+                      />
                     ) : (
                       (row.doctor?.full_name?.charAt(0) || 'D').toUpperCase()
                     )}
@@ -359,7 +409,12 @@ export default function PatientConsentManager() {
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-gray-900">{row.doctor?.full_name || 'Doctor'}</p>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      Solicitado el {new Date(row.requested_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}
+                      Solicitado el{' '}
+                      {new Date(row.requested_at).toLocaleDateString('es-MX', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric',
+                      })}
                     </p>
                     {row.request_reason && (
                       <p className="text-sm text-gray-600 mt-2 bg-gray-50 rounded-lg p-2 italic">
@@ -399,7 +454,10 @@ export default function PatientConsentManager() {
 
       {/* ── Accept modal with granular scopes ─────────── */}
       {confirmingRow && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setConfirmingRow(null)}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setConfirmingRow(null)}
+        >
           <div
             className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
@@ -408,17 +466,20 @@ export default function PatientConsentManager() {
               <ShieldCheck className="w-6 h-6 text-primary flex-shrink-0" />
               <div>
                 <h3 className="text-lg font-bold text-gray-900">Conceder acceso</h3>
-                <p className="text-xs text-gray-500">{confirmingRow.doctor?.full_name || 'Este doctor'}</p>
+                <p className="text-xs text-gray-500">
+                  {confirmingRow.doctor?.full_name || 'Este doctor'}
+                </p>
               </div>
             </div>
 
             <p className="text-sm text-gray-600">
-              Elige qué información puede ver este doctor. Puedes modificar o revocar el acceso en cualquier momento.
+              Elige qué información puede ver este doctor. Puedes modificar o revocar el acceso en
+              cualquier momento.
             </p>
 
             <ScopesPanel
               scopes={acceptScopes}
-              onChange={(key, value) => setAcceptScopes(s => ({ ...s, [key]: value }))}
+              onChange={(key, value) => setAcceptScopes((s) => ({ ...s, [key]: value }))}
             />
 
             <div className="flex justify-end gap-2 pt-1">
@@ -474,12 +535,19 @@ export default function PatientConsentManager() {
               const activeCount = Object.values(activeScopes).filter(Boolean).length
 
               return (
-                <div key={row.id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                <div
+                  key={row.id}
+                  className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden"
+                >
                   <div className="p-5">
                     <div className="flex items-center gap-4">
                       <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold flex-shrink-0 overflow-hidden">
                         {row.doctor?.avatar_url ? (
-                          <img src={row.doctor.avatar_url} alt="" className="w-full h-full object-cover rounded-full" />
+                          <img
+                            src={row.doctor.avatar_url}
+                            alt=""
+                            className="w-full h-full object-cover rounded-full"
+                          />
                         ) : (
                           (row.doctor?.full_name?.charAt(0) || 'D').toUpperCase()
                         )}
@@ -487,12 +555,19 @@ export default function PatientConsentManager() {
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-bold text-gray-900">{row.doctor?.full_name || 'Doctor'}</p>
+                          <p className="font-bold text-gray-900">
+                            {row.doctor?.full_name || 'Doctor'}
+                          </p>
                           <StatusBadge status={row.status} />
                         </div>
                         {row.responded_at && (
                           <p className="text-[11px] text-gray-400 mt-0.5">
-                            Desde {new Date(row.responded_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            Desde{' '}
+                            {new Date(row.responded_at).toLocaleDateString('es-MX', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                            })}
                           </p>
                         )}
                         {row.status === 'accepted' && (
@@ -506,10 +581,14 @@ export default function PatientConsentManager() {
                     {row.status === 'accepted' && (
                       <div className="flex items-center gap-2 justify-end mt-3">
                         <button
-                          onClick={() => isEditing ? setEditingScopes(null) : openEditScopes(row)}
+                          onClick={() => (isEditing ? setEditingScopes(null) : openEditScopes(row))}
                           className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                         >
-                          {isEditing ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                          {isEditing ? (
+                            <ChevronUp className="w-3.5 h-3.5" />
+                          ) : (
+                            <ChevronDown className="w-3.5 h-3.5" />
+                          )}
                           Permisos
                         </button>
                         <button
@@ -531,10 +610,14 @@ export default function PatientConsentManager() {
                   {/* Scope editor for accepted consents */}
                   {isEditing && row.status === 'accepted' && (
                     <div className="border-t border-gray-100 p-5 bg-gray-50/50 space-y-4">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Editar permisos</p>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                        Editar permisos
+                      </p>
                       <ScopesPanel
                         scopes={editScopeValues}
-                        onChange={(key, value) => setEditScopeValues(s => ({ ...s, [key]: value }))}
+                        onChange={(key, value) =>
+                          setEditScopeValues((s) => ({ ...s, [key]: value }))
+                        }
                         disabled={savingScopes}
                       />
                       <div className="flex justify-end gap-2">
@@ -550,7 +633,11 @@ export default function PatientConsentManager() {
                           disabled={savingScopes}
                           className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-teal-600 disabled:opacity-50 transition-colors"
                         >
-                          {savingScopes ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                          {savingScopes ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Save className="w-4 h-4" />
+                          )}
                           Guardar permisos
                         </button>
                       </div>

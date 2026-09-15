@@ -1,4 +1,4 @@
-﻿import { useState, FormEvent, useEffect, startTransition } from 'react'
+import { useState, FormEvent, useEffect, startTransition } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { User, Lock, ArrowLeft, Eye, EyeOff } from 'lucide-react'
 import { supabase } from '@/shared/lib/supabase'
@@ -8,7 +8,7 @@ import { useCrypto } from '@/context/CryptoContext'
 
 export default function Login() {
   const navigate = useNavigate()
-  const { user, loading: authLoading } = useAuth()
+  const { user, loading: authLoading, mfaRequired } = useAuth()
   const { initializeCrypto } = useCrypto()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -16,14 +16,20 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
-  // If user is already authenticated, redirect to dashboard
+  // If user is already authenticated, redirect to dashboard or /auth/mfa
   useEffect(() => {
     if (!authLoading && user) {
-      startTransition(() => {
-        navigate('/dashboard', { replace: true })
-      })
+      if (mfaRequired) {
+        startTransition(() => {
+          navigate('/auth/mfa', { replace: true })
+        })
+      } else {
+        startTransition(() => {
+          navigate('/dashboard', { replace: true })
+        })
+      }
     }
-  }, [user, authLoading, navigate])
+  }, [user, authLoading, mfaRequired, navigate])
 
   const validateForm = (): boolean => {
     const newErrors: { email?: string; password?: string } = {}

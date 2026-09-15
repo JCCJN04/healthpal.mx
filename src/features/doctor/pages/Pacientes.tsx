@@ -123,35 +123,47 @@ export default function Pacientes() {
   const handleRequestAccess = async (patientId: string) => {
     if (!user) return
     setRequestingId(patientId)
-    const { ok, error } = await requestPatientAccess(user.id, patientId, requestReason)
-    if (ok) {
-      showToast(
-        'Solicitud enviada. El paciente decidirá si comparte su información.',
-        'success',
-        4000,
-      )
-      setShowReasonFor(null)
-      setRequestReason('')
-      await loadAll()
-    } else {
-      showToast(error || 'Error al solicitar acceso', 'error', 3000)
+    try {
+      const { ok, error } = await requestPatientAccess(user.id, patientId, requestReason)
+      if (ok) {
+        showToast(
+          'Solicitud enviada. El paciente decidirá si comparte su información.',
+          'success',
+          4000,
+        )
+        setShowReasonFor(null)
+        setRequestReason('')
+        await loadAll()
+      } else {
+        showToast(error || 'Error al solicitar acceso', 'error', 3000)
+      }
+    } catch (err) {
+      logger.error('Pacientes.requestAccess', err)
+      showToast('Error al solicitar acceso', 'error', 3000)
+    } finally {
+      setRequestingId(null)
     }
-    setRequestingId(null)
   }
 
   const handleReRequest = async (patientId: string) => {
     if (!user) return
     setRequestingId(patientId)
-    const { ok, error } = await reRequestAccess(user.id, patientId, requestReason)
-    if (ok) {
-      showToast('Solicitud re-enviada', 'success', 3000)
-      setShowReasonFor(null)
-      setRequestReason('')
-      await loadAll()
-    } else {
-      showToast(error || 'Error', 'error', 3000)
+    try {
+      const { ok, error } = await reRequestAccess(user.id, patientId, requestReason)
+      if (ok) {
+        showToast('Solicitud re-enviada', 'success', 3000)
+        setShowReasonFor(null)
+        setRequestReason('')
+        await loadAll()
+      } else {
+        showToast(error || 'Error', 'error', 3000)
+      }
+    } catch (err) {
+      logger.error('Pacientes.reRequest', err)
+      showToast('Error al re-enviar solicitud', 'error', 3000)
+    } finally {
+      setRequestingId(null)
     }
-    setRequestingId(null)
   }
 
   const normalizePhone = (raw: string): string => {

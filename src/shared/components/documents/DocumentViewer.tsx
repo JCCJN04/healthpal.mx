@@ -1,8 +1,17 @@
 import { useState, useEffect, useRef } from 'react'
 import {
-  ZoomIn, ZoomOut, RotateCw, Maximize2, Minimize2,
-  FileText, ChevronLeft, ChevronRight,
-  Download, Music, FileType, Loader2,
+  ZoomIn,
+  ZoomOut,
+  RotateCw,
+  Maximize2,
+  Minimize2,
+  FileText,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Music,
+  FileType,
+  Loader2,
 } from 'lucide-react'
 import { Document, Page, pdfjs } from 'react-pdf'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
@@ -27,6 +36,7 @@ export const DocumentViewer = ({ fileUrl, fileType = 'pdf', title }: DocumentVie
   const [textLoading, setTextLoading] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(true)
+  const [pdfError, setPdfError] = useState(false)
   const [containerWidth, setContainerWidth] = useState(0)
   // Blob URL for PDFs — avoids CORS issues with pdfjs worker making range requests
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null)
@@ -38,6 +48,7 @@ export const DocumentViewer = ({ fileUrl, fileType = 'pdf', title }: DocumentVie
   useEffect(() => {
     if (fileType !== 'pdf' || !fileUrl) return
     setPdfLoading(true)
+    setPdfError(false)
     if (fileUrl.startsWith('blob:')) {
       setPdfBlobUrl(fileUrl)
       return
@@ -45,13 +56,20 @@ export const DocumentViewer = ({ fileUrl, fileType = 'pdf', title }: DocumentVie
     let revoked = false
     setPdfBlobUrl(null)
     fetch(fileUrl)
-      .then(r => r.blob())
-      .then(blob => {
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.blob()
+      })
+      .then((blob) => {
         if (revoked) return
         setPdfBlobUrl(URL.createObjectURL(blob))
       })
-      .catch(() => {
-        if (!revoked) setPdfLoading(false)
+      .catch((err) => {
+        if (!revoked) {
+          console.error('DocumentViewer:pdfFetch', err)
+          setPdfError(true)
+          setPdfLoading(false)
+        }
       })
     return () => {
       revoked = true
@@ -68,7 +86,7 @@ export const DocumentViewer = ({ fileUrl, fileType = 'pdf', title }: DocumentVie
   // Track container width for responsive PDF rendering
   useEffect(() => {
     if (!containerRef.current) return
-    const ro = new ResizeObserver(entries => {
+    const ro = new ResizeObserver((entries) => {
       const w = entries[0]?.contentRect.width ?? 0
       setContainerWidth(w)
     })
@@ -81,8 +99,8 @@ export const DocumentViewer = ({ fileUrl, fileType = 'pdf', title }: DocumentVie
     if (fileType === 'text' && fileUrl) {
       setTextLoading(true)
       fetch(fileUrl)
-        .then(r => r.text())
-        .then(t => setTextContent(t))
+        .then((r) => r.text())
+        .then((t) => setTextContent(t))
         .catch(() => setTextContent(null))
         .finally(() => setTextLoading(false))
     }
@@ -108,28 +126,36 @@ export const DocumentViewer = ({ fileUrl, fileType = 'pdf', title }: DocumentVie
     setTotalPages(numPages)
     setCurrentPage(1)
     setPdfLoading(false)
+    setPdfError(false)
+  }
+
+  const onDocumentLoadError = () => {
+    setPdfLoading(false)
+    setPdfError(true)
   }
 
   // Compute PDF page scale to fit container width (16px total padding at p-2)
-  const pdfScale = containerWidth > 0 ? Math.min((containerWidth - 16) / 595, zoom / 100) : zoom / 100
+  const pdfScale =
+    containerWidth > 0 ? Math.min((containerWidth - 16) / 595, zoom / 100) : zoom / 100
 
-  const zoomIn  = () => setZoom(p => Math.min(p + 25, 200))
-  const zoomOut = () => setZoom(p => Math.max(p - 25, 25))
-  const rotate  = () => setRotation(p => (p + 90) % 360)
+  const zoomIn = () => setZoom((p) => Math.min(p + 25, 200))
+  const zoomOut = () => setZoom((p) => Math.max(p - 25, 25))
+  const rotate = () => setRotation((p) => (p + 90) % 360)
   const fitWidth = () => setZoom(100)
-  const prevPage = () => setCurrentPage(p => Math.max(p - 1, 1))
-  const nextPage = () => setCurrentPage(p => Math.min(p + 1, totalPages))
+  const prevPage = () => setCurrentPage((p) => Math.max(p - 1, 1))
+  const nextPage = () => setCurrentPage((p) => Math.min(p + 1, totalPages))
 
   const isPdfOrImage = fileType === 'pdf' || fileType === 'image'
 
   return (
-    <div ref={wrapperRef} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
-
+    <div
+      ref={wrapperRef}
+      className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col"
+    >
       {/* ── Toolbar (PDF / Image only) ──────────────────────── */}
       {isPdfOrImage && (
         <div className="bg-gray-50 border-b border-gray-100 px-3 py-2">
           <div className="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
-
             {/* Zoom controls */}
             <div className="flex items-center gap-1 order-1">
               <ToolBtn onClick={zoomOut} disabled={zoom <= 25} title="Reducir zoom">
@@ -155,7 +181,11 @@ export const DocumentViewer = ({ fileUrl, fileType = 'pdf', title }: DocumentVie
                 <span className="text-xs text-gray-600 px-2 tabular-nums whitespace-nowrap select-none">
                   {pdfLoading ? '— / —' : `${currentPage} / ${totalPages}`}
                 </span>
-                <ToolBtn onClick={nextPage} disabled={currentPage >= totalPages} title="Página siguiente">
+                <ToolBtn
+                  onClick={nextPage}
+                  disabled={currentPage >= totalPages}
+                  title="Página siguiente"
+                >
                   <ChevronRight className="w-4 h-4" />
                 </ToolBtn>
               </div>
@@ -166,11 +196,15 @@ export const DocumentViewer = ({ fileUrl, fileType = 'pdf', title }: DocumentVie
               <ToolBtn onClick={rotate} title="Rotar 90°">
                 <RotateCw className="w-4 h-4" />
               </ToolBtn>
-              <ToolBtn onClick={toggleFullscreen} title={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}>
-                {isFullscreen
-                  ? <Minimize2 className="w-4 h-4" />
-                  : <Maximize2 className="w-4 h-4" />
-                }
+              <ToolBtn
+                onClick={toggleFullscreen}
+                title={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
+              >
+                {isFullscreen ? (
+                  <Minimize2 className="w-4 h-4" />
+                ) : (
+                  <Maximize2 className="w-4 h-4" />
+                )}
               </ToolBtn>
             </div>
           </div>
@@ -189,34 +223,51 @@ export const DocumentViewer = ({ fileUrl, fileType = 'pdf', title }: DocumentVie
             {/* PDF */}
             {fileType === 'pdf' && (
               <div className="w-full flex flex-col items-center gap-0">
-                {(pdfLoading || !pdfBlobUrl) && (
-                  <div className="flex flex-col items-center gap-3 py-20 text-gray-400">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                    <span className="text-sm">Cargando PDF...</span>
+                {pdfError ? (
+                  <div className="flex flex-col items-center gap-3 py-20 text-red-400">
+                    <FileText className="w-10 h-10" />
+                    <p className="text-sm font-medium">No se pudo cargar el PDF</p>
+                    <button
+                      onClick={() => window.location.reload()}
+                      className="text-xs text-primary underline mt-1 cursor-pointer"
+                    >
+                      Reintentar
+                    </button>
                   </div>
+                ) : (
+                  <>
+                    {(pdfLoading || !pdfBlobUrl) && (
+                      <div className="flex flex-col items-center gap-3 py-20 text-gray-400">
+                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                        <span className="text-sm">Cargando PDF...</span>
+                      </div>
+                    )}
+                    {pdfBlobUrl && (
+                      <Document
+                        file={pdfBlobUrl}
+                        onLoadSuccess={onDocumentLoadSuccess}
+                        onLoadError={onDocumentLoadError}
+                        loading={null}
+                        error={
+                          <div className="flex flex-col items-center gap-3 py-20 text-red-400">
+                            <FileText className="w-10 h-10" />
+                            <p className="text-sm font-medium">No se pudo cargar el PDF</p>
+                          </div>
+                        }
+                        className={pdfLoading ? 'opacity-0 h-0 overflow-hidden' : ''}
+                      >
+                        <Page
+                          pageNumber={currentPage}
+                          scale={pdfScale * (zoom / 100)}
+                          rotate={rotation}
+                          renderTextLayer
+                          renderAnnotationLayer
+                          className="overflow-hidden"
+                        />
+                      </Document>
+                    )}
+                  </>
                 )}
-                {pdfBlobUrl && <Document
-                  file={pdfBlobUrl}
-                  onLoadSuccess={onDocumentLoadSuccess}
-                  onLoadError={() => setPdfLoading(false)}
-                  loading={null}
-                  error={
-                    <div className="flex flex-col items-center gap-3 py-20 text-red-400">
-                      <FileText className="w-10 h-10" />
-                      <p className="text-sm font-medium">No se pudo cargar el PDF</p>
-                    </div>
-                  }
-                  className={pdfLoading ? 'opacity-0 h-0 overflow-hidden' : ''}
-                >
-                  <Page
-                    pageNumber={currentPage}
-                    scale={pdfScale * (zoom / 100)}
-                    rotate={rotation}
-                    renderTextLayer
-                    renderAnnotationLayer
-                    className="overflow-hidden"
-                  />
-                </Document>}
               </div>
             )}
 
@@ -256,7 +307,9 @@ export const DocumentViewer = ({ fileUrl, fileType = 'pdf', title }: DocumentVie
                 <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center shadow-inner">
                   <Music className="w-12 h-12 text-primary" />
                 </div>
-                <p className="font-semibold text-gray-800 text-center text-sm leading-snug">{title}</p>
+                <p className="font-semibold text-gray-800 text-center text-sm leading-snug">
+                  {title}
+                </p>
                 <audio src={fileUrl} controls className="w-full rounded-lg">
                   Tu navegador no soporta reproducción de audio.
                 </audio>
@@ -276,7 +329,9 @@ export const DocumentViewer = ({ fileUrl, fileType = 'pdf', title }: DocumentVie
                     {textContent}
                   </pre>
                 ) : (
-                  <p className="text-red-500 text-sm text-center py-10">No se pudo cargar el contenido.</p>
+                  <p className="text-red-500 text-sm text-center py-10">
+                    No se pudo cargar el contenido.
+                  </p>
                 )}
               </div>
             )}
@@ -292,7 +347,12 @@ export const DocumentViewer = ({ fileUrl, fileType = 'pdf', title }: DocumentVie
                 />
                 <p className="text-xs text-gray-400 text-center">
                   Visualizado con Microsoft Office Online.{' '}
-                  <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                  <a
+                    href={fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary underline"
+                  >
                     Descargar
                   </a>{' '}
                   si no carga.
@@ -316,7 +376,8 @@ export const DocumentViewer = ({ fileUrl, fileType = 'pdf', title }: DocumentVie
                 <div>
                   <h3 className="font-bold text-gray-900 mb-1">Vista previa no disponible</h3>
                   <p className="text-sm text-gray-500">
-                    Este formato no puede visualizarse en el navegador. Descárgalo para abrirlo en tu dispositivo.
+                    Este formato no puede visualizarse en el navegador. Descárgalo para abrirlo en
+                    tu dispositivo.
                   </p>
                 </div>
                 <a
@@ -338,7 +399,10 @@ export const DocumentViewer = ({ fileUrl, fileType = 'pdf', title }: DocumentVie
 
 // ── Toolbar button ──────────────────────────────────────────
 function ToolBtn({
-  onClick, disabled, title, children,
+  onClick,
+  disabled,
+  title,
+  children,
 }: {
   onClick: () => void
   disabled?: boolean

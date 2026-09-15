@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '@/app/providers/AuthContext'
 import type { UserRole } from '@/shared/types/database'
@@ -22,11 +23,32 @@ export default function RequireRole({
   allowedRoles,
   redirectTo = '/dashboard',
 }: RequireRoleProps) {
-  const { profile, loading: authLoading } = useAuth()
+  const { user, profile, loading: authLoading } = useAuth()
+  const [timedOut, setTimedOut] = useState(false)
 
-  // While auth or profile is loading, render skeleton instead of a blank screen
-  if (authLoading || !profile) {
+  // Safety fallback: prevent infinite skeleton if profile never arrives
+  useEffect(() => {
+    if (authLoading || profile) return
+    const timer = setTimeout(() => {
+      logger.warn('[RequireRole] Timeout esperando perfil del usuario, redirigiendo')
+      setTimedOut(true)
+    }, 3500)
+    return () => clearTimeout(timer)
+  }, [authLoading, profile])
+
+  // While auth or profile is loading, render skeleton
+  if (authLoading || (!profile && !timedOut)) {
     return <DashboardPageSkeleton />
+  }
+
+  // Not authenticated — let RequireAuth or login handle it
+  if (!user) {
+    return <Navigate to="/login" replace />
+  }
+
+  // Profile missing or timed out — safely redirect to avoid infinite skeleton
+  if (!profile || timedOut) {
+    return <Navigate to={redirectTo} replace />
   }
 
   // If the user's role is not in the allowed list, redirect

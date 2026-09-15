@@ -790,10 +790,16 @@ export default function Agenda() {
   const [bookingPatient, setBookingPatient] = useState<PatientProfileLite | null>(null)
 
   const load = useCallback(() => {
-    getDoctorAppointments().then((data) => {
-      setAppointments(data)
-      setLoading(false)
-    })
+    getDoctorAppointments()
+      .then((data) => {
+        setAppointments(data)
+      })
+      .catch((err) => {
+        console.error('Agenda:getDoctorAppointments', err)
+      })
+      .finally(() => {
+        setLoading(false)
+      })
   }, [])
 
   useEffect(() => {

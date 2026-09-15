@@ -1620,8 +1620,9 @@ export default function Recetas() {
     } catch (err) {
       logger.error('handleSaveDoctorToProfile', err)
       showToast('Error al guardar', 'error')
+    } finally {
+      setSavingDoctor(false)
     }
-    setSavingDoctor(false)
   }
 
   async function handleSelectPatient(patientId: string, name: string) {

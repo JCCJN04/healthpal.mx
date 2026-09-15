@@ -53,6 +53,7 @@ import {
 } from '@/shared/lib/queries/documentRequests'
 import { supabase } from '@/shared/lib/supabase'
 import { showToast } from '@/shared/components/ui/Toast'
+import { logger } from '@/shared/lib/logger'
 import { validateFile } from '@/shared/lib/errors'
 import { isDemoMode } from '@/context/DemoContext'
 import type { Database } from '@/shared/types/database'
@@ -267,286 +268,293 @@ export default function Documentos() {
     if (!user) return
     setLoading(true)
 
-    const isSharedFolder = folderId?.startsWith('shared-')
+    try {
+      const isSharedFolder = folderId?.startsWith('shared-')
 
-    const [ownDocs, shared] = await Promise.all([
-      // When viewing a synthetic shared folder, skip folder filter (null) to avoid UUID errors
-      getUserDocuments(user.id, isSharedFolder ? null : folderId),
-      getDocumentsSharedWithMe(user.id),
-    ])
+      const [ownDocs, shared] = await Promise.all([
+        // When viewing a synthetic shared folder, skip folder filter (null) to avoid UUID errors
+        getUserDocuments(user.id, isSharedFolder ? null : folderId),
+        getDocumentsSharedWithMe(user.id),
+      ])
 
-    // Drop imported copies (owner = me, uploaded_by != me) to avoid duplicates
-    // Also drop docs uploaded for a patient context (patient_id != user.id) from root view
-    const cleanedOwn = ownDocs.filter(
-      (doc) =>
-        !(doc.owner_id === user.id && doc.uploaded_by && doc.uploaded_by !== user.id) &&
-        (!doc.patient_id || doc.patient_id === user.id),
-    )
+      // Drop imported copies (owner = me, uploaded_by != me) to avoid duplicates
+      // Also drop docs uploaded for a patient context (patient_id != user.id) from root view
+      const cleanedOwn = ownDocs.filter(
+        (doc) =>
+          !(doc.owner_id === user.id && doc.uploaded_by && doc.uploaded_by !== user.id) &&
+          (!doc.patient_id || doc.patient_id === user.id),
+      )
 
-    const rawEntries = (shared as SharedEntry[])
-      .map((s) => ({
-        doc: s.document as Document,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        senderId: s.sender?.id || (s as any).shared_by || 'shared',
-        senderName: s.sender?.full_name || s.sender?.email || '',
-        senderEmail: s.sender?.email || '',
-        senderPhone: s.sender?.phone || '',
-        senderAvatarUrl: s.sender?.avatar_url || null,
-        senderRole: s.sender?.role || null,
-        senderSpecialty: s.sender?.doctor_profile?.specialty || null,
-      }))
-      .filter((entry) => !!entry.doc)
+      const rawEntries = (shared as SharedEntry[])
+        .map((s) => ({
+          doc: s.document as Document,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          senderId: s.sender?.id || (s as any).shared_by || 'shared',
+          senderName: s.sender?.full_name || s.sender?.email || '',
+          senderEmail: s.sender?.email || '',
+          senderPhone: s.sender?.phone || '',
+          senderAvatarUrl: s.sender?.avatar_url || null,
+          senderRole: s.sender?.role || null,
+          senderSpecialty: s.sender?.doctor_profile?.specialty || null,
+        }))
+        .filter((entry) => !!entry.doc)
 
-    // Fallback: if sender join was blocked by RLS, fetch profiles directly by ID
-    const missingProfileIds = [
-      ...new Set(
-        rawEntries.filter((e) => !e.senderName && e.senderId !== 'shared').map((e) => e.senderId),
-      ),
-    ]
-    const fallbackProfileMap = new Map<
-      string,
-      {
-        full_name: string | null
-        email: string | null
-        avatar_url: string | null
-        role: string | null
-      }
-    >()
-    if (missingProfileIds.length > 0) {
-      const { data: fallbackProfiles } = await supabase
-        .from('profiles')
-        .select('id, full_name, email, avatar_url, role')
-        .in('id', missingProfileIds)
-      ;(fallbackProfiles || []).forEach(
-        (p: {
-          id: string
+      // Fallback: if sender join was blocked by RLS, fetch profiles directly by ID
+      const missingProfileIds = [
+        ...new Set(
+          rawEntries.filter((e) => !e.senderName && e.senderId !== 'shared').map((e) => e.senderId),
+        ),
+      ]
+      const fallbackProfileMap = new Map<
+        string,
+        {
           full_name: string | null
           email: string | null
           avatar_url: string | null
           role: string | null
-        }) => fallbackProfileMap.set(p.id, p),
-      )
-    }
-
-    const sharedEntries = rawEntries.map((entry) => {
-      if (!entry.senderName && fallbackProfileMap.has(entry.senderId)) {
-        const fp = fallbackProfileMap.get(entry.senderId)!
-        return {
-          ...entry,
-          senderName: fp.full_name || fp.email || 'Compartido',
-          senderEmail: entry.senderEmail || fp.email || '',
-          senderAvatarUrl: entry.senderAvatarUrl ?? fp.avatar_url,
-          senderRole: entry.senderRole || fp.role,
         }
+      >()
+      if (missingProfileIds.length > 0) {
+        const { data: fallbackProfiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, email, avatar_url, role')
+          .in('id', missingProfileIds)
+        ;(fallbackProfiles || []).forEach(
+          (p: {
+            id: string
+            full_name: string | null
+            email: string | null
+            avatar_url: string | null
+            role: string | null
+          }) => fallbackProfileMap.set(p.id, p),
+        )
       }
-      return { ...entry, senderName: entry.senderName || 'Compartido' }
-    })
 
-    // Build email/phone maps for doc request pre-fill
-    const emailMap = new Map<string, string>()
-    const phoneMap = new Map<string, string>()
-    sharedEntries.forEach((entry) => {
-      if (entry.senderEmail) emailMap.set(entry.senderId, entry.senderEmail)
-      if (entry.senderPhone) phoneMap.set(entry.senderId, entry.senderPhone)
-    })
-    setSenderEmailMap(emailMap)
-    setSenderPhoneMap(phoneMap)
+      const sharedEntries = rawEntries.map((entry) => {
+        if (!entry.senderName && fallbackProfileMap.has(entry.senderId)) {
+          const fp = fallbackProfileMap.get(entry.senderId)!
+          return {
+            ...entry,
+            senderName: fp.full_name || fp.email || 'Compartido',
+            senderEmail: entry.senderEmail || fp.email || '',
+            senderAvatarUrl: entry.senderAvatarUrl ?? fp.avatar_url,
+            senderRole: entry.senderRole || fp.role,
+          }
+        }
+        return { ...entry, senderName: entry.senderName || 'Compartido' }
+      })
 
-    // Build synthetic shared folders by sender
-    const senderMetaMap = new Map<
-      string,
-      { name: string; avatarUrl: string | null; role: string | null; specialty: string | null }
-    >()
-    sharedEntries.forEach((entry) => {
-      if (!senderMetaMap.has(entry.senderId)) {
-        senderMetaMap.set(entry.senderId, {
-          name: entry.senderName,
-          avatarUrl: entry.senderAvatarUrl,
-          role: entry.senderRole,
-          specialty: entry.senderSpecialty,
-        })
-      }
-    })
+      // Build email/phone maps for doc request pre-fill
+      const emailMap = new Map<string, string>()
+      const phoneMap = new Map<string, string>()
+      sharedEntries.forEach((entry) => {
+        if (entry.senderEmail) emailMap.set(entry.senderId, entry.senderEmail)
+        if (entry.senderPhone) phoneMap.set(entry.senderId, entry.senderPhone)
+      })
+      setSenderEmailMap(emailMap)
+      setSenderPhoneMap(phoneMap)
 
-    // Count docs per sender and track newest doc date
-    const NEW_THRESHOLD_MS = 48 * 60 * 60 * 1000 // 48 hours
-    const docCountBySender = new Map<string, number>()
-    const latestDocBySender = new Map<string, number>()
-    sharedEntries.forEach((entry) => {
-      docCountBySender.set(entry.senderId, (docCountBySender.get(entry.senderId) ?? 0) + 1)
-      const docTime = new Date(entry.doc.created_at).getTime()
-      const prev = latestDocBySender.get(entry.senderId) ?? 0
-      if (docTime > prev) latestDocBySender.set(entry.senderId, docTime)
-    })
+      // Build synthetic shared folders by sender
+      const senderMetaMap = new Map<
+        string,
+        { name: string; avatarUrl: string | null; role: string | null; specialty: string | null }
+      >()
+      sharedEntries.forEach((entry) => {
+        if (!senderMetaMap.has(entry.senderId)) {
+          senderMetaMap.set(entry.senderId, {
+            name: entry.senderName,
+            avatarUrl: entry.senderAvatarUrl,
+            role: entry.senderRole,
+            specialty: entry.senderSpecialty,
+          })
+        }
+      })
 
-    const syntheticSharedFolders: Folder[] = Array.from(senderMetaMap.entries()).map(
-      ([senderId, meta]) => ({
-        id: `shared-${senderId}`,
-        name: meta.name,
-        color: '#33C7BE',
-        created_at: new Date().toISOString(),
-        avatarUrl: meta.avatarUrl,
-        subtitle: meta.role === 'doctor' ? (meta.specialty ?? 'Doctor') : null,
-        docCount: docCountBySender.get(senderId) ?? 0,
-        hasNew: Date.now() - (latestDocBySender.get(senderId) ?? 0) < NEW_THRESHOLD_MS,
-      }),
-    )
+      // Count docs per sender and track newest doc date
+      const NEW_THRESHOLD_MS = 48 * 60 * 60 * 1000 // 48 hours
+      const docCountBySender = new Map<string, number>()
+      const latestDocBySender = new Map<string, number>()
+      sharedEntries.forEach((entry) => {
+        docCountBySender.set(entry.senderId, (docCountBySender.get(entry.senderId) ?? 0) + 1)
+        const docTime = new Date(entry.doc.created_at).getTime()
+        const prev = latestDocBySender.get(entry.senderId) ?? 0
+        if (docTime > prev) latestDocBySender.set(entry.senderId, docTime)
+      })
 
-    // For doctors at root level: also include consented patients, care-linked patients,
-    // and patients with fulfilled document requests
-    if (profile?.role === 'doctor' && !folderId) {
-      const [consentedPatients, requestPatientIds, careLinksRes] = await Promise.all([
-        getDoctorConsentRequests(user.id),
-        getPatientsWithFulfilledRequests(),
-        supabase
-          .from('care_links')
-          .select(
-            'patient_id, patient:profiles!care_links_patient_id_fkey(id, full_name, avatar_url, email)',
-          )
-          .eq('doctor_id', user.id)
-          .eq('status', 'active'),
-      ])
-      const existingIds = new Set(syntheticSharedFolders.map((f) => f.id))
+      const syntheticSharedFolders: Folder[] = Array.from(senderMetaMap.entries()).map(
+        ([senderId, meta]) => ({
+          id: `shared-${senderId}`,
+          name: meta.name,
+          color: '#33C7BE',
+          created_at: new Date().toISOString(),
+          avatarUrl: meta.avatarUrl,
+          subtitle: meta.role === 'doctor' ? (meta.specialty ?? 'Doctor') : null,
+          docCount: docCountBySender.get(senderId) ?? 0,
+          hasNew: Date.now() - (latestDocBySender.get(senderId) ?? 0) < NEW_THRESHOLD_MS,
+        }),
+      )
 
-      consentedPatients
-        .filter((c) => c.status === 'accepted' && c.patient?.id)
-        .forEach((c) => {
-          const fid = `shared-${c.patient!.id}`
+      // For doctors at root level: also include consented patients, care-linked patients,
+      // and patients with fulfilled document requests
+      if (profile?.role === 'doctor' && !folderId) {
+        const [consentedPatients, requestPatientIds, careLinksRes] = await Promise.all([
+          getDoctorConsentRequests(user.id),
+          getPatientsWithFulfilledRequests(),
+          supabase
+            .from('care_links')
+            .select(
+              'patient_id, patient:profiles!care_links_patient_id_fkey(id, full_name, avatar_url, email)',
+            )
+            .eq('doctor_id', user.id)
+            .eq('status', 'active'),
+        ])
+        const existingIds = new Set(syntheticSharedFolders.map((f) => f.id))
+
+        consentedPatients
+          .filter((c) => c.status === 'accepted' && c.patient?.id)
+          .forEach((c) => {
+            const fid = `shared-${c.patient!.id}`
+            if (!existingIds.has(fid)) {
+              existingIds.add(fid)
+              syntheticSharedFolders.push({
+                id: fid,
+                name: c.patient!.full_name || c.patient!.email || 'Paciente',
+                color: '#33C7BE',
+                created_at: new Date().toISOString(),
+                avatarUrl: c.patient!.avatar_url ?? null,
+                subtitle: null,
+                docCount: 0,
+                hasNew: false,
+              })
+            }
+          })
+
+        // Add care-linked patients (auto-linked when patient shares a document)
+        const careLinkedPatients = (careLinksRes.data || []) as Array<{
+          patient_id: string
+          patient: {
+            id: string
+            full_name: string | null
+            avatar_url: string | null
+            email: string | null
+          } | null
+        }>
+        careLinkedPatients.forEach((link) => {
+          const pid = link.patient_id
+          const fid = `shared-${pid}`
           if (!existingIds.has(fid)) {
             existingIds.add(fid)
             syntheticSharedFolders.push({
               id: fid,
-              name: c.patient!.full_name || c.patient!.email || 'Paciente',
+              name: link.patient?.full_name || link.patient?.email || 'Paciente',
               color: '#33C7BE',
               created_at: new Date().toISOString(),
-              avatarUrl: c.patient!.avatar_url ?? null,
+              avatarUrl: link.patient?.avatar_url ?? null,
+              subtitle: null,
+              docCount: docCountBySender.get(pid) ?? 0,
+              hasNew: false,
+            })
+          }
+        })
+
+        // Add patients who sent docs via document_request but may not have a consent record
+        requestPatientIds.forEach((pid) => {
+          const fid = `shared-${pid}`
+          if (!existingIds.has(fid)) {
+            existingIds.add(fid)
+            syntheticSharedFolders.push({
+              id: fid,
+              name: 'Paciente',
+              color: '#33C7BE',
+              created_at: new Date().toISOString(),
+              avatarUrl: null,
               subtitle: null,
               docCount: 0,
               hasNew: false,
             })
           }
         })
-
-      // Add care-linked patients (auto-linked when patient shares a document)
-      const careLinkedPatients = (careLinksRes.data || []) as Array<{
-        patient_id: string
-        patient: {
-          id: string
-          full_name: string | null
-          avatar_url: string | null
-          email: string | null
-        } | null
-      }>
-      careLinkedPatients.forEach((link) => {
-        const pid = link.patient_id
-        const fid = `shared-${pid}`
-        if (!existingIds.has(fid)) {
-          existingIds.add(fid)
-          syntheticSharedFolders.push({
-            id: fid,
-            name: link.patient?.full_name || link.patient?.email || 'Paciente',
-            color: '#33C7BE',
-            created_at: new Date().toISOString(),
-            avatarUrl: link.patient?.avatar_url ?? null,
-            subtitle: null,
-            docCount: docCountBySender.get(pid) ?? 0,
-            hasNew: false,
-          })
-        }
-      })
-
-      // Add patients who sent docs via document_request but may not have a consent record
-      requestPatientIds.forEach((pid) => {
-        const fid = `shared-${pid}`
-        if (!existingIds.has(fid)) {
-          existingIds.add(fid)
-          syntheticSharedFolders.push({
-            id: fid,
-            name: 'Paciente',
-            color: '#33C7BE',
-            created_at: new Date().toISOString(),
-            avatarUrl: null,
-            subtitle: null,
-            docCount: 0,
-            hasNew: false,
-          })
-        }
-      })
-    }
-
-    // Remove legacy imported shared folders from DB to avoid clutter
-    const ownFoldersInitial = await getFolders(user.id, isSharedFolder ? null : folderId)
-    const legacyShared = ownFoldersInitial.filter((f) =>
-      f.name.toLowerCase().startsWith('compartido de '),
-    )
-    if (legacyShared.length) {
-      await Promise.all(legacyShared.map((f) => deleteFolder(f.id, user.id)))
-      // If current folder was deleted, reset to root
-      if (legacyShared.some((f) => f.id === folderId)) {
-        setCurrentFolder({ id: null, name: 'Mis Documentos' })
-        setNavHistory([])
       }
-    }
-    const ownFolders = legacyShared.length ? await getFolders(user.id, folderId) : ownFoldersInitial
-    const filteredOwnFolders = ownFolders.filter(
-      (f) => !f.name.toLowerCase().startsWith('compartido de '),
-    )
 
-    const targetSenderId = isSharedFolder ? (folderId?.replace('shared-', '') ?? null) : null
-
-    // For shared patient folder: merge patient→doctor AND doctor→patient shares
-    let docsForView: Document[]
-    if (isSharedFolder && targetSenderId) {
-      const patientToDoctorDocs = sharedEntries
-        .filter((e) => e.senderId === targetSenderId)
-        .map((e) => e.doc)
-
-      const outbound = await getDocumentsSharedByMeWith(user.id, targetSenderId)
-      const doctorToPatientDocs = (outbound as SharedEntry[])
-        .map((s) => s.document as Document)
-        .filter(Boolean)
-
-      // Also include documents uploaded via fulfilled document_requests (WhatsApp / token link)
-      const requestDocs =
-        profile?.role === 'doctor' ? await getFulfilledRequestDocsByPatient(targetSenderId) : []
-
-      // Merge and deduplicate by doc ID
-      const merged = new Map<string, Document>()
-      patientToDoctorDocs.forEach((d) => merged.set(d.id, d)) // explicitly shared patient→doctor
-      doctorToPatientDocs.forEach((d) => merged.set(d.id, d)) // doctor→patient shares
-      requestDocs.forEach((d: Document) => merged.set(d.id, d)) // fulfilled document_requests
-      docsForView = Array.from(merged.values())
-    } else {
-      docsForView = cleanedOwn
-    }
-
-    // Dedup folders by id and hide synthetic shared folders when inside any folder
-    const finalFolders = isSharedFolder
-      ? [] // Inside a patient's shared folder: no subfolders
-      : folderId
-        ? filteredOwnFolders
-        : [...filteredOwnFolders, ...syntheticSharedFolders]
-    const dedupFolders = finalFolders.filter(
-      (f, idx, arr) => arr.findIndex((x) => x.id === f.id) === idx,
-    )
-
-    setSharedDocs(sharedEntries.map((e) => ({ doc: e.doc, senderId: e.senderId })))
-    setSharedFolders(syntheticSharedFolders)
-    setDocuments(docsForView)
-    setFolders(dedupFolders)
-    setLoading(false)
-
-    // Update folder name once data is loaded (was set to '…' during init from URL param)
-    if (!initialFolderApplied.current && folderId) {
-      const paramFolder = searchParams.get('folder')
-      if (paramFolder && folderId === paramFolder) {
-        initialFolderApplied.current = true
-        const match = syntheticSharedFolders.find((f) => f.id === paramFolder)
-        if (match) {
-          setCurrentFolder({ id: match.id, name: match.name })
+      // Remove legacy imported shared folders from DB to avoid clutter
+      const ownFoldersInitial = await getFolders(user.id, isSharedFolder ? null : folderId)
+      const legacyShared = ownFoldersInitial.filter((f) =>
+        f.name.toLowerCase().startsWith('compartido de '),
+      )
+      if (legacyShared.length) {
+        await Promise.all(legacyShared.map((f) => deleteFolder(f.id, user.id)))
+        // If current folder was deleted, reset to root
+        if (legacyShared.some((f) => f.id === folderId)) {
+          setCurrentFolder({ id: null, name: 'Mis Documentos' })
+          setNavHistory([])
         }
-        setSearchParams({}, { replace: true })
       }
+      const ownFolders = legacyShared.length
+        ? await getFolders(user.id, folderId)
+        : ownFoldersInitial
+      const filteredOwnFolders = ownFolders.filter(
+        (f) => !f.name.toLowerCase().startsWith('compartido de '),
+      )
+
+      const targetSenderId = isSharedFolder ? (folderId?.replace('shared-', '') ?? null) : null
+
+      // For shared patient folder: merge patient→doctor AND doctor→patient shares
+      let docsForView: Document[]
+      if (isSharedFolder && targetSenderId) {
+        const patientToDoctorDocs = sharedEntries
+          .filter((e) => e.senderId === targetSenderId)
+          .map((e) => e.doc)
+
+        const outbound = await getDocumentsSharedByMeWith(user.id, targetSenderId)
+        const doctorToPatientDocs = (outbound as SharedEntry[])
+          .map((s) => s.document as Document)
+          .filter(Boolean)
+
+        // Also include documents uploaded via fulfilled document_requests (WhatsApp / token link)
+        const requestDocs =
+          profile?.role === 'doctor' ? await getFulfilledRequestDocsByPatient(targetSenderId) : []
+
+        // Merge and deduplicate by doc ID
+        const merged = new Map<string, Document>()
+        patientToDoctorDocs.forEach((d) => merged.set(d.id, d)) // explicitly shared patient→doctor
+        doctorToPatientDocs.forEach((d) => merged.set(d.id, d)) // doctor→patient shares
+        requestDocs.forEach((d: Document) => merged.set(d.id, d)) // fulfilled document_requests
+        docsForView = Array.from(merged.values())
+      } else {
+        docsForView = cleanedOwn
+      }
+
+      // Dedup folders by id and hide synthetic shared folders when inside any folder
+      const finalFolders = isSharedFolder
+        ? [] // Inside a patient's shared folder: no subfolders
+        : folderId
+          ? filteredOwnFolders
+          : [...filteredOwnFolders, ...syntheticSharedFolders]
+      const dedupFolders = finalFolders.filter(
+        (f, idx, arr) => arr.findIndex((x) => x.id === f.id) === idx,
+      )
+
+      setSharedDocs(sharedEntries.map((e) => ({ doc: e.doc, senderId: e.senderId })))
+      setSharedFolders(syntheticSharedFolders)
+      setDocuments(docsForView)
+      setFolders(dedupFolders)
+      // Update folder name once data is loaded (was set to '…' during init from URL param)
+      if (!initialFolderApplied.current && folderId) {
+        const paramFolder = searchParams.get('folder')
+        if (paramFolder && folderId === paramFolder) {
+          initialFolderApplied.current = true
+          const match = syntheticSharedFolders.find((f) => f.id === paramFolder)
+          if (match) {
+            setCurrentFolder({ id: match.id, name: match.name })
+          }
+          setSearchParams({}, { replace: true })
+        }
+      }
+    } catch (err) {
+      logger.error('Documentos.loadContent', err)
+      showToast('Error al cargar documentos', 'error')
+    } finally {
+      setLoading(false)
     }
   }
 

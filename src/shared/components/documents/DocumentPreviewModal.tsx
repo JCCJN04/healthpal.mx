@@ -1,12 +1,29 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  X, Download, Share2, ExternalLink, ArrowUpRight,
-  Loader2, Link2, AlertTriangle, RefreshCw,
-  Activity, Pill, FileText, Microscope, ShieldCheck, FolderOpen,
+  X,
+  Download,
+  Share2,
+  ExternalLink,
+  ArrowUpRight,
+  Loader2,
+  Link2,
+  AlertTriangle,
+  RefreshCw,
+  Activity,
+  Pill,
+  FileText,
+  Microscope,
+  ShieldCheck,
+  FolderOpen,
 } from 'lucide-react'
 import { DocumentViewer } from './DocumentViewer'
-import { getDocumentDownloadUrl, getDecryptedDocumentUrl, downloadDocumentFile, downloadDocumentFileDecrypted } from '@/shared/lib/queries/documents'
+import {
+  getDocumentDownloadUrl,
+  getDecryptedDocumentUrl,
+  downloadDocumentFile,
+  downloadDocumentFileDecrypted,
+} from '@/shared/lib/queries/documents'
 import { showToast } from '@/shared/components/ui/Toast'
 import { useCrypto } from '@/context/CryptoContext'
 import { auditLog } from '@/shared/lib/audit'
@@ -22,32 +39,93 @@ interface DocumentPreviewModalProps {
 }
 
 // ── Category config (mirrors DocumentCard) ─────────────────────────────────
-const CATEGORY_CONFIG: Record<DocCategory, { label: string; gradient: string; badge: string; icon: React.ReactNode }> = {
-  radiology:    { label: 'Radiología',   gradient: 'from-sky-400 to-blue-500',      badge: 'bg-sky-100 text-sky-700',       icon: <Activity className="w-4 h-4" /> },
-  prescription: { label: 'Receta',       gradient: 'from-violet-400 to-purple-500', badge: 'bg-violet-100 text-violet-700', icon: <Pill className="w-4 h-4" /> },
-  history:      { label: 'Historial',    gradient: 'from-amber-400 to-orange-500',  badge: 'bg-amber-100 text-amber-700',   icon: <FileText className="w-4 h-4" /> },
-  lab:          { label: 'Laboratorio',  gradient: 'from-emerald-400 to-green-500', badge: 'bg-emerald-100 text-emerald-700', icon: <Microscope className="w-4 h-4" /> },
-  insurance:    { label: 'Seguro',       gradient: 'from-rose-400 to-pink-500',     badge: 'bg-rose-100 text-rose-700',     icon: <ShieldCheck className="w-4 h-4" /> },
-  consultation: { label: 'Consulta',     gradient: 'from-sky-400 to-cyan-500',     badge: 'bg-sky-100 text-sky-700',       icon: <Activity className="w-4 h-4" /> },
-  surgery:      { label: 'Cirugía',      gradient: 'from-red-400 to-rose-500',     badge: 'bg-red-100 text-red-700',       icon: <Activity className="w-4 h-4" /> },
-  vaccine:      { label: 'Vacunas',      gradient: 'from-lime-400 to-green-500',   badge: 'bg-lime-100 text-lime-700',     icon: <ShieldCheck className="w-4 h-4" /> },
-  referral:     { label: 'Referencia',   gradient: 'from-violet-400 to-indigo-500', badge: 'bg-violet-100 text-violet-700', icon: <FolderOpen className="w-4 h-4" /> },
-  other:        { label: 'Otro',         gradient: 'from-slate-400 to-gray-500',    badge: 'bg-gray-100 text-gray-600',     icon: <FolderOpen className="w-4 h-4" /> },
+const CATEGORY_CONFIG: Record<
+  DocCategory,
+  { label: string; gradient: string; badge: string; icon: React.ReactNode }
+> = {
+  radiology: {
+    label: 'Radiología',
+    gradient: 'from-sky-400 to-blue-500',
+    badge: 'bg-sky-100 text-sky-700',
+    icon: <Activity className="w-4 h-4" />,
+  },
+  prescription: {
+    label: 'Receta',
+    gradient: 'from-violet-400 to-purple-500',
+    badge: 'bg-violet-100 text-violet-700',
+    icon: <Pill className="w-4 h-4" />,
+  },
+  history: {
+    label: 'Historial',
+    gradient: 'from-amber-400 to-orange-500',
+    badge: 'bg-amber-100 text-amber-700',
+    icon: <FileText className="w-4 h-4" />,
+  },
+  lab: {
+    label: 'Laboratorio',
+    gradient: 'from-emerald-400 to-green-500',
+    badge: 'bg-emerald-100 text-emerald-700',
+    icon: <Microscope className="w-4 h-4" />,
+  },
+  insurance: {
+    label: 'Seguro',
+    gradient: 'from-rose-400 to-pink-500',
+    badge: 'bg-rose-100 text-rose-700',
+    icon: <ShieldCheck className="w-4 h-4" />,
+  },
+  consultation: {
+    label: 'Consulta',
+    gradient: 'from-sky-400 to-cyan-500',
+    badge: 'bg-sky-100 text-sky-700',
+    icon: <Activity className="w-4 h-4" />,
+  },
+  surgery: {
+    label: 'Cirugía',
+    gradient: 'from-red-400 to-rose-500',
+    badge: 'bg-red-100 text-red-700',
+    icon: <Activity className="w-4 h-4" />,
+  },
+  vaccine: {
+    label: 'Vacunas',
+    gradient: 'from-lime-400 to-green-500',
+    badge: 'bg-lime-100 text-lime-700',
+    icon: <ShieldCheck className="w-4 h-4" />,
+  },
+  referral: {
+    label: 'Referencia',
+    gradient: 'from-violet-400 to-indigo-500',
+    badge: 'bg-violet-100 text-violet-700',
+    icon: <FolderOpen className="w-4 h-4" />,
+  },
+  other: {
+    label: 'Otro',
+    gradient: 'from-slate-400 to-gray-500',
+    badge: 'bg-gray-100 text-gray-600',
+    icon: <FolderOpen className="w-4 h-4" />,
+  },
 }
 
-function getFileType(mimeType: string | null, title?: string | null): 'pdf' | 'image' | 'video' | 'audio' | 'office' | 'text' | 'dicom' | 'other' {
+function getFileType(
+  mimeType: string | null,
+  title?: string | null,
+): 'pdf' | 'image' | 'video' | 'audio' | 'office' | 'text' | 'dicom' | 'other' {
   if (!mimeType) return 'other'
   if (mimeType.includes('pdf')) return 'pdf'
   if (mimeType === 'application/dicom') return 'dicom'
-  if (mimeType === 'application/octet-stream' && title?.toLowerCase().endsWith('.dcm')) return 'dicom'
+  if (mimeType === 'application/octet-stream' && title?.toLowerCase().endsWith('.dcm'))
+    return 'dicom'
   if (mimeType.startsWith('image/')) return 'image'
   if (mimeType.startsWith('video/')) return 'video'
   if (mimeType.startsWith('audio/')) return 'audio'
   if (
-    mimeType.includes('msword') || mimeType.includes('wordprocessingml') ||
-    mimeType.includes('ms-excel') || mimeType.includes('spreadsheetml') ||
-    mimeType.includes('ms-powerpoint') || mimeType.includes('presentationml')
-  ) return 'office'
+    mimeType.includes('msword') ||
+    mimeType.includes('wordprocessingml') ||
+    mimeType.includes('ms-excel') ||
+    mimeType.includes('spreadsheetml') ||
+    mimeType.includes('ms-powerpoint') ||
+    mimeType.includes('presentationml')
+  )
+    return 'office'
   if (mimeType.startsWith('text/') || mimeType.includes('csv')) return 'text'
   return 'other'
 }
@@ -68,17 +146,24 @@ export function DocumentPreviewModal({ document, onClose, onShare }: DocumentPre
     }
     setUrlLoading(true)
     setLoadError(false)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const isEncrypted = (document as any).is_encrypted === true
-    const url = isEncrypted && privateKey
-      ? await getDecryptedDocumentUrl(document, privateKey)
-      : await getDocumentDownloadUrl(document)
-    if (url) {
-      setFileUrl(url)
-    } else {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const isEncrypted = (document as any).is_encrypted === true
+      const url =
+        isEncrypted && privateKey
+          ? await getDecryptedDocumentUrl(document, privateKey)
+          : await getDocumentDownloadUrl(document)
+      if (url) {
+        setFileUrl(url)
+      } else {
+        setLoadError(true)
+      }
+    } catch (err) {
+      console.error('DocumentPreviewModal:fetchUrl', err)
       setLoadError(true)
+    } finally {
+      setUrlLoading(false)
     }
-    setUrlLoading(false)
   }, [document, privateKey])
 
   useEffect(() => {
@@ -91,7 +176,9 @@ export function DocumentPreviewModal({ document, onClose, onShare }: DocumentPre
 
   // Close on Escape
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [onClose])
@@ -99,7 +186,9 @@ export function DocumentPreviewModal({ document, onClose, onShare }: DocumentPre
   // Prevent body scroll while open
   useEffect(() => {
     document && (window.document.body.style.overflow = 'hidden')
-    return () => { window.document.body.style.overflow = '' }
+    return () => {
+      window.document.body.style.overflow = ''
+    }
   }, [document])
 
   if (!document) return null
@@ -110,7 +199,8 @@ export function DocumentPreviewModal({ document, onClose, onShare }: DocumentPre
   const isEncrypted = (document as any).is_encrypted === true
   // For encrypted docs with unknown mime_type, try as 'image' (decrypted blob renders directly; DocumentViewer handles onError)
   const rawFileType = getFileType(document.mime_type, document.title)
-  const fileType = rawFileType === 'other' && isEncrypted && !document.mime_type ? 'image' : rawFileType
+  const fileType =
+    rawFileType === 'other' && isEncrypted && !document.mime_type ? 'image' : rawFileType
 
   const handleDownload = async () => {
     if (isExternal) {
@@ -120,18 +210,30 @@ export function DocumentPreviewModal({ document, onClose, onShare }: DocumentPre
       return
     }
     setDownloading(true)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const isEncrypted = (document as any).is_encrypted === true
-    const result = isEncrypted && privateKey
-      ? await downloadDocumentFileDecrypted(document, document.id, document.mime_type ?? '', document.title, privateKey)
-      : await downloadDocumentFile(document, document.title)
-    if (result.success) {
-      // NOM-024 §6.6: log file download
-      auditLog.downloadDocument(document.id, document.patient_id ?? document.owner_id)
-    } else {
-      showToast(result.error || 'No se pudo descargar', 'error')
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const isEncrypted = (document as any).is_encrypted === true
+      const result =
+        isEncrypted && privateKey
+          ? await downloadDocumentFileDecrypted(
+              document,
+              document.id,
+              document.mime_type ?? '',
+              document.title,
+              privateKey,
+            )
+          : await downloadDocumentFile(document, document.title)
+      if (result.success) {
+        // NOM-024 §6.6: log file download
+        auditLog.downloadDocument(document.id, document.patient_id ?? document.owner_id)
+      } else {
+        showToast(result.error || 'No se pudo descargar', 'error')
+      }
+    } catch (err: unknown) {
+      showToast(err?.message || 'Error al descargar documento', 'error')
+    } finally {
+      setDownloading(false)
     }
-    setDownloading(false)
   }
 
   const handleViewDetail = () => {
@@ -147,13 +249,15 @@ export function DocumentPreviewModal({ document, onClose, onShare }: DocumentPre
       {/* Modal panel */}
       <div
         className="relative bg-white flex flex-col w-full h-full sm:h-auto sm:max-h-[95vh] sm:w-[92vw] sm:max-w-4xl sm:m-auto sm:rounded-2xl sm:shadow-2xl overflow-hidden"
-        onClick={e => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* ── Header ────────────────────────────────────────── */}
         <div className={`h-1.5 w-full bg-gradient-to-r ${config.gradient} shrink-0`} />
         <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 shrink-0">
           {/* Category badge */}
-          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${config.badge} shrink-0`}>
+          <span
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${config.badge} shrink-0`}
+          >
             {config.icon}
             {config.label}
           </span>
@@ -260,10 +364,13 @@ export function DocumentPreviewModal({ document, onClose, onShare }: DocumentPre
             disabled={downloading}
             className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-primary text-white text-sm font-bold rounded-xl hover:bg-primary/90 disabled:opacity-60 transition-all"
           >
-            {downloading
-              ? <Loader2 className="w-4 h-4 animate-spin" />
-              : isExternal ? <ExternalLink className="w-4 h-4" /> : <Download className="w-4 h-4" />
-            }
+            {downloading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : isExternal ? (
+              <ExternalLink className="w-4 h-4" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
             {isExternal ? 'Abrir enlace' : 'Descargar'}
           </button>
           <button
