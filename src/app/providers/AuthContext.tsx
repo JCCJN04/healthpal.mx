@@ -24,8 +24,6 @@ export type { AuthContextType, Profile }
 
 // Inactivity timeout: 15 minutes
 const INACTIVITY_TIMEOUT = 15 * 60 * 1000
-// JWT refresh interval: 50 minutes (tokens expire in 60 minutes)
-const JWT_REFRESH_INTERVAL = 50 * 60 * 1000
 // localStorage key to persist the last-activity timestamp across device sleep/restart
 const LAST_ACTIVE_KEY = 'healthpal:session:last_active'
 
@@ -83,28 +81,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user])
 
-  // Refresh JWT token periodically
+  // Refresh JWT token periodically (Disabled: Supabase autoRefreshToken handles this internally)
   const setupJWTRefresh = useCallback(() => {
     if (jwtRefreshTimerRef.current) {
       clearInterval(jwtRefreshTimerRef.current)
     }
-
-    if (session) {
-      jwtRefreshTimerRef.current = setInterval(async () => {
-        try {
-          const { data, error } = await supabase.auth.refreshSession()
-          if (error) {
-            logger.error('refreshSession', error)
-            await signOut()
-          } else if (data.session) {
-            logger.debug('JWT token refreshed')
-          }
-        } catch (err) {
-          logger.error('jwtRefresh', err)
-        }
-      }, JWT_REFRESH_INTERVAL)
-    }
-  }, [session])
+    // We let supabase.auth handle the refresh automatically to prevent lock deadlocks
+  }, [])
 
   // Setup activity listeners for inactivity timeout
   useEffect(() => {
@@ -135,13 +118,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, resetInactivityTimer])
 
-  // Setup JWT refresh
+  // Setup initial refresh interval
   useEffect(() => {
     setupJWTRefresh()
 
+    const interval = jwtRefreshTimerRef.current
     return () => {
-      if (jwtRefreshTimerRef.current) {
-        clearInterval(jwtRefreshTimerRef.current)
+      if (interval) {
+        clearInterval(interval)
       }
     }
   }, [setupJWTRefresh])

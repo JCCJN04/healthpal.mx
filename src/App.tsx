@@ -23,6 +23,7 @@ import OnlyOnboarding from '@/features/auth/components/OnlyOnboarding'
 import { ToastContainer } from '@/shared/components/ui/Toast'
 
 // Lazy load all pages — reduces initial bundle for faster FCP
+const NotFound = lazy(() => import('@/features/shared/pages/NotFound'))
 const Landing = lazy(() => import('@/features/landing/Landing'))
 const Login = lazy(() => import('@/features/auth/pages/Login'))
 const ForgotPassword = lazy(() => import('@/features/auth/pages/ForgotPassword'))
@@ -511,6 +512,16 @@ function App() {
                         </RequireRole>
                       </RequireOnboarding>
                     </RequireAuth>
+                  }
+                />
+
+                {/* Fallback route for unmatched URLs */}
+                <Route
+                  path="*"
+                  element={
+                    <Suspense fallback={<PageLoader />}>
+                      <NotFound />
+                    </Suspense>
                   }
                 />
               </Routes>

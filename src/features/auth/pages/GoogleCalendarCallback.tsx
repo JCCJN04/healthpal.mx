@@ -89,7 +89,13 @@ export default function GoogleCalendarCallback() {
       // Get valid access token for Edge Function authorization
       let accessToken = savedAccessToken
       try {
-        const { data } = await supabase.auth.getSession()
+        // Wrap getSession in a 2-second timeout to prevent deadlocks in Supabase Auth lock mechanism
+        const { data } = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise<{ data: { session: null } }>((resolve) =>
+            setTimeout(() => resolve({ data: { session: null } }), 2000),
+          ),
+        ])
         if (data?.session?.access_token) {
           accessToken = data.session.access_token
         }
@@ -125,21 +131,21 @@ export default function GoogleCalendarCallback() {
           }),
           signal: abortController.signal,
         })
+
+        if (abortController.signal.aborted) {
+          throw new Error('Tiempo de espera agotado al conectar Google Calendar.')
+        }
+
+        const fnData = (await res.json().catch(() => null)) as {
+          success?: boolean
+          error?: string
+        } | null
+
+        if (!res.ok || !fnData?.success) {
+          throw new Error(fnData?.error ?? `Error del servidor al vincular cuenta (${res.status})`)
+        }
       } finally {
         clearTimeout(timeoutId)
-      }
-
-      if (abortController.signal.aborted) {
-        throw new Error('Tiempo de espera agotado al conectar Google Calendar.')
-      }
-
-      const fnData = (await res.json().catch(() => null)) as {
-        success?: boolean
-        error?: string
-      } | null
-
-      if (!res.ok || !fnData?.success) {
-        throw new Error(fnData?.error ?? `Error del servidor al vincular cuenta (${res.status})`)
       }
 
       setStatus('success')
