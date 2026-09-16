@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { X, Menu, ChevronLeft, ChevronRight, Star } from 'lucide-react'
 import Lenis from 'lenis'
+import AppLink from '@/shared/components/AppLink'
 
 /* ─────────────────────────────────────────────
    Lenis smooth scroll (same config as HT)
@@ -256,17 +257,17 @@ function Navbar() {
         </nav>
 
         <div className="hidden md:flex items-center gap-4">
-          <Link
+          <AppLink
             to="/login"
             className="text-[13px] font-medium text-white/60 hover:text-white transition-colors"
           >
             Iniciar sesión
-          </Link>
-          <Link to="/register">
+          </AppLink>
+          <AppLink to="/register">
             <button className="bg-[#0097a9] text-white text-[13px] font-semibold px-5 py-2 rounded-full hover:bg-[#007f89] transition-colors">
               Empieza gratis
             </button>
-          </Link>
+          </AppLink>
         </div>
 
         <button
@@ -301,16 +302,16 @@ function Navbar() {
             Seguridad
           </a>
           <div className="pt-4 flex gap-3">
-            <Link to="/login" className="flex-1">
+            <AppLink to="/login" className="flex-1">
               <button className="w-full border border-white/20 text-white text-sm py-2.5 rounded-full">
                 Iniciar sesión
               </button>
-            </Link>
-            <Link to="/register" className="flex-1">
+            </AppLink>
+            <AppLink to="/register" className="flex-1">
               <button className="w-full bg-[#0097a9] text-white text-sm font-semibold py-2.5 rounded-full">
                 Empieza gratis
               </button>
-            </Link>
+            </AppLink>
           </div>
         </div>
       </div>
@@ -392,17 +393,17 @@ function Hero() {
             transition: 'opacity 0.7s ease 1.9s, transform 0.7s cubic-bezier(0.16,1,0.3,1) 1.9s',
           }}
         >
-          <Link to="/register" className="w-full sm:w-auto">
+          <AppLink to="/register" className="w-full sm:w-auto">
             <button className="w-full sm:w-auto bg-[#0097a9] text-white text-[15px] font-semibold px-8 py-3.5 rounded-full hover:bg-[#007f89] transition-all hover:scale-105 active:scale-95">
               Crear cuenta gratis
             </button>
-          </Link>
-          <Link
+          </AppLink>
+          <AppLink
             to="/login"
             className="w-full sm:w-auto text-center text-white/50 text-[14px] font-medium hover:text-white transition-colors"
           >
             Iniciar sesión
-          </Link>
+          </AppLink>
         </div>
       </div>
     </section>
@@ -465,14 +466,14 @@ function SpeedSection() {
             <span style={{ color: '#101722' }}>al alcance de tu celular.</span>
           </h2>
 
-          <Link to="/register">
+          <AppLink to="/register">
             <button
               className="text-white text-[15px] font-semibold px-8 py-3.5 rounded-full hover:opacity-90 transition-all hover:scale-105 active:scale-95 mt-2 mb-16"
               style={{ backgroundColor: '#0097a9' }}
             >
               Ver cómo funciona
             </button>
-          </Link>
+          </AppLink>
         </div>
 
         {/* Mockup — stacked on mobile, side-by-side on md+ */}
@@ -982,14 +983,14 @@ function CTASection() {
         >
           Tu expediente digital. Sin tarjeta. Sin letra chica.
         </WordReveal>
-        <Link to="/register">
+        <AppLink to="/register">
           <button
             className="text-white text-[16px] font-semibold px-10 py-4 rounded-full hover:opacity-90 hover:scale-105 active:scale-95 transition-all"
             style={{ backgroundColor: '#0097a9' }}
           >
             Crear mi cuenta gratis →
           </button>
-        </Link>
+        </AppLink>
       </div>
     </section>
   )
