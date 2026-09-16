@@ -1,70 +1,86 @@
-import { useState, useEffect } from 'react';
-import { Edit2, Save, X, Mail, Phone, Calendar, User, MapPin, Loader2, CreditCard } from 'lucide-react';
-import { logger } from '@/shared/lib/logger';
-import { validateCurp, normalizeCurp, INEGI_STATES } from '@/shared/lib/curp';
+import { useState, useEffect } from 'react'
+import {
+  Edit2,
+  Save,
+  X,
+  Mail,
+  Phone,
+  Calendar,
+  User,
+  MapPin,
+  Loader2,
+  CreditCard,
+} from 'lucide-react'
+import { logger } from '@/shared/lib/logger'
+import { validateCurp, normalizeCurp, INEGI_STATES } from '@/shared/lib/curp'
 
 interface PersonalInfo {
-  fullName: string;
-  birthDate: string;
-  email: string;
-  phone: string;
-  bio: string;
-  address: string;
-  primerApellido: string;
-  segundoApellido: string;
-  estadoNacimiento: string;
-  curp: string;
+  fullName: string
+  birthDate: string
+  email: string
+  phone: string
+  bio: string
+  address: string
+  primerApellido: string
+  segundoApellido: string
+  estadoNacimiento: string
+  curp: string
 }
 
 interface PersonalInfoCardProps {
-  initialData: PersonalInfo;
-  onSave: (data: PersonalInfo) => Promise<void>;
-  isLoading?: boolean;
-  saveError?: string | null;
+  initialData: PersonalInfo
+  onSave: (data: PersonalInfo) => Promise<void>
+  isLoading?: boolean
+  saveError?: string | null
 }
 
-const PersonalInfoCard = ({ initialData, onSave, isLoading = false, saveError = null }: PersonalInfoCardProps) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState(initialData);
-  const [errors, setErrors] = useState<Partial<Record<keyof PersonalInfo, string>>>({});
-  const [isSaving, setIsSaving] = useState(false);
+const PersonalInfoCard = ({
+  initialData,
+  onSave,
+  isLoading = false,
+  saveError = null,
+}: PersonalInfoCardProps) => {
+  const [isEditing, setIsEditing] = useState(false)
+  const [formData, setFormData] = useState(initialData)
+  const [errors, setErrors] = useState<Partial<Record<keyof PersonalInfo, string>>>({})
+  const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
-    setFormData(initialData);
-  }, [initialData]);
+    setFormData(initialData)
+  }, [initialData])
 
   const calculateAge = (birthDate: string): number => {
-    if (!birthDate) return 0;
-    const today = new Date();
-    const [year, month, day] = birthDate.split('-').map(Number);
-    const birth = new Date(year, month - 1, day);
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) age--;
-    return age;
-  };
+    if (!birthDate) return 0
+    const today = new Date()
+    const [year, month, day] = birthDate.split('-').map(Number)
+    const birth = new Date(year, month - 1, day)
+    let age = today.getFullYear() - birth.getFullYear()
+    const monthDiff = today.getMonth() - birth.getMonth()
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) age--
+    return age
+  }
 
   const formatDate = (dateString: string): string => {
-    if (!dateString) return '';
-    const [year, month, day] = dateString.split('-');
-    return `${day}/${month}/${year}`;
-  };
+    if (!dateString) return ''
+    const [year, month, day] = dateString.split('-')
+    return `${day}/${month}/${year}`
+  }
 
   const validateForm = (): boolean => {
-    const newErrors: Partial<Record<keyof PersonalInfo, string>> = {};
+    const newErrors: Partial<Record<keyof PersonalInfo, string>> = {}
 
-    if (!formData.fullName.trim()) newErrors.fullName = 'El nombre es requerido';
+    if (!formData.fullName.trim()) newErrors.fullName = 'El nombre es requerido'
     if (!formData.email.trim()) {
-      newErrors.email = 'El correo es requerido';
+      newErrors.email = 'El correo es requerido'
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Correo electrónico inválido';
+      newErrors.email = 'Correo electrónico inválido'
     }
     if (!formData.phone.trim()) {
-      newErrors.phone = 'El teléfono es requerido';
+      newErrors.phone = 'El teléfono es requerido'
     } else if (!/^\+?[\d\s-]+$/.test(formData.phone)) {
-      newErrors.phone = 'Teléfono inválido';
+      newErrors.phone = 'Teléfono inválido'
     }
-    if (!formData.birthDate) newErrors.birthDate = 'La fecha de nacimiento es requerida';
+    if (!formData.birthDate) newErrors.birthDate = 'La fecha de nacimiento es requerida'
 
     // CURP optional but validated if provided
     if (formData.curp.trim()) {
@@ -72,42 +88,42 @@ const PersonalInfoCard = ({ initialData, onSave, isLoading = false, saveError = 
       if (!curpResult.valid) newErrors.curp = curpResult.error
     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
 
   const handleSave = async () => {
     if (validateForm()) {
-      setIsSaving(true);
+      setIsSaving(true)
       try {
         const normalized = {
           ...formData,
           curp: normalizeCurp(formData.curp) ?? '',
         }
-        await onSave(normalized);
-        setIsEditing(false);
+        await onSave(normalized)
+        setIsEditing(false)
       } catch (error) {
-        logger.error('PersonalInfoCard.save', error);
+        logger.error('PersonalInfoCard.save', error)
       } finally {
-        setIsSaving(false);
+        setIsSaving(false)
       }
     }
-  };
+  }
 
   const handleCancel = () => {
-    setFormData(initialData);
-    setErrors({});
-    setIsEditing(false);
-  };
+    setFormData(initialData)
+    setErrors({})
+    setIsEditing(false)
+  }
 
   const handleChange = (field: keyof PersonalInfo, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
-  };
+    setFormData((prev) => ({ ...prev, [field]: value }))
+    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }))
+  }
 
-  const age = calculateAge(formData.birthDate);
+  const age = calculateAge(formData.birthDate)
 
-  const estadoLabel = INEGI_STATES.find(s => s.code === formData.estadoNacimiento)?.name ?? '';
+  const estadoLabel = INEGI_STATES.find((s) => s.code === formData.estadoNacimiento)?.name ?? ''
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -140,6 +156,32 @@ const PersonalInfoCard = ({ initialData, onSave, isLoading = false, saveError = 
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Full Name */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                Nombre(s)
+              </label>
+              {isEditing ? (
+                <div>
+                  <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus-within:border-[#33C7BE] focus-within:bg-white transition-colors">
+                    <User className="w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      value={formData.fullName}
+                      onChange={(e) => handleChange('fullName', e.target.value)}
+                      className="flex-1 bg-transparent outline-none text-gray-900"
+                      placeholder="Nombre(s)"
+                    />
+                  </div>
+                  {errors.fullName && (
+                    <p className="text-xs text-red-600 mt-1">{errors.fullName}</p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-base font-semibold text-gray-900">{formData.fullName}</p>
+              )}
+            </div>
+
             {/* Primer apellido */}
             <div>
               <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
@@ -158,7 +200,9 @@ const PersonalInfoCard = ({ initialData, onSave, isLoading = false, saveError = 
                 </div>
               ) : (
                 <p className="text-base font-semibold text-gray-900">
-                  {formData.primerApellido || <span className="text-gray-400 font-normal italic">No especificado</span>}
+                  {formData.primerApellido || (
+                    <span className="text-gray-400 font-normal italic">No especificado</span>
+                  )}
                 </p>
               )}
             </div>
@@ -181,32 +225,10 @@ const PersonalInfoCard = ({ initialData, onSave, isLoading = false, saveError = 
                 </div>
               ) : (
                 <p className="text-base font-semibold text-gray-900">
-                  {formData.segundoApellido || <span className="text-gray-400 font-normal italic">No especificado</span>}
+                  {formData.segundoApellido || (
+                    <span className="text-gray-400 font-normal italic">No especificado</span>
+                  )}
                 </p>
-              )}
-            </div>
-
-            {/* Full Name */}
-            <div>
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
-                Nombre(s)
-              </label>
-              {isEditing ? (
-                <div>
-                  <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus-within:border-[#33C7BE] focus-within:bg-white transition-colors">
-                    <User className="w-4 h-4 text-gray-400" />
-                    <input
-                      type="text"
-                      value={formData.fullName}
-                      onChange={(e) => handleChange('fullName', e.target.value)}
-                      className="flex-1 bg-transparent outline-none text-gray-900"
-                      placeholder="Nombre(s)"
-                    />
-                  </div>
-                  {errors.fullName && <p className="text-xs text-red-600 mt-1">{errors.fullName}</p>}
-                </div>
-              ) : (
-                <p className="text-base font-semibold text-gray-900">{formData.fullName}</p>
               )}
             </div>
 
@@ -226,10 +248,14 @@ const PersonalInfoCard = ({ initialData, onSave, isLoading = false, saveError = 
                       className="flex-1 bg-transparent outline-none text-gray-900"
                     />
                   </div>
-                  {errors.birthDate && <p className="text-xs text-red-600 mt-1">{errors.birthDate}</p>}
+                  {errors.birthDate && (
+                    <p className="text-xs text-red-600 mt-1">{errors.birthDate}</p>
+                  )}
                 </div>
               ) : (
-                <p className="text-base font-semibold text-gray-900">{formatDate(formData.birthDate)}</p>
+                <p className="text-base font-semibold text-gray-900">
+                  {formatDate(formData.birthDate)}
+                </p>
               )}
             </div>
 
@@ -253,13 +279,17 @@ const PersonalInfoCard = ({ initialData, onSave, isLoading = false, saveError = 
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:border-[#33C7BE] focus:bg-white transition-colors outline-none text-gray-900 appearance-none"
                 >
                   <option value="">Selecciona un estado</option>
-                  {INEGI_STATES.map(s => (
-                    <option key={s.code} value={s.code}>{s.name}</option>
+                  {INEGI_STATES.map((s) => (
+                    <option key={s.code} value={s.code}>
+                      {s.name}
+                    </option>
                   ))}
                 </select>
               ) : (
                 <p className="text-base font-semibold text-gray-900">
-                  {estadoLabel || <span className="text-gray-400 font-normal italic">No especificado</span>}
+                  {estadoLabel || (
+                    <span className="text-gray-400 font-normal italic">No especificado</span>
+                  )}
                 </p>
               )}
             </div>
@@ -283,11 +313,17 @@ const PersonalInfoCard = ({ initialData, onSave, isLoading = false, saveError = 
                     />
                   </div>
                   {errors.curp && <p className="text-xs text-red-600 mt-1">{errors.curp}</p>}
-                  <p className="text-xs text-gray-400 mt-1">Opcional. Puedes consultarla en renapo.gob.mx</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Opcional. Puedes consultarla en renapo.gob.mx
+                  </p>
                 </div>
               ) : (
                 <p className="text-base font-semibold text-gray-900 font-mono tracking-wider">
-                  {formData.curp || <span className="text-gray-400 font-normal font-sans tracking-normal italic">No registrada</span>}
+                  {formData.curp || (
+                    <span className="text-gray-400 font-normal font-sans tracking-normal italic">
+                      No registrada
+                    </span>
+                  )}
                 </p>
               )}
             </div>
@@ -358,7 +394,9 @@ const PersonalInfoCard = ({ initialData, onSave, isLoading = false, saveError = 
                 </div>
               ) : (
                 <p className="text-base font-semibold text-gray-900">
-                  {formData.address || <span className="text-gray-400 font-normal italic">No especificada</span>}
+                  {formData.address || (
+                    <span className="text-gray-400 font-normal italic">No especificada</span>
+                  )}
                 </p>
               )}
             </div>
@@ -401,16 +439,22 @@ const PersonalInfoCard = ({ initialData, onSave, isLoading = false, saveError = 
               className="px-5 py-2.5 bg-[#33C7BE] text-white text-sm font-semibold rounded-lg hover:bg-teal-600 transition-colors flex items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSaving ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /><span>Guardando...</span></>
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Guardando...</span>
+                </>
               ) : (
-                <><Save className="w-4 h-4" /><span>Guardar cambios</span></>
+                <>
+                  <Save className="w-4 h-4" />
+                  <span>Guardar cambios</span>
+                </>
               )}
             </button>
           </div>
         )}
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default PersonalInfoCard;
+export default PersonalInfoCard

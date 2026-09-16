@@ -32,10 +32,22 @@ export default function OnboardingBasic() {
   const loadProfile = async () => {
     try {
       const profile = await getMyProfile()
+      let firstName = profile.full_name || ''
+      if (profile.primer_apellido) {
+        const apellidos = [profile.primer_apellido, profile.segundo_apellido]
+          .filter(Boolean)
+          .join(' ')
+        if (firstName.endsWith(apellidos)) {
+          firstName = firstName.slice(0, -apellidos.length).trim()
+        } else if (firstName.startsWith(apellidos)) {
+          firstName = firstName.slice(apellidos.length).trim()
+        }
+      }
+
       setFormData({
         primer_apellido: profile.primer_apellido || '',
         segundo_apellido: profile.segundo_apellido || '',
-        full_name: profile.full_name || '',
+        full_name: firstName,
         sex: profile.sex || '',
         birthdate: profile.birthdate || '',
         curp: profile.curp || '',
@@ -49,33 +61,27 @@ export default function OnboardingBasic() {
   const validate = () => {
     const newErrors: Record<string, string> = {}
 
-    if (!formData.primer_apellido.trim()) {
-      newErrors.primer_apellido = 'El primer apellido es requerido'
-    }
-
     if (!formData.full_name.trim()) {
       newErrors.full_name = 'El nombre(s) es requerido'
     }
 
+    if (!formData.primer_apellido.trim()) {
+      newErrors.primer_apellido = 'El primer apellido es requerido'
+    }
+
     if (!formData.sex) {
-      newErrors.sex = 'Por favor selecciona tu sexo'
+      newErrors.sex = 'El sexo es requerido'
     }
 
     if (!formData.birthdate) {
       newErrors.birthdate = 'La fecha de nacimiento es requerida'
-    } else {
-      const age = new Date().getFullYear() - new Date(formData.birthdate).getFullYear()
-      if (age < 18) {
-        newErrors.birthdate = 'Debes ser mayor de 18 años'
-      }
     }
 
     if (!formData.estado_nacimiento) {
       newErrors.estado_nacimiento = 'El estado de nacimiento es requerido'
     }
 
-    // CURP is optional during onboarding (user may not have it at hand)
-    // but must be valid if provided
+    // CURP is optional, but must be valid if provided
     if (formData.curp.trim()) {
       const curpResult = validateCurp(formData.curp)
       if (!curpResult.valid) {
@@ -97,11 +103,11 @@ export default function OnboardingBasic() {
     try {
       const normalizedCurp = normalizeCurp(formData.curp) ?? undefined
 
-      // Compose full_name from apellidos + nombre for display purposes
+      // Compose full_name from nombre + apellidos for display purposes
       const fullName = [
+        formData.full_name.trim(),
         formData.primer_apellido.trim(),
         formData.segundo_apellido.trim(),
-        formData.full_name.trim(),
       ]
         .filter(Boolean)
         .join(' ')
@@ -121,10 +127,10 @@ export default function OnboardingBasic() {
       showToast('Información guardada exitosamente', 'success')
 
       // Wait briefly for Supabase to process
-      await new Promise(resolve => setTimeout(resolve, 50))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       navigate('/onboarding/contact')
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       logger.error('Error saving basic info:', error)
       showToast(error.message || 'Error al guardar información', 'error')
@@ -134,13 +140,20 @@ export default function OnboardingBasic() {
   }
 
   return (
-    <OnboardingLayout
-      title="Información Básica"
-      description="Ayúdanos a conocerte mejor"
-    >
+    <OnboardingLayout title="Información Básica" description="Ayúdanos a conocerte mejor">
       <Stepper currentStep={2} totalSteps={6} steps={STEPS} />
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        <InputField
+          label="Nombre(s)"
+          type="text"
+          required
+          value={formData.full_name}
+          onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+          error={errors.full_name}
+          placeholder="Ej: Juan Carlos"
+        />
+
         <div className="grid grid-cols-2 gap-4">
           <InputField
             label="Primer Apellido"
@@ -160,16 +173,6 @@ export default function OnboardingBasic() {
             placeholder="Ej: López"
           />
         </div>
-
-        <InputField
-          label="Nombre(s)"
-          type="text"
-          required
-          value={formData.full_name}
-          onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-          error={errors.full_name}
-          placeholder="Ej: Juan Carlos"
-        />
 
         <SelectField
           label="Sexo"
@@ -202,7 +205,7 @@ export default function OnboardingBasic() {
           value={formData.estado_nacimiento}
           onChange={(e) => setFormData({ ...formData, estado_nacimiento: e.target.value })}
           error={errors.estado_nacimiento}
-          options={INEGI_STATES.map(s => ({ value: s.code, label: s.name }))}
+          options={INEGI_STATES.map((s) => ({ value: s.code, label: s.name }))}
         />
 
         <InputField
@@ -218,11 +221,7 @@ export default function OnboardingBasic() {
 
         {/* Navigation */}
         <div className="flex justify-between pt-6">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => navigate('/onboarding/role')}
-          >
+          <Button type="button" variant="secondary" onClick={() => navigate('/onboarding/role')}>
             Atrás
           </Button>
           <Button type="submit" variant="primary" disabled={loading}>

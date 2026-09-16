@@ -266,8 +266,16 @@ export default function Configuracion() {
     try {
       setProfileError(null)
 
+      const fullCombinedName = [
+        data.fullName?.trim(),
+        data.primerApellido?.trim(),
+        data.segundoApellido?.trim(),
+      ]
+        .filter(Boolean)
+        .join(' ')
+
       const updated = await updateMyProfile({
-        full_name: data.fullName,
+        full_name: fullCombinedName,
         birthdate: data.birthDate,
         email: data.email,
         phone: data.phone,
@@ -443,7 +451,20 @@ export default function Configuracion() {
 
   const personalInfo = profile
     ? {
-        fullName: profile.full_name || '',
+        fullName: (() => {
+          let n = profile.full_name || ''
+          if (profile.primer_apellido) {
+            const apellidos = [profile.primer_apellido, profile.segundo_apellido]
+              .filter(Boolean)
+              .join(' ')
+            if (n.endsWith(apellidos)) {
+              n = n.slice(0, -apellidos.length).trim()
+            } else if (n.startsWith(apellidos)) {
+              n = n.slice(apellidos.length).trim()
+            }
+          }
+          return n
+        })(),
         birthDate: profile.birthdate || '',
         email: profile.email || '',
         phone: profile.phone || '',
