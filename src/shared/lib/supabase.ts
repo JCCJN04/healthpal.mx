@@ -11,24 +11,17 @@ if (!supabaseUrl || !supabasePublishableKey) {
 }
 
 // Create client using publishable key (safe for browser with RLS enabled)
-export const supabase = createClient<Database>(
-  supabaseUrl,
-  supabasePublishableKey,
-  // Bypass TypeScript strict checking to provide a custom lock implementation
-  // that prevents navigator.locks deadlocks which cause infinite loading spinners.
-  {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: false,
-      storage: window.localStorage,
-      storageKey: 'healthpal_auth',
-      // Provide dummy lock to disable navigator.locks deadlock completely
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      lock: (_name: string, acquire: () => Promise<any>) => acquire(),
-    },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any,
-)
+export const supabase = createClient<Database>(supabaseUrl, supabasePublishableKey, {
+  auth: {
+    persistSession: true,
+    // Disable autoRefreshToken to prevent the background timer from acquiring navigator.locks
+    // and causing permanent deadlocks. AuthContext handles inactivity logouts (15 min),
+    // and getSession() automatically refreshes expired tokens on page load anyway.
+    autoRefreshToken: false,
+    detectSessionInUrl: false,
+    storage: window.localStorage,
+    storageKey: 'healthpal_auth',
+  },
+})
 
 // End of file
