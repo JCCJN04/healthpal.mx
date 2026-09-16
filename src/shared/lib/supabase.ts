@@ -10,6 +10,16 @@ if (!supabaseUrl || !supabasePublishableKey) {
   )
 }
 
+// Clear any stale locks from gotrue-js polyfill that cause infinite hangs
+try {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    const lockKeys = ['supabase.auth.lock', 'healthpal_auth-lock']
+    lockKeys.forEach((k) => window.localStorage.removeItem(k))
+  }
+} catch (e) {
+  // Ignore errors if localStorage is inaccessible
+}
+
 // Create client using publishable key (safe for browser with RLS enabled)
 export const supabase = createClient<Database>(supabaseUrl, supabasePublishableKey, {
   auth: {

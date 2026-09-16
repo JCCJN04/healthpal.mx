@@ -12,11 +12,13 @@ type PatientProfileInsert = Database['public']['Tables']['patient_profiles']['In
 type PatientProfile = Database['public']['Tables']['patient_profiles']['Row']
 type OnboardingStep = 'role' | 'basic' | 'contact' | 'details' | 'legal' | 'done'
 
+import type { User } from '@supabase/supabase-js'
+
 /**
  * Get current user's profile with extended info
  */
-export async function getMyProfile(userId?: string): Promise<Profile> {
-  let effectiveUserId = userId
+export async function getMyProfile(userOrId?: string | User): Promise<Profile> {
+  let effectiveUserId: string | undefined
   let userEmail: string | undefined
   let userFullName: string | null = null
   let userPhone: string | null = null
@@ -24,31 +26,46 @@ export async function getMyProfile(userId?: string): Promise<Profile> {
   let userEmailConfirmed = false
   let userObjForSync: Record<string, unknown> | null = null
 
-  // Always read session to get metadata for sync if available
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
+  // If a full User object is provided, use it directly to avoid hanging on getSession locks
+  if (userOrId && typeof userOrId === 'object' && 'id' in userOrId) {
+    const user = userOrId
+    effectiveUserId = user.id
+    userEmail = user.email
+    userFullName = (user.user_metadata?.full_name as string) || null
+    userPhone = (user.user_metadata?.phone as string) || null
+    userRole = (user.user_metadata?.role as 'patient' | 'doctor' | 'assistant') || 'patient'
+    userEmailConfirmed = !!user.email_confirmed_at
+    userObjForSync = user as unknown as Record<string, unknown>
+  } else {
+    // Fallback: use ID string and try to get session (might block if lock is busy)
+    effectiveUserId = userOrId as string | undefined
 
-  if (session?.user) {
-    if (!effectiveUserId) effectiveUserId = session.user.id
-    userEmail = session.user.email
-    userFullName = (session.user.user_metadata?.full_name as string) || null
-    userPhone = (session.user.user_metadata?.phone as string) || null
-    userRole = (session.user.user_metadata?.role as 'patient' | 'doctor' | 'assistant') || 'patient'
-    userEmailConfirmed = !!session.user.email_confirmed_at
-    userObjForSync = session.user as unknown as Record<string, unknown>
-  } else if (!effectiveUserId) {
     const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (user) {
-      effectiveUserId = user.id
-      userEmail = user.email
-      userFullName = (user.user_metadata?.full_name as string) || null
-      userPhone = (user.user_metadata?.phone as string) || null
-      userRole = (user.user_metadata?.role as 'patient' | 'doctor' | 'assistant') || 'patient'
-      userEmailConfirmed = !!user.email_confirmed_at
-      userObjForSync = user as unknown as Record<string, unknown>
+      data: { session },
+    } = await supabase.auth.getSession()
+
+    if (session?.user) {
+      if (!effectiveUserId) effectiveUserId = session.user.id
+      userEmail = session.user.email
+      userFullName = (session.user.user_metadata?.full_name as string) || null
+      userPhone = (session.user.user_metadata?.phone as string) || null
+      userRole =
+        (session.user.user_metadata?.role as 'patient' | 'doctor' | 'assistant') || 'patient'
+      userEmailConfirmed = !!session.user.email_confirmed_at
+      userObjForSync = session.user as unknown as Record<string, unknown>
+    } else if (!effectiveUserId) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (user) {
+        effectiveUserId = user.id
+        userEmail = user.email
+        userFullName = (user.user_metadata?.full_name as string) || null
+        userPhone = (user.user_metadata?.phone as string) || null
+        userRole = (user.user_metadata?.role as 'patient' | 'doctor' | 'assistant') || 'patient'
+        userEmailConfirmed = !!user.email_confirmed_at
+        userObjForSync = user as unknown as Record<string, unknown>
+      }
     }
   }
 

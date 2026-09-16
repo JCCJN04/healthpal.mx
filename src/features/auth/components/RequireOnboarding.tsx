@@ -63,7 +63,7 @@ export default function RequireOnboarding({ children }: RequireOnboardingProps) 
   useEffect(() => {
     if (authLoading || !user || profile || fetchingRef.current || mfaRequired) return
     fetchingRef.current = true
-    getMyProfile(user.id)
+    getMyProfile(user)
       .then((p) => {
         if (p) {
           setFetchedProfile(p)
