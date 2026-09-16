@@ -20,17 +20,37 @@ try {
   // Ignore errors if localStorage is inaccessible
 }
 
+// Global memory lock to completely bypass buggy navigator.locks in gotrue-js
+let globalLock: Promise<void> = Promise.resolve()
+// gotrue-js LockFunc signature: (name: string, acquireTimeout: number, acquire: () => Promise<R>) => Promise<R>
+const memoryLock = async <R>(
+  _name: string,
+  _acquireTimeout: number,
+  acquire: () => Promise<R>,
+): Promise<R> => {
+  const previous = globalLock
+  let release: () => void
+  globalLock = new Promise((res) => {
+    release = res
+  })
+  try {
+    await previous
+    return await acquire()
+  } finally {
+    release!()
+  }
+}
+
 // Create client using publishable key (safe for browser with RLS enabled)
 export const supabase = createClient<Database>(supabaseUrl, supabasePublishableKey, {
   auth: {
     persistSession: true,
-    // Disable autoRefreshToken to prevent the background timer from acquiring navigator.locks
-    // and causing permanent deadlocks. AuthContext handles inactivity logouts (15 min),
-    // and getSession() automatically refreshes expired tokens on page load anyway.
     autoRefreshToken: false,
     detectSessionInUrl: false,
     storage: window.localStorage,
     storageKey: 'healthpal_auth',
+    // Bypass navigator.locks completely to prevent infinite hangs
+    lock: memoryLock,
   },
 })
 
