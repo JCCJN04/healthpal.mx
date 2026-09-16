@@ -516,22 +516,27 @@ export default function Dashboard() {
     }
 
     try {
-      // 10s safety timeout to prevent permanent skeleton locks
+      // 15s safety timeout to prevent permanent skeleton locks
       const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Dashboard load timeout')), 10000),
+        setTimeout(() => reject(new Error('Dashboard load timeout')), 15000),
       )
 
-      const fetchPromise = Promise.all([
+      const fetchPromise = Promise.allSettled([
         getUserDocuments(user.id, null, true),
         getDocumentsSharedWithMe(user.id),
         isDoctor ? listDoctorPatients(user.id) : Promise.resolve([]),
         isDoctor ? getDoctorAppointments(user.id) : Promise.resolve([] as AppointmentWithPatient[]),
       ])
 
-      const [documentsData, sharedDocuments, doctorPatients, allDoctorAppts] = await Promise.race([
+      const [docsRes, sharedRes, patientsRes, apptsRes] = await Promise.race([
         fetchPromise,
         timeoutPromise,
       ])
+
+      const documentsData = docsRes.status === 'fulfilled' ? docsRes.value : []
+      const sharedDocuments = sharedRes.status === 'fulfilled' ? sharedRes.value : []
+      const doctorPatients = patientsRes.status === 'fulfilled' ? patientsRes.value : []
+      const allDoctorAppts = apptsRes.status === 'fulfilled' ? apptsRes.value : []
 
       allDocsRef.current = documentsData || []
       const docMap = new Map<string, Doc>()
