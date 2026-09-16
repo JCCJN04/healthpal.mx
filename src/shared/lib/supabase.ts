@@ -11,17 +11,24 @@ if (!supabaseUrl || !supabasePublishableKey) {
 }
 
 // Create client using publishable key (safe for browser with RLS enabled)
-export const supabase = createClient<Database>(supabaseUrl, supabasePublishableKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: false,
-    // For medical apps, we still use localStorage but rely on the 15-minute inactivity
-    // timeout in AuthContext to enforce session security. sessionStorage breaks
-    // Supabase's navigator.locks cross-tab synchronization and causes permanent hangs.
-    storage: window.localStorage,
-    storageKey: 'healthpal_auth',
-  },
-})
+export const supabase = createClient<Database>(
+  supabaseUrl,
+  supabasePublishableKey,
+  // Bypass TypeScript strict checking to provide a custom lock implementation
+  // that prevents navigator.locks deadlocks which cause infinite loading spinners.
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: false,
+      storage: window.localStorage,
+      storageKey: 'healthpal_auth',
+      // Provide dummy lock to disable navigator.locks deadlock completely
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      lock: (_name: string, acquire: () => Promise<any>) => acquire(),
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any,
+)
 
 // End of file
