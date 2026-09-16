@@ -38,6 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const jwtRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastLoggedToken = useRef<string | null>(null)
+  const profileRef = useRef<Profile | null>(null)
 
   const fetchProfile = async (userId?: string) => {
     try {
@@ -51,6 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshProfile = async () => {
     if (user) {
       const profileData = await fetchProfile(user.id)
+      profileRef.current = profileData
       setProfile(profileData)
     }
   }
@@ -239,11 +241,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000)),
             ])
             if (mounted && profileData) {
+              profileRef.current = profileData
               setProfile(profileData)
             } else if (mounted) {
               // If race timeout triggered, continue fetching in background
               fetchProfile(currentSession.user.id).then((p) => {
-                if (mounted && p) setProfile(p)
+                if (mounted && p) {
+                  profileRef.current = p
+                  setProfile(p)
+                }
               })
             }
           } catch (err) {
@@ -251,6 +257,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         } else {
           if (mounted) {
+            profileRef.current = null
             setProfile(null)
             setMfaRequired(false)
           }
@@ -282,7 +289,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       setSession(currentSession)
-      setUser(currentSession?.user ?? null)
+      setUser((prevUser) => {
+        const nextUser = currentSession?.user ?? null
+        if (!nextUser) return null
+        if (
+          prevUser &&
+          prevUser.id === nextUser.id &&
+          prevUser.updated_at === nextUser.updated_at &&
+          prevUser.email === nextUser.email
+        ) {
+          return prevUser
+        }
+        return nextUser
+      })
 
       if (currentSession?.user) {
         let isMfaNeeded = false
@@ -299,23 +318,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (isMfaNeeded) {
           if (mounted) {
+            profileRef.current = null
             setProfile(null)
             setLoading(false)
           }
           return
         }
 
-        // Fetch profile with user id
-        fetchProfile(currentSession.user.id)
-          .then((profileData) => {
-            if (mounted && profileData) {
-              setProfile(profileData)
-            }
-          })
-          .catch((err) => {
-            logger.error('authStateChange', err)
-          })
+        // Only fetch profile if signed in, user updated, or profile is missing/for different user
+        const shouldFetchProfile =
+          _event === 'SIGNED_IN' ||
+          _event === 'USER_UPDATED' ||
+          !profileRef.current ||
+          profileRef.current.id !== currentSession.user.id
+
+        if (shouldFetchProfile) {
+          fetchProfile(currentSession.user.id)
+            .then((profileData) => {
+              if (mounted && profileData) {
+                profileRef.current = profileData
+                setProfile(profileData)
+              }
+            })
+            .catch((err) => {
+              logger.error('authStateChange', err)
+            })
+        }
       } else {
+        profileRef.current = null
         setProfile(null)
         setMfaRequired(false)
       }

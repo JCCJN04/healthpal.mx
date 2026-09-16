@@ -467,16 +467,17 @@ export default function Dashboard() {
   })
   // Cache fetched docs so the key-sync effect can reuse them without an extra network call
   const allDocsRef = useRef<Doc[]>([])
+  const hasLoadedRef = useRef(false)
 
   useEffect(() => {
     // Don't fetch until we have both user and profile (prevents double-fetch with wrong role)
-    if (!user || !profile?.role) {
-      setLoading(false)
+    if (!user?.id || !profile?.role) {
+      if (!user) setLoading(false)
       return
     }
     loadDashboardData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, profile?.role])
+  }, [user?.id, profile?.role])
 
   // Patient: silently re-wrap document keys for all consented doctors so they can decrypt files
   useEffect(() => {
@@ -506,16 +507,30 @@ export default function Dashboard() {
   }, [user?.id, privateKey, profile?.role])
 
   const loadDashboardData = async () => {
-    if (!user) return
+    if (!user?.id) return
     const isDoctor = profile?.role === 'doctor'
-    setLoading(true)
+
+    // Only show full skeleton loader on initial load
+    if (!hasLoadedRef.current) {
+      setLoading(true)
+    }
 
     try {
-      const [documentsData, sharedDocuments, doctorPatients, allDoctorAppts] = await Promise.all([
+      // 10s safety timeout to prevent permanent skeleton locks
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Dashboard load timeout')), 10000),
+      )
+
+      const fetchPromise = Promise.all([
         getUserDocuments(user.id, null, true),
         getDocumentsSharedWithMe(user.id),
         isDoctor ? listDoctorPatients(user.id) : Promise.resolve([]),
-        isDoctor ? getDoctorAppointments() : Promise.resolve([] as AppointmentWithPatient[]),
+        isDoctor ? getDoctorAppointments(user.id) : Promise.resolve([] as AppointmentWithPatient[]),
+      ])
+
+      const [documentsData, sharedDocuments, doctorPatients, allDoctorAppts] = await Promise.race([
+        fetchPromise,
+        timeoutPromise,
       ])
 
       allDocsRef.current = documentsData || []
@@ -548,10 +563,14 @@ export default function Dashboard() {
         activePatients: isDoctor ? doctorPatients?.length || 0 : 0,
         sharedDocumentCount: (sharedDocuments as SharedEntry[]).length,
       })
+      hasLoadedRef.current = true
     } catch (err) {
       logger.error('Dashboard:loadData', err)
-      showToast('Error al cargar datos del dashboard', 'error')
+      if (!hasLoadedRef.current) {
+        showToast('Error al cargar datos del dashboard', 'error')
+      }
     } finally {
+      hasLoadedRef.current = true
       setLoading(false)
     }
   }

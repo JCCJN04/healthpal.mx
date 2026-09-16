@@ -152,7 +152,7 @@ export default function ConsultasDoctor() {
   const [bookingPatient, setBookingPatient] = useState<PatientProfileLite | null>(null)
 
   const load = useCallback(() => {
-    getDoctorAppointments()
+    getDoctorAppointments(user?.id)
       .then((data) => {
         setAppointments(data)
       })
@@ -162,7 +162,7 @@ export default function ConsultasDoctor() {
       .finally(() => {
         setLoading(false)
       })
-  }, [])
+  }, [user?.id])
 
   useEffect(() => {
     load()
@@ -327,7 +327,7 @@ export default function ConsultasDoctor() {
           onClose={() => setBookingPatient(null)}
           onSuccess={() => {
             setBookingPatient(null)
-            getDoctorAppointments().then((data) => setAppointments(data))
+            getDoctorAppointments(user?.id).then((data) => setAppointments(data))
           }}
         />
       )}

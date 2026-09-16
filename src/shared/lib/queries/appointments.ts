@@ -143,16 +143,24 @@ export async function getAppointmentById(
   } as AppointmentWithPatient
 }
 
-export async function getPatientAppointments(): Promise<AppointmentWithDoctor[]> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return []
+export async function getPatientAppointments(patientId?: string): Promise<AppointmentWithDoctor[]> {
+  let patientUserId = patientId
+  if (!patientUserId) {
+    const { data: sessionData } = await supabase.auth.getSession()
+    patientUserId = sessionData.session?.user?.id
+  }
+  if (!patientUserId) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    patientUserId = user?.id
+  }
+  if (!patientUserId) return []
 
   const { data: appts, error } = await supabase
     .from('appointments')
     .select('*')
-    .eq('patient_id', user.id)
+    .eq('patient_id', patientUserId)
     .order('scheduled_at', { ascending: false })
 
   if (error) {
@@ -175,16 +183,24 @@ export async function getPatientAppointments(): Promise<AppointmentWithDoctor[]>
   })) as AppointmentWithDoctor[]
 }
 
-export async function getDoctorAppointments(): Promise<AppointmentWithPatient[]> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return []
+export async function getDoctorAppointments(doctorId?: string): Promise<AppointmentWithPatient[]> {
+  let doctorUserId = doctorId
+  if (!doctorUserId) {
+    const { data: sessionData } = await supabase.auth.getSession()
+    doctorUserId = sessionData.session?.user?.id
+  }
+  if (!doctorUserId) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    doctorUserId = user?.id
+  }
+  if (!doctorUserId) return []
 
   const { data: appts, error } = await supabase
     .from('appointments')
     .select('*')
-    .eq('doctor_id', user.id)
+    .eq('doctor_id', doctorUserId)
     .order('scheduled_at', { ascending: true })
 
   if (error) {
@@ -208,11 +224,22 @@ export async function getDoctorAppointments(): Promise<AppointmentWithPatient[]>
 }
 
 /** Returns doctor's non-cancelled appointments for a given date (YYYY-MM-DD) */
-export async function getDoctorAppointmentsForDate(date: string): Promise<Appointment[]> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return []
+export async function getDoctorAppointmentsForDate(
+  date: string,
+  doctorId?: string,
+): Promise<Appointment[]> {
+  let doctorUserId = doctorId
+  if (!doctorUserId) {
+    const { data: sessionData } = await supabase.auth.getSession()
+    doctorUserId = sessionData.session?.user?.id
+  }
+  if (!doctorUserId) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    doctorUserId = user?.id
+  }
+  if (!doctorUserId) return []
 
   const dayStart = `${date}T00:00:00`
   const dayEnd = `${date}T23:59:59`
@@ -220,7 +247,7 @@ export async function getDoctorAppointmentsForDate(date: string): Promise<Appoin
   const { data, error } = await supabase
     .from('appointments')
     .select('*')
-    .eq('doctor_id', user.id)
+    .eq('doctor_id', doctorUserId)
     .neq('status', 'cancelled')
     .gte('scheduled_at', dayStart)
     .lte('scheduled_at', dayEnd)

@@ -262,7 +262,7 @@ export default function AgendarCitaModal({
       // Google Calendar busy slots
       getDoctorBusySlots(user.id, dateStr),
       // Existing HealthPal appointments
-      getDoctorAppointmentsForDate(dateStr),
+      getDoctorAppointmentsForDate(dateStr, user.id),
     ])
       .then(([gcalBusy, appts]) => {
         // Convert HealthPal appointments to busy intervals
