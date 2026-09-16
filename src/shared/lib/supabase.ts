@@ -45,7 +45,7 @@ const memoryLock = async <R>(
 export const supabase = createClient<Database>(supabaseUrl, supabasePublishableKey, {
   auth: {
     persistSession: true,
-    autoRefreshToken: false,
+    autoRefreshToken: true,
     detectSessionInUrl: false,
     storage: window.localStorage,
     storageKey: 'healthpal_auth',

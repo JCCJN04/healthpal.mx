@@ -469,6 +469,11 @@ export default function Dashboard() {
   const allDocsRef = useRef<Doc[]>([])
 
   useEffect(() => {
+    // Don't fetch until we have both user and profile (prevents double-fetch with wrong role)
+    if (!user || !profile?.role) {
+      setLoading(false)
+      return
+    }
     loadDashboardData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, profile?.role])
