@@ -277,83 +277,90 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listener de cambios de autenticación
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, currentSession) => {
-      if (!mounted) return
+    } = supabase.auth.onAuthStateChange((_event, currentSession) => {
+      // Execute asynchronously outside GoTrue's synchronous subscriber dispatch loop
+      // to avoid re-entrant deadlock with GoTrueClient's internal lockAcquired / pendingInLock
+      setTimeout(async () => {
+        if (!mounted) return
 
-      // NOM-024 §6.6: log authentication events — deduplicate by access_token
-      if (_event === 'SIGNED_IN' && currentSession?.access_token) {
-        if (currentSession.access_token !== lastLoggedToken.current) {
-          lastLoggedToken.current = currentSession.access_token
-          auditLog.login()
-        }
-      }
-
-      setSession(currentSession)
-      setUser((prevUser) => {
-        const nextUser = currentSession?.user ?? null
-        if (!nextUser) return null
-        if (
-          prevUser &&
-          prevUser.id === nextUser.id &&
-          prevUser.updated_at === nextUser.updated_at &&
-          prevUser.email === nextUser.email
-        ) {
-          return prevUser
-        }
-        return nextUser
-      })
-
-      if (currentSession?.user) {
-        let isMfaNeeded = false
-        try {
-          const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
-          isMfaNeeded = aal?.nextLevel === 'aal2' && aal?.currentLevel !== 'aal2'
-        } catch (mfaErr) {
-          logger.warn('authStateChange:mfaCheck', mfaErr)
-        }
-
-        if (mounted) {
-          setMfaRequired(isMfaNeeded)
-        }
-
-        if (isMfaNeeded) {
-          if (mounted) {
-            profileRef.current = null
-            setProfile(null)
-            setLoading(false)
+        // NOM-024 §6.6: log authentication events — deduplicate by access_token
+        if (_event === 'SIGNED_IN' && currentSession?.access_token) {
+          if (currentSession.access_token !== lastLoggedToken.current) {
+            lastLoggedToken.current = currentSession.access_token
+            auditLog.login()
           }
-          return
         }
 
-        // Only fetch profile if signed in, user updated, or profile is missing/for different user
-        const shouldFetchProfile =
-          _event === 'SIGNED_IN' ||
-          _event === 'USER_UPDATED' ||
-          !profileRef.current ||
-          profileRef.current.id !== currentSession.user.id
+        setSession(currentSession)
+        setUser((prevUser) => {
+          const nextUser = currentSession?.user ?? null
+          if (!nextUser) return null
+          if (
+            prevUser &&
+            prevUser.id === nextUser.id &&
+            prevUser.updated_at === nextUser.updated_at &&
+            prevUser.email === nextUser.email
+          ) {
+            return prevUser
+          }
+          return nextUser
+        })
 
-        if (shouldFetchProfile) {
-          fetchProfile(currentSession.user.id)
-            .then((profileData) => {
-              if (mounted && profileData) {
-                profileRef.current = profileData
-                setProfile(profileData)
-              }
-            })
-            .catch((err) => {
-              logger.error('authStateChange', err)
-            })
+        if (currentSession?.user) {
+          let isMfaNeeded = false
+          try {
+            // Pass access_token directly so GoTrue decodes JWT synchronously without lock contention
+            const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel(
+              currentSession.access_token,
+            )
+            isMfaNeeded = aal?.nextLevel === 'aal2' && aal?.currentLevel !== 'aal2'
+          } catch (mfaErr) {
+            logger.warn('authStateChange:mfaCheck', mfaErr)
+          }
+
+          if (mounted) {
+            setMfaRequired(isMfaNeeded)
+          }
+
+          if (isMfaNeeded) {
+            if (mounted) {
+              profileRef.current = null
+              setProfile(null)
+              setLoading(false)
+            }
+            return
+          }
+
+          // Only fetch profile if profile is missing, for a different user, or explicitly updated.
+          // Background token refreshes and tab visibility re-fires ('SIGNED_IN') reuse existing profile.
+          const shouldFetchProfile =
+            _event === 'USER_UPDATED' ||
+            !profileRef.current ||
+            profileRef.current.id !== currentSession.user.id
+
+          if (shouldFetchProfile) {
+            fetchProfile(currentSession.user.id)
+              .then((profileData) => {
+                if (mounted && profileData) {
+                  profileRef.current = profileData
+                  setProfile(profileData)
+                }
+              })
+              .catch((err) => {
+                logger.error('authStateChange', err)
+              })
+          }
+        } else {
+          profileRef.current = null
+          setProfile(null)
+          setMfaRequired(false)
         }
-      } else {
-        profileRef.current = null
-        setProfile(null)
-        setMfaRequired(false)
-      }
 
-      // Always set loading to false
-      if (mounted) {
-        setLoading(false)
-      }
+        // Always set loading to false
+        if (mounted) {
+          setLoading(false)
+        }
+      }, 0)
     })
 
     return () => {

@@ -449,25 +449,92 @@ const DoctorHome = ({
   )
 }
 
+interface CachedDashboard {
+  userId: string
+  summaryData: SummaryData
+  recentDocs: Doc[]
+  sharedDocsList: SharedEntry[]
+  patientSnapshot: PatientProfileLite[]
+  todayAppts: AppointmentWithPatient[]
+  upcomingAppts: AppointmentWithPatient[]
+  timestamp: number
+}
+
+// Memory cache across component unmount/remount
+let memoryDashboardCache: CachedDashboard | null = null
+
+function getStoredDashboardCache(userId?: string): CachedDashboard | null {
+  if (!userId) return null
+  if (memoryDashboardCache && memoryDashboardCache.userId === userId) {
+    return memoryDashboardCache
+  }
+  try {
+    const raw = sessionStorage.getItem(`hp_dash_cache_${userId}`)
+    if (raw) {
+      const parsed = JSON.parse(raw) as CachedDashboard
+      if (parsed && parsed.userId === userId && Date.now() - parsed.timestamp < 30 * 60 * 1000) {
+        memoryDashboardCache = parsed
+        return parsed
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return null
+}
+
+function setStoredDashboardCache(data: CachedDashboard) {
+  memoryDashboardCache = data
+  try {
+    sessionStorage.setItem(`hp_dash_cache_${data.userId}`, JSON.stringify(data))
+  } catch {
+    /* ignore */
+  }
+}
+
 export default function Dashboard() {
   const navigate = useNavigate()
   const { user, profile } = useAuth()
 
   const { privateKey } = useCrypto()
-  const [loading, setLoading] = useState(true)
-  const [recentDocs, setRecentDocs] = useState<Doc[]>([])
-  const [sharedDocsList, setSharedDocsList] = useState<SharedEntry[]>([])
-  const [patientSnapshot, setPatientSnapshot] = useState<PatientProfileLite[]>([])
-  const [todayAppts, setTodayAppts] = useState<AppointmentWithPatient[]>([])
-  const [upcomingAppts, setUpcomingAppts] = useState<AppointmentWithPatient[]>([])
-  const [summaryData, setSummaryData] = useState<SummaryData>({
-    documentCount: 0,
-    activePatients: 0,
-    sharedDocumentCount: 0,
-  })
+  const initialCache = getStoredDashboardCache(user?.id)
+  const [loading, setLoading] = useState(!initialCache)
+  const [recentDocs, setRecentDocs] = useState<Doc[]>(initialCache?.recentDocs ?? [])
+  const [sharedDocsList, setSharedDocsList] = useState<SharedEntry[]>(
+    initialCache?.sharedDocsList ?? [],
+  )
+  const [patientSnapshot, setPatientSnapshot] = useState<PatientProfileLite[]>(
+    initialCache?.patientSnapshot ?? [],
+  )
+  const [todayAppts, setTodayAppts] = useState<AppointmentWithPatient[]>(
+    initialCache?.todayAppts ?? [],
+  )
+  const [upcomingAppts, setUpcomingAppts] = useState<AppointmentWithPatient[]>(
+    initialCache?.upcomingAppts ?? [],
+  )
+  const [summaryData, setSummaryData] = useState<SummaryData>(
+    initialCache?.summaryData ?? {
+      documentCount: 0,
+      activePatients: 0,
+      sharedDocumentCount: 0,
+    },
+  )
   // Cache fetched docs so the key-sync effect can reuse them without an extra network call
-  const allDocsRef = useRef<Doc[]>([])
-  const hasLoadedRef = useRef(false)
+  const allDocsRef = useRef<Doc[]>(initialCache?.recentDocs ?? [])
+  const hasLoadedRef = useRef(!!initialCache)
+
+  useEffect(() => {
+    const handleSignout = () => {
+      memoryDashboardCache = null
+      try {
+        if (user?.id) sessionStorage.removeItem(`hp_dash_cache_${user.id}`)
+      } catch {
+        /* ignore */
+      }
+    }
+    window.addEventListener('healthpal:signout', handleSignout)
+    return () => window.removeEventListener('healthpal:signout', handleSignout)
+  }, [user?.id])
 
   useEffect(() => {
     // Don't fetch until we have both user and profile (prevents double-fetch with wrong role)
@@ -510,8 +577,9 @@ export default function Dashboard() {
     if (!user?.id) return
     const isDoctor = profile?.role === 'doctor'
 
-    // Only show full skeleton loader on initial load
-    if (!hasLoadedRef.current) {
+    const cached = getStoredDashboardCache(user.id)
+    // Only show full skeleton loader on initial load if no cache exists
+    if (!cached && !hasLoadedRef.current) {
       setLoading(true)
     }
 
@@ -549,29 +617,51 @@ export default function Dashboard() {
       setSharedDocsList(isDoctor ? [] : (sharedDocuments as SharedEntry[]).slice(0, 4))
       setPatientSnapshot(doctorPatients || [])
 
+      let todayAll: AppointmentWithPatient[] = []
+      let upcoming: AppointmentWithPatient[] = []
+
       if (isDoctor) {
         const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' }) // YYYY-MM-DD
         const now = new Date()
         const sorted = (allDoctorAppts as AppointmentWithPatient[])
-          .filter((a) => a.status !== 'cancelled')
+          .filter((a) => a && a.status !== 'cancelled' && a.scheduled_at)
           .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
-        const todayAll = (allDoctorAppts as AppointmentWithPatient[])
-          .filter((a) => a.scheduled_at.startsWith(todayStr))
+        todayAll = (allDoctorAppts as AppointmentWithPatient[])
+          .filter(
+            (a) =>
+              a &&
+              a.scheduled_at &&
+              typeof a.scheduled_at === 'string' &&
+              a.scheduled_at.startsWith(todayStr),
+          )
           .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
-        const upcoming = sorted.filter((a) => new Date(a.scheduled_at) >= now)
+        upcoming = sorted.filter((a) => a && a.scheduled_at && new Date(a.scheduled_at) >= now)
         setTodayAppts(todayAll)
         setUpcomingAppts(upcoming)
       }
 
-      setSummaryData({
+      const updatedSummary = {
         documentCount: isDoctor ? documentsData?.length || 0 : docMap.size,
         activePatients: isDoctor ? doctorPatients?.length || 0 : 0,
         sharedDocumentCount: (sharedDocuments as SharedEntry[]).length,
+      }
+      setSummaryData(updatedSummary)
+
+      setStoredDashboardCache({
+        userId: user.id,
+        summaryData: updatedSummary,
+        recentDocs: (documentsData || []).slice(0, 6),
+        sharedDocsList: isDoctor ? [] : (sharedDocuments as SharedEntry[]).slice(0, 4),
+        patientSnapshot: doctorPatients || [],
+        todayAppts: todayAll,
+        upcomingAppts: upcoming,
+        timestamp: Date.now(),
       })
+
       hasLoadedRef.current = true
     } catch (err) {
       logger.error('Dashboard:loadData', err)
-      if (!hasLoadedRef.current) {
+      if (!hasLoadedRef.current && !getStoredDashboardCache(user.id)) {
         showToast('Error al cargar datos del dashboard', 'error')
       }
     } finally {
