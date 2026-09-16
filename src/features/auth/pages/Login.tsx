@@ -5,6 +5,7 @@ import { supabase } from '@/shared/lib/supabase'
 import { showToast } from '@/shared/components/ui/Toast'
 import { useAuth } from '@/app/providers/AuthContext'
 import { useCrypto } from '@/context/CryptoContext'
+import { getLandingUrl } from '@/shared/lib/domain'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -125,23 +126,23 @@ export default function Login() {
       <div className="absolute inset-0 bg-black/60 z-0"></div>
 
       {/* Back button */}
-      <Link
-        to="/"
+      <a
+        href={getLandingUrl('/')}
         className="absolute top-6 left-6 z-20 flex items-center gap-2 text-white/80 hover:text-white transition-colors"
       >
         <ArrowLeft className="w-5 h-5" />
         <span className="font-medium hidden sm:inline">Regresar</span>
-      </Link>
+      </a>
 
       {/* Main Content */}
       <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 py-8">
-        <Link to="/" className="mb-4">
+        <a href={getLandingUrl('/')} className="mb-4">
           <img
             src="/logograndenofondo.png"
             alt="HealthPal.mx"
             className="h-24 md:h-32 hover:opacity-80 transition-opacity"
           />
-        </Link>
+        </a>
         <h1 className="text-white text-xl md:text-2xl mb-8 font-medium">Bienvenido a tu portal</h1>
 
         <div className="w-full max-w-sm">

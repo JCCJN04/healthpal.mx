@@ -1,10 +1,11 @@
-﻿import { useState, FormEvent } from 'react'
+import { useState, FormEvent } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { User, Lock, CheckCircle, ArrowLeft, Eye, EyeOff } from 'lucide-react'
 import { supabase } from '@/shared/lib/supabase'
 
 import { logger } from '@/shared/lib/logger'
 import { useCrypto } from '@/context/CryptoContext'
+import { getLandingUrl } from '@/shared/lib/domain'
 
 type UserRole = 'doctor' | 'patient' | 'assistant'
 
@@ -16,14 +17,14 @@ interface FormErrors {
 }
 
 export default function Register() {
-
   const location = useLocation()
   const { setupCrypto } = useCrypto()
-  const initialRole: UserRole = (location.state as { role?: string })?.role === 'doctor'
-    ? 'doctor'
-    : (location.state as { role?: string })?.role === 'assistant'
-    ? 'assistant'
-    : 'patient'
+  const initialRole: UserRole =
+    (location.state as { role?: string })?.role === 'doctor'
+      ? 'doctor'
+      : (location.state as { role?: string })?.role === 'assistant'
+        ? 'assistant'
+        : 'patient'
   const [role, setRole] = useState<UserRole>(initialRole)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -41,7 +42,8 @@ export default function Register() {
       newErrors.email = 'Por favor ingresa un correo válido'
     }
 
-    const passwordRe = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/
+    const passwordRe =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/
     if (!passwordRe.test(password)) {
       newErrors.password = 'La contraseña no cumple los requisitos de seguridad'
     }
@@ -80,7 +82,10 @@ export default function Register() {
 
       if (error) {
         if (error.message.includes('rate limit')) {
-          setErrors({ general: 'Límite de registros alcanzado. Por favor contacta al administrador o intenta más tarde.' })
+          setErrors({
+            general:
+              'Límite de registros alcanzado. Por favor contacta al administrador o intenta más tarde.',
+          })
         } else if (error.message.includes('already registered')) {
           setErrors({ general: 'Este correo ya está registrado. Intenta iniciar sesión.' })
         } else {
@@ -94,12 +99,14 @@ export default function Register() {
         if (data.session) {
           setEmailSent(true)
           // Set up E2E encryption keypair for new user (non-blocking — failure is safe)
-          setupCrypto(password, data.user.id).catch(() => {/* silently ignore */})
+          setupCrypto(password, data.user.id).catch(() => {
+            /* silently ignore */
+          })
         } else {
           setEmailSent(true)
         }
       }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       logger.error('register', error)
       setErrors({ general: 'Error inesperado al registrarse. Por favor intenta de nuevo.' })
@@ -109,26 +116,39 @@ export default function Register() {
   }
 
   return (
-    <div 
+    <div
       className="flex flex-col min-h-screen relative font-sans"
-      style={{ backgroundImage: `url('/monterrey.jpg')`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+      style={{
+        backgroundImage: `url('/monterrey.jpg')`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}
     >
       {/* Dark overlay */}
       <div className="absolute inset-0 bg-black/60 z-0"></div>
 
       {/* Back button */}
-      <Link to="/" className="absolute top-6 left-6 z-20 flex items-center gap-2 text-white/80 hover:text-white transition-colors">
+      <a
+        href={getLandingUrl('/')}
+        className="absolute top-6 left-6 z-20 flex items-center gap-2 text-white/80 hover:text-white transition-colors"
+      >
         <ArrowLeft className="w-5 h-5" />
         <span className="font-medium hidden sm:inline">Regresar</span>
-      </Link>
+      </a>
 
       {/* Main Content */}
       <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 py-8">
-        <Link to="/" className="mb-4">
-          <img src="/logograndenofondo.png" alt="HealthPal.mx" className="h-24 md:h-32 hover:opacity-80 transition-opacity" />
-        </Link>
-        <h1 className="text-white text-xl md:text-2xl mb-6 font-medium">Crear cuenta en tu portal</h1>
-        
+        <a href={getLandingUrl('/')} className="mb-4">
+          <img
+            src="/logograndenofondo.png"
+            alt="HealthPal.mx"
+            className="h-24 md:h-32 hover:opacity-80 transition-opacity"
+          />
+        </a>
+        <h1 className="text-white text-xl md:text-2xl mb-6 font-medium">
+          Crear cuenta en tu portal
+        </h1>
+
         <div className="w-full max-w-sm">
           {/* Custom Role Selector for new design */}
           <div className="flex bg-black/30 rounded-full p-1 mb-6 backdrop-blur-sm gap-1">
@@ -168,12 +188,21 @@ export default function Register() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-3">
-            
             {/* General Error */}
             {errors.general && (
               <div className="bg-red-500/20 border border-red-500 rounded-xl p-3 flex items-start gap-3 backdrop-blur-sm">
-                <svg className="w-5 h-5 text-red-200 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg
+                  className="w-5 h-5 text-red-200 mt-0.5 flex-shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
                 </svg>
                 <div className="flex-1">
                   <p className="text-sm text-red-100">{errors.general}</p>
@@ -184,7 +213,12 @@ export default function Register() {
                   className="text-red-200 hover:text-white"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
                   </svg>
                 </button>
               </div>
@@ -196,7 +230,7 @@ export default function Register() {
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                   <User className="w-5 h-5 text-white/70" />
                 </div>
-                <input 
+                <input
                   type="email"
                   placeholder="Correo electrónico..."
                   value={email}
@@ -228,24 +262,33 @@ export default function Register() {
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword(v => !v)}
+                  onClick={() => setShowPassword((v) => !v)}
                   className="absolute inset-y-0 right-0 pr-4 flex items-center text-white/70 hover:text-white transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
-              {errors.password && <p className="text-red-300 text-xs mt-1.5 ml-4">{errors.password}</p>}
+              {errors.password && (
+                <p className="text-red-300 text-xs mt-1.5 ml-4">{errors.password}</p>
+              )}
               {password.length > 0 && (
                 <ul className="mt-2 ml-4 space-y-0.5">
                   {[
-                    { ok: password.length >= 8,        label: 'Mínimo 8 caracteres' },
-                    { ok: /[A-Z]/.test(password),      label: 'Una mayúscula' },
-                    { ok: /[a-z]/.test(password),      label: 'Una minúscula' },
-                    { ok: /\d/.test(password),         label: 'Un número' },
-                    { ok: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password), label: 'Un símbolo especial' },
+                    { ok: password.length >= 8, label: 'Mínimo 8 caracteres' },
+                    { ok: /[A-Z]/.test(password), label: 'Una mayúscula' },
+                    { ok: /[a-z]/.test(password), label: 'Una minúscula' },
+                    { ok: /\d/.test(password), label: 'Un número' },
+                    {
+                      ok: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password),
+                      label: 'Un símbolo especial',
+                    },
                   ].map(({ ok, label }) => (
-                    <li key={label} className={`text-xs flex items-center gap-1.5 ${ok ? 'text-green-300' : 'text-white/50'}`}>
-                      <span>{ok ? '✓' : '○'}</span>{label}
+                    <li
+                      key={label}
+                      className={`text-xs flex items-center gap-1.5 ${ok ? 'text-green-300' : 'text-white/50'}`}
+                    >
+                      <span>{ok ? '✓' : '○'}</span>
+                      {label}
                     </li>
                   ))}
                 </ul>
@@ -270,51 +313,81 @@ export default function Register() {
                 />
                 <button
                   type="button"
-                  onClick={() => setShowConfirmPassword(v => !v)}
+                  onClick={() => setShowConfirmPassword((v) => !v)}
                   className="absolute inset-y-0 right-0 pr-4 flex items-center text-white/70 hover:text-white transition-colors"
                 >
-                  {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showConfirmPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
                 </button>
               </div>
-              {errors.confirmPassword && <p className="text-red-300 text-xs mt-1.5 ml-4">{errors.confirmPassword}</p>}
+              {errors.confirmPassword && (
+                <p className="text-red-300 text-xs mt-1.5 ml-4">{errors.confirmPassword}</p>
+              )}
             </div>
 
             {/* Email sent confirmation banner */}
             {emailSent && (
               <div className="bg-green-500/20 border border-green-400 rounded-xl p-3 flex items-start gap-3 backdrop-blur-sm">
-                <svg className="w-5 h-5 text-green-300 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                <svg
+                  className="w-5 h-5 text-green-300 mt-0.5 flex-shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                  />
                 </svg>
                 <p className="text-sm text-green-100">
-                  Te enviamos un correo de confirmación a <span className="font-semibold">{email}</span>. Revisa tu bandeja de entrada.
+                  Te enviamos un correo de confirmación a{' '}
+                  <span className="font-semibold">{email}</span>. Revisa tu bandeja de entrada.
                 </p>
               </div>
             )}
 
             {/* Submit Button */}
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={loading}
               className="w-full bg-primary hover:bg-primary/90 text-white rounded-full h-12 mt-2 font-semibold text-base transition-colors disabled:opacity-70 flex justify-center items-center shadow-lg"
             >
               {loading ? (
                 <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
                 </svg>
-              ) : 'Crear cuenta'}
+              ) : (
+                'Crear cuenta'
+              )}
             </button>
           </form>
-          
+
           {/* Login Link */}
           <div className="mt-6 text-center text-sm text-white font-medium">
-             ¿Ya tienes una cuenta?{' '}
-             <Link
-               to="/login"
-               className="text-primary hover:text-primary/80 font-bold ml-1 transition-colors"
-             >
-               Inicia sesión
-             </Link>
+            ¿Ya tienes una cuenta?{' '}
+            <Link
+              to="/login"
+              className="text-primary hover:text-primary/80 font-bold ml-1 transition-colors"
+            >
+              Inicia sesión
+            </Link>
           </div>
         </div>
       </main>
@@ -322,12 +395,19 @@ export default function Register() {
       {/* Footer */}
       <footer className="relative z-10 flex flex-col md:flex-row justify-between items-center p-6 md:px-12 md:py-8 text-white text-xs md:text-sm font-medium">
         <div className="flex flex-wrap justify-center gap-4 md:gap-8 mb-4 md:mb-0">
-          <Link to="/legal" className="hover:text-gray-300 transition-colors">AVISO LEGAL</Link>
-          <Link to="/privacidad" className="hover:text-gray-300 transition-colors">AVISO DE PRIVACIDAD</Link>
-          <Link to="/politicas" className="hover:text-gray-300 transition-colors">POLÍTICAS DE PRIVACIDAD</Link>
+          <Link to="/legal" className="hover:text-gray-300 transition-colors">
+            AVISO LEGAL
+          </Link>
+          <Link to="/privacidad" className="hover:text-gray-300 transition-colors">
+            AVISO DE PRIVACIDAD
+          </Link>
+          <Link to="/politicas" className="hover:text-gray-300 transition-colors">
+            POLÍTICAS DE PRIVACIDAD
+          </Link>
         </div>
         <div className="text-center">
-          © {new Date().getFullYear()} <span className="text-primary">HealthPal.mx</span>. Todos los Derechos Reservados.
+          © {new Date().getFullYear()} <span className="text-primary">HealthPal.mx</span>. Todos los
+          Derechos Reservados.
         </div>
       </footer>
     </div>

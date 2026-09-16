@@ -17,3 +17,11 @@ export function getAppUrl(path = '/'): string {
   }
   return cleanPath
 }
+
+export function getLandingUrl(path = '/'): string {
+  const cleanPath = path.startsWith('/') ? path : `/${path}`
+  if (typeof window !== 'undefined' && isAppHost()) {
+    return `https://healthpal.mx${cleanPath === '/' ? '' : cleanPath}`
+  }
+  return cleanPath
+}
