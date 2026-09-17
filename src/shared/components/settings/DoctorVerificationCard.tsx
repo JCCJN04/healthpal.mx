@@ -1,9 +1,20 @@
 import { useState } from 'react'
 import {
-  Stethoscope, BadgeCheck, Building2, MapPin, Clock,
-  DollarSign, FileText, Pencil, X, Save, Loader2, Shield
+  Stethoscope,
+  BadgeCheck,
+  Building2,
+  MapPin,
+  Clock,
+  DollarSign,
+  FileText,
+  Pencil,
+  X,
+  Save,
+  Loader2,
+  Shield,
 } from 'lucide-react'
 import { DoctorProfile, Json } from '@/shared/types/database'
+import { SpotlightCard } from '@/shared/components/ui/SpotlightCard'
 
 type DoctorProfileExtended = DoctorProfile & { accepted_insurances?: string[] | null }
 import { upsertDoctorProfile } from '@/shared/lib/queries/profile'
@@ -94,9 +105,7 @@ export default function DoctorVerificationCard({
         consultation_mode: form.consultation_mode,
         is_public: form.is_public,
         location: location as Json,
-        accepted_insurances: form.accepted_insurances.length > 0
-          ? form.accepted_insurances
-          : null,
+        accepted_insurances: form.accepted_insurances.length > 0 ? form.accepted_insurances : null,
       } as Parameters<typeof upsertDoctorProfile>[1])
 
       onSaved?.(updated as unknown as DoctorProfile)
@@ -109,9 +118,10 @@ export default function DoctorVerificationCard({
     }
   }
 
-  const set = (key: keyof typeof form) => (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
-  ) => setForm((prev) => ({ ...prev, [key]: e.target.value }))
+  const set =
+    (key: keyof typeof form) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+      setForm((prev) => ({ ...prev, [key]: e.target.value }))
 
   if (isLoading) {
     return (
@@ -130,29 +140,38 @@ export default function DoctorVerificationCard({
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <SpotlightCard
+      spotlightColor="rgba(51, 199, 190, 0.15)"
+      enableHoverLift={false}
+      className="rounded-3xl border border-gray-200/80 bg-white/90 backdrop-blur-sm shadow-sm overflow-hidden"
+    >
       {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
+      <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Stethoscope className="w-4 h-4 text-primary" />
+          <div className="w-10 h-10 rounded-2xl bg-teal-50 border border-teal-100/70 flex items-center justify-center text-[#33C7BE]">
+            <Stethoscope className="w-5 h-5" />
           </div>
-          <h3 className="text-lg font-bold text-gray-900">Perfil médico</h3>
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">Perfil y Cédula Profesional</h3>
+            <p className="text-xs text-gray-500">
+              Información clínica pública y datos de acreditación médica
+            </p>
+          </div>
         </div>
         {!editing ? (
           <button
             onClick={startEdit}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-primary border border-primary/30 rounded-lg hover:bg-primary/5 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-semibold text-[#33C7BE] bg-teal-50/80 hover:bg-[#33C7BE] hover:text-white border border-teal-200/70 rounded-xl transition-all cursor-pointer shadow-xs"
           >
             <Pencil className="w-3.5 h-3.5" />
-            Editar
+            <span>Editar perfil</span>
           </button>
         ) : (
           <div className="flex items-center gap-2">
             <button
               onClick={() => setEditing(false)}
               disabled={saving}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-semibold text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
             >
               <X className="w-3.5 h-3.5" />
               Cancelar
@@ -160,7 +179,7 @@ export default function DoctorVerificationCard({
             <button
               onClick={handleSave}
               disabled={saving}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-teal-600 transition-colors disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs sm:text-sm font-semibold text-white bg-[#33C7BE] hover:bg-teal-600 rounded-xl transition-all shadow-sm shadow-teal-500/20 disabled:opacity-60 cursor-pointer"
             >
               {saving ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -196,7 +215,9 @@ export default function DoctorVerificationCard({
                 >
                   <option value="">— Sin especificar —</option>
                   {SPECIALTIES.map((s) => (
-                    <option key={s.value} value={s.value}>{s.label}</option>
+                    <option key={s.value} value={s.value}>
+                      {s.label}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -315,26 +336,27 @@ export default function DoctorVerificationCard({
               </label>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {MAJOR_INSURANCES.map((insurance) => {
-                  const isChecked = form.accepted_insurances.includes(insurance);
+                  const isChecked = form.accepted_insurances.includes(insurance)
                   return (
                     <label
                       key={insurance}
-                      className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-colors ${isChecked
-                        ? 'bg-primary/5 border-primary/30'
-                        : 'bg-white border-gray-200 hover:bg-gray-50'
-                        }`}
+                      className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-colors ${
+                        isChecked
+                          ? 'bg-primary/5 border-primary/30'
+                          : 'bg-white border-gray-200 hover:bg-gray-50'
+                      }`}
                     >
                       <input
                         type="checkbox"
                         checked={isChecked}
                         onChange={(e) => {
-                          const checked = e.target.checked;
+                          const checked = e.target.checked
                           setForm((prev) => ({
                             ...prev,
                             accepted_insurances: checked
                               ? [...prev.accepted_insurances, insurance]
-                              : prev.accepted_insurances.filter((i) => i !== insurance)
-                          }));
+                              : prev.accepted_insurances.filter((i) => i !== insurance),
+                          }))
                         }}
                         className="mt-0.5 rounded border-gray-300 text-primary focus:ring-primary/40 shrink-0"
                       />
@@ -342,7 +364,7 @@ export default function DoctorVerificationCard({
                         {insurance}
                       </span>
                     </label>
-                  );
+                  )
                 })}
               </div>
             </div>
@@ -352,13 +374,54 @@ export default function DoctorVerificationCard({
           <div className="space-y-5">
             <div className="grid sm:grid-cols-2 gap-x-8 gap-y-4">
               {[
-                { icon: <BadgeCheck className="w-4 h-4 text-primary" />, label: 'Cédula profesional', value: doctorProfile?.professional_license },
-                { icon: <Stethoscope className="w-4 h-4 text-primary" />, label: 'Especialidad', value: formatSpecialty(doctorProfile?.specialty) },
-                { icon: <Building2 className="w-4 h-4 text-primary" />, label: 'Consultorio / Clínica', value: doctorProfile?.clinic_name },
-                { icon: <MapPin className="w-4 h-4 text-primary" />, label: 'Dirección', value: doctorProfile?.address_text },
-                { icon: <Clock className="w-4 h-4 text-primary" />, label: 'Años de experiencia', value: doctorProfile?.years_experience != null ? `${doctorProfile.years_experience} años` : null },
-                { icon: <DollarSign className="w-4 h-4 text-primary" />, label: 'Precio de consulta', value: doctorProfile?.consultation_price_mxn != null ? `$${doctorProfile.consultation_price_mxn.toLocaleString('es-MX')} MXN` : null },
-                { icon: <Shield className="w-4 h-4 text-primary" />, label: 'Modalidad de consulta', value: doctorProfile?.consultation_mode === 'in-person' ? 'Presencial' : doctorProfile?.consultation_mode === 'video' ? 'En línea (Videoconsulta)' : doctorProfile?.consultation_mode === 'both' ? 'Ambas modalidades' : 'Presencial' },
+                {
+                  icon: <BadgeCheck className="w-4 h-4 text-primary" />,
+                  label: 'Cédula profesional',
+                  value: doctorProfile?.professional_license,
+                },
+                {
+                  icon: <Stethoscope className="w-4 h-4 text-primary" />,
+                  label: 'Especialidad',
+                  value: formatSpecialty(doctorProfile?.specialty),
+                },
+                {
+                  icon: <Building2 className="w-4 h-4 text-primary" />,
+                  label: 'Consultorio / Clínica',
+                  value: doctorProfile?.clinic_name,
+                },
+                {
+                  icon: <MapPin className="w-4 h-4 text-primary" />,
+                  label: 'Dirección',
+                  value: doctorProfile?.address_text,
+                },
+                {
+                  icon: <Clock className="w-4 h-4 text-primary" />,
+                  label: 'Años de experiencia',
+                  value:
+                    doctorProfile?.years_experience != null
+                      ? `${doctorProfile.years_experience} años`
+                      : null,
+                },
+                {
+                  icon: <DollarSign className="w-4 h-4 text-primary" />,
+                  label: 'Precio de consulta',
+                  value:
+                    doctorProfile?.consultation_price_mxn != null
+                      ? `$${doctorProfile.consultation_price_mxn.toLocaleString('es-MX')} MXN`
+                      : null,
+                },
+                {
+                  icon: <Shield className="w-4 h-4 text-primary" />,
+                  label: 'Modalidad de consulta',
+                  value:
+                    doctorProfile?.consultation_mode === 'in-person'
+                      ? 'Presencial'
+                      : doctorProfile?.consultation_mode === 'video'
+                        ? 'En línea (Videoconsulta)'
+                        : doctorProfile?.consultation_mode === 'both'
+                          ? 'Ambas modalidades'
+                          : 'Presencial',
+                },
               ].map(({ icon, label, value }) => (
                 <div key={label} className="flex items-start gap-2.5">
                   <div className="mt-0.5 shrink-0">{icon}</div>
@@ -393,15 +456,17 @@ export default function DoctorVerificationCard({
                 <p className="text-xs text-gray-400 mb-1">Seguros aceptados</p>
                 {(doctorProfile as DoctorProfileExtended)?.accepted_insurances?.length ? (
                   <div className="flex flex-wrap gap-1.5">
-                    {((doctorProfile as DoctorProfileExtended).accepted_insurances as string[]).map((ins: string) => (
-                      <span
-                        key={ins}
-                        className="inline-flex items-center gap-1 text-xs bg-green-50 text-green-700 px-2.5 py-1 rounded-full font-medium"
-                      >
-                        <Shield className="w-3 h-3" />
-                        {ins}
-                      </span>
-                    ))}
+                    {((doctorProfile as DoctorProfileExtended).accepted_insurances as string[]).map(
+                      (ins: string) => (
+                        <span
+                          key={ins}
+                          className="inline-flex items-center gap-1 text-xs bg-green-50 text-green-700 px-2.5 py-1 rounded-full font-medium"
+                        >
+                          <Shield className="w-3 h-3" />
+                          {ins}
+                        </span>
+                      ),
+                    )}
                   </div>
                 ) : (
                   <p className="text-sm text-gray-400">Sin registrar</p>
@@ -417,6 +482,6 @@ export default function DoctorVerificationCard({
           </div>
         )}
       </div>
-    </div>
+    </SpotlightCard>
   )
 }

@@ -15,7 +15,13 @@ import {
   UserCheck,
   UserMinus,
   AlertTriangle,
+  Plus,
+  LayoutGrid,
+  List,
+  Mail,
 } from 'lucide-react'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
+import { SpotlightCard } from '@/shared/components/ui/SpotlightCard'
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import { useAuth } from '@/app/providers/AuthContext'
 import {
@@ -36,6 +42,19 @@ import { supabase } from '@/shared/lib/supabase'
 import { showToast } from '@/shared/components/ui/Toast'
 import { logger } from '@/shared/lib/logger'
 
+const fadeUpVariant: Variants = {
+  hidden: { opacity: 0, y: 12 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.25, ease: 'easeOut' } },
+}
+
+const listStagger: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.04 },
+  },
+}
+
 export default function Pacientes() {
   const navigate = useNavigate()
   const { user, profile } = useAuth()
@@ -46,6 +65,17 @@ export default function Pacientes() {
   const [requestingId, setRequestingId] = useState<string | null>(null)
   const [requestReason, setRequestReason] = useState('')
   const [showReasonFor, setShowReasonFor] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+
+  const filteredPatients = useMemo(() => {
+    if (!searchTerm.trim()) return patients
+    const q = searchTerm.toLowerCase().trim()
+    return patients.filter(
+      (p) =>
+        (p.full_name?.toLowerCase() ?? '').includes(q) ||
+        (p.email?.toLowerCase() ?? '').includes(q),
+    )
+  }, [patients, searchTerm])
 
   // Consent requests sent by this doctor
   const [sentRequests, setSentRequests] = useState<ConsentWithProfile[]>([])
@@ -373,98 +403,213 @@ export default function Pacientes() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+      {/* Ambient decorative glowing orbs */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden z-0">
+        <div className="absolute top-20 right-10 w-96 h-96 bg-[#33C7BE]/6 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-8 w-80 h-80 bg-blue-400/5 rounded-full blur-3xl" />
+      </div>
+
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-7">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Mis Pacientes</h1>
-            <p className="text-sm text-gray-500 mt-0.5">
+            <h1 className="text-xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
+              Mis Pacientes
+            </h1>
+            <p className="text-sm text-gray-500 mt-1">
               {loading && patients.length === 0
-                ? 'Cargando…'
-                : `${patients.length} paciente${patients.length !== 1 ? 's' : ''} con acceso`}
+                ? 'Cargando pacientes…'
+                : `${patients.length} paciente${patients.length !== 1 ? 's' : ''} con acceso en tu consultorio`}
               {pendingRequests.length > 0 && (
-                <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-100">
-                  <Clock size={10} /> {pendingRequests.length} pendiente
-                  {pendingRequests.length !== 1 ? 's' : ''}
+                <span className="ml-2.5 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200/80">
+                  <Clock className="w-3 h-3 text-amber-600" />
+                  {pendingRequests.length} pendiente{pendingRequests.length !== 1 ? 's' : ''}
                 </span>
               )}
             </p>
           </div>
+
+          <div className="flex items-center gap-2.5">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => setLinkOpen(true)}
+              className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2.5 bg-white border border-gray-200 text-gray-700 font-semibold text-xs sm:text-sm rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all shadow-xs"
+            >
+              <UserCheck className="w-4 h-4 text-[#33C7BE]" />
+              <span>Vincular</span>
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => setCreateOpen(true)}
+              className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2.5 bg-[#33C7BE] text-white font-semibold text-xs sm:text-sm rounded-xl hover:bg-teal-600 transition-all shadow-sm shadow-teal-500/20"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Nuevo paciente</span>
+            </motion.button>
+          </div>
         </div>
 
-        {/* Search */}
-        <div className="flex gap-2">
+        {/* 3 Quick Action Cards with Spotlight Orb Glow */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <SpotlightCard
+            whileHover={{ y: -3, scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
+            spotlightColor="rgba(51, 199, 190, 0.22)"
+            onClick={() => setLinkOpen(true)}
+            className="group relative overflow-hidden rounded-2xl border border-teal-100/80 bg-gradient-to-br from-white via-teal-50/20 to-emerald-50/20 p-5 text-left shadow-xs hover:shadow-md hover:border-teal-200 transition-all cursor-pointer"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-11 h-11 rounded-xl bg-teal-50 text-[#33C7BE] flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                <UserCheck className="w-5 h-5" />
+              </div>
+              <span className="w-7 h-7 rounded-full bg-teal-50/80 text-teal-400 group-hover:text-[#33C7BE] group-hover:bg-teal-100 flex items-center justify-center transition-colors">
+                <ChevronRight className="w-4 h-4" />
+              </span>
+            </div>
+            <h3 className="font-bold text-gray-900 text-base group-hover:text-[#33C7BE] transition-colors">
+              Vincular Paciente
+            </h3>
+            <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+              Solicita acceso a un usuario ya registrado en HealthPal mediante su correo o teléfono.
+            </p>
+          </SpotlightCard>
+
+          <SpotlightCard
+            whileHover={{ y: -3, scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
+            spotlightColor="rgba(51, 199, 190, 0.25)"
+            onClick={() => setCreateOpen(true)}
+            className="group relative overflow-hidden rounded-2xl border border-teal-100/80 bg-gradient-to-br from-white via-teal-50/20 to-emerald-50/30 p-5 text-left shadow-xs hover:shadow-md hover:border-teal-200 transition-all cursor-pointer"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-11 h-11 rounded-xl bg-teal-50 text-[#33C7BE] flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                <UserPlus className="w-5 h-5" />
+              </div>
+              <span className="w-7 h-7 rounded-full bg-teal-50/80 text-teal-400 group-hover:text-[#33C7BE] group-hover:bg-teal-100 flex items-center justify-center transition-colors">
+                <ChevronRight className="w-4 h-4" />
+              </span>
+            </div>
+            <h3 className="font-bold text-gray-900 text-base group-hover:text-[#33C7BE] transition-colors">
+              Crear Nuevo Paciente
+            </h3>
+            <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+              Da de alta a un paciente nuevo en tu consultorio para abrir su expediente clínico.
+            </p>
+          </SpotlightCard>
+
+          <SpotlightCard
+            whileHover={{ y: -3, scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
+            spotlightColor="rgba(37, 211, 102, 0.22)"
+            onClick={() => setDocReqOpen(true)}
+            className="group relative overflow-hidden rounded-2xl border border-emerald-100/80 bg-gradient-to-br from-white via-emerald-50/20 to-green-50/30 p-5 text-left shadow-xs hover:shadow-md hover:border-emerald-200 transition-all cursor-pointer"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-11 h-11 rounded-xl bg-emerald-50 text-[#25D366] flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                <WaIcon size={20} />
+              </div>
+              <span className="w-7 h-7 rounded-full bg-emerald-50/80 text-emerald-400 group-hover:text-[#25D366] group-hover:bg-emerald-100 flex items-center justify-center transition-colors">
+                <ChevronRight className="w-4 h-4" />
+              </span>
+            </div>
+            <h3 className="font-bold text-gray-900 text-base group-hover:text-emerald-700 transition-colors">
+              Solicitar Documento
+            </h3>
+            <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+              Pide estudios de laboratorio, imagenología o recetas vía WhatsApp o enlace seguro.
+            </p>
+          </SpotlightCard>
+        </div>
+
+        {/* Integrated Search & View Controls */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={15} />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              placeholder="Buscar paciente por nombre, correo o teléfono…"
-              className="w-full pl-9 pr-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary shadow-sm transition-all"
+              placeholder="Buscar por nombre, correo o teléfono…"
+              className="w-full pl-10 pr-24 py-3 bg-white border border-gray-200/90 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-[#33C7BE] focus:border-transparent shadow-xs transition-all"
             />
+            {searchTerm && (
+              <button
+                onClick={() => {
+                  setSearchTerm('')
+                  setResults([])
+                }}
+                className="absolute right-20 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+            <button
+              onClick={handleSearch}
+              disabled={loading}
+              className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-[#33C7BE] text-white font-semibold text-xs rounded-xl hover:bg-teal-600 transition-all flex items-center gap-1 shadow-xs disabled:opacity-60"
+            >
+              {loading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Search className="w-3.5 h-3.5" />
+              )}
+              <span>Buscar</span>
+            </button>
           </div>
-          <button
-            onClick={handleSearch}
-            disabled={loading}
-            className="px-4 py-2.5 bg-primary text-white font-semibold rounded-xl hover:bg-teal-600 transition-all shadow-sm active:scale-95 disabled:opacity-60 flex items-center gap-1.5 text-sm whitespace-nowrap"
-          >
-            {loading ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
-            Buscar
-          </button>
+
+          <div className="flex items-center bg-gray-100/90 rounded-xl p-1 gap-1 self-end sm:self-auto flex-shrink-0">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                viewMode === 'grid'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span>Cuadrícula</span>
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                viewMode === 'list'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <List className="w-3.5 h-3.5" />
+              <span>Lista</span>
+            </button>
+          </div>
         </div>
 
-        {/* Quick actions */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <button
-            onClick={() => setLinkOpen(true)}
-            className="flex flex-col items-start gap-3 p-4 bg-white border border-gray-100 rounded-2xl shadow-sm hover:border-blue-400/40 hover:shadow-md transition-all text-left group"
-          >
-            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-100 transition-colors">
-              <UserCheck size={18} />
-            </div>
-            <div>
-              <p className="text-sm font-bold text-gray-900">Vincular paciente</p>
-              <p className="text-[11px] text-gray-400 mt-0.5">Ya registrado en HealthPal</p>
-            </div>
-          </button>
-
-          <button
-            onClick={() => setCreateOpen(true)}
-            className="flex flex-col items-start gap-3 p-4 bg-white border border-gray-100 rounded-2xl shadow-sm hover:border-primary/30 hover:shadow-md transition-all text-left group"
-          >
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary/20 transition-colors">
-              <UserPlus size={18} />
-            </div>
-            <div>
-              <p className="text-sm font-bold text-gray-900">Crear nuevo paciente</p>
-              <p className="text-[11px] text-gray-400 mt-0.5">Registra a quien no tiene cuenta</p>
-            </div>
-          </button>
-
-          <button
-            onClick={() => setDocReqOpen(true)}
-            className="flex flex-col items-start gap-3 p-4 bg-white border border-gray-100 rounded-2xl shadow-sm hover:border-[#25D366]/40 hover:shadow-md transition-all text-left group"
-          >
-            <div className="w-10 h-10 rounded-xl bg-[#25D366]/10 flex items-center justify-center text-[#25D366] group-hover:bg-[#25D366]/20 transition-colors">
-              <WaIcon size={18} />
-            </div>
-            <div>
-              <p className="text-sm font-bold text-gray-900">Solicitar documento</p>
-              <p className="text-[11px] text-gray-400 mt-0.5">Vía WhatsApp al paciente</p>
-            </div>
-          </button>
-        </div>
-
-        {/* Search Results */}
+        {/* Search Results from HealthPal Network */}
         {results.length > 0 && (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-50 flex items-center gap-2">
-              <p className="text-sm font-bold text-gray-800">Resultados</p>
-              <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-                {results.length}
-              </span>
-              {loading && <Loader2 size={13} className="animate-spin text-gray-400 ml-auto" />}
+          <SpotlightCard
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            spotlightColor="rgba(51, 199, 190, 0.16)"
+            enableHoverLift={false}
+            className="bg-white rounded-2xl border border-gray-200/90 shadow-sm overflow-hidden"
+          >
+            <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between bg-gray-50/60">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-sm text-gray-900">
+                  Resultados en la red HealthPal
+                </span>
+                <span className="text-xs font-bold text-[#33C7BE] bg-teal-50 border border-teal-100 px-2 py-0.5 rounded-full">
+                  {results.length}
+                </span>
+                {loading && <Loader2 className="w-3.5 h-3.5 animate-spin text-gray-400 ml-2" />}
+              </div>
+              <button
+                onClick={() => setResults([])}
+                className="text-xs font-semibold text-gray-400 hover:text-gray-600"
+              >
+                Cerrar resultados
+              </button>
             </div>
             <div className="divide-y divide-gray-50">
               {results.map((p) => {
@@ -474,34 +619,37 @@ export default function Pacientes() {
                 const isRejected = status === 'rejected' || status === 'revoked'
 
                 return (
-                  <div key={p.id} className="px-4 py-3.5 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary/15 to-teal-400/15 flex items-center justify-center text-primary font-bold shrink-0 overflow-hidden text-sm">
+                  <div
+                    key={p.id}
+                    className="px-5 py-3.5 flex items-center justify-between gap-3 hover:bg-gray-50/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center text-white font-bold shrink-0 overflow-hidden text-sm shadow-xs">
                         {p.avatar_url ? (
                           <img src={p.avatar_url} alt="" className="w-full h-full object-cover" />
                         ) : (
-                          <User size={16} />
+                          (p.full_name ?? 'P').charAt(0).toUpperCase()
                         )}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 truncate">
+                        <p className="text-sm font-bold text-gray-900 truncate">
                           {p.full_name || 'Paciente'}
                         </p>
                         <div className="mt-0.5">
                           {isPending && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">
-                              <Clock size={8} /> Pendiente
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                              <Clock size={10} /> Solicitud pendiente
                             </span>
                           )}
                           {isRejected && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-full">
-                              <ShieldX size={8} />{' '}
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">
+                              <ShieldX size={10} />{' '}
                               {status === 'rejected' ? 'Rechazado' : 'Revocado'}
                             </span>
                           )}
                           {isAccepted && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">
-                              <ShieldCheck size={8} /> Con acceso
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                              <ShieldCheck size={10} /> Con acceso
                             </span>
                           )}
                         </div>
@@ -511,9 +659,9 @@ export default function Pacientes() {
                       {isAccepted && (
                         <button
                           onClick={() => navigate(`/dashboard/pacientes/${p.id}`)}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-primary bg-primary/5 rounded-lg hover:bg-primary/10 transition-colors"
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-[#33C7BE] bg-teal-50 rounded-lg hover:bg-teal-100 transition-colors"
                         >
-                          Ver <ChevronRight size={12} />
+                          Ver expediente <ChevronRight size={12} />
                         </button>
                       )}
                       {!status &&
@@ -523,12 +671,12 @@ export default function Pacientes() {
                               value={requestReason}
                               onChange={(e) => setRequestReason(e.target.value)}
                               placeholder="Motivo (opcional)"
-                              className="w-32 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/25"
+                              className="w-36 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#33C7BE]"
                             />
                             <button
                               onClick={() => handleRequestAccess(p.id)}
                               disabled={requestingId === p.id}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-teal-600 disabled:opacity-50 transition-colors"
+                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#33C7BE] text-white text-xs font-semibold rounded-lg hover:bg-teal-600 disabled:opacity-50 transition-colors"
                             >
                               {requestingId === p.id ? (
                                 <Loader2 size={11} className="animate-spin" />
@@ -544,9 +692,9 @@ export default function Pacientes() {
                               setShowReasonFor(p.id)
                               setRequestReason('')
                             }}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-primary border border-primary/25 rounded-lg hover:bg-primary/5 transition-colors"
+                            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-[#33C7BE] border border-[#33C7BE]/30 rounded-lg hover:bg-teal-50 transition-colors"
                           >
-                            <ShieldAlert size={11} />
+                            <ShieldAlert size={12} />
                             Solicitar acceso
                           </button>
                         ))}
@@ -569,520 +717,731 @@ export default function Pacientes() {
                 )
               })}
             </div>
-          </div>
+          </SpotlightCard>
         )}
 
-        {/* Pending Requests */}
+        {/* Pending Requests Banner */}
         {pendingRequests.length > 0 && (
-          <div className="bg-amber-50 rounded-2xl border border-amber-100 overflow-hidden">
-            <div className="px-4 py-3 border-b border-amber-100 flex items-center gap-2">
-              <Clock className="w-3.5 h-3.5 text-amber-500" />
-              <p className="text-sm font-bold text-amber-900">Solicitudes pendientes</p>
-              <span className="ml-auto bg-amber-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                {pendingRequests.length}
+          <SpotlightCard
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            spotlightColor="rgba(245, 158, 11, 0.22)"
+            enableHoverLift={false}
+            className="bg-gradient-to-r from-amber-50/90 via-white to-amber-50/70 rounded-2xl border border-amber-200/80 shadow-xs p-5"
+          >
+            <div className="flex items-center justify-between mb-3.5">
+              <div className="flex items-center gap-2 text-amber-900 font-bold text-sm">
+                <Clock className="w-4 h-4 text-amber-500" />
+                <span>Solicitudes de acceso pendientes ({pendingRequests.length})</span>
+              </div>
+              <span className="text-xs font-semibold text-amber-700 bg-amber-100/70 px-2.5 py-0.5 rounded-full">
+                Esperando autorización del paciente
               </span>
             </div>
-            <div className="divide-y divide-amber-100/60">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {pendingRequests.map((r) => (
-                <div key={r.id} className="flex items-center gap-3 px-4 py-3">
-                  <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center text-amber-700 font-bold text-xs shrink-0 overflow-hidden">
-                    {r.patient?.avatar_url ? (
-                      <img
-                        src={r.patient.avatar_url}
-                        alt=""
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      (r.patient?.full_name?.charAt(0) || 'P').toUpperCase()
-                    )}
+                <div
+                  key={r.id}
+                  className="bg-white rounded-xl p-3.5 border border-amber-100 flex items-center justify-between gap-3 shadow-xs"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-xs shrink-0">
+                      {(r.patient?.full_name?.charAt(0) || 'P').toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-bold text-gray-900 text-xs truncate">
+                        {r.patient?.full_name || 'Paciente'}
+                      </p>
+                      <p className="text-[10px] text-amber-600 mt-0.5">
+                        Enviada el{' '}
+                        {new Date(r.requested_at).toLocaleDateString('es-MX', {
+                          day: 'numeric',
+                          month: 'short',
+                        })}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate">
-                      {r.patient?.full_name || 'Paciente'}
-                    </p>
-                    <p className="text-[10px] text-amber-600">
-                      {new Date(r.requested_at).toLocaleDateString('es-MX', {
-                        day: 'numeric',
-                        month: 'short',
-                      })}
-                    </p>
-                  </div>
-                  <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
-                    Esperando…
+                  <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200/60 px-2 py-0.5 rounded-md">
+                    Pendiente
                   </span>
                 </div>
               ))}
             </div>
-          </div>
+          </SpotlightCard>
         )}
 
-        {/* Patients with Access */}
+        {/* Patients with Access Section */}
         <div>
-          <div className="flex items-center gap-2 mb-4">
-            <ShieldCheck className="w-4 h-4 text-primary" />
-            <p className="text-sm font-bold text-gray-800">Pacientes con acceso</p>
-            {patients.length > 0 && (
-              <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-                {patients.length}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
+              <h2 className="text-sm sm:text-base font-bold text-gray-900">Pacientes con acceso</h2>
+              {filteredPatients.length > 0 && (
+                <span className="text-xs font-bold text-[#33C7BE] bg-teal-50 border border-teal-100/80 px-2.5 py-0.5 rounded-full">
+                  {filteredPatients.length}
+                </span>
+              )}
+            </div>
+
+            {searchTerm && (
+              <span className="text-xs text-gray-500">
+                Mostrando {filteredPatients.length} de {patients.length} pacientes
               </span>
-            )}
-            {loading && patients.length === 0 && (
-              <Loader2 size={13} className="animate-spin text-gray-400 ml-auto" />
             )}
           </div>
 
+          {/* Empty state */}
           {patients.length === 0 && !loading ? (
-            <div className="bg-white rounded-2xl border border-dashed border-gray-200 py-16 text-center">
-              <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-teal-50 flex items-center justify-center">
-                <User size={24} className="text-primary/40" />
+            <div className="bg-white rounded-3xl border border-dashed border-gray-200 py-16 px-4 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-teal-50 text-[#33C7BE] flex items-center justify-center">
+                <User className="w-8 h-8" />
               </div>
-              <p className="text-sm font-semibold text-gray-600 mb-1">Sin pacientes aún</p>
-              <p className="text-xs text-gray-400 max-w-[200px] mx-auto">
-                Busca pacientes y solicita acceso a su expediente.
+              <h3 className="text-base font-bold text-gray-900 mb-1">Sin pacientes aún</h3>
+              <p className="text-sm text-gray-500 max-w-sm mx-auto mb-6">
+                Vincula a un paciente registrado o crea uno nuevo para comenzar a gestionar sus
+                expedientes médicos.
               </p>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <button
+                  onClick={() => setLinkOpen(true)}
+                  className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 font-semibold text-xs rounded-xl hover:bg-gray-50"
+                >
+                  Vincular paciente
+                </button>
+                <button
+                  onClick={() => setCreateOpen(true)}
+                  className="px-4 py-2.5 bg-[#33C7BE] text-white font-semibold text-xs rounded-xl hover:bg-teal-600 shadow-sm"
+                >
+                  Crear nuevo paciente
+                </button>
+              </div>
+            </div>
+          ) : filteredPatients.length === 0 && searchTerm ? (
+            <div className="bg-white rounded-3xl border border-gray-100 py-14 px-4 text-center shadow-xs">
+              <Search className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+              <h3 className="text-sm font-bold text-gray-900 mb-1">
+                No se encontraron pacientes en tu lista para "{searchTerm}"
+              </h3>
+              <p className="text-xs text-gray-500 max-w-xs mx-auto mb-4">
+                Puedes buscar en toda la red de HealthPal para solicitar acceso a su expediente.
+              </p>
+              <button
+                onClick={handleSearch}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#33C7BE] text-white font-semibold text-xs rounded-xl hover:bg-teal-600 transition-all shadow-xs"
+              >
+                <Search className="w-3.5 h-3.5" />
+                Buscar en la red HealthPal
+              </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {patients.map((p) => (
-                <div
-                  key={p.id}
-                  onClick={() => navigate(`/dashboard/pacientes/${p.id}`)}
-                  className="group bg-white rounded-2xl border border-gray-100 shadow-sm p-4 hover:border-primary/30 hover:shadow-md transition-all duration-200 text-left flex items-center gap-3.5 w-full cursor-pointer relative"
-                >
-                  <div className="relative shrink-0">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-400 to-violet-600 flex items-center justify-center text-white font-bold text-sm overflow-hidden">
-                      {p.avatar_url ? (
-                        <img src={p.avatar_url} alt="" className="w-full h-full object-cover" />
+            <motion.div
+              variants={listStagger}
+              initial="hidden"
+              animate="visible"
+              className={
+                viewMode === 'grid'
+                  ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'
+                  : 'space-y-2.5'
+              }
+            >
+              {filteredPatients.map((p) =>
+                viewMode === 'grid' ? (
+                  <SpotlightCard
+                    key={p.id}
+                    variants={fadeUpVariant}
+                    spotlightColor="rgba(51, 199, 190, 0.2)"
+                    onClick={() => navigate(`/dashboard/pacientes/${p.id}`)}
+                    className="group rounded-2xl border border-gray-100/90 shadow-xs hover:border-teal-300 hover:shadow-md transition-all duration-200 p-5 cursor-pointer relative flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-start justify-between gap-3 mb-3.5">
+                        <div className="relative shrink-0">
+                          {p.avatar_url ? (
+                            <img
+                              src={p.avatar_url}
+                              alt=""
+                              className="w-13 h-13 rounded-2xl object-cover ring-2 ring-white shadow-xs"
+                            />
+                          ) : (
+                            <div className="w-13 h-13 rounded-2xl bg-gradient-to-br from-[#33C7BE] to-teal-600 flex items-center justify-center text-white font-extrabold text-base shadow-xs">
+                              {(p.full_name ?? 'P')
+                                .split(' ')
+                                .map((w: string) => w[0])
+                                .join('')
+                                .slice(0, 2)
+                                .toUpperCase()}
+                            </div>
+                          )}
+                          <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full shadow-xs" />
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setUnlinkTarget(p)
+                          }}
+                          title="Desvincular paciente"
+                          className="p-1.5 rounded-xl text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
+                        >
+                          <UserMinus className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <h3 className="font-bold text-gray-900 text-base group-hover:text-[#33C7BE] transition-colors truncate mb-1">
+                        {p.full_name || 'Paciente'}
+                      </h3>
+
+                      {p.email ? (
+                        <p className="text-xs text-gray-500 flex items-center gap-1.5 truncate mb-3">
+                          <Mail className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                          <span className="truncate">{p.email}</span>
+                        </p>
                       ) : (
-                        (p.full_name ?? 'P')
-                          .split(' ')
-                          .map((w: string) => w[0])
-                          .join('')
-                          .slice(0, 2)
-                          .toUpperCase()
+                        <p className="text-xs text-gray-400 italic mb-3">Sin correo registrado</p>
                       )}
                     </div>
-                    <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 rounded-full border-2 border-white" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 truncate group-hover:text-primary transition-colors text-sm">
-                      {p.full_name || 'Paciente'}
-                    </p>
-                    {p.email && (
-                      <p className="text-[11px] text-gray-400 truncate mt-0.5">{p.email}</p>
-                    )}
-                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full mt-1">
-                      <ShieldCheck size={8} /> Expediente activo
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setUnlinkTarget(p)
-                      }}
-                      title="Desvincular paciente"
-                      className="p-2 rounded-xl text-gray-300 hover:text-red-600 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
-                    >
-                      <UserMinus size={16} />
-                    </button>
-                    <ChevronRight
-                      size={15}
-                      className="text-gray-200 group-hover:text-primary group-hover:translate-x-0.5 transition-all"
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
+
+                    <div className="pt-3 border-t border-gray-100 flex items-center justify-between mt-1">
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100/60">
+                        <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                        Expediente activo
+                      </span>
+
+                      <span className="text-xs font-bold text-teal-600 group-hover:translate-x-1 transition-transform flex items-center gap-0.5">
+                        Ver <ChevronRight className="w-3.5 h-3.5" />
+                      </span>
+                    </div>
+                  </SpotlightCard>
+                ) : (
+                  <SpotlightCard
+                    key={p.id}
+                    variants={fadeUpVariant}
+                    spotlightColor="rgba(51, 199, 190, 0.16)"
+                    enableHoverLift={false}
+                    whileHover={{ scale: 1.005 }}
+                    onClick={() => navigate(`/dashboard/pacientes/${p.id}`)}
+                    className="group rounded-2xl border border-gray-100/90 shadow-xs hover:border-teal-300 hover:shadow-md transition-all p-4 cursor-pointer flex items-center justify-between gap-4"
+                  >
+                    <div className="flex items-center gap-4 min-w-0">
+                      <div className="relative shrink-0">
+                        {p.avatar_url ? (
+                          <img
+                            src={p.avatar_url}
+                            alt=""
+                            className="w-11 h-11 rounded-xl object-cover"
+                          />
+                        ) : (
+                          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#33C7BE] to-teal-600 flex items-center justify-center text-white font-bold text-sm">
+                            {(p.full_name ?? 'P')
+                              .split(' ')
+                              .map((w: string) => w[0])
+                              .join('')
+                              .slice(0, 2)
+                              .toUpperCase()}
+                          </div>
+                        )}
+                        <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full" />
+                      </div>
+
+                      <div className="min-w-0">
+                        <p className="font-bold text-gray-900 text-sm group-hover:text-[#33C7BE] transition-colors truncate">
+                          {p.full_name || 'Paciente'}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate mt-0.5">
+                          {p.email || 'Sin correo registrado'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100/60">
+                        <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                        Expediente activo
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setUnlinkTarget(p)
+                        }}
+                        title="Desvincular paciente"
+                        className="p-1.5 rounded-xl text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
+                      >
+                        <UserMinus className="w-4 h-4" />
+                      </button>
+                      <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-[#33C7BE] group-hover:translate-x-0.5 transition-transform" />
+                    </div>
+                  </SpotlightCard>
+                ),
+              )}
+            </motion.div>
           )}
         </div>
       </div>
 
-      {/* Link Existing Patient Modal */}
-      {linkOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
-                  <UserCheck size={16} />
+      {/* Modals */}
+      <AnimatePresence>
+        {/* Link Existing Patient Modal */}
+        {linkOpen && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setLinkOpen(false)
+                setLinkIdentifier('')
+                setLinkReason('')
+              }}
+              className="absolute inset-0 bg-black/40 backdrop-blur-xs"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 320 }}
+              className="relative bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-md overflow-hidden max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-teal-50 flex items-center justify-center text-[#33C7BE]">
+                    <UserCheck size={18} />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-gray-900">Vincular paciente</h2>
+                    <p className="text-[11px] text-gray-400">Cuenta existente en HealthPal</p>
+                  </div>
                 </div>
+                <button
+                  onClick={() => {
+                    setLinkOpen(false)
+                    setLinkIdentifier('')
+                    setLinkReason('')
+                  }}
+                  className="p-1.5 hover:bg-gray-100 rounded-xl transition-colors text-gray-400 hover:text-gray-600"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleLinkExistingPatient} className="p-6 space-y-4">
                 <div>
-                  <h2 className="text-sm font-bold text-gray-900">Vincular paciente</h2>
-                  <p className="text-[10px] text-gray-400">Cuenta existente en HealthPal</p>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  setLinkOpen(false)
-                  setLinkIdentifier('')
-                  setLinkReason('')
-                }}
-                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X size={16} className="text-gray-400" />
-              </button>
-            </div>
-
-            <form onSubmit={handleLinkExistingPatient} className="p-5 space-y-3.5">
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                  Correo o teléfono del paciente
-                </label>
-                <input
-                  type="text"
-                  value={linkIdentifier}
-                  onChange={(e) => setLinkIdentifier(e.target.value)}
-                  placeholder="ej. paciente@correo.com o 8121921877"
-                  required
-                  autoFocus
-                  className="w-full px-3 py-2.5 text-base sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-                />
-                <p className="text-[11px] text-gray-400 mt-1">
-                  Enviaremos una solicitud de acceso al paciente para que autorice compartir su
-                  expediente.
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                  Motivo de la solicitud (opcional)
-                </label>
-                <input
-                  type="text"
-                  value={linkReason}
-                  onChange={(e) => setLinkReason(e.target.value)}
-                  placeholder="ej. Consulta médica general, seguimiento..."
-                  className="w-full px-3 py-2.5 text-base sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={linkLoading || !linkIdentifier.trim()}
-                className="w-full py-3 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm mt-2 bg-blue-600 hover:bg-blue-700 text-white active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {linkLoading ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
-                Solicitar acceso
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Create Patient Modal */}
-      {createOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-                  <UserPlus size={16} />
-                </div>
-                <h2 className="text-sm font-bold text-gray-900">Crear paciente</h2>
-              </div>
-              <button
-                onClick={() => {
-                  setCreateOpen(false)
-                  setCreateName('')
-                  setCreateEmail('')
-                  setCreatePhone('')
-                  setCreateBirthdate('')
-                  setCreateSex('')
-                }}
-                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X size={16} className="text-gray-400" />
-              </button>
-            </div>
-            <form onSubmit={handleCreatePatient} className="p-5 space-y-3.5">
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">
-                  Nombre completo
-                </label>
-                <input
-                  type="text"
-                  value={createName}
-                  onChange={(e) => setCreateName(e.target.value)}
-                  placeholder="Nombre del paciente"
-                  required
-                  className="w-full px-3 py-2.5 text-base sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">
-                  Correo electrónico
-                </label>
-                <input
-                  type="email"
-                  value={createEmail}
-                  onChange={(e) => setCreateEmail(e.target.value)}
-                  placeholder="paciente@correo.com"
-                  required
-                  className="w-full px-3 py-2.5 text-base sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">
-                  Teléfono (opcional)
-                </label>
-                <input
-                  type="tel"
-                  value={createPhone}
-                  onChange={(e) => setCreatePhone(e.target.value)}
-                  placeholder="52 81 XXXX XXXX"
-                  className="w-full px-3 py-2.5 text-base sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1.5">
-                    Fecha de nacimiento (opcional)
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                    Correo o teléfono del paciente
                   </label>
                   <input
-                    type="date"
-                    value={createBirthdate}
-                    onChange={(e) => setCreateBirthdate(e.target.value)}
-                    max={new Date().toISOString().split('T')[0]}
-                    className="w-full px-3 py-2.5 text-base sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                    type="text"
+                    value={linkIdentifier}
+                    onChange={(e) => setLinkIdentifier(e.target.value)}
+                    placeholder="ej. paciente@correo.com o 8121921877"
+                    required
+                    autoFocus
+                    className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#33C7BE] focus:border-transparent transition-all"
+                  />
+                  <p className="text-[11px] text-gray-400 mt-1.5 leading-relaxed">
+                    Enviaremos una solicitud de acceso al paciente para que autorice compartir su
+                    expediente clínico.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                    Motivo de la solicitud (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={linkReason}
+                    onChange={(e) => setLinkReason(e.target.value)}
+                    placeholder="ej. Consulta médica general, seguimiento..."
+                    className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#33C7BE] focus:border-transparent transition-all"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={linkLoading || !linkIdentifier.trim()}
+                  className="w-full py-3 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm shadow-teal-500/20 mt-3 bg-[#33C7BE] hover:bg-teal-600 text-white active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {linkLoading ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Send size={16} />
+                  )}
+                  <span>Solicitar acceso</span>
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Create Patient Modal */}
+        {createOpen && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setCreateOpen(false)
+                setCreateName('')
+                setCreateEmail('')
+                setCreatePhone('')
+                setCreateBirthdate('')
+                setCreateSex('')
+              }}
+              className="absolute inset-0 bg-black/40 backdrop-blur-xs"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 320 }}
+              className="relative bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-md overflow-hidden max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-teal-50 flex items-center justify-center text-[#33C7BE]">
+                    <UserPlus size={18} />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-gray-900">Crear paciente</h2>
+                    <p className="text-[11px] text-gray-400">Nuevo registro en tu consultorio</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setCreateOpen(false)
+                    setCreateName('')
+                    setCreateEmail('')
+                    setCreatePhone('')
+                    setCreateBirthdate('')
+                    setCreateSex('')
+                  }}
+                  className="p-1.5 hover:bg-gray-100 rounded-xl transition-colors text-gray-400 hover:text-gray-600"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreatePatient} className="p-6 space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                    Nombre completo
+                  </label>
+                  <input
+                    type="text"
+                    value={createName}
+                    onChange={(e) => setCreateName(e.target.value)}
+                    placeholder="Nombre y apellidos del paciente"
+                    required
+                    className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#33C7BE] focus:border-transparent transition-all"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1.5">
-                    Sexo (opcional)
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                    Correo electrónico
                   </label>
-                  <select
-                    value={createSex}
-                    onChange={(e) => setCreateSex(e.target.value)}
-                    className="w-full px-3 py-2.5 text-base sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white"
-                  >
-                    <option value="">—</option>
-                    <option value="male">Masculino</option>
-                    <option value="female">Femenino</option>
-                  </select>
+                  <input
+                    type="email"
+                    value={createEmail}
+                    onChange={(e) => setCreateEmail(e.target.value)}
+                    placeholder="paciente@correo.com"
+                    required
+                    className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#33C7BE] focus:border-transparent transition-all"
+                  />
                 </div>
-              </div>
-              <p className="text-[11px] text-gray-400 leading-relaxed">
-                Se creará una cuenta pre-registrada. El paciente podrá completar su perfil al
-                iniciar sesión.
-              </p>
-              <button
-                type="submit"
-                disabled={createLoading || !createName.trim() || !createEmail.trim()}
-                className="w-full py-3 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm mt-1 bg-primary hover:bg-teal-600 text-white active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {createLoading ? (
-                  <Loader2 size={15} className="animate-spin" />
-                ) : (
-                  <UserPlus size={15} />
-                )}
-                Crear paciente
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Document Request Modal */}
-      {docReqOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
-            {/* Modal header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-[#25D366]/10 flex items-center justify-center text-[#25D366]">
-                  <WaIcon size={16} />
-                </div>
-                <h2 className="text-sm font-bold text-gray-900">Solicitar documento</h2>
-              </div>
-              <button
-                onClick={resetDocReqModal}
-                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X size={16} className="text-gray-400" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSendWhatsApp} className="p-5 space-y-3.5">
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">
-                  WhatsApp del paciente
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                    <WaIcon size={14} />
-                  </span>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                    Teléfono (opcional)
+                  </label>
                   <input
                     type="tel"
-                    value={docReqPhone}
-                    onChange={(e) => setDocReqPhone(e.target.value)}
+                    value={createPhone}
+                    onChange={(e) => setCreatePhone(e.target.value)}
                     placeholder="52 81 XXXX XXXX"
-                    required
-                    className="w-full pl-9 pr-3 py-2.5 text-base sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#25D366]/30 focus:border-[#25D366]"
+                    className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#33C7BE] focus:border-transparent transition-all"
                   />
                 </div>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">
-                  Correo (opcional)
-                </label>
-                <input
-                  type="email"
-                  value={docReqEmail}
-                  onChange={(e) => setDocReqEmail(e.target.value)}
-                  placeholder="paciente@correo.com"
-                  className="w-full px-3 py-2.5 text-base sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">
-                  Documento solicitado
-                </label>
-                <input
-                  type="text"
-                  list="doc-type-options"
-                  value={docReqType}
-                  onChange={(e) => setDocReqType(e.target.value)}
-                  placeholder="Ej. Análisis de sangre, Radiografía…"
-                  required
-                  className="w-full px-3 py-2.5 text-base sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
-                <datalist id="doc-type-options">
-                  <option value="Análisis de sangre completo" />
-                  <option value="Radiografía" />
-                  <option value="Resonancia magnética" />
-                  <option value="Tomografía" />
-                  <option value="Ultrasonido" />
-                  <option value="Receta médica" />
-                  <option value="Historial médico" />
-                  <option value="Resultados de laboratorio" />
-                  <option value="Póliza de seguro médico" />
-                  <option value="Electrocardiograma" />
-                  <option value="Densitometría ósea" />
-                  <option value="Expediente de vacunación" />
-                </datalist>
-              </div>
-              <button
-                type="submit"
-                disabled={docReqWaLoading || !isPhoneValid(docReqPhone)}
-                className={`w-full py-3 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm mt-1 ${
-                  isPhoneValid(docReqPhone) && !docReqWaLoading
-                    ? 'bg-[#25D366] hover:bg-[#1db954] text-white active:scale-[0.98]'
-                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                }`}
-              >
-                {docReqWaLoading ? (
-                  <Loader2 size={15} className="animate-spin" />
-                ) : (
-                  <WaIcon size={16} />
-                )}
-                Enviar por WhatsApp
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Unlink Patient Modal */}
-      {unlinkTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-red-50/50">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-red-100 flex items-center justify-center text-red-600">
-                  <UserMinus size={17} />
-                </div>
-                <h2 className="text-sm font-bold text-gray-900">Desvincular paciente</h2>
-              </div>
-              <button
-                onClick={() => setUnlinkTarget(null)}
-                className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="p-5 space-y-4">
-              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-500 to-violet-700 text-white font-bold text-sm flex items-center justify-center shrink-0">
-                  {unlinkTarget.avatar_url ? (
-                    <img
-                      src={unlinkTarget.avatar_url}
-                      alt=""
-                      className="w-full h-full object-cover rounded-lg"
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                      Fecha de nacimiento
+                    </label>
+                    <input
+                      type="date"
+                      value={createBirthdate}
+                      onChange={(e) => setCreateBirthdate(e.target.value)}
+                      max={new Date().toISOString().split('T')[0]}
+                      className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#33C7BE] focus:border-transparent transition-all"
                     />
-                  ) : (
-                    (unlinkTarget.full_name ?? 'P').slice(0, 2).toUpperCase()
-                  )}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                      Sexo (opcional)
+                    </label>
+                    <select
+                      value={createSex}
+                      onChange={(e) => setCreateSex(e.target.value)}
+                      className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#33C7BE] focus:border-transparent bg-white transition-all"
+                    >
+                      <option value="">—</option>
+                      <option value="male">Masculino</option>
+                      <option value="female">Femenino</option>
+                    </select>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-bold text-gray-900 truncate">
-                    {unlinkTarget.full_name || 'Paciente'}
-                  </p>
-                  {unlinkTarget.email && (
-                    <p className="text-xs text-gray-400 truncate">{unlinkTarget.email}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="text-xs text-gray-600 space-y-2 bg-amber-50/70 border border-amber-200/60 p-3.5 rounded-xl">
-                <p className="font-semibold text-amber-900 flex items-center gap-1.5">
-                  <AlertTriangle size={14} className="text-amber-600 shrink-0" />
-                  Al desvincular a este paciente:
+                <p className="text-[11px] text-gray-400 leading-relaxed">
+                  Se creará un perfil en tu consultorio. El paciente podrá acceder a su cuenta y
+                  consultar sus recetas e indicaciones.
                 </p>
-                <ul className="list-disc list-inside space-y-1 text-amber-800/90 pl-1">
-                  <li>Se revocará tu acceso activo a su expediente y documentos.</li>
-                  <li>
-                    Las notas médicas y recetas emitidas se{' '}
-                    <strong>conservarán de forma segura</strong> en la cuenta del paciente conforme
-                    a la NOM-004.
-                  </li>
-                  <li>
-                    Si lo vuelves a vincular en el futuro, se reanudará el acceso a su historial.
-                  </li>
-                </ul>
-              </div>
-
-              <label className="flex items-start gap-2.5 cursor-pointer select-none pt-1">
-                <input
-                  type="checkbox"
-                  checked={unlinkCancelAppointments}
-                  onChange={(e) => setUnlinkCancelAppointments(e.target.checked)}
-                  className="mt-0.5 rounded text-primary focus:ring-primary h-4 w-4"
-                />
-                <span className="text-xs text-gray-600 font-medium">
-                  Cancelar citas futuras programadas con este paciente
-                </span>
-              </label>
-
-              <div className="flex gap-2.5 pt-2">
                 <button
-                  type="button"
-                  onClick={() => setUnlinkTarget(null)}
-                  disabled={unlinkLoading}
-                  className="flex-1 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-xs font-semibold hover:bg-gray-50 transition-colors"
+                  type="submit"
+                  disabled={createLoading || !createName.trim() || !createEmail.trim()}
+                  className="w-full py-3 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm mt-2 bg-[#33C7BE] hover:bg-teal-600 text-white active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={handleUnlinkPatient}
-                  disabled={unlinkLoading}
-                  className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-60"
-                >
-                  {unlinkLoading ? (
-                    <Loader2 size={14} className="animate-spin" />
+                  {createLoading ? (
+                    <Loader2 size={16} className="animate-spin" />
                   ) : (
-                    <UserMinus size={14} />
+                    <UserPlus size={16} />
                   )}
-                  Confirmar desvinculación
+                  <span>Crear paciente</span>
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Document Request Modal */}
+        {docReqOpen && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={resetDocReqModal}
+              className="absolute inset-0 bg-black/40 backdrop-blur-xs"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 320 }}
+              className="relative bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-md overflow-hidden max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-[#25D366]/10 flex items-center justify-center text-[#25D366]">
+                    <WaIcon size={18} />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-gray-900">Solicitar documento</h2>
+                    <p className="text-[11px] text-gray-400">Vía WhatsApp o enlace seguro</p>
+                  </div>
+                </div>
+                <button
+                  onClick={resetDocReqModal}
+                  className="p-1.5 hover:bg-gray-100 rounded-xl transition-colors text-gray-400 hover:text-gray-600"
+                >
+                  <X size={18} />
                 </button>
               </div>
-            </div>
+
+              <form onSubmit={handleSendWhatsApp} className="p-6 space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                    WhatsApp del paciente
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+                      <WaIcon size={16} />
+                    </span>
+                    <input
+                      type="tel"
+                      value={docReqPhone}
+                      onChange={(e) => setDocReqPhone(e.target.value)}
+                      placeholder="52 81 XXXX XXXX"
+                      required
+                      className="w-full pl-10 pr-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#25D366]/30 focus:border-[#25D366] transition-all"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                    Correo (opcional)
+                  </label>
+                  <input
+                    type="email"
+                    value={docReqEmail}
+                    onChange={(e) => setDocReqEmail(e.target.value)}
+                    placeholder="paciente@correo.com"
+                    className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#33C7BE] focus:border-transparent transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                    Documento solicitado
+                  </label>
+                  <input
+                    type="text"
+                    list="doc-type-options"
+                    value={docReqType}
+                    onChange={(e) => setDocReqType(e.target.value)}
+                    placeholder="Ej. Análisis de sangre, Radiografía…"
+                    required
+                    className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#33C7BE] focus:border-transparent transition-all"
+                  />
+                  <datalist id="doc-type-options">
+                    <option value="Análisis de sangre completo" />
+                    <option value="Radiografía" />
+                    <option value="Resonancia magnética" />
+                    <option value="Tomografía" />
+                    <option value="Ultrasonido" />
+                    <option value="Receta médica" />
+                    <option value="Historial médico" />
+                    <option value="Resultados de laboratorio" />
+                    <option value="Póliza de seguro médico" />
+                    <option value="Electrocardiograma" />
+                    <option value="Densitometría ósea" />
+                    <option value="Expediente de vacunación" />
+                  </datalist>
+                </div>
+                <button
+                  type="submit"
+                  disabled={docReqWaLoading || !isPhoneValid(docReqPhone)}
+                  className={`w-full py-3 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm mt-2 ${
+                    isPhoneValid(docReqPhone) && !docReqWaLoading
+                      ? 'bg-[#25D366] hover:bg-[#1db954] text-white active:scale-[0.98]'
+                      : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  {docReqWaLoading ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <WaIcon size={18} />
+                  )}
+                  <span>Enviar por WhatsApp</span>
+                </button>
+              </form>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* Unlink Patient Modal */}
+        {unlinkTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setUnlinkTarget(null)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-xs"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 320 }}
+              className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+            >
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-red-50/50">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center text-red-600">
+                    <UserMinus size={18} />
+                  </div>
+                  <h2 className="text-base font-bold text-gray-900">Desvincular paciente</h2>
+                </div>
+                <button
+                  onClick={() => setUnlinkTarget(null)}
+                  className="p-1.5 hover:bg-gray-100 rounded-xl text-gray-400 hover:text-gray-600"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div className="flex items-center gap-3.5 p-3.5 bg-gray-50 rounded-2xl border border-gray-100">
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white font-bold text-sm flex items-center justify-center shrink-0 shadow-xs">
+                    {unlinkTarget.avatar_url ? (
+                      <img
+                        src={unlinkTarget.avatar_url}
+                        alt=""
+                        className="w-full h-full object-cover rounded-xl"
+                      />
+                    ) : (
+                      (unlinkTarget.full_name ?? 'P').slice(0, 2).toUpperCase()
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-gray-900 truncate">
+                      {unlinkTarget.full_name || 'Paciente'}
+                    </p>
+                    {unlinkTarget.email && (
+                      <p className="text-xs text-gray-400 truncate">{unlinkTarget.email}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="text-xs text-gray-600 space-y-2 bg-amber-50/70 border border-amber-200/60 p-4 rounded-2xl">
+                  <p className="font-semibold text-amber-900 flex items-center gap-1.5">
+                    <AlertTriangle size={15} className="text-amber-600 shrink-0" />
+                    Al desvincular a este paciente:
+                  </p>
+                  <ul className="list-disc list-inside space-y-1 text-amber-800/90 pl-1 leading-relaxed">
+                    <li>Se revocará tu acceso activo a su expediente y documentos.</li>
+                    <li>
+                      Las notas médicas y recetas emitidas se{' '}
+                      <strong>conservarán de forma segura</strong> en la cuenta del paciente
+                      conforme a la NOM-004.
+                    </li>
+                    <li>
+                      Si lo vuelves a vincular en el futuro, se reanudará el acceso a su historial.
+                    </li>
+                  </ul>
+                </div>
+
+                <label className="flex items-start gap-2.5 cursor-pointer select-none pt-1">
+                  <input
+                    type="checkbox"
+                    checked={unlinkCancelAppointments}
+                    onChange={(e) => setUnlinkCancelAppointments(e.target.checked)}
+                    className="mt-0.5 rounded text-[#33C7BE] focus:ring-[#33C7BE] h-4 w-4"
+                  />
+                  <span className="text-xs text-gray-600 font-medium">
+                    Cancelar citas futuras programadas con este paciente
+                  </span>
+                </label>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setUnlinkTarget(null)}
+                    disabled={unlinkLoading}
+                    className="flex-1 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-xs font-semibold hover:bg-gray-50 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleUnlinkPatient}
+                    disabled={unlinkLoading}
+                    className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-60"
+                  >
+                    {unlinkLoading ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <UserMinus size={14} />
+                    )}
+                    Confirmar desvinculación
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </DashboardLayout>
   )
 }

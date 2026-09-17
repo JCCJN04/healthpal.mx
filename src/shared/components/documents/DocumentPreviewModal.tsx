@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import {
   X,
   Download,
@@ -242,12 +243,20 @@ export function DocumentPreviewModal({ document, onClose, onShare }: DocumentPre
   }
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
       className="fixed inset-0 z-50 flex flex-col bg-black/60 backdrop-blur-sm"
       onClick={onClose}
     >
       {/* Modal panel */}
-      <div
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 12 }}
+        transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
         className="relative bg-white flex flex-col w-full h-full sm:h-auto sm:max-h-[95vh] sm:w-[92vw] sm:max-w-4xl sm:m-auto sm:rounded-2xl sm:shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
@@ -381,7 +390,7 @@ export function DocumentPreviewModal({ document, onClose, onShare }: DocumentPre
             Ver detalle
           </button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   )
 }

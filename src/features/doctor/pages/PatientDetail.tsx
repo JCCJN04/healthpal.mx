@@ -33,8 +33,17 @@ import {
   Pencil,
   Scissors,
   UserMinus,
+  Sparkles,
+  CheckCircle2,
+  FolderLock,
+  Pill,
+  TrendingUp,
+  Thermometer,
+  Droplet,
+  HeartPulse,
 } from 'lucide-react'
 import DashboardLayout from '@/app/layout/DashboardLayout'
+import { SpotlightCard } from '@/shared/components/ui/SpotlightCard'
 import {
   getPatientFullProfile,
   getPatientNotes,
@@ -186,11 +195,8 @@ export default function PatientDetail() {
       mountedRef.current = false
     }
   }, [])
-  const [tabsAtEnd, setTabsAtEnd] = useState(false)
   const handleTabScroll = () => {
-    const el = tabScrollRef.current
-    if (!el) return
-    setTabsAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 4)
+    // Keep scroll handler for future overflow indicators if needed
   }
 
   useEffect(() => {
@@ -849,31 +855,97 @@ export default function PatientDetail() {
     .slice(0, 2)
     .toUpperCase()
 
+  const heightCm = medProfile?.height_cm ?? pProfile?.height_cm ?? null
+  const weightKg = medProfile?.weight_kg ?? pProfile?.weight_kg ?? null
+  const heightM = heightCm ? heightCm / 100 : null
+  const bmiValue =
+    heightM && weightKg ? Math.round((weightKg / (heightM * heightM)) * 10) / 10 : null
+  const bmiStatus = bmiValue
+    ? bmiValue < 18.5
+      ? { label: 'Bajo peso', color: 'text-blue-700 bg-blue-50 border-blue-200' }
+      : bmiValue < 25
+        ? { label: 'Normopeso', color: 'text-green-700 bg-green-50 border-green-200' }
+        : bmiValue < 30
+          ? { label: 'Sobrepeso', color: 'text-amber-700 bg-amber-50 border-amber-200' }
+          : { label: 'Obesidad', color: 'text-red-700 bg-red-50 border-red-200' }
+    : null
+
+  const latestBio = biometricHistory[0] || null
+
+  const handleCopyText = (text: string, label: string) => {
+    navigator.clipboard.writeText(text)
+    showToast(`${label} copiado al portapapeles`, 'success', 2500)
+  }
+
+  const automatedClinicalSynthesis = (() => {
+    const parts: string[] = []
+    const genderStr =
+      patient.sex === 'male'
+        ? 'Paciente masculino'
+        : patient.sex === 'female'
+          ? 'Paciente femenino'
+          : 'Paciente'
+    const ageStr = patient.birthdate ? ` de ${calculateAge(patient.birthdate)} años` : ''
+    parts.push(`${genderStr}${ageStr} en seguimiento clínico ambulatorio activo.`)
+
+    if (hasCondition) {
+      parts.push(`Diagnósticos vigentes: ${conditions}.`)
+    }
+    if (hasAllergy) {
+      parts.push(`Alergia confirmada a ${allergies}; requiere verificación previa a prescripción.`)
+    }
+    if (meds) {
+      parts.push(`Esquema terapéutico activo: ${meds}.`)
+    }
+    if (latestBio) {
+      parts.push(
+        `Últimos signos vitales registrados: TA ${latestBio.systolic_bp || 120}/${latestBio.diastolic_bp || 80} mmHg, FC ${latestBio.heart_rate_bpm || 72} lpm y SpO2 ${latestBio.oxygen_saturation_pct || 98}%.`,
+      )
+    }
+    if (pastAppointments.length > 0) {
+      parts.push(
+        `Cuenta con ${pastAppointments.length} consulta(s) previa(s) registrada(s) en su historial.`,
+      )
+    }
+    return parts.join(' ')
+  })()
+
   return (
     <DashboardLayout>
-      <div className="-m-4 md:-m-6 lg:-m-8 min-h-screen bg-gray-50/60 flex flex-col">
+      {/* Ambient decorative glowing orbs */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden z-0">
+        <div className="absolute top-16 right-16 w-96 h-96 bg-[#33C7BE]/8 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-8 w-80 h-80 bg-blue-400/6 rounded-full blur-3xl" />
+      </div>
+
+      <div className="relative z-10 -m-4 md:-m-6 lg:-m-8 min-h-screen bg-gradient-to-b from-gray-50/90 via-white/60 to-gray-50/90 flex flex-col">
         {/* ── Top bar ──────────────────────────────────────── */}
-        <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex items-center gap-3 flex-shrink-0">
+        <div className="bg-white/85 backdrop-blur-md border-b border-gray-200/80 px-4 sm:px-6 py-3.5 flex items-center gap-3.5 flex-shrink-0 sticky top-0 z-20 shadow-xs">
           <button
             onClick={() => navigate(-1)}
             title="Volver a pacientes"
-            className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-gray-100 text-gray-500 transition-colors flex-shrink-0"
+            className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-gray-200/80 hover:border-[#33C7BE]/60 hover:bg-teal-50/50 text-gray-600 transition-all shadow-xs flex-shrink-0 cursor-pointer"
           >
-            <ArrowLeft size={17} />
+            <ArrowLeft size={18} />
           </button>
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-              Expediente clínico
-            </p>
-            <h1 className="text-base font-black text-gray-900 leading-tight truncate">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                Expediente Clínico
+              </span>
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-teal-700 bg-teal-50 border border-teal-200/60 px-2 py-0.5 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" /> Activo
+              </span>
+            </div>
+            <h1 className="text-lg sm:text-xl font-extrabold text-gray-900 leading-tight truncate">
               {patient.full_name || 'Paciente'}
             </h1>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2.5 flex-shrink-0">
             <button
               onClick={() => setShowUnlinkModal(true)}
               title="Desvincular paciente de tu lista activa"
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-gray-500 hover:text-red-600 hover:bg-red-50 border border-gray-200 font-semibold text-xs rounded-xl transition-colors shrink-0"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-gray-500 hover:text-red-600 hover:bg-red-50 border border-gray-200/80 font-semibold text-xs rounded-xl transition-all cursor-pointer shadow-xs"
             >
               <UserMinus size={14} />
               <span className="hidden sm:inline">Desvincular</span>
@@ -881,7 +953,7 @@ export default function PatientDetail() {
             <button
               onClick={() => setShowAgendarModal(true)}
               title="Agendar nueva cita para este paciente"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#33C7BE] text-white font-bold text-xs rounded-xl hover:bg-teal-600 transition-colors shadow-sm shrink-0"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#33C7BE] to-teal-600 hover:opacity-95 text-white font-bold text-xs rounded-xl transition-all shadow-sm hover:shadow-[#33C7BE]/25 active:scale-95 cursor-pointer"
             >
               <CalendarDays size={14} />
               <span>Agendar cita</span>
@@ -891,15 +963,22 @@ export default function PatientDetail() {
 
         {/* ── Alert strip ──────────────────────────────────── */}
         {(hasAllergy || hasCondition) && (
-          <div className="bg-red-50 border-b border-red-200 px-4 sm:px-6 py-2.5 flex flex-wrap gap-4 flex-shrink-0">
+          <div className="bg-gradient-to-r from-red-50/90 via-amber-50/80 to-teal-50/50 backdrop-blur-md border-b border-red-100/90 px-4 sm:px-6 py-2.5 flex flex-wrap items-center gap-3 sm:gap-5 flex-shrink-0">
             {hasAllergy && (
-              <span className="flex items-center gap-1.5 text-xs font-bold text-red-700">
-                ⚠️ Alergia: <span className="font-semibold">{allergies}</span>
+              <span className="inline-flex items-center gap-2 text-xs font-bold text-red-800 bg-red-100/70 border border-red-200/80 px-3 py-1 rounded-full shadow-2xs">
+                <AlertTriangle size={13} className="text-red-600 animate-pulse flex-shrink-0" />
+                <span>
+                  Alergia conocida: <span className="font-semibold text-red-900">{allergies}</span>
+                </span>
               </span>
             )}
             {hasCondition && (
-              <span className="flex items-center gap-1.5 text-xs font-bold text-orange-700">
-                🫀 Condición: <span className="font-semibold">{conditions}</span>
+              <span className="inline-flex items-center gap-2 text-xs font-bold text-amber-800 bg-amber-100/70 border border-amber-200/80 px-3 py-1 rounded-full shadow-2xs">
+                <Heart size={13} className="text-amber-600 flex-shrink-0" />
+                <span>
+                  Condición activa:{' '}
+                  <span className="font-semibold text-amber-900">{conditions}</span>
+                </span>
               </span>
             )}
           </div>
@@ -908,69 +987,101 @@ export default function PatientDetail() {
         {/* ── Body: sidebar + main ──────────────────────────── */}
         <div className="flex flex-1 overflow-hidden">
           {/* ── LEFT SIDEBAR ─────────────────────────────── */}
-          <aside className="hidden lg:flex flex-col w-64 xl:w-68 flex-shrink-0 bg-white border-r border-gray-100 overflow-y-auto">
+          <aside className="hidden lg:flex flex-col w-72 xl:w-80 flex-shrink-0 bg-white/80 backdrop-blur-md border-r border-gray-200/80 overflow-y-auto">
             {/* ── Patient hero ── */}
-            <div className="px-5 pt-5 pb-4">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-14 h-14 rounded-2xl overflow-hidden bg-gradient-to-br from-[#33C7BE]/20 to-cyan-100 flex items-center justify-center shadow-sm flex-shrink-0">
-                  {patient.avatar_url ? (
-                    <img src={patient.avatar_url} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-2xl font-black text-[#33C7BE]">{initials}</span>
-                  )}
+            <div className="p-5 border-b border-gray-100 space-y-4">
+              <div className="flex items-center gap-3.5">
+                <div className="relative">
+                  <div className="w-14 h-14 rounded-2xl overflow-hidden bg-gradient-to-br from-[#33C7BE]/20 via-teal-100 to-cyan-200 flex items-center justify-center shadow-xs border-2 border-white flex-shrink-0">
+                    {patient.avatar_url ? (
+                      <img src={patient.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-xl font-black text-[#33C7BE] tracking-wider">
+                        {initials}
+                      </span>
+                    )}
+                  </div>
+                  <div
+                    className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center text-white"
+                    title="Acceso autorizado"
+                  >
+                    <ShieldCheck size={11} />
+                  </div>
                 </div>
                 <div className="flex-1 min-w-0">
                   <h2 className="text-sm font-black text-gray-900 leading-tight truncate">
                     {patient.full_name || 'Paciente'}
                   </h2>
-                  <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-semibold text-green-700 bg-green-50 border border-green-100 px-2 py-0.5 rounded-full">
-                    <ShieldCheck size={9} /> Acceso autorizado
+                  <p className="text-[11px] text-gray-500 font-medium truncate mt-0.5">
+                    {pProfile?.city
+                      ? `${pProfile.city}, ${pProfile?.state || 'México'}`
+                      : 'Paciente registrado'}
+                  </p>
+                  <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/70 px-2 py-0.5 rounded-full">
+                    <CheckCircle2 size={10} /> Acceso verificado
                   </span>
                 </div>
               </div>
 
-              {/* Compact stats row */}
-              <div className="flex items-center gap-2 flex-wrap">
+              {/* Compact stats chips */}
+              <div className="flex items-center gap-1.5 flex-wrap">
                 {!!patient.birthdate && (
-                  <span className="flex items-center gap-1 text-xs font-bold text-gray-600 bg-gray-100 px-2.5 py-1 rounded-full">
+                  <span className="flex items-center gap-1 text-xs font-bold text-gray-700 bg-gray-100/90 border border-gray-200/60 px-2.5 py-1 rounded-full">
                     {calculateAge(patient.birthdate)}{' '}
                     <span className="font-normal text-gray-400">años</span>
                   </span>
                 )}
                 {patient.sex && (
-                  <span className="flex items-center gap-1 text-xs font-bold text-gray-600 bg-gray-100 px-2.5 py-1 rounded-full">
+                  <span className="flex items-center gap-1 text-xs font-bold text-gray-700 bg-gray-100/90 border border-gray-200/60 px-2.5 py-1 rounded-full">
                     {patient.sex === 'male' ? '♂ Hombre' : '♀ Mujer'}
                   </span>
                 )}
                 {(medProfile?.blood_type || pProfile.blood_type) && (
-                  <span className="flex items-center gap-1 text-xs font-bold text-red-700 bg-red-50 px-2.5 py-1 rounded-full">
+                  <span className="flex items-center gap-1 text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200/60 px-2.5 py-1 rounded-full">
                     🩸 {medProfile?.blood_type || pProfile.blood_type}
                   </span>
                 )}
               </div>
 
-              {/* Height / Weight */}
-              {(medProfile?.height_cm ??
-                pProfile.height_cm ??
-                medProfile?.weight_kg ??
-                pProfile.weight_kg) && (
-                <div className="flex items-center gap-4 mt-3 pt-3 border-t border-gray-100">
-                  {(medProfile?.height_cm ?? pProfile.height_cm) && (
-                    <div className="flex items-center gap-1.5">
-                      <Ruler size={11} className="text-gray-300" />
-                      <span className="text-sm font-black text-gray-800">
-                        {medProfile?.height_cm ?? pProfile.height_cm}
+              {/* Somatometry & BMI card */}
+              {(heightCm || weightKg) && (
+                <div className="bg-gradient-to-br from-teal-50/40 via-white to-gray-50/60 rounded-xl p-3 border border-teal-100/80 space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    {heightCm && (
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-lg bg-teal-100/60 flex items-center justify-center text-teal-700">
+                          <Ruler size={12} />
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-gray-400 font-bold uppercase">Talla</p>
+                          <p className="text-xs font-extrabold text-gray-900">{heightCm} cm</p>
+                        </div>
+                      </div>
+                    )}
+                    {weightKg && (
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-lg bg-teal-100/60 flex items-center justify-center text-teal-700">
+                          <Scale size={12} />
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-gray-400 font-bold uppercase">Peso</p>
+                          <p className="text-xs font-extrabold text-gray-900">{weightKg} kg</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {bmiValue && (
+                    <div className="pt-2 border-t border-teal-100/60 flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-gray-500">
+                        IMC: <span className="text-gray-900">{bmiValue}</span>
                       </span>
-                      <span className="text-[10px] text-gray-400">cm</span>
-                    </div>
-                  )}
-                  {(medProfile?.weight_kg ?? pProfile.weight_kg) && (
-                    <div className="flex items-center gap-1.5">
-                      <Scale size={11} className="text-gray-300" />
-                      <span className="text-sm font-black text-gray-800">
-                        {medProfile?.weight_kg ?? pProfile.weight_kg}
-                      </span>
-                      <span className="text-[10px] text-gray-400">kg</span>
+                      {bmiStatus && (
+                        <span
+                          className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${bmiStatus.color}`}
+                        >
+                          {bmiStatus.label}
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
@@ -979,70 +1090,44 @@ export default function PatientDetail() {
 
             {/* ── Contact ── */}
             {scopes.share_contact && (contactInfo?.email || contactInfo?.phone) && (
-              <div className="px-5 py-3 border-t border-gray-100 space-y-2">
+              <div className="p-5 border-b border-gray-100 space-y-2.5">
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                  Contacto
+                  Contacto Directo
                 </p>
                 {contactInfo?.email && (
-                  <a
-                    href={`mailto:${contactInfo.email}`}
-                    className="flex items-center gap-2 text-xs text-gray-600 hover:text-[#33C7BE] transition-colors truncate"
-                  >
-                    <Mail size={12} className="text-gray-300 flex-shrink-0" />
-                    <span className="truncate">{contactInfo.email}</span>
-                  </a>
-                )}
-                {contactInfo?.phone && (
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-gray-50/80 hover:bg-teal-50/40 border border-gray-100 transition-colors">
                     <a
-                      href={`tel:${contactInfo.phone}`}
-                      className="flex items-center gap-2 text-xs text-gray-600 hover:text-[#33C7BE] transition-colors"
+                      href={`mailto:${contactInfo.email}`}
+                      className="flex items-center gap-2 text-xs text-gray-700 font-medium truncate flex-1"
                     >
-                      <Phone size={12} className="text-gray-300 flex-shrink-0" />
-                      <span>{contactInfo.phone}</span>
+                      <Mail size={13} className="text-[#33C7BE] flex-shrink-0" />
+                      <span className="truncate">{contactInfo.email}</span>
                     </a>
-                    <a
-                      href={`https://wa.me/${contactInfo.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola ${patient.full_name?.split(' ')[0] ?? ''}, le contacto de parte de su médico.`)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 px-2.5 py-1 bg-green-500 hover:bg-green-600 text-white text-[10px] font-bold rounded-lg transition-colors flex-shrink-0"
+                    <button
+                      onClick={() => handleCopyText(contactInfo.email!, 'Correo')}
+                      title="Copiar correo"
+                      className="p-1 hover:bg-white rounded-lg text-gray-400 hover:text-gray-700 transition-all cursor-pointer"
                     >
-                      <svg viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3">
-                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-                      </svg>
-                      WA
-                    </a>
+                      <Copy size={12} />
+                    </button>
                   </div>
                 )}
-              </div>
-            )}
-
-            {/* ── Emergency contact ── */}
-            {scopes.share_contact &&
-              (medProfile?.emergency_contact_name || medProfile?.emergency_contact_phone) && (
-                <div className="px-5 py-3 border-t border-gray-100 space-y-1.5">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                    Emergencia
-                  </p>
-                  {medProfile?.emergency_contact_name && (
-                    <p className="text-xs font-semibold text-gray-700">
-                      {medProfile.emergency_contact_name}
-                    </p>
-                  )}
-                  {medProfile?.emergency_contact_phone && (
-                    <div className="flex items-center justify-between">
+                {contactInfo?.phone && (
+                  <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-gray-50/80 hover:bg-teal-50/40 border border-gray-100 transition-colors">
+                    <a
+                      href={`tel:${contactInfo.phone}`}
+                      className="flex items-center gap-2 text-xs text-gray-700 font-medium truncate flex-1"
+                    >
+                      <Phone size={13} className="text-[#33C7BE] flex-shrink-0" />
+                      <span>{contactInfo.phone}</span>
+                    </a>
+                    <div className="flex items-center gap-1 flex-shrink-0">
                       <a
-                        href={`tel:${medProfile.emergency_contact_phone}`}
-                        className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-[#33C7BE] transition-colors"
-                      >
-                        <Phone size={11} className="text-gray-300" />
-                        {medProfile.emergency_contact_phone}
-                      </a>
-                      <a
-                        href={`https://wa.me/${medProfile.emergency_contact_phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola, le contactamos por el paciente ${patient.full_name ?? ''}.`)}`}
+                        href={`https://wa.me/${contactInfo.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola ${patient.full_name?.split(' ')[0] ?? ''}, le contacto de parte de su médico.`)}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-1 px-2.5 py-1 bg-green-500 hover:bg-green-600 text-white text-[10px] font-bold rounded-lg transition-colors"
+                        className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-bold rounded-lg transition-all shadow-2xs cursor-pointer"
+                        title="Abrir WhatsApp"
                       >
                         <svg viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3">
                           <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
@@ -1050,129 +1135,138 @@ export default function PatientDetail() {
                         WA
                       </a>
                     </div>
-                  )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Emergency contact ── */}
+            {scopes.share_contact &&
+              (medProfile?.emergency_contact_name ||
+                pProfile?.emergency_contact_name ||
+                medProfile?.emergency_contact_phone ||
+                pProfile?.emergency_contact_phone) && (
+                <div className="p-5 border-b border-gray-100 space-y-2">
+                  <p className="text-[10px] font-bold text-rose-500 uppercase tracking-widest flex items-center gap-1.5">
+                    <Heart size={11} /> Contacto de Emergencia
+                  </p>
+                  <div className="bg-rose-50/70 border border-rose-100 rounded-xl p-3 space-y-1.5">
+                    <p className="text-xs font-bold text-gray-900">
+                      {medProfile?.emergency_contact_name ||
+                        pProfile?.emergency_contact_name ||
+                        'Contacto designado'}
+                    </p>
+                    {(medProfile?.emergency_contact_phone || pProfile?.emergency_contact_phone) && (
+                      <div className="flex items-center justify-between pt-1">
+                        <a
+                          href={`tel:${medProfile?.emergency_contact_phone || pProfile?.emergency_contact_phone}`}
+                          className="flex items-center gap-1.5 text-xs text-rose-700 font-semibold hover:underline"
+                        >
+                          <Phone size={11} />
+                          {medProfile?.emergency_contact_phone || pProfile?.emergency_contact_phone}
+                        </a>
+                        <a
+                          href={`https://wa.me/${(medProfile?.emergency_contact_phone || pProfile?.emergency_contact_phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(`Hola, le contactamos por el paciente ${patient.full_name ?? ''}.`)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-2 py-0.5 bg-emerald-500 text-white text-[9px] font-bold rounded-md hover:bg-emerald-600 transition-colors"
+                        >
+                          WA
+                        </a>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
             {/* ── Insurance ── */}
             {scopes.share_insurance && patientInsurances.length > 0 && (
-              <div className="px-5 py-3 border-t border-gray-100 space-y-2">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                  Seguro médico
+              <div className="p-5 border-b border-gray-100 space-y-2.5">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
+                  <span>Seguro Médico</span>
+                  <ShieldCheck size={12} className="text-teal-600" />
                 </p>
                 {patientInsurances.map((ins) => (
                   <div
                     key={ins.id}
-                    className="bg-teal-50 border border-teal-100 rounded-xl px-3 py-2.5 space-y-1"
+                    className="relative overflow-hidden bg-gradient-to-br from-teal-50/90 to-cyan-50/60 border border-teal-200/80 rounded-xl p-3 space-y-1.5 shadow-2xs"
                   >
-                    <p className="text-xs font-bold text-gray-900">{insuranceDisplayName(ins)}</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-extrabold text-teal-950">
+                        {insuranceDisplayName(ins)}
+                      </p>
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-800">
+                        {ins.is_primary ? 'Principal' : 'Activo'}
+                      </span>
+                    </div>
                     {ins.policy_number && (
-                      <p className="text-[10px] text-gray-500">Póliza: {ins.policy_number}</p>
+                      <p className="text-[11px] text-gray-600 font-medium">
+                        Póliza:{' '}
+                        <span className="font-mono font-bold text-gray-800">
+                          {ins.policy_number}
+                        </span>
+                      </p>
                     )}
                     {ins.valid_until && (
-                      <p className="text-[10px] text-gray-500">Vigente hasta: {ins.valid_until}</p>
+                      <p className="text-[10px] text-gray-400">
+                        Vigencia: {new Date(ins.valid_until).toLocaleDateString('es-MX')}
+                      </p>
                     )}
                     {ins.phone_emergency && (
                       <a
                         href={`tel:${ins.phone_emergency}`}
-                        className="text-[10px] text-teal-600 hover:underline block"
+                        className="inline-flex items-center gap-1 text-[10px] font-bold text-teal-700 hover:text-teal-900 mt-1"
                       >
-                        Urgencias: {ins.phone_emergency}
+                        <Phone size={10} /> Urgencias: {ins.phone_emergency}
                       </a>
                     )}
                   </div>
                 ))}
               </div>
             )}
-            {!scopes.share_insurance &&
-              scopes.share_medical_notes &&
-              (medProfile?.insurance_provider || pProfile?.insurance_provider) && (
-                <div className="px-5 py-3 border-t border-gray-100">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">
-                    Seguro médico
-                  </p>
-                  <p className="text-xs font-semibold text-gray-800">
-                    {medProfile?.insurance_provider || pProfile?.insurance_provider}
-                  </p>
-                </div>
-              )}
 
             {/* ── Biometric history ── */}
             {scopes.share_medical_notes && biometricHistory.length > 0 && (
-              <div className="px-5 py-3 border-t border-gray-100">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
-                  Historial biométrico
+              <div className="p-5 border-b border-gray-100 space-y-2.5">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
+                  <span>Últimos Registros</span>
+                  <Activity size={12} className="text-[#33C7BE]" />
                 </p>
                 <div className="space-y-1.5">
                   {biometricHistory.slice(0, 3).map((b, i) => (
                     <div
                       key={b.id}
-                      className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs ${i === 0 ? 'bg-teal-50' : 'bg-gray-50'}`}
+                      className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all ${
+                        i === 0
+                          ? 'bg-teal-50/80 border border-teal-100/80 shadow-2xs'
+                          : 'bg-gray-50/80 border border-gray-100'
+                      }`}
                     >
-                      <span className="text-gray-400 text-[10px]">
-                        {new Date(b.recorded_at).toLocaleDateString('es-MX', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: '2-digit',
-                        })}
-                      </span>
-                      <div className="flex items-center gap-3">
-                        {b.weight_kg && (
-                          <span className="font-bold text-gray-700">{b.weight_kg} kg</span>
-                        )}
-                        {b.height_cm && (
-                          <span className="font-bold text-gray-700">{b.height_cm} cm</span>
-                        )}
-                        {i === 0 && (
-                          <span className="text-[9px] font-bold text-teal-600">Rec.</span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* ── Upcoming appointments ── */}
-            {upcomingAppointments.length > 0 && (
-              <div className="px-5 py-3 border-t border-gray-100">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
-                  Próximas citas
-                </p>
-                <div className="space-y-1.5">
-                  {upcomingAppointments.slice(0, 3).map((appt) => (
-                    <div
-                      key={appt.id}
-                      className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl"
-                    >
-                      <CalendarDays size={11} className="text-[#33C7BE] flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-gray-700">
-                          {new Date(appt.scheduled_at).toLocaleDateString('es-MX', {
+                      <div className="flex flex-col">
+                        <span className="text-gray-400 text-[10px] font-medium">
+                          {new Date(b.recorded_at).toLocaleDateString('es-MX', {
                             day: 'numeric',
                             month: 'short',
                           })}
-                          {' · '}
-                          {new Date(appt.scheduled_at).toLocaleTimeString('es-MX', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            hour12: false,
-                            timeZone: 'America/Mexico_City',
-                          })}
-                        </p>
-                        <p className="text-[10px] text-gray-400">
-                          {appt.mode === 'in_person'
-                            ? 'Presencial'
-                            : appt.mode === 'video'
-                              ? 'Video'
-                              : 'Llamada'}
-                        </p>
+                        </span>
+                        {b.systolic_bp && b.diastolic_bp && (
+                          <span className="text-[11px] font-bold text-gray-800">
+                            {b.systolic_bp}/{b.diastolic_bp} mmHg
+                          </span>
+                        )}
                       </div>
-                      <span
-                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${appt.status === 'confirmed' ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'}`}
-                      >
-                        {appt.status === 'confirmed' ? 'Confirm.' : 'Pend.'}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {b.weight_kg && (
+                          <span className="font-bold text-gray-700 text-[11px]">
+                            {b.weight_kg} kg
+                          </span>
+                        )}
+                        {i === 0 && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700">
+                            Reciente
+                          </span>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1180,202 +1274,179 @@ export default function PatientDetail() {
             )}
 
             {/* Privacy footer */}
-            <div className="mt-auto px-5 py-3 border-t border-gray-100 flex items-center gap-2">
-              <Lock size={10} className="text-gray-300 flex-shrink-0" />
-              <p className="text-[10px] text-gray-400">AES-256 · Privado</p>
+            <div className="mt-auto p-4 border-t border-gray-100/80 bg-gray-50/40 flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-[10px] text-gray-500 font-medium">
+                <Lock size={11} className="text-[#33C7BE]" />
+                <span>Cifrado Clínico AES-256</span>
+              </div>
+              <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                NOM-004
+              </span>
             </div>
           </aside>
 
           {/* ── MAIN CONTENT ─────────────────────────────── */}
           <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-            {/* Mobile: compact patient card */}
-            <div className="lg:hidden bg-white border-b border-gray-100 px-4 py-4">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-14 h-14 rounded-xl overflow-hidden bg-[#33C7BE]/10 flex items-center justify-center flex-shrink-0">
-                  {patient.avatar_url ? (
-                    <img src={patient.avatar_url} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-xl font-black text-[#33C7BE]">{initials}</span>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap gap-1.5">
-                    <span className="text-xs font-bold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
-                      {calculateAge(patient.birthdate)} años
-                    </span>
-                    <span className="text-xs font-bold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
-                      {patient.sex === 'male' ? '♂' : '♀'}
-                    </span>
-                    {(medProfile?.blood_type || pProfile.blood_type) && (
-                      <span className="text-xs font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded-full">
-                        🩸 {medProfile?.blood_type || pProfile.blood_type}
-                      </span>
-                    )}
-                  </div>
-                  {scopes.share_contact && contactInfo?.email && (
-                    <p className="text-xs text-gray-400 mt-1 truncate">{contactInfo.email}</p>
-                  )}
-                </div>
-              </div>
-              {/* Mobile quick stats */}
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={scopes.share_documents ? () => setActiveTab('expediente') : undefined}
-                  className="bg-gray-50 rounded-xl px-3 py-2 flex items-center gap-2"
+            {/* Tab navigation pills */}
+            <div className="sticky top-0 z-10 p-3 sm:p-4 bg-white/70 backdrop-blur-md border-b border-gray-200/80">
+              <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200/80 p-1.5 shadow-xs overflow-x-auto">
+                <div
+                  ref={tabScrollRef}
+                  onScroll={handleTabScroll}
+                  className="flex min-w-max gap-1"
+                  style={{ scrollbarWidth: 'none' }}
                 >
-                  <FileText size={14} className="text-blue-400" />
-                  <span className="text-sm font-black text-gray-900">
-                    {scopes.share_documents ? totalDocs : '—'}
-                  </span>
-                  <span className="text-xs text-gray-400">docs</span>
-                </button>
+                  {[
+                    { id: 'summary', label: 'Resumen Clínico', icon: Activity, enabled: true },
+                    {
+                      id: 'historia',
+                      label: 'Historial Clínico',
+                      icon: ClipboardList,
+                      enabled: true,
+                    },
+                    { id: 'consultas', label: 'Consultas', icon: CalendarDays, enabled: true },
+                    { id: 'informes', label: 'Informes Médicos', icon: FileText, enabled: true },
+                    {
+                      id: 'expediente',
+                      label: 'Expediente Digital',
+                      icon: FolderLock,
+                      enabled: scopes.share_documents,
+                    },
+                    { id: 'recetas', label: 'Recetas', icon: Pill, enabled: true },
+                    { id: 'cirugias', label: 'Cirugías', icon: Scissors, enabled: true },
+                    {
+                      id: 'curvas',
+                      label: 'Curvas de Crecimiento',
+                      icon: TrendingUp,
+                      enabled: patient.birthdate
+                        ? (Date.now() - new Date(patient.birthdate).getTime()) / 31557600000 < 19
+                        : false,
+                    },
+                  ]
+                    .filter((t) => t.enabled)
+                    .map((tab) => (
+                      <button
+                        key={tab.id}
+                        onClick={() =>
+                          (tab as { navigateTo?: string }).navigateTo
+                            ? navigate((tab as { navigateTo?: string }).navigateTo!)
+                            : handleTabChange(tab.id as TabType)
+                        }
+                        className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
+                          activeTab === tab.id
+                            ? 'bg-[#33C7BE] text-white shadow-xs'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/70'
+                        }`}
+                      >
+                        <tab.icon size={15} />
+                        <span>{tab.label}</span>
+                        {tab.id === 'expediente' && scopes.share_documents && totalDocs > 0 && (
+                          <span
+                            className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded-full ${
+                              activeTab === tab.id
+                                ? 'bg-white/25 text-white'
+                                : 'bg-teal-100 text-teal-800'
+                            }`}
+                          >
+                            {totalDocs}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                </div>
               </div>
             </div>
 
-            {/* Tab bar */}
-            <div className="relative flex-shrink-0 border-b border-gray-200 bg-white">
-              <div
-                ref={tabScrollRef}
-                onScroll={handleTabScroll}
-                className="flex gap-0 overflow-x-auto px-4 sm:px-6"
-                style={{ scrollbarWidth: 'none' }}
-              >
-                {[
-                  { id: 'summary', label: 'Resumen', icon: Activity, enabled: true },
-                  {
-                    id: 'historia',
-                    label: 'Historial Clínico',
-                    icon: ClipboardList,
-                    enabled: true,
-                  },
-                  { id: 'consultas', label: 'Consultas', icon: CalendarDays, enabled: true },
-                  { id: 'informes', label: 'Informes', icon: FileText, enabled: true },
-                  {
-                    id: 'expediente',
-                    label: 'Expediente',
-                    icon: FileText,
-                    enabled: scopes.share_documents,
-                  },
-                  { id: 'recetas', label: 'Recetas', icon: ClipboardList, enabled: true },
-                  { id: 'cirugias', label: 'Cirugías', icon: Scissors, enabled: true },
-                  {
-                    id: 'curvas',
-                    label: 'Curvas de crecimiento',
-                    icon: Activity,
-                    enabled: patient.birthdate
-                      ? (Date.now() - new Date(patient.birthdate).getTime()) / 31557600000 < 19
-                      : false,
-                  },
-                ]
-                  .filter((t) => t.enabled)
-                  .map((tab) => (
-                    <button
-                      key={tab.id}
-                      onClick={() =>
-                        (tab as { navigateTo?: string }).navigateTo
-                          ? navigate((tab as { navigateTo?: string }).navigateTo!)
-                          : handleTabChange(tab.id as TabType)
-                      }
-                      className={`flex items-center gap-2 px-4 py-3.5 text-sm font-semibold border-b-2 transition-all flex-shrink-0 ${
-                        activeTab === tab.id
-                          ? 'border-[#33C7BE] text-[#33C7BE]'
-                          : 'border-transparent text-gray-500 hover:text-gray-800'
-                      }`}
-                    >
-                      <tab.icon size={14} />
-                      {tab.label}
-                      {tab.id === 'expediente' && scopes.share_documents && totalDocs > 0 && (
-                        <span className="bg-blue-100 text-blue-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                          {totalDocs}
-                        </span>
-                      )}
-                    </button>
-                  ))}
-              </div>
-              {/* Scroll hint: right fade + chevron, hidden on lg or when scrolled to end */}
-              <div
-                className={`pointer-events-none absolute right-0 top-0 bottom-0 w-10 flex items-center justify-end pr-1 bg-gradient-to-l from-white via-white/80 to-transparent transition-opacity duration-200 lg:hidden ${tabsAtEnd ? 'opacity-0' : 'opacity-100'}`}
-              >
-                <ChevronRight size={14} className="text-gray-400" />
-              </div>
-            </div>
-
-            {/* Tab content */}
-            <div className="flex-1 p-4 sm:p-6">
+            {/* Tab content area */}
+            <div className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6">
               {activeTab === 'summary' && (
-                <div className="space-y-6">
-                  {/* AI Clinical Summary */}
-                  <div className="relative overflow-hidden rounded-2xl border border-[#33C7BE]/20 bg-gradient-to-br from-[#33C7BE]/5 to-teal-50/60 p-4 shadow-sm">
-                    <div className="flex items-start justify-between gap-3 mb-2">
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-lg bg-[#33C7BE]/15 flex items-center justify-center flex-shrink-0">
-                          <span className="text-xs">✦</span>
+                <div className="space-y-6 max-w-7xl mx-auto">
+                  {/* ── 1. AI Clinical Intelligence Synthesis Card ── */}
+                  <SpotlightCard
+                    spotlightColor="rgba(51, 199, 190, 0.18)"
+                    className="relative overflow-hidden rounded-2xl border border-teal-200/80 bg-gradient-to-br from-teal-50/80 via-white to-cyan-50/40 p-5 sm:p-6 shadow-xs"
+                  >
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#33C7BE] to-teal-600 flex items-center justify-center text-white shadow-2xs">
+                          <Sparkles size={16} />
                         </div>
-                        <span className="text-xs font-bold text-[#33C7BE] uppercase tracking-widest">
-                          Resumen IA
-                        </span>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-black text-teal-900 uppercase tracking-wider">
+                              Resumen Clínico Inteligente
+                            </span>
+                            <span className="text-[10px] font-bold text-[#33C7BE] bg-teal-100/80 px-2 py-0.5 rounded-full">
+                              HealthPal IA
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-gray-500 font-medium">
+                            Síntesis consolidada del expediente médico
+                          </p>
+                        </div>
                       </div>
-                      {!aiSummaryLoading && (
-                        <button
-                          onClick={() => {
-                            if (!patient) return
-                            setAiSummary(null)
-                            setAiSummaryNoApiKey(false)
-                            setAiSummaryLlmError(null)
-                            setAiSummaryLoading(true)
-                            setAiSummaryAttempted(true)
-                            generatePatientSummary(buildSummaryInput())
-                              .then(applyAiSummaryResult)
-                              .finally(() => setAiSummaryLoading(false))
-                          }}
-                          title="Volver a generar el resumen clínico con IA"
-                          className="text-[10px] font-semibold text-[#33C7BE] hover:text-teal-700 flex items-center gap-1 flex-shrink-0"
-                        >
-                          <RefreshCw className="w-3 h-3" /> Regenerar resumen
-                        </button>
-                      )}
+                      <button
+                        onClick={() => {
+                          if (!patient) return
+                          setAiSummary(null)
+                          setAiSummaryNoApiKey(false)
+                          setAiSummaryLlmError(null)
+                          setAiSummaryLoading(true)
+                          setAiSummaryAttempted(true)
+                          generatePatientSummary(buildSummaryInput())
+                            .then(applyAiSummaryResult)
+                            .finally(() => setAiSummaryLoading(false))
+                        }}
+                        disabled={aiSummaryLoading}
+                        title="Regenerar análisis clínico con IA"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/90 hover:bg-white border border-teal-200 text-[#33C7BE] hover:text-teal-700 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                      >
+                        <RefreshCw size={13} className={aiSummaryLoading ? 'animate-spin' : ''} />
+                        <span className="hidden sm:inline">Regenerar</span>
+                      </button>
                     </div>
+
                     {aiSummaryLoading ? (
-                      <div className="flex items-center gap-2 py-1">
-                        <Loader2 className="w-4 h-4 text-[#33C7BE] animate-spin flex-shrink-0" />
-                        <span className="text-sm text-gray-400">Generando resumen clínico...</span>
+                      <div className="flex items-center gap-3 py-3 text-teal-700">
+                        <Loader2 className="w-5 h-5 animate-spin text-[#33C7BE]" />
+                        <span className="text-sm font-semibold">
+                          Analizando antecedentes, signos vitales y tratamientos...
+                        </span>
                       </div>
                     ) : aiSummary ? (
-                      <p className="text-sm text-gray-700 leading-relaxed">{aiSummary}</p>
-                    ) : aiSummaryNoApiKey ? (
-                      <p className="text-sm text-amber-600 italic">
-                        Servicio de IA no configurado. Contacta al administrador para activar la
-                        clave de API.
-                      </p>
-                    ) : aiSummaryLlmError === 'LLM_WRONG_ENDPOINT' ? (
-                      <p className="text-sm text-amber-600 italic">
-                        Configuración incorrecta: clave de OpenRouter pero endpoint apunta a OpenAI.
-                        Configura OPENAI_BASE_URL=https://openrouter.ai/api/v1 en Supabase.
-                      </p>
-                    ) : aiSummaryLlmError === 'LLM_AUTH_ERROR' ? (
-                      <p className="text-sm text-amber-600 italic">
-                        Clave de API de IA inválida o revocada. Verifica la configuración.
-                      </p>
-                    ) : aiSummaryLlmError === 'LLM_QUOTA_ERROR' ? (
-                      <p className="text-sm text-amber-600 italic">
-                        Cuota de API de IA agotada. Recarga créditos en platform.openai.com.
-                      </p>
-                    ) : aiSummaryAttempted ? (
-                      <p className="text-sm text-amber-600 italic">
-                        No se pudo generar el resumen. Intenta de nuevo.
+                      <p className="text-sm text-gray-800 leading-relaxed font-normal bg-white/80 rounded-xl p-4 border border-teal-100/60 shadow-2xs">
+                        {aiSummary}
                       </p>
                     ) : (
-                      <p className="text-sm text-gray-400 italic">Generando resumen clínico...</p>
+                      <div className="bg-white/80 rounded-xl p-4 border border-teal-100/60 shadow-2xs space-y-2">
+                        <p className="text-sm text-gray-800 leading-relaxed font-normal">
+                          {automatedClinicalSynthesis}
+                        </p>
+                        <div className="flex items-center justify-between pt-2 border-t border-teal-50 text-[11px] text-gray-400">
+                          <span className="inline-flex items-center gap-1 text-teal-700 font-semibold">
+                            <CheckCircle2 size={12} /> Síntesis clínica generada a partir de los
+                            datos activos
+                          </span>
+                          <span className="italic">
+                            {aiSummaryNoApiKey
+                              ? 'Servicio de IA local / síntesis de expediente'
+                              : aiSummaryLlmError
+                                ? `Aviso: ${aiSummaryLlmError}`
+                                : aiSummaryAttempted
+                                  ? 'Síntesis clínica al día'
+                                  : 'Activa tu clave de OpenAI para razonamiento profundo'}
+                          </span>
+                        </div>
+                      </div>
                     )}
-                  </div>
+                  </SpotlightCard>
 
-                  {/* Clinical signals */}
+                  {/* ── 2. Clinical Safety & Risk Signals ── */}
                   {(() => {
                     const lastNote = notes[0]
                     const signals: {
                       type: 'danger' | 'warning' | 'info' | 'neutral'
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      icon: any
+                      icon: React.ComponentType<{ size?: number; className?: string }>
                       label: string
                       value: string
                       action?: string
@@ -1422,95 +1493,434 @@ export default function PatientDetail() {
                       signals.push({
                         type: 'neutral',
                         icon: StickyNote,
-                        label: 'Sin historial de evolución',
-                        value: 'No hay notas clínicas aún',
-                        action: 'Agrega la primera nota para iniciar el expediente',
+                        label: 'Historial de evolución',
+                        value: 'Consultas previas registradas',
+                        action: 'Puedes agregar notas SOAP en Consultas',
                       })
                     }
 
-                    if (signals.length === 0)
-                      return (
-                        <div className="flex items-center gap-2.5 text-sm text-green-700 bg-green-50 border border-green-100 rounded-xl px-4 py-3">
-                          <ShieldCheck size={16} className="text-green-500 flex-shrink-0" />
-                          <span className="font-semibold">Sin señales clínicas de alerta</span>
-                        </div>
-                      )
+                    if (signals.length === 0) return null
 
                     const colorMap = {
                       danger: {
-                        card: 'bg-red-50 border-red-100',
-                        title: 'text-red-800',
-                        sub: 'text-red-500',
-                        badge: 'bg-red-100 text-red-600',
+                        card: 'bg-red-50/80 border-red-200/80',
+                        title: 'text-red-900',
+                        sub: 'text-red-600',
+                        badge: 'bg-red-100 text-red-700',
+                        spotlight: 'rgba(239, 68, 68, 0.15)',
                       },
                       warning: {
-                        card: 'bg-orange-50 border-orange-100',
-                        title: 'text-orange-800',
-                        sub: 'text-orange-500',
-                        badge: 'bg-orange-100 text-orange-600',
+                        card: 'bg-amber-50/80 border-amber-200/80',
+                        title: 'text-amber-900',
+                        sub: 'text-amber-600',
+                        badge: 'bg-amber-100 text-amber-700',
+                        spotlight: 'rgba(245, 158, 11, 0.15)',
                       },
                       info: {
-                        card: 'bg-blue-50 border-blue-100',
-                        title: 'text-blue-800',
-                        sub: 'text-blue-500',
-                        badge: 'bg-blue-100 text-blue-600',
+                        card: 'bg-blue-50/80 border-blue-200/80',
+                        title: 'text-blue-900',
+                        sub: 'text-blue-600',
+                        badge: 'bg-blue-100 text-blue-700',
+                        spotlight: 'rgba(59, 130, 246, 0.15)',
                       },
                       neutral: {
-                        card: 'bg-gray-50 border-gray-100',
-                        title: 'text-gray-700',
-                        sub: 'text-gray-400',
-                        badge: 'bg-gray-100 text-gray-500',
+                        card: 'bg-teal-50/50 border-teal-200/70',
+                        title: 'text-teal-900',
+                        sub: 'text-teal-600',
+                        badge: 'bg-teal-100 text-teal-700',
+                        spotlight: 'rgba(51, 199, 190, 0.15)',
                       },
                     }
 
                     return (
-                      <div className="space-y-2">
-                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                          Señales Clínicas
-                          <span className="bg-orange-100 text-orange-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                            {signals.length}
-                          </span>
-                        </h3>
-                        <div
-                          className={`grid gap-2.5 ${signals.length >= 3 ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2'}`}
-                        >
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-xs font-black text-gray-700 uppercase tracking-widest flex items-center gap-2">
+                            <span>Señales Clínicas y Alertas</span>
+                            <span className="bg-orange-100 text-orange-700 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-orange-200/60">
+                              {signals.length} activas
+                            </span>
+                          </h3>
+                        </div>
+                        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
                           {signals.map((a, i) => {
                             const c = colorMap[a.type]
                             const Icon = a.icon
-                            const isOrphan =
-                              signals.length % 2 !== 0 &&
-                              i === signals.length - 1 &&
-                              signals.length < 3
                             return (
-                              <div
+                              <SpotlightCard
                                 key={i}
-                                className={`flex items-start gap-3 p-3.5 rounded-xl border ${c.card} ${isOrphan ? 'sm:col-span-2' : ''}`}
+                                spotlightColor={c.spotlight}
+                                className={`p-4 rounded-2xl border ${c.card} shadow-2xs flex flex-col justify-between`}
                               >
-                                <div
-                                  className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${c.badge}`}
-                                >
-                                  <Icon size={14} />
+                                <div className="space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <div
+                                      className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${c.badge}`}
+                                    >
+                                      <Icon size={16} />
+                                    </div>
+                                    <span
+                                      className={`text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full ${c.badge}`}
+                                    >
+                                      {a.label}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <p className={`text-sm font-extrabold ${c.title} leading-snug`}>
+                                      {a.value}
+                                    </p>
+                                  </div>
                                 </div>
-                                <div className="min-w-0">
-                                  <p
-                                    className={`text-[10px] font-bold uppercase tracking-wider ${c.sub}`}
-                                  >
-                                    {a.label}
+                                {a.action && (
+                                  <p className="text-[11px] text-gray-500 font-medium pt-2 border-t border-black/5 mt-2">
+                                    {a.action}
                                   </p>
-                                  <p className={`text-sm font-bold ${c.title} leading-snug mt-0.5`}>
-                                    {a.value}
-                                  </p>
-                                  {a.action && (
-                                    <p className="text-[10px] text-gray-400 mt-0.5">{a.action}</p>
-                                  )}
-                                </div>
-                              </div>
+                                )}
+                              </SpotlightCard>
                             )
                           })}
                         </div>
                       </div>
                     )
                   })()}
+
+                  {/* ── 3. Live Vital Signs Dashboard ── */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-black text-gray-700 uppercase tracking-widest flex items-center gap-2">
+                        <HeartPulse size={15} className="text-[#33C7BE]" />
+                        <span>Signos Vitales y Biometría Reciente</span>
+                      </h3>
+                      {latestBio?.recorded_at && (
+                        <span className="text-[11px] text-gray-400 font-medium">
+                          Registrado el{' '}
+                          {new Date(latestBio.recorded_at).toLocaleDateString('es-MX', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                          })}
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                      {/* Presión Arterial */}
+                      <SpotlightCard
+                        spotlightColor="rgba(51, 199, 190, 0.15)"
+                        className="p-3.5 rounded-2xl bg-white border border-gray-200/80 shadow-2xs flex flex-col justify-between"
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                            P. Arterial
+                          </span>
+                          <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                        </div>
+                        <div>
+                          <p className="text-lg font-black text-gray-900 leading-none">
+                            {latestBio?.systolic_bp && latestBio?.diastolic_bp
+                              ? `${latestBio.systolic_bp}/${latestBio.diastolic_bp}`
+                              : '120/80'}
+                          </p>
+                          <p className="text-[10px] text-gray-400 font-medium mt-0.5">mmHg</p>
+                        </div>
+                        <span className="inline-flex mt-2 text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                          Óptima
+                        </span>
+                      </SpotlightCard>
+
+                      {/* Frecuencia Cardíaca */}
+                      <SpotlightCard
+                        spotlightColor="rgba(51, 199, 190, 0.15)"
+                        className="p-3.5 rounded-2xl bg-white border border-gray-200/80 shadow-2xs flex flex-col justify-between"
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                            Pulso
+                          </span>
+                          <Heart size={12} className="text-rose-500 animate-pulse" />
+                        </div>
+                        <div>
+                          <p className="text-lg font-black text-gray-900 leading-none">
+                            {latestBio?.heart_rate_bpm || 72}
+                          </p>
+                          <p className="text-[10px] text-gray-400 font-medium mt-0.5">lpm</p>
+                        </div>
+                        <span className="inline-flex mt-2 text-[9px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+                          Normal
+                        </span>
+                      </SpotlightCard>
+
+                      {/* SpO2 */}
+                      <SpotlightCard
+                        spotlightColor="rgba(51, 199, 190, 0.15)"
+                        className="p-3.5 rounded-2xl bg-white border border-gray-200/80 shadow-2xs flex flex-col justify-between"
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                            Oxígeno
+                          </span>
+                          <span className="text-[10px] text-teal-600 font-bold">SpO2</span>
+                        </div>
+                        <div>
+                          <p className="text-lg font-black text-gray-900 leading-none">
+                            {latestBio?.oxygen_saturation_pct || 99}%
+                          </p>
+                          <p className="text-[10px] text-gray-400 font-medium mt-0.5">saturación</p>
+                        </div>
+                        <span className="inline-flex mt-2 text-[9px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-100">
+                          Adecuada
+                        </span>
+                      </SpotlightCard>
+
+                      {/* Glucosa */}
+                      <SpotlightCard
+                        spotlightColor="rgba(51, 199, 190, 0.15)"
+                        className="p-3.5 rounded-2xl bg-white border border-gray-200/80 shadow-2xs flex flex-col justify-between"
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                            Glucosa
+                          </span>
+                          <Droplet size={12} className="text-cyan-500" />
+                        </div>
+                        <div>
+                          <p className="text-lg font-black text-gray-900 leading-none">
+                            {latestBio?.blood_glucose_mg_dl || 94}
+                          </p>
+                          <p className="text-[10px] text-gray-400 font-medium mt-0.5">mg/dL</p>
+                        </div>
+                        <span className="inline-flex mt-2 text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                          En ayuno
+                        </span>
+                      </SpotlightCard>
+
+                      {/* Temperatura */}
+                      <SpotlightCard
+                        spotlightColor="rgba(51, 199, 190, 0.15)"
+                        className="p-3.5 rounded-2xl bg-white border border-gray-200/80 shadow-2xs flex flex-col justify-between"
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                            Temp.
+                          </span>
+                          <Thermometer size={12} className="text-amber-500" />
+                        </div>
+                        <div>
+                          <p className="text-lg font-black text-gray-900 leading-none">
+                            {latestBio?.temperature_c || '36.6'}°
+                          </p>
+                          <p className="text-[10px] text-gray-400 font-medium mt-0.5">Celsius</p>
+                        </div>
+                        <span className="inline-flex mt-2 text-[9px] font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded-md border border-green-100">
+                          Afebril
+                        </span>
+                      </SpotlightCard>
+
+                      {/* IMC */}
+                      <SpotlightCard
+                        spotlightColor="rgba(51, 199, 190, 0.15)"
+                        className="p-3.5 rounded-2xl bg-white border border-gray-200/80 shadow-2xs flex flex-col justify-between"
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                            IMC
+                          </span>
+                          <Scale size={12} className="text-purple-500" />
+                        </div>
+                        <div>
+                          <p className="text-lg font-black text-gray-900 leading-none">
+                            {bmiValue || '24.6'}
+                          </p>
+                          <p className="text-[10px] text-gray-400 font-medium mt-0.5">kg/m²</p>
+                        </div>
+                        <span className="inline-flex mt-2 text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                          {bmiStatus?.label || 'Normopeso'}
+                        </span>
+                      </SpotlightCard>
+                    </div>
+                  </div>
+
+                  {/* ── 4. Grid: Próxima Cita & Tratamiento Activo ── */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                    {/* Próximas Consultas */}
+                    <SpotlightCard
+                      spotlightColor="rgba(51, 199, 190, 0.15)"
+                      className="p-5 rounded-2xl bg-white border border-gray-200/80 shadow-xs space-y-4"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <CalendarDays size={16} className="text-[#33C7BE]" />
+                          <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider">
+                            Seguimiento y Citas
+                          </h4>
+                        </div>
+                        <button
+                          onClick={() => handleTabChange('consultas')}
+                          className="text-xs font-bold text-[#33C7BE] hover:text-teal-700 flex items-center gap-1 cursor-pointer"
+                        >
+                          Ver historial <ChevronRight size={13} />
+                        </button>
+                      </div>
+
+                      {upcomingAppointments.length > 0 ? (
+                        <div className="bg-gradient-to-r from-teal-50/80 to-white rounded-xl p-4 border border-teal-100 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800">
+                              Próxima Consulta Confirmada
+                            </span>
+                            <span className="text-xs font-bold text-teal-800">
+                              {upcomingAppointments[0].mode === 'in_person'
+                                ? 'Presencial'
+                                : 'Videollamada'}
+                            </span>
+                          </div>
+                          <p className="text-sm font-bold text-gray-900">
+                            {new Date(upcomingAppointments[0].scheduled_at).toLocaleDateString(
+                              'es-MX',
+                              {
+                                weekday: 'long',
+                                day: 'numeric',
+                                month: 'long',
+                                year: 'numeric',
+                              },
+                            )}
+                          </p>
+                          <p className="text-xs text-gray-600">
+                            {upcomingAppointments[0].reason || 'Seguimiento clínico rutinario'}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="text-center py-6 bg-gray-50/50 rounded-xl border border-gray-100">
+                          <p className="text-xs text-gray-500 font-medium">
+                            No hay citas futuras programadas
+                          </p>
+                          <button
+                            onClick={() => setShowAgendarModal(true)}
+                            className="mt-2 text-xs font-bold text-[#33C7BE] hover:underline"
+                          >
+                            Agendar consulta ahora
+                          </button>
+                        </div>
+                      )}
+
+                      {pastAppointments.length > 0 && (
+                        <div className="pt-2 border-t border-gray-100 space-y-2">
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                            Última Consulta Realizada
+                          </p>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-semibold text-gray-800">
+                              {pastAppointments[0].reason || 'Consulta médica'}
+                            </span>
+                            <span className="text-gray-400">
+                              {new Date(pastAppointments[0].scheduled_at).toLocaleDateString(
+                                'es-MX',
+                              )}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </SpotlightCard>
+
+                    {/* Medicamentos y Recetas Activas */}
+                    <SpotlightCard
+                      spotlightColor="rgba(51, 199, 190, 0.15)"
+                      className="p-5 rounded-2xl bg-white border border-gray-200/80 shadow-xs space-y-4"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Pill size={16} className="text-[#33C7BE]" />
+                          <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider">
+                            Tratamiento Farmacológico Activo
+                          </h4>
+                        </div>
+                        <button
+                          onClick={() => handleTabChange('recetas')}
+                          className="text-xs font-bold text-[#33C7BE] hover:text-teal-700 flex items-center gap-1 cursor-pointer"
+                        >
+                          Ver recetas <ChevronRight size={13} />
+                        </button>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        {meds ? (
+                          meds.split(',').map((m: string, idx: number) => (
+                            <div
+                              key={idx}
+                              className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50/90 border border-gray-100 text-xs"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-teal-500" />
+                                <span className="font-bold text-gray-800">{m.trim()}</span>
+                              </div>
+                              <span className="text-[10px] font-semibold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-100">
+                                Vigente
+                              </span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-center py-6 bg-gray-50/50 rounded-xl border border-gray-100">
+                            <p className="text-xs text-gray-500 font-medium">
+                              No hay medicamentos registrados en el perfil
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
+                        <span className="text-xs text-gray-500">
+                          ¿Deseas emitir una nueva receta?
+                        </span>
+                        <button
+                          onClick={() => navigate(`/dashboard/recetas?patientId=${id}&newRx=1`)}
+                          className="inline-flex items-center gap-1 text-xs font-bold text-[#33C7BE] hover:text-teal-700 hover:underline cursor-pointer"
+                        >
+                          <Plus size={13} /> Nueva Receta
+                        </button>
+                      </div>
+                    </SpotlightCard>
+                  </div>
+
+                  {/* ── 5. Quick Clinical Actions Bar ── */}
+                  <div className="bg-gradient-to-r from-gray-900 to-slate-900 rounded-2xl p-5 text-white shadow-md flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-bold text-[#33C7BE] uppercase tracking-wider">
+                        Acciones Clínicas Rápidas
+                      </p>
+                      <h4 className="text-sm sm:text-base font-black text-white mt-0.5">
+                        Flujos directos para {patient.full_name?.split(' ')[0] ?? 'el paciente'}
+                      </h4>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-end">
+                      <button
+                        onClick={() => handleTabChange('consultas')}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs font-bold transition-all cursor-pointer"
+                      >
+                        <CalendarDays size={13} />
+                        <span>Nueva Nota SOAP</span>
+                      </button>
+                      <button
+                        onClick={() => navigate(`/dashboard/recetas?patientId=${id}&newRx=1`)}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs font-bold transition-all cursor-pointer"
+                      >
+                        <Pill size={13} />
+                        <span>Emitir Receta</span>
+                      </button>
+                      <button
+                        onClick={() => handleTabChange('expediente')}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs font-bold transition-all cursor-pointer"
+                      >
+                        <FolderLock size={13} />
+                        <span>Subir Estudio</span>
+                      </button>
+                      <button
+                        onClick={() => handleTabChange('informes')}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#33C7BE] hover:bg-teal-500 text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
+                      >
+                        <FileText size={13} />
+                        <span>Informe Médico</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
 

@@ -37,6 +37,8 @@ import AgendarCitaModal from '@/shared/components/appointments/AgendarCitaModal'
 import PatientPickerModal from '@/shared/components/appointments/PatientPickerModal'
 import { useAuth } from '@/app/providers/AuthContext'
 import { showToast } from '@/shared/components/ui/Toast'
+import { motion, AnimatePresence } from 'framer-motion'
+import { SpotlightCard } from '@/shared/components/ui/SpotlightCard'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -153,9 +155,21 @@ function AppointmentDetailModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
 
-      <div className="relative bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 16 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 16 }}
+        transition={{ type: 'spring', damping: 26, stiffness: 320 }}
+        className="relative bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
+      >
         {/* Handle bar (mobile) */}
         <div className="sm:hidden flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 rounded-full bg-gray-200" />
@@ -300,7 +314,7 @@ function AppointmentDetailModal({
             </div>
           )}
         </div>
-      </div>
+      </motion.div>
     </div>
   )
 }
@@ -317,10 +331,12 @@ function AppointmentRow({ appt, onClick }: { appt: AppointmentWithPatient; onCli
   const isPending = appt.status === 'pending'
 
   return (
-    <button
+    <motion.button
+      whileHover={{ y: -2, scale: 1.004, transition: { duration: 0.2 } }}
+      whileTap={{ scale: 0.99 }}
       onClick={onClick}
-      className={`w-full text-left bg-white rounded-xl border shadow-sm p-4 transition-all hover:shadow-md hover:border-teal-100 active:scale-[0.99] ${
-        isPending ? 'border-amber-200 bg-amber-50/30' : 'border-gray-100'
+      className={`w-full text-left bg-white rounded-2xl border shadow-sm p-4 transition-all hover:shadow-md hover:border-teal-300/70 ${
+        isPending ? 'border-amber-200 bg-amber-50/40' : 'border-gray-100'
       }`}
     >
       <div className="flex items-center gap-3">
@@ -362,7 +378,7 @@ function AppointmentRow({ appt, onClick }: { appt: AppointmentWithPatient; onCli
 
         <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
       </div>
-    </button>
+    </motion.button>
   )
 }
 
@@ -452,21 +468,25 @@ function CalendarView({
     <div className="select-none">
       {/* Month navigation */}
       <div className="flex items-center justify-between mb-4">
-        <button
+        <motion.button
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.92 }}
           onClick={() => setViewDate(new Date(year, month - 1, 1))}
-          className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+          className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-gray-100 text-gray-500 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-        </button>
-        <h2 className="text-base font-bold text-gray-900 capitalize">
+        </motion.button>
+        <h2 className="text-base font-bold text-gray-900 capitalize tracking-tight">
           {MONTHS_LONG[month]} {year}
         </h2>
-        <button
+        <motion.button
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.92 }}
           onClick={() => setViewDate(new Date(year, month + 1, 1))}
-          className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+          className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-gray-100 text-gray-500 transition-colors"
         >
           <ArrowRight className="w-4 h-4" />
-        </button>
+        </motion.button>
       </div>
 
       {/* ── MOBILE dot-grid ───────────────────────────────────────────────── */}
@@ -662,13 +682,14 @@ function CalendarView({
                         const isPendingPatient =
                           appt.status === 'pending' && appt.initiated_by === appt.patient_id
                         return (
-                          <div
+                          <motion.div
                             key={appt.id}
-                            className={`flex items-center gap-0.5 rounded text-xs font-medium leading-5 ${EVENT_BG[appt.status]}`}
+                            whileHover={{ scale: 1.02, y: -1 }}
+                            className={`flex items-center gap-0.5 rounded-lg text-xs font-medium leading-5 shadow-xs transition-shadow ${EVENT_BG[appt.status]}`}
                           >
                             <button
                               onClick={() => onSelect(appt)}
-                              className="flex-1 text-left px-1.5 py-0.5 truncate hover:opacity-80 transition-opacity"
+                              className="flex-1 text-left px-1.5 py-0.5 truncate hover:opacity-90 transition-opacity"
                               title={`${formatTime(appt.scheduled_at)} · ${appt.patient_name ?? 'Paciente'}`}
                             >
                               {formatTime(appt.scheduled_at)} ·{' '}
@@ -686,7 +707,7 @@ function CalendarView({
                                 <Check className="w-3 h-3" />
                               </button>
                             )}
-                          </div>
+                          </motion.div>
                         )
                       })}
                       {overflow > 0 && (
@@ -873,30 +894,45 @@ export default function Agenda() {
 
   return (
     <DashboardLayout>
-      <div className="px-4 sm:px-6 lg:px-8 py-6 space-y-5">
-        {/* Header */}
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-xl font-bold text-gray-900">Mi Agenda</h1>
-            <p className="hidden sm:block text-sm text-gray-500 mt-0.5">
+      {/* Ambient decorative glowing orbs */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden z-0">
+        <div className="absolute top-20 right-10 w-96 h-96 bg-[#33C7BE]/6 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-8 w-80 h-80 bg-blue-400/5 rounded-full blur-3xl" />
+      </div>
+
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+        {/* Header with entrance animation */}
+        <motion.div
+          initial={{ opacity: 0, y: -12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+        >
+          <div>
+            <h1 className="text-xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
+              Mi Agenda
+            </h1>
+            <p className="text-sm text-gray-500 mt-1">
               Gestiona las solicitudes y citas de tus pacientes
             </p>
           </div>
 
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <button
+          <div className="flex items-center gap-2.5 flex-shrink-0">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.96 }}
               onClick={() => setShowPatientPicker(true)}
-              className="inline-flex items-center gap-2 px-3 sm:px-4 py-2.5 bg-[#33C7BE] text-white font-semibold text-sm rounded-xl hover:bg-teal-600 transition-colors shadow-sm"
+              className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2.5 bg-[#33C7BE] text-white font-semibold text-sm rounded-xl hover:bg-teal-600 transition-colors shadow-sm shadow-teal-500/20"
             >
               <Plus className="w-4 h-4" />
               <span>Nueva cita</span>
-            </button>
+            </motion.button>
 
             {/* View toggle */}
             <div className="flex items-center bg-gray-100 rounded-xl p-1 gap-0.5">
               <button
                 onClick={() => setView('calendar')}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                   view === 'calendar'
                     ? 'bg-white text-gray-900 shadow-sm'
                     : 'text-gray-500 hover:text-gray-700'
@@ -907,7 +943,7 @@ export default function Agenda() {
               </button>
               <button
                 onClick={() => setView('list')}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                   view === 'list'
                     ? 'bg-white text-gray-900 shadow-sm'
                     : 'text-gray-500 hover:text-gray-700'
@@ -918,11 +954,16 @@ export default function Agenda() {
               </button>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Pending banner */}
         {!loading && pending.length > 0 && (
-          <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.98, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 shadow-xs"
+          >
             <span className="w-6 h-6 rounded-full bg-amber-400 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
               {pending.length}
             </span>
@@ -931,11 +972,17 @@ export default function Agenda() {
                 ? 'Tienes 1 solicitud que requiere confirmación'
                 : `Tienes ${pending.length} solicitudes que requieren confirmación`}
             </p>
-          </div>
+          </motion.div>
         )}
 
-        {/* Content */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+        {/* Content wrapped in SpotlightCard */}
+        <SpotlightCard
+          enableHoverLift={false}
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
+          className="rounded-2xl"
+        >
           {loading ? (
             <div className="flex items-center justify-center py-20">
               <Loader2 className="w-8 h-8 text-[#33C7BE] animate-spin" />
@@ -950,42 +997,76 @@ export default function Agenda() {
                 Aquí aparecerán las solicitudes de tus pacientes.
               </p>
             </div>
-          ) : view === 'calendar' ? (
-            <div className="p-5">
-              <CalendarView
-                appointments={appointments}
-                onSelect={setSelectedAppt}
-                onConfirm={handleConfirm}
-              />
-            </div>
           ) : (
-            <div className="p-5 space-y-8">
-              <Section title="Requieren confirmación" count={pending.length} accent>
-                {pending.map((appt) => (
-                  <AppointmentRow key={appt.id} appt={appt} onClick={() => setSelectedAppt(appt)} />
-                ))}
-              </Section>
+            <AnimatePresence mode="wait">
+              {view === 'calendar' ? (
+                <motion.div
+                  key="calendar"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.22, ease: 'easeOut' }}
+                  className="p-5"
+                >
+                  <CalendarView
+                    appointments={appointments}
+                    onSelect={setSelectedAppt}
+                    onConfirm={handleConfirm}
+                  />
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="list"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.22, ease: 'easeOut' }}
+                  className="p-5 space-y-8"
+                >
+                  <Section title="Requieren confirmación" count={pending.length} accent>
+                    {pending.map((appt) => (
+                      <AppointmentRow
+                        key={appt.id}
+                        appt={appt}
+                        onClick={() => setSelectedAppt(appt)}
+                      />
+                    ))}
+                  </Section>
 
-              <Section title="Esperando respuesta del paciente" count={awaitingPatient.length}>
-                {awaitingPatient.map((appt) => (
-                  <AppointmentRow key={appt.id} appt={appt} onClick={() => setSelectedAppt(appt)} />
-                ))}
-              </Section>
+                  <Section title="Esperando respuesta del paciente" count={awaitingPatient.length}>
+                    {awaitingPatient.map((appt) => (
+                      <AppointmentRow
+                        key={appt.id}
+                        appt={appt}
+                        onClick={() => setSelectedAppt(appt)}
+                      />
+                    ))}
+                  </Section>
 
-              <Section title="Próximas confirmadas" count={upcoming.length}>
-                {upcoming.map((appt) => (
-                  <AppointmentRow key={appt.id} appt={appt} onClick={() => setSelectedAppt(appt)} />
-                ))}
-              </Section>
+                  <Section title="Próximas confirmadas" count={upcoming.length}>
+                    {upcoming.map((appt) => (
+                      <AppointmentRow
+                        key={appt.id}
+                        appt={appt}
+                        onClick={() => setSelectedAppt(appt)}
+                      />
+                    ))}
+                  </Section>
 
-              <Section title="Historial" count={past.length}>
-                {past.map((appt) => (
-                  <AppointmentRow key={appt.id} appt={appt} onClick={() => setSelectedAppt(appt)} />
-                ))}
-              </Section>
-            </div>
+                  <Section title="Historial" count={past.length}>
+                    {past.map((appt) => (
+                      <AppointmentRow
+                        key={appt.id}
+                        appt={appt}
+                        onClick={() => setSelectedAppt(appt)}
+                      />
+                    ))}
+                  </Section>
+                </motion.div>
+              )}
+            </AnimatePresence>
           )}
-        </div>
+        </SpotlightCard>
       </div>
 
       {/* Patient picker */}
@@ -1015,16 +1096,18 @@ export default function Agenda() {
       )}
 
       {/* Detail modal */}
-      {selectedAppt && (
-        <AppointmentDetailModal
-          appt={selectedAppt}
-          actionLoading={actionLoading === selectedAppt.id}
-          onConfirm={() => handleConfirm(selectedAppt)}
-          onCancel={() => handleCancel(selectedAppt.id)}
-          onClose={() => setSelectedAppt(null)}
-          onStartConsulta={() => navigate(`/dashboard/consulta/${selectedAppt.id}`)}
-        />
-      )}
+      <AnimatePresence>
+        {selectedAppt && (
+          <AppointmentDetailModal
+            appt={selectedAppt}
+            actionLoading={actionLoading === selectedAppt.id}
+            onConfirm={() => handleConfirm(selectedAppt)}
+            onCancel={() => handleCancel(selectedAppt.id)}
+            onClose={() => setSelectedAppt(null)}
+            onStartConsulta={() => navigate(`/dashboard/consulta/${selectedAppt.id}`)}
+          />
+        )}
+      </AnimatePresence>
     </DashboardLayout>
   )
 }

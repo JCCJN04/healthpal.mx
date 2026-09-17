@@ -38,6 +38,8 @@ import {
   type AppointmentWithPatient,
   type AppointmentMode,
 } from '@/shared/lib/queries/appointments'
+import { SpotlightCard } from '@/shared/components/ui/SpotlightCard'
+import { motion } from 'framer-motion'
 import { logger } from '@/shared/lib/logger'
 import type { Database } from '@/shared/types/database'
 
@@ -132,60 +134,85 @@ const DoctorHome = ({
 
   return (
     <div className="space-y-6">
-      {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-3">
-          {profile?.avatar_url ? (
-            <img
-              src={profile.avatar_url}
-              alt={profile.full_name ?? ''}
-              className="w-11 h-11 rounded-full object-cover border-2 border-primary/20 shrink-0"
-            />
-          ) : (
-            <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold border-2 border-primary/20 shrink-0 text-sm">
-              {(profile?.full_name ?? 'D')
-                .split(' ')
-                .map((n) => n[0])
-                .join('')
-                .slice(0, 2)
-                .toUpperCase()}
+      {/* ── Hero Banner with Smooth Entrance Animation ─────────────────── */}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-white via-white/95 to-teal-50/50 border border-teal-100/70 shadow-sm hover:shadow-md transition-shadow duration-300 p-5 sm:p-7"
+      >
+        {/* Subtle decorative mesh glow background */}
+        <div className="pointer-events-none absolute -right-20 -top-20 w-80 h-80 rounded-full bg-teal-400/10 blur-3xl" />
+        <div className="pointer-events-none absolute right-40 -bottom-20 w-60 h-60 rounded-full bg-primary/10 blur-2xl" />
+
+        {/* Foreground Content */}
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
+          <div className="flex items-center gap-4">
+            {profile?.avatar_url ? (
+              <img
+                src={profile.avatar_url}
+                alt={profile.full_name ?? ''}
+                className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl object-cover border-2 border-primary/30 shadow-sm shrink-0"
+              />
+            ) : (
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-primary to-teal-600 flex items-center justify-center text-white font-bold border-2 border-white shadow-sm shrink-0 text-base sm:text-lg">
+                {(profile?.full_name ?? 'D')
+                  .split(' ')
+                  .map((n) => n[0])
+                  .join('')
+                  .slice(0, 2)
+                  .toUpperCase()}
+              </div>
+            )}
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-teal-500/10 text-teal-700 border border-teal-500/20">
+                  <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
+                  Portal Clínico
+                </span>
+              </div>
+              <h1 className="text-xl sm:text-2xl font-extrabold text-gray-900 tracking-tight">
+                Bienvenido,{' '}
+                <span className="text-primary">
+                  {profile?.full_name?.split(' ')[0] ?? 'Doctor'}
+                </span>
+              </h1>
+              <p className="text-xs text-gray-400 capitalize mt-0.5">{today}</p>
             </div>
-          )}
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">
-              Bienvenido,{' '}
-              <span className="text-primary">{profile?.full_name?.split(' ')[0] ?? 'Doctor'}</span>
-            </h1>
-            <p className="text-xs text-gray-400 capitalize">{today}</p>
+          </div>
+
+          {/* Quick actions with micro-interactions */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => navigate('/dashboard/agenda')}
+              className="flex items-center gap-1.5 px-3.5 py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-teal-600 transition-all duration-200 shadow-sm shadow-primary/20 hover:scale-[1.02] active:scale-95"
+            >
+              <CalendarDays size={13} /> Ver agenda
+            </button>
+            <button
+              onClick={() => navigate('/dashboard/recetas')}
+              className="flex items-center gap-1.5 px-3.5 py-2.5 bg-white/90 backdrop-blur-sm border border-gray-200 text-gray-700 text-xs font-bold rounded-xl hover:border-primary/40 hover:text-primary transition-all duration-200 hover:scale-[1.02] active:scale-95"
+            >
+              <Pill size={13} /> Nueva receta
+            </button>
+            <button
+              onClick={() => navigate('/dashboard/pacientes')}
+              className="flex items-center gap-1.5 px-3.5 py-2.5 bg-white/90 backdrop-blur-sm border border-gray-200 text-gray-700 text-xs font-bold rounded-xl hover:border-primary/40 hover:text-primary transition-all duration-200 hover:scale-[1.02] active:scale-95"
+            >
+              <Users size={13} /> Pacientes
+            </button>
           </div>
         </div>
+      </motion.div>
 
-        {/* Quick actions */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={() => navigate('/dashboard/agenda')}
-            className="flex items-center gap-1.5 px-3 py-2 bg-primary text-white text-xs font-bold rounded-xl hover:bg-teal-600 transition-colors shadow-sm shadow-primary/20"
-          >
-            <CalendarDays size={13} /> Ver agenda
-          </button>
-          <button
-            onClick={() => navigate('/dashboard/recetas')}
-            className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-700 text-xs font-bold rounded-xl hover:border-primary/40 hover:text-primary transition-colors"
-          >
-            <Pill size={13} /> Nueva receta
-          </button>
-          <button
-            onClick={() => navigate('/dashboard/pacientes')}
-            className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-700 text-xs font-bold rounded-xl hover:border-primary/40 hover:text-primary transition-colors"
-          >
-            <Users size={13} /> Pacientes
-          </button>
-        </div>
-      </div>
-
-      {/* ── Stats ──────────────────────────────────────────────────────── */}
+      {/* ── Stats with React Bits Spotlight & Staggered Entrance ─────── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+        <SpotlightCard
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
+          className="p-4"
+        >
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
             Citas hoy
           </p>
@@ -195,9 +222,14 @@ const DoctorHome = ({
             <p className="text-2xl font-bold text-gray-900">{todayAppts.length}</p>
           )}
           <p className="text-[10px] text-gray-400 mt-0.5">programadas</p>
-        </div>
+        </SpotlightCard>
 
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+        <SpotlightCard
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+          className="p-4"
+        >
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
             Próxima
           </p>
@@ -234,9 +266,14 @@ const DoctorHome = ({
               {nextAppt.patient_name ?? '—'}
             </p>
           )}
-        </div>
+        </SpotlightCard>
 
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+        <SpotlightCard
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
+          className="p-4"
+        >
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
             Pacientes
           </p>
@@ -246,9 +283,14 @@ const DoctorHome = ({
             <p className="text-2xl font-bold text-gray-900">{summaryData.activePatients}</p>
           )}
           <p className="text-[10px] text-gray-400 mt-0.5">con expediente</p>
-        </div>
+        </SpotlightCard>
 
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+        <SpotlightCard
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          className="p-4"
+        >
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
             Documentos
           </p>
@@ -258,13 +300,19 @@ const DoctorHome = ({
             <p className="text-2xl font-bold text-gray-900">{summaryData.documentCount}</p>
           )}
           <p className="text-[10px] text-gray-400 mt-0.5">en expedientes</p>
-        </div>
+        </SpotlightCard>
       </div>
 
       {/* ── Main grid ──────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         {/* Agenda del día */}
-        <div className="xl:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <SpotlightCard
+          enableHoverLift={false}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.25, ease: [0.16, 1, 0.3, 1] }}
+          className="xl:col-span-2 p-5"
+        >
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <CalendarDays size={15} className="text-primary" />
@@ -351,10 +399,16 @@ const DoctorHome = ({
               ))}
             </div>
           )}
-        </div>
+        </SpotlightCard>
 
         {/* Pacientes recientes */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <SpotlightCard
+          enableHoverLift={false}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
+          className="p-5"
+        >
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Users size={15} className="text-primary" />
@@ -443,7 +497,7 @@ const DoctorHome = ({
               Agendar consulta
             </button>
           </div>
-        </div>
+        </SpotlightCard>
       </div>
     </div>
   )
@@ -626,15 +680,13 @@ export default function Dashboard() {
         const sorted = (allDoctorAppts as AppointmentWithPatient[])
           .filter((a) => a && a.status !== 'cancelled' && a.scheduled_at)
           .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
-        todayAll = (allDoctorAppts as AppointmentWithPatient[])
-          .filter(
-            (a) =>
-              a &&
-              a.scheduled_at &&
-              typeof a.scheduled_at === 'string' &&
-              a.scheduled_at.startsWith(todayStr),
-          )
-          .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
+        todayAll = sorted.filter((a) => {
+          if (!a?.scheduled_at) return false
+          const dStr = new Date(a.scheduled_at).toLocaleDateString('en-CA', {
+            timeZone: 'America/Mexico_City',
+          })
+          return dStr === todayStr
+        })
         upcoming = sorted.filter((a) => a && a.scheduled_at && new Date(a.scheduled_at) >= now)
         setTodayAppts(todayAll)
         setUpcomingAppts(upcoming)

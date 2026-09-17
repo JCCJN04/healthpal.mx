@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { motion } from 'framer-motion'
+import { SpotlightCard } from '@/shared/components/ui/SpotlightCard'
 import {
   Upload,
   Search,
@@ -15,6 +17,8 @@ import {
   Link2,
   Share2,
   ChevronLeft,
+  ChevronRight,
+  Folder,
   UserCircle,
   UserPlus,
 } from 'lucide-react'
@@ -1052,14 +1056,20 @@ export default function Documentos() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-4 pb-4">
+      {/* Ambient decorative glowing orbs */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden z-0">
+        <div className="absolute top-20 right-10 w-96 h-96 bg-[#33C7BE]/6 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-8 w-80 h-80 bg-blue-400/5 rounded-full blur-3xl" />
+      </div>
+
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
         {/* Header */}
         {profile?.role === 'patient' && !currentFolder.id ? (
-          /* ── Patient root: clean Stitch-style header ── */
+          /* ── Patient root: clean header ── */
           <div>
             <div className="flex items-start justify-between flex-wrap gap-4 mb-5">
               <div>
-                <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight">
+                <h1 className="text-2xl sm:text-4xl font-extrabold text-gray-900 tracking-tight">
                   Documentos
                 </h1>
                 <p className="text-sm text-gray-500 mt-1">
@@ -1069,77 +1079,82 @@ export default function Documentos() {
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.97 }}
                   onClick={() => setUploadModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-5 py-2 bg-primary text-white text-sm font-bold rounded-full hover:bg-primary/90 transition-all shadow-sm shadow-primary/20"
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-[#33C7BE] text-white text-xs sm:text-sm font-semibold rounded-xl hover:bg-teal-600 transition-all shadow-sm shadow-teal-500/20"
                 >
                   <Upload size={14} />
                   Subir
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.97 }}
                   onClick={() => setAccessPanelOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-100 text-gray-700 text-sm font-semibold rounded-full hover:bg-gray-200 transition-all"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-white border border-gray-200 text-gray-700 text-xs sm:text-sm font-semibold rounded-xl hover:bg-gray-50 transition-all shadow-xs"
                 >
                   <Users size={14} />
                   Accesos
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.97 }}
                   onClick={() => setFolderModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-100 text-gray-700 text-sm font-semibold rounded-full hover:bg-gray-200 transition-all"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-white border border-gray-200 text-gray-700 text-xs sm:text-sm font-semibold rounded-xl hover:bg-gray-50 transition-all shadow-xs"
                 >
                   <Plus size={14} />
                   Carpeta
-                </button>
+                </motion.button>
               </div>
             </div>
-            <div className="flex gap-3">
-              <div className="bg-primary/10 rounded-2xl px-4 py-2.5 text-center border border-primary/10">
+            <div className="flex gap-3 flex-wrap">
+              <div className="bg-white border border-teal-100/80 rounded-2xl px-4 py-2.5 text-center shadow-xs">
                 <p className="text-2xl font-black text-gray-900">{documents.length}</p>
-                <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">
+                <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">
                   Archivos
                 </p>
               </div>
-              <div className="bg-primary/10 rounded-2xl px-4 py-2.5 text-center border border-primary/10">
+              <div className="bg-white border border-teal-100/80 rounded-2xl px-4 py-2.5 text-center shadow-xs">
                 <p className="text-2xl font-black text-gray-900">
                   {folders.filter((f) => f.id.startsWith('shared-')).length}
                 </p>
-                <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">
+                <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">
                   Médicos
                 </p>
               </div>
-              <div className="bg-primary/10 rounded-2xl px-4 py-2.5 text-center border border-primary/10">
+              <div className="bg-white border border-teal-100/80 rounded-2xl px-4 py-2.5 text-center shadow-xs">
                 <p className="text-2xl font-black text-gray-900">{prescriptions.length || '—'}</p>
-                <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">
+                <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">
                   Recetas
                 </p>
               </div>
             </div>
             {/* Tabs */}
-            <div className="flex gap-1 mt-4 bg-gray-100 rounded-xl p-1 w-fit">
+            <div className="flex gap-1 mt-4 bg-gray-100/80 rounded-xl p-1 w-fit border border-gray-200/50">
               <button
                 onClick={() => setMainTab('docs')}
-                className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${mainTab === 'docs' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                className={`px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${mainTab === 'docs' ? 'bg-[#33C7BE] text-white shadow-xs' : 'text-gray-600 hover:text-gray-900'}`}
               >
                 Documentos
               </button>
               <button
                 onClick={() => setMainTab('recetas')}
-                className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${mainTab === 'recetas' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                className={`px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${mainTab === 'recetas' ? 'bg-[#33C7BE] text-white shadow-xs' : 'text-gray-600 hover:text-gray-900'}`}
               >
                 Mis Recetas
               </button>
             </div>
           </div>
         ) : profile?.role === 'patient' && currentFolder.id?.startsWith('shared-') ? (
-          /* ── Patient inside a doctor's folder: profile card header ── */
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="h-1.5 w-full bg-gradient-to-r from-primary to-teal-400" />
-            <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+          /* ── Patient inside a doctor's folder: clean profile card header ── */
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden p-5 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               {/* Back + avatar + info */}
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 <button
                   onClick={() => handleBackNavigation(-1)}
-                  className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-400 hover:text-gray-700 shrink-0"
+                  className="p-2.5 hover:bg-teal-50 rounded-xl transition-colors text-gray-500 hover:text-[#33C7BE] shrink-0 border border-gray-200"
                   aria-label="Volver"
                 >
                   <ChevronLeft size={20} />
@@ -1148,130 +1163,267 @@ export default function Documentos() {
                   <img
                     src={currentFolderInfo.avatarUrl}
                     alt={currentFolder.name}
-                    className="w-14 h-14 rounded-full object-cover ring-4 ring-primary/20 shadow-md shrink-0"
+                    className="w-13 h-13 rounded-xl object-cover ring-2 ring-[#33C7BE]/20 shadow-xs shrink-0"
                     onError={(e) => {
                       (e.currentTarget as HTMLImageElement).style.display = 'none'
                     }}
                   />
                 ) : (
-                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary to-teal-600 flex items-center justify-center ring-4 ring-primary/20 shadow-md shrink-0">
-                    <UserCircle size={30} className="text-white" />
+                  <div className="w-13 h-13 rounded-xl bg-gradient-to-br from-teal-500 to-[#33C7BE] flex items-center justify-center shadow-xs shrink-0 text-white">
+                    <UserCircle size={28} />
                   </div>
                 )}
                 <div className="min-w-0">
-                  <h1 className="text-lg font-black text-gray-900 leading-tight truncate">
-                    {currentFolder.name}
-                  </h1>
-                  {currentFolderInfo?.subtitle && (
-                    <span className="inline-block mt-1 text-[11px] font-bold uppercase tracking-wider bg-primary/10 text-primary rounded-full px-2.5 py-0.5">
-                      {currentFolderInfo.subtitle}
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-lg sm:text-2xl font-extrabold text-gray-900 leading-tight truncate">
+                      {currentFolder.name}
+                    </h1>
+                    <span className="text-[10px] font-bold uppercase tracking-wider bg-teal-50 text-teal-700 border border-teal-200/60 rounded-full px-2.5 py-0.5">
+                      Médico
                     </span>
+                  </div>
+                  {currentFolderInfo?.subtitle && (
+                    <p className="text-xs text-gray-500 mt-0.5 truncate">
+                      {currentFolderInfo.subtitle}
+                    </p>
                   )}
                 </div>
               </div>
               {/* Stats + upload */}
-              <div className="flex items-center gap-2 sm:shrink-0">
-                <div className="bg-gray-50 rounded-xl px-4 py-2 text-center border border-gray-100">
-                  <p className="text-xl font-black text-gray-900">{documents.length}</p>
-                  <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">
+              <div className="flex items-center gap-2.5 sm:shrink-0">
+                <div className="bg-gray-50 rounded-xl px-3.5 py-2 text-center border border-gray-100">
+                  <p className="text-lg font-extrabold text-gray-900">{documents.length}</p>
+                  <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">
                     Archivos
                   </p>
                 </div>
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.97 }}
                   onClick={() => setUploadModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-primary text-white text-sm font-black rounded-xl hover:bg-primary/90 transition-all shadow-md"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#33C7BE] text-white text-xs sm:text-sm font-semibold rounded-xl hover:bg-teal-600 transition-all shadow-sm shadow-teal-500/20"
                 >
                   <Upload size={15} />
                   Subir
-                </button>
+                </motion.button>
               </div>
             </div>
           </div>
-        ) : (
-          /* ── Doctor header OR patient inside own folder ── */
-          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-teal-600 p-6 md:p-7 text-white shadow-lg">
-            <div
-              className="absolute top-0 right-0 bottom-0 w-72 opacity-10 pointer-events-none"
-              style={{
-                background: 'radial-gradient(circle, white 1.5px, transparent 1.5px)',
-                backgroundSize: '22px 22px',
-              }}
-            />
-            <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        ) : profile?.role === 'doctor' && !currentFolder.id ? (
+          /* ── Doctor root: clean, airy modern header with quick action spotlight cards ── */
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h1 className="text-2xl md:text-3xl font-bold leading-tight">
-                  {currentFolder.id ? currentFolder.name : 'Mis Documentos'}
+                <h1 className="text-xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
+                  Mis Documentos
                 </h1>
-                <p className="text-sm text-white/75 mt-1">
-                  {currentFolder.id?.startsWith('shared-')
-                    ? 'Documentos compartidos entre ustedes'
-                    : currentFolder.id
-                      ? 'Carpeta de documentos'
-                      : 'Administra y organiza tus archivos médicos'}
+                <p className="text-sm text-gray-500 mt-1 flex items-center gap-2 flex-wrap">
+                  <span>
+                    {documents.length} archivo{documents.length !== 1 ? 's' : ''} en{' '}
+                    {folders.length} carpeta{folders.length !== 1 ? 's' : ''}
+                  </span>
+                  {folders.filter((f) => f.id.startsWith('shared-')).length > 0 && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-50 text-teal-800 border border-teal-200/80">
+                      <Users className="w-3 h-3 text-[#33C7BE]" />
+                      {folders.filter((f) => f.id.startsWith('shared-')).length} expediente
+                      {folders.filter((f) => f.id.startsWith('shared-')).length !== 1 ? 's' : ''} de
+                      pacientes
+                    </span>
+                  )}
                 </p>
               </div>
-              <div className="flex items-center gap-2.5 flex-wrap shrink-0">
-                <div className="bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2 border border-white/10 text-center min-w-[60px]">
-                  <p className="text-xl font-bold">{documents.length}</p>
-                  <p className="text-[10px] text-white/70 font-medium">Archivos</p>
-                </div>
-                <div className="bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2 border border-white/10 text-center min-w-[60px]">
-                  <p className="text-xl font-bold">
-                    {new Set(documents.map((d) => d.category)).size}
-                  </p>
-                  <p className="text-[10px] text-white/70 font-medium">Categorías</p>
-                </div>
+
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => setAccessReqOpen(true)}
+                  className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2.5 bg-white border border-gray-200 text-gray-700 font-semibold text-xs sm:text-sm rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all shadow-xs"
+                >
+                  <UserPlus className="w-4 h-4 text-[#33C7BE]" />
+                  <span>Solicitar acceso</span>
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => setFolderModalOpen(true)}
+                  className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2.5 bg-white border border-gray-200 text-gray-700 font-semibold text-xs sm:text-sm rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all shadow-xs"
+                >
+                  <Plus className="w-4 h-4 text-[#33C7BE]" />
+                  <span>Nueva Carpeta</span>
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => setUploadModalOpen(true)}
+                  className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2.5 bg-[#33C7BE] text-white font-semibold text-xs sm:text-sm rounded-xl hover:bg-teal-600 transition-all shadow-sm shadow-teal-500/20"
+                >
+                  <Upload className="w-4 h-4" />
+                  <span>Subir Documento</span>
+                </motion.button>
               </div>
             </div>
-            <div className="relative z-10 flex items-center gap-2 mt-5 flex-wrap">
-              {profile?.role === 'doctor' && !currentFolder.id && (
-                <button
-                  onClick={() => setAccessReqOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-white/20 hover:bg-white/30 border border-white/20 text-white text-sm font-semibold rounded-xl transition-all backdrop-blur-sm"
-                >
-                  <UserPlus size={15} />
-                  Solicitar acceso a paciente
-                </button>
-              )}
-              {profile?.role === 'doctor' && currentFolder.id?.startsWith('shared-') && (
-                <button
-                  onClick={() => {
-                    const senderId = currentFolder.id!.replace('shared-', '')
-                    setDocReqEmail(senderEmailMap.get(senderId) || '')
-                    setDocReqPhone(senderPhoneMap.get(senderId) || '')
-                    setDocReqOpen(true)
-                  }}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-white/20 hover:bg-white/30 border border-white/20 text-white text-sm font-semibold rounded-xl transition-all backdrop-blur-sm"
-                >
-                  <FileUp size={15} />
-                  Solicitar documento
-                </button>
-              )}
-              {!currentFolder.id?.startsWith('shared-') && (
-                <button
-                  onClick={() => setFolderModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-white/20 hover:bg-white/30 border border-white/20 text-white text-sm font-semibold rounded-xl transition-all backdrop-blur-sm"
-                >
-                  <Plus size={15} />
-                  Nueva Carpeta
-                </button>
-              )}
-              {profile?.role === 'patient' && (
-                <button
-                  onClick={() => setAccessPanelOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-white/20 hover:bg-white/30 border border-white/20 text-white text-sm font-semibold rounded-xl transition-all backdrop-blur-sm"
-                >
-                  <Users size={15} />
-                  Accesos
-                </button>
-              )}
-              <button
-                onClick={() => setUploadModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-white text-primary text-sm font-bold rounded-xl hover:bg-white/90 transition-all shadow-sm"
+
+            {/* 3 Quick Action Spotlight Cards with Orb Glow */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <SpotlightCard
+                whileHover={{ y: -3, scale: 1.01 }}
+                whileTap={{ scale: 0.98 }}
+                spotlightColor="rgba(51, 199, 190, 0.22)"
+                onClick={() => {
+                  const firstShared = folders.find((f) => f.id.startsWith('shared-'))
+                  if (firstShared) handleFolderClick(firstShared.id, firstShared.name)
+                }}
+                className="group relative overflow-hidden rounded-2xl border border-teal-100/80 bg-gradient-to-br from-white via-teal-50/20 to-emerald-50/20 p-5 text-left shadow-xs hover:shadow-md hover:border-teal-200 transition-all cursor-pointer"
               >
-                <Upload size={15} />
-                Subir Documento
-              </button>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="w-11 h-11 rounded-xl bg-teal-50 text-[#33C7BE] flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                    <Users className="w-5 h-5" />
+                  </div>
+                  <span className="w-7 h-7 rounded-full bg-teal-50/80 text-teal-400 group-hover:text-[#33C7BE] group-hover:bg-teal-100 flex items-center justify-center transition-colors">
+                    <ChevronRight className="w-4 h-4" />
+                  </span>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <h3 className="font-bold text-gray-900 text-base group-hover:text-[#33C7BE] transition-colors">
+                    Expedientes Clínicos
+                  </h3>
+                  <span className="text-xs font-bold text-[#33C7BE] bg-teal-50 px-2 py-0.5 rounded-full">
+                    {folders.filter((f) => f.id.startsWith('shared-')).length}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                  Carpetas y documentos compartidos de forma segura y cifrada por tus pacientes.
+                </p>
+              </SpotlightCard>
+
+              <SpotlightCard
+                whileHover={{ y: -3, scale: 1.01 }}
+                whileTap={{ scale: 0.98 }}
+                spotlightColor="rgba(51, 199, 190, 0.25)"
+                onClick={() => setAccessReqOpen(true)}
+                className="group relative overflow-hidden rounded-2xl border border-teal-100/80 bg-gradient-to-br from-white via-teal-50/20 to-emerald-50/30 p-5 text-left shadow-xs hover:shadow-md hover:border-teal-200 transition-all cursor-pointer"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="w-11 h-11 rounded-xl bg-teal-50 text-[#33C7BE] flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                    <UserPlus className="w-5 h-5" />
+                  </div>
+                  <span className="w-7 h-7 rounded-full bg-teal-50/80 text-teal-400 group-hover:text-[#33C7BE] group-hover:bg-teal-100 flex items-center justify-center transition-colors">
+                    <ChevronRight className="w-4 h-4" />
+                  </span>
+                </div>
+                <h3 className="font-bold text-gray-900 text-base group-hover:text-[#33C7BE] transition-colors">
+                  Solicitar Acceso
+                </h3>
+                <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                  Envía una invitación formal a un paciente para consultar o gestionar su historial.
+                </p>
+              </SpotlightCard>
+
+              <SpotlightCard
+                whileHover={{ y: -3, scale: 1.01 }}
+                whileTap={{ scale: 0.98 }}
+                spotlightColor="rgba(51, 199, 190, 0.22)"
+                onClick={() => setUploadModalOpen(true)}
+                className="group relative overflow-hidden rounded-2xl border border-teal-100/80 bg-gradient-to-br from-white via-teal-50/20 to-emerald-50/20 p-5 text-left shadow-xs hover:shadow-md hover:border-teal-200 transition-all cursor-pointer"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="w-11 h-11 rounded-xl bg-teal-50 text-[#33C7BE] flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                    <Upload className="w-5 h-5" />
+                  </div>
+                  <span className="w-7 h-7 rounded-full bg-teal-50/80 text-teal-400 group-hover:text-[#33C7BE] group-hover:bg-teal-100 flex items-center justify-center transition-colors">
+                    <ChevronRight className="w-4 h-4" />
+                  </span>
+                </div>
+                <h3 className="font-bold text-gray-900 text-base group-hover:text-[#33C7BE] transition-colors">
+                  Subir Documento
+                </h3>
+                <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                  Carga recetas, estudios clínicos o notas médicas directamente al expediente.
+                </p>
+              </SpotlightCard>
+            </div>
+          </div>
+        ) : (
+          /* ── Doctor or Patient inside a specific folder ── */
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden p-5 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <button
+                  onClick={() => handleBackNavigation(-1)}
+                  className="p-2.5 hover:bg-teal-50 rounded-xl transition-colors text-gray-500 hover:text-[#33C7BE] shrink-0 border border-gray-200"
+                  aria-label="Volver"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+                {currentFolderInfo?.avatarUrl ? (
+                  <img
+                    src={currentFolderInfo.avatarUrl}
+                    alt={currentFolder.name}
+                    className="w-12 h-12 rounded-xl object-cover ring-2 ring-[#33C7BE]/20 shadow-xs shrink-0"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).style.display = 'none'
+                    }}
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-xl bg-teal-50 text-[#33C7BE] flex items-center justify-center shrink-0 border border-teal-100">
+                    <Folder size={24} />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-lg sm:text-2xl font-extrabold text-gray-900 leading-tight truncate">
+                      {currentFolder.name}
+                    </h1>
+                    {currentFolder.id?.startsWith('shared-') && (
+                      <span className="text-[10px] font-bold uppercase tracking-wider bg-teal-50 text-teal-700 border border-teal-200/60 rounded-full px-2 py-0.5">
+                        Expediente
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs sm:text-sm text-gray-500 mt-0.5 truncate">
+                    {currentFolder.id?.startsWith('shared-')
+                      ? 'Archivos médicos compartidos con este paciente'
+                      : 'Carpeta de archivos médicos'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 flex-wrap shrink-0">
+                <div className="bg-gray-50 rounded-xl px-3.5 py-2 text-center border border-gray-100">
+                  <p className="text-lg font-extrabold text-gray-900">{documents.length}</p>
+                  <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">
+                    Archivos
+                  </p>
+                </div>
+
+                {profile?.role === 'doctor' && currentFolder.id?.startsWith('shared-') && (
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => {
+                      const senderId = currentFolder.id!.replace('shared-', '')
+                      setDocReqEmail(senderEmailMap.get(senderId) || '')
+                      setDocReqPhone(senderPhoneMap.get(senderId) || '')
+                      setDocReqOpen(true)
+                    }}
+                    className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2.5 bg-white border border-gray-200 text-gray-700 font-semibold text-xs sm:text-sm rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all shadow-xs"
+                  >
+                    <FileUp className="w-4 h-4 text-[#33C7BE]" />
+                    <span>Solicitar documento</span>
+                  </motion.button>
+                )}
+
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => setUploadModalOpen(true)}
+                  className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2.5 bg-[#33C7BE] text-white font-semibold text-xs sm:text-sm rounded-xl hover:bg-teal-600 transition-all shadow-sm shadow-teal-500/20"
+                >
+                  <Upload className="w-4 h-4" />
+                  <span>Subir Documento</span>
+                </motion.button>
+              </div>
             </div>
           </div>
         )}
@@ -1329,11 +1481,11 @@ export default function Documentos() {
 
         {/* Search + Filter row — hidden when showing recetas tab */}
         {!(profile?.role === 'patient' && !currentFolder.id && mainTab === 'recetas') && (
-          <div className="space-y-2.5">
-            {/* Row 1: Search */}
-            <div className="relative">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            {/* Search */}
+            <div className="relative flex-1">
               <Search
-                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
                 size={16}
               />
               <input
@@ -1342,7 +1494,7 @@ export default function Documentos() {
                   !currentFolder.id
                     ? profile?.role === 'patient'
                       ? 'Buscar médicos o documentos…'
-                      : 'Buscar pacientes o carpetas…'
+                      : 'Buscar pacientes, carpetas o documentos…'
                     : currentFolder.id.startsWith('shared-')
                       ? profile?.role === 'patient'
                         ? 'Buscar documentos de tu médico…'
@@ -1351,49 +1503,64 @@ export default function Documentos() {
                 }
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary text-sm transition-all shadow-sm"
+                className="w-full pl-10 pr-9 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/20 focus:border-[#33C7BE] text-sm text-gray-900 placeholder:text-gray-400 transition-all shadow-xs"
               />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 rounded-full"
+                >
+                  <X size={14} />
+                </button>
+              )}
             </div>
+
             {/* Row 2: Filters + ViewToggle */}
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar">
-                {/* Root: sort pills */}
-                {!currentFolder.id && (
-                  <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
+              {/* Root: sort pills */}
+              {!currentFolder.id && (
+                <div className="flex items-center gap-1.5 bg-gray-100/80 p-1 rounded-xl border border-gray-200/50">
+                  <button
+                    onClick={() => setSortBy('date')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                      sortBy === 'date'
+                        ? 'bg-[#33C7BE] text-white shadow-xs'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Más reciente
+                  </button>
+                  <button
+                    onClick={() => setSortBy('name')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                      sortBy === 'name'
+                        ? 'bg-[#33C7BE] text-white shadow-xs'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Nombre A–Z
+                  </button>
+                </div>
+              )}
+              {/* Inside any folder: category filters */}
+              {currentFolder.id && (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {CATEGORIES.map((cat) => (
                     <button
-                      onClick={() => setSortBy('date')}
-                      className={`px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${sortBy === 'date' ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                      key={cat.value}
+                      onClick={() => setSelectedCategory(cat.value)}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                        selectedCategory === cat.value
+                          ? 'bg-[#33C7BE] text-white shadow-sm shadow-teal-500/20'
+                          : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                      }`}
                     >
-                      Más reciente
+                      {getCategoryIcon(cat.value)}
+                      {cat.label}
                     </button>
-                    <button
-                      onClick={() => setSortBy('name')}
-                      className={`px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${sortBy === 'name' ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                    >
-                      Nombre A–Z
-                    </button>
-                  </div>
-                )}
-                {/* Inside any folder: category filters */}
-                {currentFolder.id && (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {CATEGORIES.map((cat) => (
-                      <button
-                        key={cat.value}
-                        onClick={() => setSelectedCategory(cat.value)}
-                        className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                          selectedCategory === cat.value
-                            ? 'bg-primary text-white shadow-sm shadow-primary/20'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
-                      >
-                        {getCategoryIcon(cat.value)}
-                        {cat.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+                  ))}
+                </div>
+              )}
               <ViewToggle view={view} onViewChange={setView} />
             </div>
           </div>
@@ -1403,7 +1570,7 @@ export default function Documentos() {
         {!(profile?.role === 'patient' && !currentFolder.id && mainTab === 'recetas') && (
           <>
             {/* Breadcrumbs */}
-            <div className="flex items-center gap-1.5 text-sm text-gray-400 overflow-x-auto py-0.5 no-scrollbar">
+            <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-500 bg-white/70 backdrop-blur-xs border border-gray-100 rounded-xl px-4 py-2.5 overflow-x-auto no-scrollbar shadow-xs">
               <button
                 onClick={() => handleBackNavigation(-1)}
                 onDragOver={(e) => {
@@ -1423,7 +1590,7 @@ export default function Documentos() {
                     if (payload) handleMoveDocument(payload, null)
                   }
                 }}
-                className={`hover:text-primary transition-colors whitespace-nowrap ${!currentFolder.id ? 'font-semibold text-gray-700' : ''}`}
+                className={`hover:text-[#33C7BE] transition-colors whitespace-nowrap ${!currentFolder.id ? 'font-bold text-gray-900' : 'text-gray-500'}`}
               >
                 Mis Documentos
               </button>
@@ -1431,10 +1598,10 @@ export default function Documentos() {
                 (folder, index) =>
                   index > 0 && (
                     <React.Fragment key={folder.id}>
-                      <span className="text-gray-200">/</span>
+                      <ChevronRight size={14} className="text-gray-300 shrink-0" />
                       <button
                         onClick={() => handleBackNavigation(index)}
-                        className="hover:text-primary transition-colors whitespace-nowrap"
+                        className="hover:text-[#33C7BE] transition-colors whitespace-nowrap text-gray-500"
                       >
                         {folder.name}
                       </button>
@@ -1443,8 +1610,8 @@ export default function Documentos() {
               )}
               {currentFolder.id && (
                 <>
-                  <span className="text-gray-200">/</span>
-                  <span className="font-semibold text-gray-700 whitespace-nowrap">
+                  <ChevronRight size={14} className="text-gray-300 shrink-0" />
+                  <span className="font-bold text-gray-900 whitespace-nowrap">
                     {currentFolder.name}
                   </span>
                 </>
@@ -1452,195 +1619,194 @@ export default function Documentos() {
             </div>
 
             {/* Documents List/Grid */}
-            {loading ? (
-              <div className="flex flex-col items-center justify-center py-16">
-                <Loader2 size={32} className="animate-spin text-primary mb-3" />
-                <p className="text-sm text-gray-400">Cargando documentos…</p>
-              </div>
-            ) : filteredDocuments.length === 0 && filteredFolders.length === 0 ? (
-              (() => {
-                const isPatient = profile?.role === 'patient'
-                const isInsideSharedFolder = !!currentFolder.id?.startsWith('shared-')
-                const hasResults = documents.length > 0 || folders.length > 0
+            {loading
+              ? null
+              : filteredDocuments.length === 0 && filteredFolders.length === 0
+                ? (() => {
+                    const isPatient = profile?.role === 'patient'
+                    const isInsideSharedFolder = !!currentFolder.id?.startsWith('shared-')
+                    const hasResults = documents.length > 0 || folders.length > 0
 
-                let icon = <FileText size={28} className="text-primary/40" />
-                let title = 'Sin resultados'
-                let desc = 'Intenta ajustar los filtros de búsqueda'
-                let action: React.ReactNode = null
+                    let icon = <FileText size={28} className="text-[#33C7BE]" />
+                    let title = 'Sin resultados'
+                    let desc = 'Intenta ajustar los filtros de búsqueda'
+                    let action: React.ReactNode = null
 
-                if (hasResults) {
-                  // Filtered but no match
-                  title = 'Sin resultados'
-                  desc = 'Intenta ajustar los filtros de búsqueda'
-                } else if (isInsideSharedFolder) {
-                  icon = <FileText size={28} className="text-primary/40" />
-                  title = isPatient
-                    ? 'Este médico aún no ha compartido documentos'
-                    : 'Este paciente aún no ha compartido documentos'
-                  desc = isPatient
-                    ? 'Cuando tu médico comparta estudios o recetas contigo aparecerán aquí.'
-                    : 'Cuando el paciente suba documentos y los comparta contigo aparecerán aquí.'
-                } else if (isPatient) {
-                  icon = <Users size={28} className="text-primary/40" />
-                  title = 'Tus médicos aún no han compartido nada'
-                  desc =
-                    'Aquí verás las carpetas de cada médico que comparta documentos contigo. También puedes subir tus propios archivos.'
-                  action = (
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                      <button
-                        onClick={() => setUploadModalOpen(true)}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors font-semibold text-sm shadow-sm"
-                      >
-                        <Upload size={16} />
-                        Subir documento
-                      </button>
-                      <button
-                        onClick={() => setAccessPanelOpen(true)}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 border border-primary/30 text-primary rounded-xl hover:bg-primary/5 transition-colors font-semibold text-sm"
-                      >
-                        <Users size={16} />
-                        Ver accesos
-                      </button>
-                    </div>
-                  )
-                } else {
-                  title = 'Sin documentos aún'
-                  desc = 'Sube tu primer documento médico para comenzar'
-                  action = (
-                    <button
-                      onClick={() => setUploadModalOpen(true)}
-                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors font-semibold text-sm shadow-sm"
-                    >
-                      <Upload size={16} />
-                      Subir Documento
-                    </button>
-                  )
-                }
+                    if (hasResults) {
+                      // Filtered but no match
+                      title = 'Sin resultados'
+                      desc = 'Intenta ajustar los filtros de búsqueda'
+                    } else if (isInsideSharedFolder) {
+                      icon = <FileText size={28} className="text-[#33C7BE]" />
+                      title = isPatient
+                        ? 'Este médico aún no ha compartido documentos'
+                        : 'Este paciente aún no ha compartido documentos'
+                      desc = isPatient
+                        ? 'Cuando tu médico comparta estudios o recetas contigo aparecerán aquí.'
+                        : 'Cuando el paciente suba documentos y los comparta contigo aparecerán aquí.'
+                    } else if (isPatient) {
+                      icon = <Users size={28} className="text-[#33C7BE]" />
+                      title = 'Tus médicos aún no han compartido nada'
+                      desc =
+                        'Aquí verás las carpetas de cada médico que comparta documentos contigo. También puedes subir tus propios archivos.'
+                      action = (
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                          <button
+                            onClick={() => setUploadModalOpen(true)}
+                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#33C7BE] text-white rounded-xl hover:bg-teal-600 transition-all font-semibold text-sm shadow-sm shadow-teal-500/20"
+                          >
+                            <Upload size={16} />
+                            Subir documento
+                          </button>
+                          <button
+                            onClick={() => setAccessPanelOpen(true)}
+                            className="inline-flex items-center gap-2 px-5 py-2.5 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-semibold text-sm shadow-xs"
+                          >
+                            <Users size={16} />
+                            Ver accesos
+                          </button>
+                        </div>
+                      )
+                    } else {
+                      title = 'Sin documentos aún'
+                      desc = 'Sube tu primer documento médico para comenzar'
+                      action = (
+                        <button
+                          onClick={() => setUploadModalOpen(true)}
+                          className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#33C7BE] text-white rounded-xl hover:bg-teal-600 transition-all font-semibold text-sm shadow-sm shadow-teal-500/20"
+                        >
+                          <Upload size={16} />
+                          Subir Documento
+                        </button>
+                      )
+                    }
 
-                return (
-                  <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-12 text-center">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-primary/10 to-teal-400/10 flex items-center justify-center">
-                      {icon}
-                    </div>
-                    <h3 className="text-base font-semibold text-gray-700 mb-1">{title}</h3>
-                    <p className="text-sm text-gray-400 mb-6 max-w-xs mx-auto">{desc}</p>
-                    {action}
-                  </div>
-                )
-              })()
-            ) : (
-              (() => {
-                // Group documents by year (document_date takes priority over created_at)
-                const docsByYear = filteredDocuments.reduce<Record<string, Document[]>>(
-                  (acc, doc) => {
-                    const dateStr = doc.document_date || doc.created_at
-                    const year = new Date(dateStr).getFullYear().toString()
-                    if (!acc[year]) acc[year] = []
-                    acc[year].push(doc)
-                    return acc
-                  },
-                  {},
-                )
-                const years = Object.keys(docsByYear).sort((a, b) => Number(b) - Number(a))
-                const showYearGroups =
-                  years.length > 1 || (years.length === 1 && filteredFolders.length > 0)
+                    return (
+                      <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-12 text-center shadow-xs">
+                        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-teal-50 border border-teal-100 flex items-center justify-center">
+                          {icon}
+                        </div>
+                        <h3 className="text-base font-bold text-gray-900 mb-1">{title}</h3>
+                        <p className="text-sm text-gray-500 mb-6 max-w-xs mx-auto leading-relaxed">
+                          {desc}
+                        </p>
+                        {action}
+                      </div>
+                    )
+                  })()
+                : (() => {
+                    // Group documents by year (document_date takes priority over created_at)
+                    const docsByYear = filteredDocuments.reduce<Record<string, Document[]>>(
+                      (acc, doc) => {
+                        const dateStr = doc.document_date || doc.created_at
+                        const year = new Date(dateStr).getFullYear().toString()
+                        if (!acc[year]) acc[year] = []
+                        acc[year].push(doc)
+                        return acc
+                      },
+                      {},
+                    )
+                    const years = Object.keys(docsByYear).sort((a, b) => Number(b) - Number(a))
+                    const showYearGroups =
+                      years.length > 1 || (years.length === 1 && filteredFolders.length > 0)
 
-                if (view === 'list') {
-                  return (
-                    <div className="space-y-6">
-                      {/* Folders always at top (ungrouped) */}
-                      {filteredFolders.length > 0 && (
-                        <DocumentsTable
-                          documents={[]}
-                          folders={filteredFolders}
-                          onDelete={handleDelete}
-                          onFolderClick={handleFolderClick}
-                          onMoveDocument={handleMoveDocument}
-                          movingDocId={movingDocId}
-                          onShareDocument={handleShareDocument}
-                        />
-                      )}
-                      {years.map((year) => (
-                        <div key={year}>
-                          {showYearGroups && (
-                            <div className="flex items-center gap-3 mb-3">
-                              <span className="text-sm font-bold text-gray-500 uppercase tracking-wider">
-                                {year}
-                              </span>
-                              <div className="flex-1 h-px bg-gray-200" />
-                              <span className="text-xs text-gray-400">
-                                {docsByYear[year].length} doc
-                                {docsByYear[year].length !== 1 ? 's' : ''}
-                              </span>
-                            </div>
+                    if (view === 'list') {
+                      return (
+                        <div className="space-y-6">
+                          {/* Folders always at top (ungrouped) */}
+                          {filteredFolders.length > 0 && (
+                            <DocumentsTable
+                              documents={[]}
+                              folders={filteredFolders}
+                              onDelete={handleDelete}
+                              onFolderClick={handleFolderClick}
+                              onMoveDocument={handleMoveDocument}
+                              movingDocId={movingDocId}
+                              onShareDocument={handleShareDocument}
+                            />
                           )}
-                          <DocumentsTable
-                            documents={docsByYear[year]}
-                            folders={[]}
-                            onDelete={handleDelete}
+                          {years.map((year) => (
+                            <div key={year}>
+                              {showYearGroups && (
+                                <div className="flex items-center gap-3 mb-3">
+                                  <span className="text-sm font-bold text-gray-500 uppercase tracking-wider">
+                                    {year}
+                                  </span>
+                                  <div className="flex-1 h-px bg-gray-200" />
+                                  <span className="text-xs text-gray-400">
+                                    {docsByYear[year].length} doc
+                                    {docsByYear[year].length !== 1 ? 's' : ''}
+                                  </span>
+                                </div>
+                              )}
+                              <DocumentsTable
+                                documents={docsByYear[year]}
+                                folders={[]}
+                                onDelete={handleDelete}
+                                onFolderClick={handleFolderClick}
+                                onMoveDocument={handleMoveDocument}
+                                movingDocId={movingDocId}
+                                onShareDocument={handleShareDocument}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    }
+
+                    return (
+                      <div className="space-y-6">
+                        {/* Folders always at top (ungrouped) */}
+                        {filteredFolders.length > 0 && (
+                          <DocumentGrid
+                            documents={[]}
+                            folders={filteredFolders}
+                            onDeleteDocument={handleDelete}
+                            onDeleteFolder={handleDeleteFolder}
                             onFolderClick={handleFolderClick}
+                            onRenameFolder={handleRenameFolder}
                             onMoveDocument={handleMoveDocument}
                             movingDocId={movingDocId}
                             onShareDocument={handleShareDocument}
+                            onShareFolder={
+                              profile?.role === 'patient' ? handleShareFolder : undefined
+                            }
                           />
-                        </div>
-                      ))}
-                    </div>
-                  )
-                }
-
-                return (
-                  <div className="space-y-6">
-                    {/* Folders always at top (ungrouped) */}
-                    {filteredFolders.length > 0 && (
-                      <DocumentGrid
-                        documents={[]}
-                        folders={filteredFolders}
-                        onDeleteDocument={handleDelete}
-                        onDeleteFolder={handleDeleteFolder}
-                        onFolderClick={handleFolderClick}
-                        onRenameFolder={handleRenameFolder}
-                        onMoveDocument={handleMoveDocument}
-                        movingDocId={movingDocId}
-                        onShareDocument={handleShareDocument}
-                        onShareFolder={profile?.role === 'patient' ? handleShareFolder : undefined}
-                      />
-                    )}
-                    {years.map((year, idx) => (
-                      <div key={year}>
-                        {showYearGroups && (
-                          <div className="flex items-center gap-3 mb-3">
-                            <span className="text-sm font-bold text-gray-500 uppercase tracking-wider">
-                              {year}
-                            </span>
-                            <div className="flex-1 h-px bg-gray-200" />
-                            <span className="text-xs text-gray-400">
-                              {docsByYear[year].length} doc
-                              {docsByYear[year].length !== 1 ? 's' : ''}
-                            </span>
-                          </div>
                         )}
-                        <DocumentGrid
-                          documents={docsByYear[year]}
-                          folders={[]}
-                          onDeleteDocument={handleDelete}
-                          onDeleteFolder={handleDeleteFolder}
-                          onFolderClick={handleFolderClick}
-                          onRenameFolder={handleRenameFolder}
-                          onMoveDocument={handleMoveDocument}
-                          movingDocId={movingDocId}
-                          onShareDocument={handleShareDocument}
-                          onShareFolder={
-                            profile?.role === 'patient' ? handleShareFolder : undefined
-                          }
-                          showSecurityFooter={idx === years.length - 1}
-                        />
+                        {years.map((year, idx) => (
+                          <div key={year}>
+                            {showYearGroups && (
+                              <div className="flex items-center gap-3 mb-3">
+                                <span className="text-sm font-bold text-gray-500 uppercase tracking-wider">
+                                  {year}
+                                </span>
+                                <div className="flex-1 h-px bg-gray-200" />
+                                <span className="text-xs text-gray-400">
+                                  {docsByYear[year].length} doc
+                                  {docsByYear[year].length !== 1 ? 's' : ''}
+                                </span>
+                              </div>
+                            )}
+                            <DocumentGrid
+                              documents={docsByYear[year]}
+                              folders={[]}
+                              onDeleteDocument={handleDelete}
+                              onDeleteFolder={handleDeleteFolder}
+                              onFolderClick={handleFolderClick}
+                              onRenameFolder={handleRenameFolder}
+                              onMoveDocument={handleMoveDocument}
+                              movingDocId={movingDocId}
+                              onShareDocument={handleShareDocument}
+                              onShareFolder={
+                                profile?.role === 'patient' ? handleShareFolder : undefined
+                              }
+                              showSecurityFooter={idx === years.length - 1}
+                            />
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                )
-              })()
-            )}
+                    )
+                  })()}
           </>
         )}
       </div>
@@ -2060,7 +2226,7 @@ export default function Documentos() {
                   <button
                     type="submit"
                     disabled={uploading || !uploadForm.files.length}
-                    className="flex-1 px-4 py-2.5 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm cursor-pointer"
+                    className="flex-1 px-4 py-2.5 bg-[#33C7BE] hover:bg-teal-600 text-white rounded-xl transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm cursor-pointer shadow-sm shadow-teal-500/20"
                   >
                     {uploading ? (
                       <>
@@ -2139,7 +2305,7 @@ export default function Documentos() {
               <button
                 type="submit"
                 disabled={accessReqLoading || !accessReqEmail.trim()}
-                className="w-full py-2.5 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                className="w-full py-2.5 text-sm font-semibold text-white bg-[#33C7BE] rounded-xl hover:bg-teal-600 transition-all flex items-center justify-center gap-2 disabled:opacity-60 shadow-sm shadow-teal-500/20"
               >
                 {accessReqLoading ? (
                   <Loader2 size={15} className="animate-spin" />
@@ -2323,7 +2489,7 @@ export default function Documentos() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2.5 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors font-semibold text-sm shadow-sm cursor-pointer"
+                  className="flex-1 px-4 py-2.5 bg-[#33C7BE] hover:bg-teal-600 text-white rounded-xl transition-all font-semibold text-sm shadow-sm shadow-teal-500/20 cursor-pointer"
                 >
                   Crear Carpeta
                 </button>

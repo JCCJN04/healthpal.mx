@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+# Run environment switcher automatically on branch checkout ($3 == 1 indicates branch checkout)
+if [ "$3" = "1" ] || [ -z "$3" ]; then
+  node scripts/switch-env.mjs
+fi

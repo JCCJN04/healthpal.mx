@@ -22,7 +22,10 @@
     "privacy:backfill:stats": "node scripts/backfill-admin.mjs stats",
     "privacy:backfill:coverage": "node scripts/verify-backfill-coverage.mjs",
     "privacy:phase4:readiness": "node scripts/verify-phase4-readiness.mjs",
-    "test": "node --experimental-strip-types --test src/**/*.test.ts"
+    "test": "node --experimental-strip-types --test src/**/*.test.ts",
+    "env:sync": "node scripts/switch-env.mjs",
+    "env:staging": "node scripts/switch-env.mjs staging",
+    "env:prod": "node scripts/switch-env.mjs main"
   },
   "dependencies": {
     "@google/genai": "^1.43.0",
@@ -37,6 +40,7 @@
     "mammoth": "^1.12.0",
     "mapbox-gl": "^3.19.0",
     "motion": "^12.40.0",
+    "ogl": "^1.0.11",
     "pdf-lib": "^1.17.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

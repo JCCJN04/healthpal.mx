@@ -43,8 +43,10 @@ import {
 } from '@/shared/lib/queries/assistants'
 import { PatientProfile, DoctorProfile } from '@/shared/types/database'
 import { logger } from '@/shared/lib/logger'
+import { SpotlightCard } from '@/shared/components/ui/SpotlightCard'
 
-type TabType = 'general' | 'documents' | 'permissions' | 'assistants' | 'subscription'
+type TabType =
+  'general' | 'seguridad' | 'preferencias' | 'permissions' | 'assistants' | 'subscription'
 
 export default function Configuracion() {
   const { user, profile: authProfile, refreshProfile, signOut } = useAuth()
@@ -487,344 +489,390 @@ export default function Configuracion() {
 
   const tabs: { id: TabType; label: string; enabled: boolean; badge?: number }[] = isPatient
     ? [
-        { id: 'general', label: 'General', enabled: true },
+        { id: 'general', label: 'Perfil y Salud', enabled: true },
+        { id: 'seguridad', label: 'Seguridad', enabled: true },
+        { id: 'preferencias', label: 'Notificaciones', enabled: true },
         { id: 'permissions', label: 'Permisos', enabled: true, badge: pendingConsentCount },
-        { id: 'documents', label: 'Documentos del paciente', enabled: false },
       ]
     : isDoctor
       ? [
-          { id: 'general', label: 'General', enabled: true },
+          { id: 'general', label: 'Perfil y Consultorio', enabled: true },
+          { id: 'seguridad', label: 'Seguridad', enabled: true },
+          { id: 'preferencias', label: 'Notificaciones', enabled: true },
           { id: 'subscription', label: 'Suscripción', enabled: true },
           { id: 'assistants', label: 'Asistentes', enabled: true },
         ]
-      : [{ id: 'general', label: 'General', enabled: true }]
+      : [
+          { id: 'general', label: 'General', enabled: true },
+          { id: 'seguridad', label: 'Seguridad', enabled: true },
+          { id: 'preferencias', label: 'Notificaciones', enabled: true },
+        ]
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-[#F8F9FB] py-6 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-5xl mx-auto space-y-8">
-          {/* Page Header */}
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold text-gray-900">Tu configuración</h1>
-            <p className="text-base text-gray-600">
+      {/* Ambient decorative glowing orbs */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden z-0">
+        <div className="absolute top-20 right-10 w-96 h-96 bg-[#33C7BE]/6 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-8 w-80 h-80 bg-blue-400/5 rounded-full blur-3xl" />
+      </div>
+
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+        {/* Page Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
+              Configuración
+            </h1>
+            <p className="text-sm text-gray-500 mt-1">
               Administra tu información personal, seguridad y preferencias
             </p>
           </div>
+        </div>
 
-          {/* Tab Navigation */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-1 overflow-x-auto">
-            <div className="flex min-w-max gap-1">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  disabled={!tab.enabled}
-                  className={`whitespace-nowrap px-4 py-3 text-sm font-semibold rounded-lg transition-all ${
-                    activeTab === tab.id
-                      ? 'bg-[#33C7BE] text-white shadow-sm'
-                      : tab.enabled
-                        ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                        : 'text-gray-400 cursor-not-allowed'
-                  }`}
-                >
-                  {tab.label}
-                  {!tab.enabled && <span className="ml-2 text-xs opacity-75">(Próximamente)</span>}
-                  {tab.badge && tab.badge > 0 ? (
-                    <span className="ml-2 inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold rounded-full bg-red-500 text-white">
-                      {tab.badge}
-                    </span>
-                  ) : null}
-                </button>
-              ))}
-            </div>
+        {/* Tab Navigation */}
+        <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-gray-200/80 p-1.5 shadow-xs overflow-x-auto">
+          <div className="flex min-w-max gap-1">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                disabled={!tab.enabled}
+                className={`whitespace-nowrap px-4 py-2.5 text-sm font-semibold rounded-xl transition-all cursor-pointer ${
+                  activeTab === tab.id
+                    ? 'bg-[#33C7BE] text-white shadow-xs'
+                    : tab.enabled
+                      ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/70'
+                      : 'text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                {tab.label}
+                {!tab.enabled && <span className="ml-2 text-xs opacity-75">(Próximamente)</span>}
+                {tab.badge && tab.badge > 0 ? (
+                  <span className="ml-2 inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold rounded-full bg-red-500 text-white">
+                    {tab.badge}
+                  </span>
+                ) : null}
+              </button>
+            ))}
           </div>
+        </div>
 
-          {/* Tab Content */}
-          {activeTab === 'general' && (
-            <div className="space-y-6">
-              {/* Profile Summary Card */}
-              {userData && (
-                <ProfileCard
-                  name={userData.name}
-                  gender={userData.gender}
-                  age={userData.age}
-                  location={userData.location}
-                  avatarUrl={userData.avatarUrl}
-                  onChangePhoto={handleChangePhoto}
-                  onValidationError={(msg) => setToast({ message: msg, type: 'error' })}
-                />
-              )}
+        {/* Tab 1: General (Perfil y Datos) */}
+        {activeTab === 'general' && (
+          <div className="space-y-6">
+            {/* Profile Summary Card */}
+            {userData && (
+              <ProfileCard
+                name={userData.name}
+                gender={userData.gender}
+                age={userData.age}
+                location={userData.location}
+                avatarUrl={userData.avatarUrl}
+                role={isDoctor ? 'doctor' : 'patient'}
+                email={profile?.email}
+                onChangePhoto={handleChangePhoto}
+                onValidationError={(msg) => setToast({ message: msg, type: 'error' })}
+              />
+            )}
 
-              {/* Doctor Verification Card — only shown to doctors */}
-              {isDoctor && (
-                <DoctorVerificationCard
-                  doctorProfile={doctorProfile}
-                  userId={user?.id ?? ''}
+            {/* Doctor Verification Card — only shown to doctors */}
+            {isDoctor && (
+              <DoctorVerificationCard
+                doctorProfile={doctorProfile}
+                userId={user?.id ?? ''}
+                isLoading={isLoadingProfile}
+                onSaved={(updated) => {
+                  setDoctorProfile(updated)
+                  setToast({ message: '¡Perfil médico actualizado!', type: 'success' })
+                }}
+              />
+            )}
+
+            {/* Google Calendar Integration — doctors only */}
+            {isDoctor && (
+              <GoogleCalendarCard onToast={(msg, type) => setToast({ message: msg, type })} />
+            )}
+
+            {/* Personal Information Card */}
+            <div id="personal-info">
+              {personalInfo && (
+                <PersonalInfoCard
+                  initialData={personalInfo}
+                  onSave={handleSavePersonalInfo}
                   isLoading={isLoadingProfile}
-                  onSaved={(updated) => {
-                    setDoctorProfile(updated)
-                    setToast({ message: '¡Perfil médico actualizado!', type: 'success' })
-                  }}
+                  saveError={profileError}
                 />
               )}
+            </div>
 
-              {/* Personal Information Card */}
-              <div id="personal-info">
-                {personalInfo && (
-                  <PersonalInfoCard
-                    initialData={personalInfo}
-                    onSave={handleSavePersonalInfo}
-                    isLoading={isLoadingProfile}
-                    saveError={profileError}
-                  />
-                )}
-              </div>
-
-              {/* Emergency Contact — patients only */}
-              {isPatient && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                  <div className="flex items-center gap-3 mb-5">
-                    <div className="w-9 h-9 rounded-xl bg-orange-50 flex items-center justify-center flex-shrink-0">
-                      <Phone className="w-5 h-5 text-orange-500" />
-                    </div>
-                    <div>
-                      <h3 className="text-base font-bold text-gray-900">Contacto de emergencia</h3>
-                      <p className="text-xs text-gray-500">
-                        Persona a contactar en caso de urgencia
-                      </p>
-                    </div>
+            {/* Emergency Contact — patients only */}
+            {isPatient && (
+              <SpotlightCard
+                spotlightColor="rgba(249, 115, 22, 0.12)"
+                enableHoverLift={false}
+                className="bg-white rounded-3xl border border-gray-200/80 p-6 sm:p-7 shadow-sm"
+              >
+                <div className="flex items-center gap-3.5 mb-5">
+                  <div className="w-10 h-10 rounded-2xl bg-orange-50 border border-orange-100 flex items-center justify-center text-orange-500 shrink-0">
+                    <Phone className="w-5 h-5" />
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-500 mb-1.5">
-                        Nombre completo
-                      </label>
-                      <input
-                        type="text"
-                        value={medicalForm.emergency_contact_name}
-                        onChange={(e) =>
-                          setMedicalForm((f) => ({ ...f, emergency_contact_name: e.target.value }))
-                        }
-                        placeholder="Nombre del contacto"
-                        className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-500 mb-1.5">
-                        Teléfono
-                      </label>
-                      <input
-                        type="tel"
-                        value={medicalForm.emergency_contact_phone}
-                        onChange={(e) =>
-                          setMedicalForm((f) => ({
-                            ...f,
-                            emergency_contact_phone: sanitizePhone(e.target.value),
-                          }))
-                        }
-                        placeholder="55 1234 5678"
-                        maxLength={20}
-                        className={`w-full px-3 py-2.5 border rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/40 focus:border-[#33C7BE] ${medicalForm.emergency_contact_phone && !validatePhone(medicalForm.emergency_contact_phone) ? 'border-red-400' : 'border-gray-200'}`}
-                      />
-                      {medicalForm.emergency_contact_phone &&
-                        !validatePhone(medicalForm.emergency_contact_phone) && (
-                          <p className="text-[11px] text-red-500 mt-1">Debe tener 10–15 dígitos</p>
-                        )}
-                    </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">Contacto de emergencia</h3>
+                    <p className="text-xs text-gray-500">
+                      Persona y teléfono a contactar inmediatamente en caso de urgencia médica
+                    </p>
                   </div>
-                  <div className="flex justify-end mt-4">
-                    <button
-                      onClick={handleSaveEmergency}
-                      disabled={
-                        isSavingEmergency ||
-                        (!!medicalForm.emergency_contact_phone &&
-                          !validatePhone(medicalForm.emergency_contact_phone))
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                      Nombre completo
+                    </label>
+                    <input
+                      type="text"
+                      value={medicalForm.emergency_contact_name}
+                      onChange={(e) =>
+                        setMedicalForm((f) => ({ ...f, emergency_contact_name: e.target.value }))
                       }
-                      className="inline-flex items-center gap-2 px-5 py-2 bg-[#33C7BE] text-white text-sm font-semibold rounded-xl hover:bg-[#2ab5ac] transition-colors disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
-                    >
-                      {isSavingEmergency ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Guardando...
-                        </>
-                      ) : (
-                        <>
-                          <Save className="w-4 h-4" />
-                          Guardar
-                        </>
+                      placeholder="Ej. María Garza Treviño"
+                      className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/30 focus:border-[#33C7BE] transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                      Teléfono móvil
+                    </label>
+                    <input
+                      type="tel"
+                      value={medicalForm.emergency_contact_phone}
+                      onChange={(e) =>
+                        setMedicalForm((f) => ({
+                          ...f,
+                          emergency_contact_phone: sanitizePhone(e.target.value),
+                        }))
+                      }
+                      placeholder="55 1234 5678"
+                      maxLength={20}
+                      className={`w-full px-3.5 py-2.5 border rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/30 focus:border-[#33C7BE] transition-all ${medicalForm.emergency_contact_phone && !validatePhone(medicalForm.emergency_contact_phone) ? 'border-red-400' : 'border-gray-200'}`}
+                    />
+                    {medicalForm.emergency_contact_phone &&
+                      !validatePhone(medicalForm.emergency_contact_phone) && (
+                        <p className="text-[11px] text-red-500 mt-1">Debe tener 10–15 dígitos</p>
                       )}
+                  </div>
+                </div>
+                <div className="flex justify-end mt-5 pt-4 border-t border-gray-100">
+                  <button
+                    onClick={handleSaveEmergency}
+                    disabled={
+                      isSavingEmergency ||
+                      (!!medicalForm.emergency_contact_phone &&
+                        !validatePhone(medicalForm.emergency_contact_phone))
+                    }
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#33C7BE] hover:bg-teal-600 text-white text-xs sm:text-sm font-semibold rounded-xl transition-all shadow-sm shadow-teal-500/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    {isSavingEmergency ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Guardando...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        Guardar contacto
+                      </>
+                    )}
+                  </button>
+                </div>
+              </SpotlightCard>
+            )}
+          </div>
+        )}
+
+        {/* Tab 2: Seguridad */}
+        {activeTab === 'seguridad' && (
+          <div className="space-y-6">
+            {/* Security Card (Password) */}
+            <SecurityCard lastPasswordChange={undefined} onUpdatePassword={handleUpdatePassword} />
+
+            {/* MFA Card — NOM-024 §6.6.3 */}
+            <MfaCard />
+
+            {/* Data Export — patients only (NOM-024 §6.6.6) */}
+            {isPatient && <DataExportCard />}
+
+            {/* Access History — patients only (NOM-024 §6.6 trazabilidad) */}
+            {isPatient && <AccessHistoryCard />}
+
+            {/* Danger Zone */}
+            {!isAssistant && (
+              <SpotlightCard
+                spotlightColor="rgba(239, 68, 68, 0.12)"
+                enableHoverLift={false}
+                className="bg-rose-50/40 border border-rose-200/80 rounded-3xl p-6 sm:p-7 shadow-sm"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-2xl bg-rose-100/80 border border-rose-200 flex items-center justify-center flex-shrink-0 text-rose-600">
+                    <AlertTriangle className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-gray-900 mb-1">Zona Sensible</h3>
+                    <p className="text-xs text-gray-600 mb-4 leading-relaxed">
+                      Estas acciones son permanentes e irreversibles. La eliminación de tu cuenta
+                      borrará tus accesos, historial y configuraciones registradas de acuerdo con la
+                      normativa de privacidad.
+                    </p>
+                    <button
+                      onClick={() => setShowDeleteModal(true)}
+                      className="px-4 py-2.5 bg-white border border-rose-300 text-rose-700 hover:bg-rose-600 hover:text-white hover:border-rose-600 font-semibold text-xs sm:text-sm rounded-xl transition-all shadow-xs flex items-center gap-2 cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>Eliminar mi cuenta</span>
                     </button>
                   </div>
                 </div>
-              )}
+              </SpotlightCard>
+            )}
+          </div>
+        )}
 
-              {/* Security Card */}
-              <SecurityCard
-                lastPasswordChange={undefined} // TODO: Track password changes
-                onUpdatePassword={handleUpdatePassword}
+        {/* Tab 3: Preferencias */}
+        {activeTab === 'preferencias' && (
+          <div className="space-y-6">
+            {preferences && (
+              <PreferencesCard
+                initialPreferences={preferences}
+                onSave={handleSavePreferences}
+                isLoading={isLoadingSettings}
               />
+            )}
+          </div>
+        )}
 
-              {/* MFA Card — NOM-024 §6.6.3 */}
-              <MfaCard />
+        {/* Tab 4: Permisos (Pacientes) */}
+        {activeTab === 'permissions' && isPatient && <PatientConsentManager />}
 
-              {/* Preferences Card */}
-              {preferences && (
-                <PreferencesCard
-                  initialPreferences={preferences}
-                  onSave={handleSavePreferences}
-                  isLoading={isLoadingSettings}
+        {/* Tab 5: Suscripción (Médicos) */}
+        {activeTab === 'subscription' && isDoctor && (
+          <SubscriptionCard onToast={(msg, type) => setToast({ message: msg, type })} />
+        )}
+
+        {/* Tab 6: Asistentes (Médicos) */}
+        {activeTab === 'assistants' && isDoctor && (
+          <div className="space-y-5">
+            <SpotlightCard
+              spotlightColor="rgba(51, 199, 190, 0.15)"
+              enableHoverLift={false}
+              className="bg-white rounded-3xl border border-gray-200/80 p-6 sm:p-7 shadow-sm"
+            >
+              <div className="flex items-center gap-3.5 mb-2">
+                <div className="w-10 h-10 rounded-2xl bg-teal-50 border border-teal-100 flex items-center justify-center text-[#33C7BE]">
+                  <UserCircle2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Equipo y Asistentes</h2>
+                  <p className="text-xs text-gray-500">
+                    Gestiona quién tiene acceso de recepción a tu agenda
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-gray-600 mb-6 bg-teal-50/50 border border-teal-100/60 rounded-xl p-3 leading-relaxed">
+                🔒 <strong className="text-teal-900">Aislamiento de seguridad:</strong> Tus
+                asistentes solo pueden ver y gestionar los horarios de tu agenda. No tienen acceso a
+                expedientes clínicos, recetas ni documentos cifrados de tus pacientes.
+              </p>
+
+              {/* Add assistant form */}
+              <form onSubmit={handleAddAssistant} className="flex flex-col sm:flex-row gap-3 mb-6">
+                <input
+                  type="email"
+                  placeholder="correo-asistente@consultorio.com"
+                  value={newAssistantEmail}
+                  onChange={(e) => setNewAssistantEmail(e.target.value)}
+                  className="flex-1 px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#33C7BE]/30 focus:border-[#33C7BE] transition-all"
+                  required
                 />
-              )}
+                <button
+                  type="submit"
+                  disabled={addingAssistant || !newAssistantEmail.trim()}
+                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[#33C7BE] hover:bg-teal-600 text-white text-xs sm:text-sm font-semibold rounded-xl transition-all shadow-sm shadow-teal-500/20 disabled:opacity-50 cursor-pointer"
+                >
+                  {addingAssistant ? (
+                    <Loader2 size={15} className="animate-spin" />
+                  ) : (
+                    <Plus size={15} />
+                  )}
+                  <span>Agregar asistente</span>
+                </button>
+              </form>
 
-              {/* Google Calendar Integration — doctors only */}
-              {isDoctor && (
-                <GoogleCalendarCard onToast={(msg, type) => setToast({ message: msg, type })} />
-              )}
-
-              {/* Data Export — patients only (NOM-024 §6.6.6) */}
-              {isPatient && <DataExportCard />}
-
-              {/* Access History — patients only (NOM-024 §6.6 trazabilidad) */}
-              {isPatient && <AccessHistoryCard />}
-
-              {/* Danger Zone */}
-              {!isAssistant && (
-                <div className="bg-red-50 border-2 border-red-100 rounded-xl p-6">
-                  <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
-                      <AlertTriangle className="w-5 h-5 text-red-600" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold text-red-900 mb-2">Zona sensible</h3>
-                      <p className="text-sm text-red-800 mb-4">
-                        Estas acciones son permanentes y no se pueden deshacer. Por favor, procede
-                        con precaución.
-                      </p>
-                      <button
-                        onClick={() => setShowDeleteModal(true)}
-                        className="px-5 py-2.5 border-2 border-red-300 text-red-700 font-semibold rounded-lg hover:bg-red-100 transition-colors flex items-center gap-2"
+              {/* Assistants list */}
+              {assistantsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 size={22} className="animate-spin text-[#33C7BE]" />
+                </div>
+              ) : assistants.length === 0 ? (
+                <div className="text-center py-10 text-gray-400 bg-gray-50/60 rounded-2xl border border-dashed border-gray-200">
+                  <UserCircle2 size={36} className="mx-auto mb-2 text-gray-300" />
+                  <p className="text-sm font-semibold text-gray-600">Sin asistentes registrados</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Ingresa el correo de tu secretaria o asistente para vincularla
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {assistants.map((a) => (
+                    <div
+                      key={a.id}
+                      className="flex items-center gap-3.5 p-3.5 rounded-2xl border border-gray-100 bg-gray-50/50 hover:bg-white hover:border-teal-200 transition-all"
+                    >
+                      <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-teal-400 to-[#33C7BE] text-white flex items-center justify-center shrink-0 shadow-xs">
+                        {a.assistant?.avatar_url ? (
+                          <img
+                            src={a.assistant.avatar_url}
+                            className="w-10 h-10 rounded-2xl object-cover"
+                          />
+                        ) : (
+                          <span className="text-sm font-bold">
+                            {(a.assistant?.full_name ?? a.assistant_email ?? 'A')[0].toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-gray-900 truncate">
+                          {a.assistant?.full_name ?? a.assistant_email}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">{a.assistant_email}</p>
+                      </div>
+                      <span
+                        className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border flex-shrink-0 ${
+                          a.status === 'active'
+                            ? 'bg-green-50 text-green-700 border-green-200'
+                            : a.status === 'pending'
+                              ? 'bg-amber-50 text-amber-700 border-amber-200'
+                              : 'bg-gray-100 text-gray-600 border-gray-200'
+                        }`}
                       >
-                        <Trash2 className="w-4 h-4" />
-                        <span>Eliminar mi cuenta</span>
+                        {a.status === 'active'
+                          ? 'Activo'
+                          : a.status === 'pending'
+                            ? 'Pendiente'
+                            : 'Inactivo'}
+                      </span>
+                      <button
+                        onClick={() => handleRemoveAssistant(a.id)}
+                        title="Eliminar asistente"
+                        className="p-2 rounded-xl hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
+                      >
+                        <X size={16} />
                       </button>
                     </div>
-                  </div>
+                  ))}
                 </div>
               )}
-            </div>
-          )}
-
-          {activeTab === 'permissions' && isPatient && <PatientConsentManager />}
-
-          {activeTab === 'subscription' && isDoctor && (
-            <SubscriptionCard onToast={(msg, type) => setToast({ message: msg, type })} />
-          )}
-
-          {activeTab === 'assistants' && isDoctor && (
-            <div className="space-y-5">
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <h2 className="text-lg font-bold text-gray-900 mb-1">Asistentes</h2>
-                <p className="text-sm text-gray-500 mb-5">
-                  Tus asistentes solo pueden ver y gestionar tu agenda. No tienen acceso a
-                  información clínica ni documentos de pacientes.
-                </p>
-
-                {/* Add assistant form */}
-                <form onSubmit={handleAddAssistant} className="flex gap-3 mb-6">
-                  <input
-                    type="email"
-                    placeholder="Correo del asistente"
-                    value={newAssistantEmail}
-                    onChange={(e) => setNewAssistantEmail(e.target.value)}
-                    className="flex-1 px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
-                    required
-                  />
-                  <button
-                    type="submit"
-                    disabled={addingAssistant || !newAssistantEmail.trim()}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary/90 disabled:opacity-50 transition-colors"
-                  >
-                    {addingAssistant ? (
-                      <Loader2 size={15} className="animate-spin" />
-                    ) : (
-                      <Plus size={15} />
-                    )}
-                    Agregar
-                  </button>
-                </form>
-
-                {/* Assistants list */}
-                {assistantsLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 size={20} className="animate-spin text-gray-400" />
-                  </div>
-                ) : assistants.length === 0 ? (
-                  <div className="text-center py-8 text-gray-400">
-                    <UserCircle2 size={32} className="mx-auto mb-2 text-gray-200" />
-                    <p className="text-sm">Aún no tienes asistentes registrados</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {assistants.map((a) => (
-                      <div
-                        key={a.id}
-                        className="flex items-center gap-3 p-3 rounded-xl border border-gray-100"
-                      >
-                        <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                          {a.assistant?.avatar_url ? (
-                            <img src={a.assistant.avatar_url} className="w-9 h-9 object-cover" />
-                          ) : (
-                            <UserCircle2 size={18} className="text-gray-400" />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-gray-900 truncate">
-                            {a.assistant?.full_name ?? a.assistant_email}
-                          </p>
-                          <p className="text-xs text-gray-500 truncate">{a.assistant_email}</p>
-                        </div>
-                        <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full border flex-shrink-0 ${
-                            a.status === 'active'
-                              ? 'bg-green-50 text-green-600 border-green-100'
-                              : a.status === 'pending'
-                                ? 'bg-amber-50 text-amber-600 border-amber-100'
-                                : 'bg-gray-100 text-gray-500 border-gray-200'
-                          }`}
-                        >
-                          {a.status === 'active'
-                            ? 'Activo'
-                            : a.status === 'pending'
-                              ? 'Pendiente'
-                              : 'Suspendido'}
-                        </span>
-                        <button
-                          onClick={() => handleRemoveAssistant(a.id)}
-                          title="Eliminar asistente"
-                          className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
-                        >
-                          <X size={15} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'documents' && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-              <div className="w-16 h-16 bg-gradient-to-br from-teal-100 to-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <AlertTriangle className="w-8 h-8 text-[#33C7BE]" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Próximamente</h3>
-              <p className="text-gray-600">
-                La sección de documentos del paciente estará disponible pronto
-              </p>
-            </div>
-          )}
-        </div>
+            </SpotlightCard>
+          </div>
+        )}
       </div>
 
       {/* Delete Account Confirmation Modal */}

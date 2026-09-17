@@ -1,18 +1,8 @@
 import { useState, useEffect } from 'react'
-import {
-  Edit2,
-  Save,
-  X,
-  Mail,
-  Phone,
-  Calendar,
-  User,
-  MapPin,
-  Loader2,
-  CreditCard,
-} from 'lucide-react'
+import { Edit2, Save, Mail, Phone, Calendar, User, MapPin, Loader2, CreditCard } from 'lucide-react'
 import { logger } from '@/shared/lib/logger'
 import { validateCurp, normalizeCurp, INEGI_STATES } from '@/shared/lib/curp'
+import { SpotlightCard } from '@/shared/components/ui/SpotlightCard'
 
 interface PersonalInfo {
   fullName: string
@@ -126,16 +116,30 @@ const PersonalInfoCard = ({
   const estadoLabel = INEGI_STATES.find((s) => s.code === formData.estadoNacimiento)?.name ?? ''
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <SpotlightCard
+      spotlightColor="rgba(51, 199, 190, 0.14)"
+      enableHoverLift={false}
+      className="rounded-3xl border border-gray-200/80 bg-white/90 backdrop-blur-sm shadow-sm overflow-hidden"
+    >
       {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-        <h3 className="text-lg font-bold text-gray-900">Información personal</h3>
+      <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-teal-50 border border-teal-100/70 flex items-center justify-center text-[#33C7BE]">
+            <User className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">Información Personal</h3>
+            <p className="text-xs text-gray-500">
+              Datos de identidad oficial, contacto y residencia
+            </p>
+          </div>
+        </div>
         {!isEditing && (
           <button
             onClick={() => setIsEditing(true)}
-            className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-[#33C7BE] hover:bg-teal-50 rounded-lg transition-colors flex items-center gap-2"
+            className="px-4 py-2 text-xs sm:text-sm font-semibold text-[#33C7BE] hover:text-white bg-teal-50/80 hover:bg-[#33C7BE] border border-teal-200/70 rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-xs"
           >
-            <Edit2 className="w-4 h-4" />
+            <Edit2 className="w-3.5 h-3.5" />
             <span>Editar información</span>
           </button>
         )}
@@ -428,15 +432,14 @@ const PersonalInfoCard = ({
             <button
               onClick={handleCancel}
               disabled={isSaving}
-              className="px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2.5 text-xs sm:text-sm font-semibold text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer disabled:opacity-50"
             >
-              <X className="w-4 h-4" />
-              <span>Cancelar</span>
+              Cancelar
             </button>
             <button
               onClick={handleSave}
               disabled={isSaving}
-              className="px-5 py-2.5 bg-[#33C7BE] text-white text-sm font-semibold rounded-lg hover:bg-teal-600 transition-colors flex items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#33C7BE] hover:bg-teal-600 text-white font-semibold text-xs sm:text-sm rounded-xl transition-all shadow-sm shadow-teal-500/20 cursor-pointer disabled:opacity-50"
             >
               {isSaving ? (
                 <>
@@ -453,7 +456,7 @@ const PersonalInfoCard = ({
           </div>
         )}
       </div>
-    </div>
+    </SpotlightCard>
   )
 }
 

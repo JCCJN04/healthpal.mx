@@ -1509,7 +1509,7 @@ export default function Recetas() {
       const preselect = searchParams.get('patientId')
       if (preselect) {
         const found = pts.find((p: PatientProfileLite) => p.id === preselect)
-        if (found) void handleSelectPatient(found.id, found.full_name ?? '')
+        void handleSelectPatient(preselect, found?.full_name ?? '')
       }
       // Auto-open new recipe form from URL param
       if (searchParams.get('newRx') === '1') {
