@@ -258,7 +258,7 @@ export function DocumentPreviewModal({ document, onClose, onShare }: DocumentPre
         exit={{ opacity: 0, scale: 0.96, y: 12 }}
         transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
         className="relative bg-white flex flex-col w-full h-full sm:h-auto sm:max-h-[95vh] sm:w-[92vw] sm:max-w-4xl sm:m-auto sm:rounded-2xl sm:shadow-2xl overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e: React.MouseEvent) => e.stopPropagation()}
       >
         {/* ── Header ────────────────────────────────────────── */}
         <div className={`h-1.5 w-full bg-gradient-to-r ${config.gradient} shrink-0`} />

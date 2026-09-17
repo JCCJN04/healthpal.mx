@@ -41,6 +41,7 @@ import {
   Thermometer,
   Droplet,
   HeartPulse,
+  type LucideIcon,
 } from 'lucide-react'
 import DashboardLayout from '@/app/layout/DashboardLayout'
 import { SpotlightCard } from '@/shared/components/ui/SpotlightCard'
@@ -1446,7 +1447,7 @@ export default function PatientDetail() {
                     const lastNote = notes[0]
                     const signals: {
                       type: 'danger' | 'warning' | 'info' | 'neutral'
-                      icon: React.ComponentType<{ size?: number; className?: string }>
+                      icon: LucideIcon
                       label: string
                       value: string
                       action?: string

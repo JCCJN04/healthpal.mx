@@ -71,12 +71,12 @@ export const FolderCard = ({
       <SpotlightCard
         variants={fadeUpVariant}
         onClick={() => onClick(folder.id, folder.name)}
-        onDragOver={(e) => {
+        onDragOver={(e: React.DragEvent) => {
           e.preventDefault()
           e.stopPropagation()
           if (onDropDocument) setIsDragOver(true)
         }}
-        onDragLeave={(e) => {
+        onDragLeave={(e: React.DragEvent) => {
           e.stopPropagation()
           setIsDragOver(false)
         }}
@@ -142,13 +142,13 @@ export const FolderCard = ({
   return (
     <SpotlightCard
       onClick={() => onClick(folder.id, folder.name)}
-      onDragOver={(e) => {
+      onDragOver={(e: React.DragEvent) => {
         e.preventDefault()
         e.stopPropagation()
         if (!onDropDocument) return
         setIsDragOver(true)
       }}
-      onDragLeave={(e) => {
+      onDragLeave={(e: React.DragEvent) => {
         e.stopPropagation()
         setIsDragOver(false)
       }}
